@@ -167,10 +167,10 @@ export const createProperty = async (req, res, next) => {
     } = req.body;
 
     // Validation
-    if (!propertyNumber || !wardId || !propertyType || !address || !city || !state || !pincode || !area) {
+    if (!propertyNumber || !wardId || !propertyType || !address || !city || !state || !pincode || !area || !ownerName || !ownerPhone) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields: propertyNumber, wardId, propertyType, address, city, state, pincode, area'
+        message: 'Missing required fields: propertyNumber, wardId, propertyType, address, city, state, pincode, area, ownerName, ownerPhone'
       });
     }
 
@@ -196,7 +196,7 @@ export const createProperty = async (req, res, next) => {
 
     const property = await Property.create({
       propertyNumber,
-      ownerId: ownerId || req.user.id,
+      ownerId: ownerId || req.user.id, // Set to current user if not provided (for database constraint)
       ownerName,
       ownerPhone,
       wardId,
@@ -251,6 +251,20 @@ export const updateProperty = async (req, res, next) => {
       return res.status(404).json({
         success: false,
         message: 'Property not found'
+      });
+    }
+
+    // Validate ownerName and ownerPhone if they are being updated
+    if (updateData.hasOwnProperty('ownerName') && !updateData.ownerName) {
+      return res.status(400).json({
+        success: false,
+        message: 'Owner name is required'
+      });
+    }
+    if (updateData.hasOwnProperty('ownerPhone') && !updateData.ownerPhone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Owner phone is required'
       });
     }
 

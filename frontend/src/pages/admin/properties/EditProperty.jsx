@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { propertyAPI, wardAPI, userAPI } from '../../../services/api';
+import { propertyAPI, wardAPI } from '../../../services/api';
 import toast from 'react-hot-toast';
 import Loading from '../../../components/Loading';
 import { ArrowLeft, Save } from 'lucide-react';
@@ -12,7 +12,6 @@ const EditProperty = () => {
   const [loading, setLoading] = useState(false);
   const [loadingProperty, setLoadingProperty] = useState(true);
   const [wards, setWards] = useState([]);
-  const [users, setUsers] = useState([]);
 
   const {
     register,
@@ -29,20 +28,17 @@ const EditProperty = () => {
   const fetchData = async () => {
     try {
       setLoadingProperty(true);
-      const [propertyRes, wardsRes, usersRes] = await Promise.all([
+      const [propertyRes, wardsRes] = await Promise.all([
         propertyAPI.getById(id),
-        wardAPI.getAll(),
-        userAPI.getAll({ role: 'citizen', limit: 100 })
+        wardAPI.getAll()
       ]);
 
       const property = propertyRes.data.data.property;
       setWards(wardsRes.data.data.wards);
-      setUsers(usersRes.data.data.users);
 
       // Set form values
       reset({
         propertyNumber: property.propertyNumber,
-        ownerId: property.ownerId,
         ownerName: property.ownerName || '',
         ownerPhone: property.ownerPhone || '',
         wardId: property.wardId,
@@ -156,36 +152,33 @@ const EditProperty = () => {
             </div>
 
             <div>
-              <label className="label">Owner <span className="text-red-500">*</span></label>
-              <select
-                {...register('ownerId', { required: 'Owner is required' })}
-                className="input"
-              >
-                <option value="">Select Owner</option>
-                {users.map(user => (
-                  <option key={user.id} value={user.id}>
-                    {user.firstName} {user.lastName} ({user.email})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="label">Owner Name</label>
+              <label className="label">
+                Owner Name <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
-                {...register('ownerName')}
+                {...register('ownerName', { required: 'Owner name is required' })}
                 className="input"
+                placeholder="Enter owner's full name"
               />
+              {errors.ownerName && (
+                <p className="text-red-500 text-sm mt-1">{errors.ownerName.message}</p>
+              )}
             </div>
 
             <div>
-              <label className="label">Owner Phone</label>
+              <label className="label">
+                Owner Phone <span className="text-red-500">*</span>
+              </label>
               <input
                 type="tel"
-                {...register('ownerPhone')}
+                {...register('ownerPhone', { required: 'Owner phone is required' })}
                 className="input"
+                placeholder="+91 1234567890"
               />
+              {errors.ownerPhone && (
+                <p className="text-red-500 text-sm mt-1">{errors.ownerPhone.message}</p>
+              )}
             </div>
           </div>
         </div>

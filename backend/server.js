@@ -3,6 +3,7 @@ import cors from 'cors';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { sequelize } from './config/database.js';
+import { testConnection as testPgConnection, closePool } from './db.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 // Import models to initialize associations
@@ -23,8 +24,18 @@ import citizenRoutes from './routes/citizen.routes.js';
 dotenv.config();
 
 // Validate required environment variables
-const requiredEnvVars = ['DB_NAME', 'DB_USER', 'DB_PASSWORD', 'JWT_SECRET'];
+const requiredEnvVars = ['JWT_SECRET'];
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+
+// Check for database configuration (either DATABASE_URL or individual DB vars)
+const hasDatabaseUrl = !!process.env.DATABASE_URL;
+const hasIndividualDbVars = !!(process.env.DB_NAME && process.env.DB_USER && process.env.DB_PASSWORD);
+
+if (!hasDatabaseUrl && !hasIndividualDbVars) {
+  console.error('❌ Missing database configuration:');
+  console.error('   Either provide DATABASE_URL or all of: DB_NAME, DB_USER, DB_PASSWORD');
+  missingEnvVars.push('DATABASE_URL or (DB_NAME, DB_USER, DB_PASSWORD)');
+}
 
 if (missingEnvVars.length > 0) {
   console.error('❌ Missing required environment variables:');
@@ -53,6 +64,37 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'HTCMS Backend is running' });
 });
 
+// Database Test Route
+app.get('/api/db-test', async (req, res) => {
+  try {
+    const result = await testPgConnection();
+    if (result.success) {
+      res.status(200).json({
+        status: 'success',
+        message: result.message,
+        timestamp: result.time,
+        database: 'Connected to Supabase PostgreSQL'
+      });
+    } else {
+      res.status(500).json({
+        status: 'error',
+        message: 'Database connection failed',
+        error: result.error
+      });
+    }
+  } catch (error) {
+    console.error('❌ Database test route error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to test database connection',
+      error: {
+        message: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      }
+    });
+  }
+});
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -75,9 +117,25 @@ app.use((req, res) => {
 // Database Connection and Server Start
 const startServer = async () => {
   try {
-    // Test database connection
-    await sequelize.authenticate();
-    console.log('✅ Database connection established successfully.');
+    // Test PostgreSQL connection (Supabase)
+    console.log('🔌 Testing PostgreSQL connection...');
+    const pgResult = await testPgConnection();
+    if (!pgResult.success) {
+      console.error('❌ PostgreSQL connection failed. Server will not start.');
+      console.error('   Please check your DATABASE_URL environment variable.');
+      process.exit(1);
+    }
+
+    // Test Sequelize connection (for ORM models)
+    try {
+      await sequelize.authenticate();
+      console.log('✅ Sequelize connection established successfully.');
+      console.log('📊 All database operations will use Supabase PostgreSQL');
+    } catch (sequelizeError) {
+      console.error('❌ Sequelize connection failed:', sequelizeError.message);
+      console.error('   Please check your DATABASE_URL configuration.');
+      process.exit(1);
+    }
 
     // Sync database (use with caution in production)
     if (process.env.NODE_ENV === 'development') {
@@ -89,9 +147,15 @@ const startServer = async () => {
     app.listen(PORT, () => {
       console.log(`🚀 Server is running on port ${PORT}`);
       console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🔗 Database test endpoint: http://localhost:${PORT}/api/db-test`);
     });
   } catch (error) {
     console.error('❌ Unable to start server:', error);
+    console.error('   Error details:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
     process.exit(1);
   }
 };
@@ -99,8 +163,18 @@ const startServer = async () => {
 startServer();
 
 // Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM signal received: closing HTTP server');
-  await sequelize.close();
-  process.exit(0);
-});
+const shutdown = async (signal) => {
+  console.log(`${signal} signal received: closing HTTP server`);
+  try {
+    await closePool();
+    await sequelize.close();
+    console.log('✅ All database connections closed');
+    process.exit(0);
+  } catch (error) {
+    console.error('❌ Error during shutdown:', error);
+    process.exit(1);
+  }
+};
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
