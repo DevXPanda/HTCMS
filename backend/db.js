@@ -5,84 +5,67 @@ dotenv.config();
 
 const { Pool } = pg;
 
-// Parse DATABASE_URL if provided, otherwise use individual env vars
+// Use only DATABASE_URL for Render deployment
+if (!process.env.DATABASE_URL) {
+  console.error('❌ DATABASE_URL environment variable is required');
+  process.exit(1);
+}
+
+const connectionString = process.env.DATABASE_URL;
+const isSupabase = connectionString.includes('supabase.co');
+
 let poolConfig;
 
-if (process.env.DATABASE_URL) {
-  const connectionString = process.env.DATABASE_URL;
-  
-  // Check if it's a Supabase connection
-  const isSupabase = connectionString.includes('supabase.co');
-  
-  // For Supabase, parse connection string and build config explicitly
-  // This ensures SSL settings are properly applied
-  if (isSupabase) {
-    try {
-      // Parse the connection string
-      const url = new URL(connectionString);
-      
-      // Extract components
-      const user = decodeURIComponent(url.username);
-      const password = decodeURIComponent(url.password);
-      const hostname = url.hostname;
-      const port = parseInt(url.port) || 5432;
-      const database = url.pathname.slice(1) || 'postgres';
-      
-      poolConfig = {
-        user: user,
-        password: password,
-        host: hostname,
-        port: port,
-        database: database,
-        // Explicit SSL configuration for Supabase
-        ssl: {
-          rejectUnauthorized: false  // Required for Supabase's SSL certificates
-        },
-        max: 20,
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
-      };
-      
-      console.log(`🔌 Connecting to PostgreSQL (Supabase: yes)`);
-      console.log(`🌐 Hostname: ${hostname}`);
-      console.log(`🔒 SSL Configuration: rejectUnauthorized=false`);
-    } catch (parseError) {
-      // If parsing fails, fall back to connection string with SSL option
-      console.warn('⚠️  Could not parse DATABASE_URL, using connection string:', parseError.message);
-      poolConfig = {
-        connectionString: connectionString,
-        ssl: {
-          rejectUnauthorized: false
-        },
-        max: 20,
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
-      };
-    }
-  } else {
-    // For non-Supabase connections, use connection string as-is
+// Parse connection string and build config explicitly for Supabase
+if (isSupabase) {
+  try {
+    // Parse the connection string
+    const url = new URL(connectionString);
+    
+    // Extract components
+    const user = decodeURIComponent(url.username);
+    const password = decodeURIComponent(url.password);
+    const hostname = url.hostname;
+    const port = parseInt(url.port) || 5432;
+    const database = url.pathname.slice(1) || 'postgres';
+    
     poolConfig = {
-      connectionString: connectionString,
+      user: user,
+      password: password,
+      host: hostname,
+      port: port,
+      database: database,
+      // Explicit SSL configuration for Supabase
+      ssl: {
+        require: true,
+        rejectUnauthorized: false  // Required for Supabase's SSL certificates
+      },
       max: 20,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,
     };
-    
-    console.log(`🔌 Connecting to PostgreSQL (Supabase: no)`);
+  } catch (parseError) {
+    // If parsing fails, fall back to connection string with SSL option
+    console.warn('⚠️  Could not parse DATABASE_URL, using connection string:', parseError.message);
+    poolConfig = {
+      connectionString: connectionString,
+      ssl: {
+        require: true,
+        rejectUnauthorized: false
+      },
+      max: 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 2000,
+    };
   }
 } else {
-  // Fallback to individual environment variables
-  const isSupabase = process.env.DB_HOST?.includes('supabase.co');
-  
+  // For non-Supabase PostgreSQL connections
   poolConfig = {
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT) || 5432,
-    database: process.env.DB_NAME,
-    ssl: isSupabase ? {
+    connectionString: connectionString,
+    ssl: {
+      require: true,
       rejectUnauthorized: false
-    } : false,
+    },
     max: 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 2000,

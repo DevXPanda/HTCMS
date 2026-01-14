@@ -24,26 +24,15 @@ import citizenRoutes from './routes/citizen.routes.js';
 dotenv.config();
 
 // Validate required environment variables
-const requiredEnvVars = ['JWT_SECRET'];
+const requiredEnvVars = ['JWT_SECRET', 'DATABASE_URL'];
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
-
-// Check for database configuration (either DATABASE_URL or individual DB vars)
-const hasDatabaseUrl = !!process.env.DATABASE_URL;
-const hasIndividualDbVars = !!(process.env.DB_NAME && process.env.DB_USER && process.env.DB_PASSWORD);
-
-if (!hasDatabaseUrl && !hasIndividualDbVars) {
-  console.error('❌ Missing database configuration:');
-  console.error('   Either provide DATABASE_URL or all of: DB_NAME, DB_USER, DB_PASSWORD');
-  missingEnvVars.push('DATABASE_URL or (DB_NAME, DB_USER, DB_PASSWORD)');
-}
 
 if (missingEnvVars.length > 0) {
   console.error('❌ Missing required environment variables:');
   missingEnvVars.forEach(varName => {
     console.error(`   - ${varName}`);
   });
-  console.error('\n📝 Please create a .env file in the backend directory.');
-  console.error('   You can copy .env.example and fill in the values.\n');
+  console.error('\n📝 Please set the required environment variables.');
   process.exit(1);
 }
 
@@ -59,7 +48,17 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
-// Health Check Route
+// Root route
+app.get('/', (req, res) => {
+  res.json({ message: 'Backend running' });
+});
+
+// Health check route
+app.get('/health', (req, res) => {
+  res.json({ health: 'ok' });
+});
+
+// API Health Check Route
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'HTCMS Backend is running' });
 });
@@ -114,9 +113,36 @@ app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
+// Helper function to mask database URL for logging
+const maskDatabaseUrl = (url) => {
+  if (!url) return 'Not set';
+  try {
+    const urlObj = new URL(url);
+    const maskedPassword = urlObj.password ? '*'.repeat(Math.min(urlObj.password.length, 8)) : '';
+    return `${urlObj.protocol}//${urlObj.username}:${maskedPassword}@${urlObj.hostname}:${urlObj.port}${urlObj.pathname}`;
+  } catch {
+    return 'Invalid URL format';
+  }
+};
+
 // Database Connection and Server Start
 const startServer = async () => {
   try {
+    // Log startup information
+    console.log('🚀 Starting HTCMS Backend Server...');
+    console.log(`📦 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🔌 Database URL: ${maskDatabaseUrl(process.env.DATABASE_URL)}`);
+    
+    // Extract hostname from DATABASE_URL for logging
+    let dbHostname = 'Unknown';
+    try {
+      const url = new URL(process.env.DATABASE_URL);
+      dbHostname = url.hostname;
+      console.log(`🌐 Database Hostname: ${dbHostname}`);
+    } catch (e) {
+      console.warn('⚠️  Could not parse DATABASE_URL hostname');
+    }
+
     // Test PostgreSQL connection (Supabase)
     console.log('🔌 Testing PostgreSQL connection...');
     const pgResult = await testPgConnection();
@@ -144,17 +170,20 @@ const startServer = async () => {
     }
 
     // Start server
-    app.listen(PORT, () => {
-      console.log(`🚀 Server is running on port ${PORT}`);
-      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`🔗 Database test endpoint: http://localhost:${PORT}/api/db-test`);
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`✅ Server is running on port ${PORT}`);
+      console.log(`🔗 Root endpoint: http://0.0.0.0:${PORT}/`);
+      console.log(`🔗 Health endpoint: http://0.0.0.0:${PORT}/health`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🔗 Database test endpoint: http://localhost:${PORT}/api/db-test`);
+      }
     });
   } catch (error) {
     console.error('❌ Unable to start server:', error);
     console.error('   Error details:', {
       message: error.message,
       code: error.code,
-      stack: error.stack
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
     process.exit(1);
   }
