@@ -6,6 +6,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    // Proxy only in development mode
+    // In production, the frontend will call the backend directly using VITE_API_URL
     proxy: {
       '/api': {
         target: 'http://localhost:5000',

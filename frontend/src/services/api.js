@@ -1,8 +1,13 @@
 import axios from 'axios';
 
-// Create axios instance
+// Get API URL from environment variable
+// In development: VITE_API_URL=http://localhost:5000
+// In production: VITE_API_URL=https://htcms-2.onrender.com
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+// Create axios instance with environment-based base URL
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: `${API_BASE_URL}/api`,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -28,7 +33,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       const url = error.config?.url || '';
-      
+
       // Only clear token for authentication endpoint failures
       // This means the token itself is invalid/expired
       if (url.includes('/auth/me')) {
