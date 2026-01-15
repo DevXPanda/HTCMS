@@ -1,5 +1,6 @@
 import { Ward, User, Property, Demand, Payment } from '../models/index.js';
 import { Op } from 'sequelize';
+import { auditLogger } from '../utils/auditLogger.js';
 
 /**
  * @route   GET /api/wards
@@ -131,6 +132,16 @@ export const createWard = async (req, res, next) => {
       ]
     });
 
+    // Log ward creation
+    await auditLogger.logCreate(
+      req,
+      req.user,
+      'Ward',
+      ward.id,
+      { wardNumber: ward.wardNumber, wardName: ward.wardName, collectorId: ward.collectorId },
+      `Created ward: ${ward.wardNumber} - ${ward.wardName}`
+    );
+
     res.status(201).json({
       success: true,
       message: 'Ward created successfully',
@@ -159,6 +170,12 @@ export const updateWard = async (req, res, next) => {
       });
     }
 
+    // Capture previous data for audit log
+    const previousData = {
+      wardName: ward.wardName,
+      collectorId: ward.collectorId
+    };
+
     // Validate collector if provided
     if (collectorId) {
       const collector = await User.findByPk(collectorId);
@@ -170,11 +187,45 @@ export const updateWard = async (req, res, next) => {
       }
     }
 
+    const isCollectorAssignment = collectorId !== undefined && collectorId !== ward.collectorId;
+    
     if (wardName) ward.wardName = wardName;
     if (description !== undefined) ward.description = description;
-    if (collectorId !== undefined) ward.collectorId = collectorId;
+    if (collectorId !== undefined) {
+      ward.collectorId = collectorId;
+    }
 
     await ward.save();
+
+    // Log based on what changed
+    const newData = {
+      wardName: ward.wardName,
+      collectorId: ward.collectorId
+    };
+
+    if (isCollectorAssignment) {
+      // Log collector assignment
+      await auditLogger.logAssign(
+        req,
+        req.user,
+        'Ward',
+        ward.id,
+        newData,
+        `Assigned collector to ward: ${ward.wardNumber}`,
+        { previousCollectorId: previousData.collectorId, newCollectorId: collectorId }
+      );
+    } else {
+      // Log regular update
+      await auditLogger.logUpdate(
+        req,
+        req.user,
+        'Ward',
+        ward.id,
+        previousData,
+        newData,
+        `Updated ward: ${ward.wardNumber}`
+      );
+    }
 
     const updatedWard = await Ward.findByPk(id, {
       include: [
@@ -229,8 +280,20 @@ export const assignCollector = async (req, res, next) => {
       });
     }
 
+    const previousCollectorId = ward.collectorId;
     ward.collectorId = collectorId;
     await ward.save();
+
+    // Log collector assignment
+    await auditLogger.logAssign(
+      req,
+      req.user,
+      'Ward',
+      ward.id,
+      { collectorId },
+      `Assigned collector to ward: ${ward.wardNumber}`,
+      { previousCollectorId, newCollectorId: collectorId }
+    );
 
     const updatedWard = await Ward.findByPk(id, {
       include: [

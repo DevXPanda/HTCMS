@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { User, Property } from '../models/index.js';
 import { Op } from 'sequelize';
+import { auditLogger } from '../utils/auditLogger.js';
 
 /**
  * Generate JWT Token
@@ -145,6 +146,9 @@ export const login = async (req, res, next) => {
 
     // Generate token
     const token = generateToken(user.id);
+
+    // Log login action
+    await auditLogger.logLogin(req, user);
 
     // Sanitized user object with role field
     const sanitizedUser = {

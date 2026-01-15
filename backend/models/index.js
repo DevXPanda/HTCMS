@@ -4,6 +4,9 @@ import { Ward } from './Ward.js';
 import { Assessment } from './Assessment.js';
 import { Demand } from './Demand.js';
 import { Payment } from './Payment.js';
+import { Notice } from './Notice.js';
+import { AuditLog } from './AuditLog.js';
+import { PenaltyRule } from './PenaltyRule.js';
 
 // Define Relationships
 
@@ -46,11 +49,42 @@ Payment.belongsTo(Demand, { foreignKey: 'demandId', as: 'demand' });
 Payment.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
 Payment.belongsTo(User, { foreignKey: 'receivedBy', as: 'cashier' });
 
+// Notice Relationships
+Notice.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
+Notice.belongsTo(User, { foreignKey: 'ownerId', as: 'owner' });
+Notice.belongsTo(Demand, { foreignKey: 'demandId', as: 'demand' });
+Notice.belongsTo(User, { foreignKey: 'generatedBy', as: 'generator' });
+Notice.belongsTo(Notice, { foreignKey: 'previousNoticeId', as: 'previousNotice' });
+Notice.hasMany(Notice, { foreignKey: 'previousNoticeId', as: 'escalatedNotices' });
+
+// User Relationships (additional for notices)
+User.hasMany(Notice, { foreignKey: 'ownerId', as: 'notices' });
+User.hasMany(Notice, { foreignKey: 'generatedBy', as: 'generatedNotices' });
+
+// Property Relationships (additional for notices)
+Property.hasMany(Notice, { foreignKey: 'propertyId', as: 'notices' });
+
+// Demand Relationships (additional for notices)
+Demand.hasMany(Notice, { foreignKey: 'demandId', as: 'notices' });
+
+// AuditLog Relationships
+AuditLog.belongsTo(User, { foreignKey: 'actorUserId', as: 'actor' });
+
+// User Relationships (additional for audit logs)
+User.hasMany(AuditLog, { foreignKey: 'actorUserId', as: 'auditLogs' });
+
+// PenaltyRule Relationships
+PenaltyRule.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
+User.hasMany(PenaltyRule, { foreignKey: 'createdBy', as: 'createdPenaltyRules' });
+
 export {
   User,
   Property,
   Ward,
   Assessment,
   Demand,
-  Payment
+  Payment,
+  Notice,
+  AuditLog,
+  PenaltyRule
 };

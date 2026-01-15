@@ -2,6 +2,9 @@ import { Payment, Demand, Property, User, Ward, Assessment } from '../models/ind
 import { Op } from 'sequelize';
 import { razorpay } from '../config/razorpay.js';
 import crypto from 'crypto';
+import { updateNoticeOnPayment } from './notice.controller.js';
+import { generatePaymentReceiptPdf } from '../utils/pdfHelpers.js';
+import { auditLogger, createAuditLog } from '../utils/auditLogger.js';
 
 /**
  * @route   GET /api/payments
@@ -239,6 +242,9 @@ export const createPayment = async (req, res, next) => {
 
     await demand.save();
 
+    // Update notice status if demand is paid
+    await updateNoticeOnPayment(demandId, req, req.user);
+
     const createdPayment = await Payment.findByPk(payment.id, {
       include: [
         {
@@ -252,6 +258,25 @@ export const createPayment = async (req, res, next) => {
         { model: User, as: 'cashier', attributes: ['id', 'firstName', 'lastName'] }
       ]
     });
+
+    // Log payment creation
+    await auditLogger.logPay(
+      req,
+      req.user,
+      'Payment',
+      payment.id,
+      { paymentNumber: payment.paymentNumber, amount: payment.amount, paymentMode: payment.paymentMode, receiptNumber: payment.receiptNumber },
+      `Processed payment: ${payment.paymentNumber} - ₹${payment.amount}`,
+      { demandId: payment.demandId, propertyId: payment.propertyId }
+    );
+
+    // Generate receipt PDF automatically after successful payment
+    try {
+      await generatePaymentReceiptPdf(payment.id, req, req.user);
+    } catch (pdfError) {
+      console.error('Error generating receipt PDF:', pdfError);
+      // Don't fail the payment if PDF generation fails
+    }
 
     res.status(201).json({
       success: true,
@@ -609,6 +634,28 @@ export const verifyOnlinePayment = async (req, res, next) => {
 
     await demand.save();
 
+    // Update notice status if demand is paid
+    await updateNoticeOnPayment(demand.id, req, req.user);
+
+    // Log online payment completion
+    await auditLogger.logPay(
+      req,
+      req.user,
+      'Payment',
+      payment.id,
+      { paymentNumber: payment.paymentNumber, amount: payment.amount, paymentMode: 'online', receiptNumber: payment.receiptNumber, razorpayPaymentId: payment.razorpayPaymentId },
+      `Completed online payment: ${payment.paymentNumber} - ₹${payment.amount}`,
+      { demandId: payment.demandId, propertyId: payment.propertyId }
+    );
+
+    // Generate receipt PDF automatically after successful payment
+    try {
+      await generatePaymentReceiptPdf(payment.id, req, req.user);
+    } catch (pdfError) {
+      console.error('Error generating receipt PDF:', pdfError);
+      // Don't fail the payment if PDF generation fails
+    }
+
     // Fetch complete payment details
     const completedPayment = await Payment.findByPk(payment.id, {
       include: [
@@ -631,6 +678,156 @@ export const verifyOnlinePayment = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Payment verification error:', error);
+    next(error);
+  }
+};
+
+/**
+ * @route   POST /api/payments/:id/generate-receipt
+ * @desc    Generate receipt PDF for a payment
+ * @access  Private (Admin, Cashier, Citizen - own payments only)
+ */
+export const generateReceiptPdf = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const payment = await Payment.findByPk(id, {
+      include: [
+        { model: Property, as: 'property' },
+        { model: Demand, as: 'demand' }
+      ]
+    });
+
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Payment not found'
+      });
+    }
+
+    // Check access - Citizens can only generate receipts for their own payments
+    if (req.user.role === 'citizen') {
+      const property = await Property.findByPk(payment.propertyId);
+      if (property.ownerId !== req.user.id) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You can only generate receipts for your own payments.'
+        });
+      }
+    }
+
+    // Check if PDF already exists
+    if (payment.receiptPdfUrl) {
+      return res.json({
+        success: true,
+        message: 'Receipt PDF already generated',
+        data: { pdfUrl: payment.receiptPdfUrl }
+      });
+    }
+
+    // Generate PDF
+    const result = await generatePaymentReceiptPdf(payment.id, req, req.user);
+
+    res.json({
+      success: true,
+      message: 'Receipt PDF generated successfully',
+      data: { pdfUrl: result.pdfUrl }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   GET /api/payments/receipts/:filename
+ * @desc    Download receipt PDF
+ * @access  Private (Role-based access enforced)
+ */
+export const downloadReceiptPdf = async (req, res, next) => {
+  try {
+    const { filename } = req.params;
+
+    // Extract payment ID from filename (format: RECEIPT_<id>_<timestamp>_<random>.pdf)
+    const match = filename.match(/RECEIPT_(\d+)_/);
+    if (!match) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid receipt filename'
+      });
+    }
+
+    const paymentId = parseInt(match[1]);
+
+    // Fetch payment with relations
+    const payment = await Payment.findByPk(paymentId, {
+      include: [
+        { model: Property, as: 'property' },
+        { model: Demand, as: 'demand' }
+      ]
+    });
+
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Payment not found'
+      });
+    }
+
+    // Check access - Citizens can only download their own receipts
+    if (req.user.role === 'citizen') {
+      const property = await Property.findByPk(payment.propertyId);
+      if (property.ownerId !== req.user.id) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied'
+        });
+      }
+    }
+
+    // Check if PDF exists
+    if (!payment.receiptPdfUrl) {
+      return res.status(404).json({
+        success: false,
+        message: 'Receipt PDF not generated yet'
+      });
+    }
+
+    // Verify filename matches
+    if (!payment.receiptPdfUrl.includes(filename)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid receipt filename'
+      });
+    }
+
+    // Read and send PDF file
+    const { readPdfFile, getReceiptPdfPath } = await import('../utils/pdfStorage.js');
+    const filePath = getReceiptPdfPath(filename);
+
+    try {
+      const pdfBuffer = await readPdfFile(filePath);
+
+      // Log PDF download
+      await createAuditLog({
+        req,
+        user: req.user,
+        actionType: 'RECEIPT_PDF_DOWNLOADED',
+        entityType: 'Payment',
+        entityId: payment.id,
+        description: `Downloaded receipt PDF for payment ${payment.paymentNumber}`,
+        metadata: { filename }
+      });
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="receipt_${payment.receiptNumber || payment.paymentNumber}.pdf"`);
+      res.send(pdfBuffer);
+    } catch (fileError) {
+      return res.status(404).json({
+        success: false,
+        message: 'Receipt PDF file not found'
+      });
+    }
+  } catch (error) {
     next(error);
   }
 };

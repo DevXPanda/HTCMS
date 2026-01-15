@@ -26,6 +26,8 @@ import EditAssessment from './pages/admin/assessments/EditAssessment';
 import Demands from './pages/admin/demands/Demands';
 import DemandDetails from './pages/admin/demands/DemandDetails';
 import GenerateDemands from './pages/admin/demands/GenerateDemands';
+import Notices from './pages/admin/notices/Notices';
+import NoticeDetails from './pages/admin/notices/NoticeDetails';
 import Payments from './pages/admin/payments/Payments';
 import PaymentDetails from './pages/admin/payments/PaymentDetails';
 import AddPayment from './pages/admin/payments/AddPayment';
@@ -35,13 +37,17 @@ import WardDetails from './pages/admin/wards/WardDetails';
 import AddWard from './pages/admin/wards/AddWard';
 import Users from './pages/admin/users/Users';
 import Reports from './pages/admin/reports/Reports';
+import AuditLogs from './pages/admin/auditLogs/AuditLogs';
 
 // Citizen Pages
 import CitizenDashboard from './pages/citizen/CitizenDashboard';
 import CitizenProperties from './pages/citizen/CitizenProperties';
 import CitizenPropertyDetails from './pages/citizen/CitizenPropertyDetails';
 import CitizenDemands from './pages/citizen/CitizenDemands';
+import CitizenNotices from './pages/citizen/CitizenNotices';
+import CitizenNoticeDetails from './pages/citizen/CitizenNoticeDetails';
 import CitizenPayments from './pages/citizen/CitizenPayments';
+import ActivityHistory from './pages/citizen/ActivityHistory';
 
 // Collector Pages
 import CollectorDashboard from './pages/collector/CollectorDashboard';
@@ -49,6 +55,7 @@ import AssignedWards from './pages/collector/AssignedWards';
 import PropertyList from './pages/collector/PropertyList';
 import CollectorPropertyDetails from './pages/collector/CollectorPropertyDetails';
 import Collections from './pages/collector/Collections';
+import ActivityLogs from './pages/collector/ActivityLogs';
 
 // Error Pages
 import Unauthorized from './pages/Unauthorized';
@@ -105,6 +112,10 @@ function App() {
             <Route path="demands/generate" element={<GenerateDemands />} />
             <Route path="demands/:id" element={<DemandDetails />} />
 
+            {/* Notices */}
+            <Route path="notices" element={<Notices />} />
+            <Route path="notices/:id" element={<NoticeDetails />} />
+
             {/* Payments */}
             <Route path="payments" element={<Payments />} />
             <Route path="payments/new" element={<AddPayment />} />
@@ -121,6 +132,9 @@ function App() {
 
             {/* Reports */}
             <Route path="reports" element={<Reports />} />
+
+            {/* Audit Logs */}
+            <Route path="audit-logs" element={<AuditLogs />} />
           </Route>
 
           {/* Protected Routes - Collector Portal */}
@@ -138,6 +152,7 @@ function App() {
             <Route path="properties" element={<PropertyList />} />
             <Route path="properties/:id" element={<CollectorPropertyDetails />} />
             <Route path="collections" element={<Collections />} />
+            <Route path="activity-logs" element={<ActivityLogs />} />
           </Route>
 
           {/* Protected Routes - Citizen Portal */}
@@ -155,7 +170,10 @@ function App() {
             <Route path="properties/:id" element={<CitizenPropertyDetails />} />
             <Route path="demands" element={<CitizenDemands />} />
             <Route path="demands/:id" element={<DemandDetails />} />
+            <Route path="notices" element={<CitizenNotices />} />
+            <Route path="notices/:id" element={<CitizenNoticeDetails />} />
             <Route path="payments" element={<CitizenPayments />} />
+            <Route path="activity-history" element={<ActivityHistory />} />
             <Route path="payments/online/:demandId" element={<OnlinePayment />} />
             <Route path="payments/:id" element={<PaymentDetails />} />
           </Route>

@@ -1,5 +1,6 @@
 import { Assessment, Property, User, Ward } from '../models/index.js';
 import { Op } from 'sequelize';
+import { auditLogger } from '../utils/auditLogger.js';
 
 /**
  * @route   GET /api/assessments
@@ -231,6 +232,17 @@ export const createAssessment = async (req, res, next) => {
       ]
     });
 
+    // Log assessment creation
+    await auditLogger.logCreate(
+      req,
+      req.user,
+      'Assessment',
+      assessment.id,
+      { assessmentNumber: assessment.assessmentNumber, propertyId: assessment.propertyId, status: assessment.status },
+      `Created assessment: ${assessment.assessmentNumber}`,
+      { propertyId: assessment.propertyId }
+    );
+
     res.status(201).json({
       success: true,
       message: 'Assessment created successfully',
@@ -277,6 +289,14 @@ export const updateAssessment = async (req, res, next) => {
       });
     }
 
+    // Capture previous data for audit log
+    const previousData = {
+      assessedValue: assessment.assessedValue,
+      taxRate: assessment.taxRate,
+      status: assessment.status,
+      revisionNumber: assessment.revisionNumber
+    };
+
     // Update fields
     if (assessedValue !== undefined) assessment.assessedValue = assessedValue;
     if (landValue !== undefined) assessment.landValue = landValue;
@@ -302,6 +322,24 @@ export const updateAssessment = async (req, res, next) => {
     }
 
     await assessment.save();
+
+    // Log assessment update
+    const newData = {
+      assessedValue: assessment.assessedValue,
+      taxRate: assessment.taxRate,
+      status: assessment.status,
+      revisionNumber: assessment.revisionNumber
+    };
+    await auditLogger.logUpdate(
+      req,
+      req.user,
+      'Assessment',
+      assessment.id,
+      previousData,
+      newData,
+      `Updated assessment: ${assessment.assessmentNumber}`,
+      { propertyId: assessment.propertyId }
+    );
 
     const updatedAssessment = await Assessment.findByPk(id, {
       include: [
@@ -344,12 +382,25 @@ export const approveAssessment = async (req, res, next) => {
       });
     }
 
+    const previousData = { status: assessment.status };
     assessment.status = 'approved';
     assessment.approvedBy = req.user.id;
     assessment.approvalDate = new Date();
     if (remarks) assessment.remarks = remarks;
 
     await assessment.save();
+
+    // Log assessment approval
+    await auditLogger.logApprove(
+      req,
+      req.user,
+      'Assessment',
+      assessment.id,
+      previousData,
+      { status: assessment.status, approvedBy: req.user.id },
+      `Approved assessment: ${assessment.assessmentNumber}`,
+      { propertyId: assessment.propertyId }
+    );
 
     res.json({
       success: true,
@@ -386,10 +437,23 @@ export const rejectAssessment = async (req, res, next) => {
       });
     }
 
+    const previousData = { status: assessment.status };
     assessment.status = 'rejected';
     assessment.remarks = remarks;
 
     await assessment.save();
+
+    // Log assessment rejection
+    await auditLogger.logReject(
+      req,
+      req.user,
+      'Assessment',
+      assessment.id,
+      previousData,
+      { status: assessment.status },
+      `Rejected assessment: ${assessment.assessmentNumber}`,
+      { propertyId: assessment.propertyId, rejectionRemarks: remarks }
+    );
 
     res.json({
       success: true,

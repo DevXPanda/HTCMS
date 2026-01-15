@@ -49,6 +49,31 @@ const AddProperty = () => {
     try {
       setLoading(true);
 
+      // Convert wardId to number
+      if (data.wardId) {
+        data.wardId = parseInt(data.wardId, 10);
+      }
+
+      // Ensure area is a number
+      if (data.area) {
+        data.area = parseFloat(data.area);
+      }
+
+      // Ensure builtUpArea is a number if provided
+      if (data.builtUpArea) {
+        data.builtUpArea = parseFloat(data.builtUpArea);
+      }
+
+      // Ensure floors is a number if provided
+      if (data.floors) {
+        data.floors = parseInt(data.floors, 10);
+      }
+
+      // Ensure constructionYear is a number if provided
+      if (data.constructionYear) {
+        data.constructionYear = parseInt(data.constructionYear, 10);
+      }
+
       // Format geolocation if provided
       if (data.latitude && data.longitude) {
         data.geolocation = {
@@ -64,6 +89,8 @@ const AddProperty = () => {
       // Format photos if provided
       if (data.photos && typeof data.photos === 'string') {
         data.photos = data.photos.split(',').map(url => url.trim()).filter(url => url);
+      } else if (!data.photos || (Array.isArray(data.photos) && data.photos.length === 0)) {
+        delete data.photos;
       }
 
       const response = await propertyAPI.create(data);
@@ -73,7 +100,9 @@ const AddProperty = () => {
         navigate('/properties');
       }
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Failed to create property');
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to create property';
+      console.error('Property creation error:', error.response?.data || error);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -294,7 +323,7 @@ const AddProperty = () => {
               <label className="label">Pincode <span className="text-red-500">*</span></label>
               <input
                 type="text"
-                {...register('pincode', { 
+                {...register('pincode', {
                   required: 'Pincode is required',
                   pattern: {
                     value: /^\d{6}$/,
@@ -320,7 +349,7 @@ const AddProperty = () => {
               <input
                 type="number"
                 step="0.01"
-                {...register('area', { 
+                {...register('area', {
                   required: 'Area is required',
                   min: { value: 0.01, message: 'Area must be greater than 0' },
                   valueAsNumber: true

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { citizenAPI } from '../../services/api';
 import Loading from '../../components/Loading';
-import { Home, FileText, DollarSign, CreditCard } from 'lucide-react';
+import { Home, FileText, DollarSign, CreditCard, Bell } from 'lucide-react';
 
 const CitizenDashboard = () => {
   const [dashboard, setDashboard] = useState(null);
@@ -41,6 +41,14 @@ const CitizenDashboard = () => {
       link: '/citizen/demands'
     },
     {
+      title: 'Active Notices',
+      value: dashboard?.activeNotices || 0,
+      icon: Bell,
+      color: 'bg-yellow-500',
+      link: '/citizen/notices',
+      badge: dashboard?.activeNotices > 0 ? 'badge-danger' : ''
+    },
+    {
       title: 'Total Outstanding',
       value: `₹${(dashboard?.totalOutstanding || 0).toLocaleString('en-IN')}`,
       icon: DollarSign,
@@ -60,18 +68,23 @@ const CitizenDashboard = () => {
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-6">My Dashboard</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         {statCards.map((stat, index) => {
           const Icon = stat.icon;
           return (
-            <Link key={index} to={stat.link} className="card hover:shadow-lg transition-shadow">
+            <Link key={index} to={stat.link} className="card hover:shadow-lg transition-shadow relative">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">{stat.title}</p>
                   <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
                 </div>
-                <div className={`${stat.color} p-3 rounded-lg`}>
+                <div className={`${stat.color} p-3 rounded-lg relative`}>
                   <Icon className="w-6 h-6 text-white" />
+                  {stat.badge && stat.value > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {stat.value}
+                    </span>
+                  )}
                 </div>
               </div>
             </Link>

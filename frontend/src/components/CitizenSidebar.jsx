@@ -4,7 +4,9 @@ import {
   Home,
   FileText,
   CreditCard,
-  LogOut
+  LogOut,
+  Bell,
+  History
 } from 'lucide-react';
 
 const CitizenSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
@@ -30,7 +32,9 @@ const CitizenSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
     { path: '/citizen/dashboard', label: 'My Dashboard', icon: LayoutDashboard },
     { path: '/citizen/properties', label: 'My Properties', icon: Home },
     { path: '/citizen/demands', label: 'My Demands', icon: FileText },
-    { path: '/citizen/payments', label: 'Payment History', icon: CreditCard }
+    { path: '/citizen/notices', label: 'My Notices', icon: Bell },
+    { path: '/citizen/payments', label: 'Payment History', icon: CreditCard },
+    { path: '/citizen/activity-history', label: 'Activity History', icon: History }
   ];
 
   return (

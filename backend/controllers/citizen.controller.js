@@ -1,4 +1,4 @@
-import { Property, Demand, Payment, Assessment, Ward } from '../models/index.js';
+import { Property, Demand, Payment, Assessment, Ward, Notice } from '../models/index.js';
 import { Op } from 'sequelize';
 
 /**
@@ -61,12 +61,21 @@ export const getCitizenDashboard = async (req, res, next) => {
       order: [['dueDate', 'ASC']]
     });
 
+    // Get active notices count (not resolved)
+    const activeNotices = await Notice.count({
+      where: {
+        ownerId: userId,
+        status: { [Op.in]: ['generated', 'sent', 'viewed'] }
+      }
+    });
+
     res.json({
       success: true,
       data: {
         properties: properties.length,
         totalOutstanding,
         pendingDemands: pendingDemands.length,
+        activeNotices,
         recentPayments,
         pendingDemandsList: pendingDemands
       }

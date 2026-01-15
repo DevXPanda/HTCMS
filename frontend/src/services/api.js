@@ -111,7 +111,9 @@ export const paymentAPI = {
   getStatistics: (params) => api.get('/payments/statistics/summary', { params }),
   getByDemand: (demandId) => api.get(`/payments/demand/${demandId}`),
   createOnlineOrder: (data) => api.post('/payments/online/create-order', data),
-  verifyOnlinePayment: (data) => api.post('/payments/online/verify', data)
+  verifyOnlinePayment: (data) => api.post('/payments/online/verify', data),
+  generateReceiptPdf: (id) => api.post(`/payments/${id}/generate-receipt`),
+  downloadReceiptPdf: (filename) => api.get(`/payments/receipts/${filename}`, { responseType: 'blob' })
 };
 
 // Ward API
@@ -140,7 +142,27 @@ export const citizenAPI = {
   getDashboard: () => api.get('/citizen/dashboard'),
   getProperties: () => api.get('/citizen/properties'),
   getDemands: (params) => api.get('/citizen/demands', { params }),
-  getPayments: (params) => api.get('/citizen/payments', { params })
+  getPayments: (params) => api.get('/citizen/payments', { params }),
+  getNotices: (params) => api.get('/citizen/notices', { params }),
+  getNoticeById: (id) => api.get(`/citizen/notices/${id}`)
+};
+
+// Notice API
+export const noticeAPI = {
+  generate: (data) => api.post('/notices/generate', data),
+  getAll: (params) => api.get('/notices', { params }),
+  getById: (id) => api.get(`/notices/${id}`),
+  send: (id, data) => api.post(`/notices/${id}/send`, data),
+  escalate: (id, data) => api.post(`/notices/${id}/escalate`, data),
+  generatePdf: (id) => api.post(`/notices/${id}/generate-pdf`),
+  downloadPdf: (filename) => api.get(`/notices/pdfs/${filename}`, { responseType: 'blob' })
+};
+
+// Audit Log API
+export const auditLogAPI = {
+  getAll: (params) => api.get('/audit-logs', { params }),
+  getById: (id) => api.get(`/audit-logs/${id}`),
+  getStats: (params) => api.get('/audit-logs/stats/summary', { params })
 };
 
 export default api;

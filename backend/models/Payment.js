@@ -96,6 +96,16 @@ export const Payment = sequelize.define('Payment', {
   remarks: {
     type: DataTypes.TEXT,
     allowNull: true
+  },
+  receiptPdfUrl: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+    comment: 'Path/URL to generated receipt PDF'
+  },
+  receiptGeneratedAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: 'Timestamp when receipt PDF was generated'
   }
 }, {
   tableName: 'payments',

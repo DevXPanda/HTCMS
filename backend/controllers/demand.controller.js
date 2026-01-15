@@ -1,5 +1,6 @@
 import { Demand, Assessment, Property, Payment, User, Ward } from '../models/index.js';
 import { Op, Sequelize } from 'sequelize';
+import { auditLogger } from '../utils/auditLogger.js';
 
 /**
  * @route   GET /api/demands
@@ -249,6 +250,17 @@ export const createDemand = async (req, res, next) => {
         { model: Assessment, as: 'assessment' }
       ]
     });
+
+    // Log demand creation
+    await auditLogger.logCreate(
+      req,
+      req.user,
+      'Demand',
+      demand.id,
+      { demandNumber: demand.demandNumber, propertyId: demand.propertyId, financialYear: demand.financialYear, totalAmount: demand.totalAmount },
+      `Created demand: ${demand.demandNumber}`,
+      { propertyId: demand.propertyId, assessmentId: demand.assessmentId }
+    );
 
     res.status(201).json({
       success: true,

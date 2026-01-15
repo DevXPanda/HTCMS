@@ -4,7 +4,8 @@ import {
   MapPin,
   Home,
   CreditCard,
-  LogOut
+  LogOut,
+  History
 } from 'lucide-react';
 
 const CollectorSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
@@ -32,7 +33,8 @@ const CollectorSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
     { path: '/collector/dashboard', label: 'Collector Dashboard', icon: LayoutDashboard },
     { path: '/collector/wards', label: 'Assigned Wards', icon: MapPin },
     { path: '/collector/properties', label: 'Property List', icon: Home },
-    { path: '/collector/collections', label: 'Collections', icon: CreditCard }
+    { path: '/collector/collections', label: 'Collections', icon: CreditCard },
+    { path: '/collector/activity-logs', label: 'Activity Logs', icon: History }
   ];
 
   return (

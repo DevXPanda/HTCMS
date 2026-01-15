@@ -1,5 +1,6 @@
 import { User } from '../models/index.js';
 import { Op } from 'sequelize';
+import { auditLogger } from '../utils/auditLogger.js';
 
 /**
  * @route   GET /api/users
@@ -147,6 +148,16 @@ export const createUser = async (req, res, next) => {
       createdBy: req.user.id
     });
 
+    // Log user creation
+    await auditLogger.logCreate(
+      req,
+      req.user,
+      'User',
+      user.id,
+      { username: user.username, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role },
+      `Created user: ${user.firstName} ${user.lastName} (${user.email})`
+    );
+
     res.status(201).json({
       success: true,
       message: 'User created successfully',
@@ -192,6 +203,15 @@ export const updateUser = async (req, res, next) => {
       });
     }
 
+    // Capture previous data for audit log
+    const previousData = {
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone,
+      role: user.role,
+      isActive: user.isActive
+    };
+
     // Non-admin users can only update limited fields
     if (req.user.role !== 'admin') {
       user.firstName = firstName || user.firstName;
@@ -224,6 +244,24 @@ export const updateUser = async (req, res, next) => {
     }
 
     await user.save();
+
+    // Log user update
+    const newData = {
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone,
+      role: user.role,
+      isActive: user.isActive
+    };
+    await auditLogger.logUpdate(
+      req,
+      req.user,
+      'User',
+      user.id,
+      previousData,
+      newData,
+      `Updated user: ${user.firstName} ${user.lastName}`
+    );
 
     res.json({
       success: true,
@@ -262,9 +300,28 @@ export const deleteUser = async (req, res, next) => {
       });
     }
 
+    // Capture previous data for audit log
+    const previousData = {
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      role: user.role,
+      isActive: user.isActive
+    };
+
     // Soft delete - deactivate user
     user.isActive = false;
     await user.save();
+
+    // Log user deactivation
+    await auditLogger.logDelete(
+      req,
+      req.user,
+      'User',
+      user.id,
+      previousData,
+      `Deactivated user: ${user.firstName} ${user.lastName} (${user.email})`
+    );
 
     res.json({
       success: true,

@@ -92,6 +92,21 @@ export const Demand = sequelize.define('Demand', {
   remarks: {
     type: DataTypes.TEXT,
     allowNull: true
+  },
+  lastPenaltyAppliedAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: 'Last date when penalty/interest was applied'
+  },
+  overdueDays: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+    comment: 'Number of days overdue'
+  },
+  penaltyBreakdown: {
+    type: DataTypes.JSONB,
+    allowNull: true,
+    comment: 'JSON array tracking penalty/interest history: [{date, penalty, interest, reason}]'
   }
 }, {
   tableName: 'demands',

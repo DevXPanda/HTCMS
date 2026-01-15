@@ -8,7 +8,9 @@ import {
   getPaymentStatistics,
   getPaymentsByDemand,
   createOnlinePaymentOrder,
-  verifyOnlinePayment
+  verifyOnlinePayment,
+  generateReceiptPdf,
+  downloadReceiptPdf
 } from '../controllers/payment.controller.js';
 
 const router = express.Router();
@@ -28,6 +30,10 @@ router.get('/', getAllPayments);
 // Online payment routes (must be before /:id)
 router.post('/online/create-order', createOnlinePaymentOrder);
 router.post('/online/verify', verifyOnlinePayment);
+
+// PDF routes (must be before /:id)
+router.get('/receipts/:filename', downloadReceiptPdf);
+router.post('/:id/generate-receipt', generateReceiptPdf);
 
 // Get payment receipt by receipt number (must be before /:id)
 router.get('/receipt/:receiptNumber', getPaymentReceipt);

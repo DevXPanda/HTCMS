@@ -6,6 +6,10 @@ import {
   getCitizenDemands,
   getCitizenPayments
 } from '../controllers/citizen.controller.js';
+import {
+  getCitizenNotices,
+  getCitizenNoticeById
+} from '../controllers/notice.controller.js';
 
 const router = express.Router();
 
@@ -24,5 +28,9 @@ router.get('/demands', getCitizenDemands);
 
 // Get citizen's payment history
 router.get('/payments', getCitizenPayments);
+
+// Get citizen's notices
+router.get('/notices', getCitizenNotices);
+router.get('/notices/:id', getCitizenNoticeById);
 
 export default router;

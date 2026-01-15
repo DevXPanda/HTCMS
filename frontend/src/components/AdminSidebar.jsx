@@ -8,7 +8,9 @@ import {
   MapPin,
   Users,
   BarChart3,
-  LogOut
+  LogOut,
+  Bell,
+  Shield
 } from 'lucide-react';
 
 const AdminSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
@@ -35,10 +37,12 @@ const AdminSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
     { path: '/properties', label: 'Properties', icon: Home },
     { path: '/assessments', label: 'Assessment', icon: FileText },
     { path: '/demands', label: 'Demand', icon: Receipt },
+    { path: '/notices', label: 'Notices & Enforcement', icon: Bell },
     { path: '/payments', label: 'Payments', icon: CreditCard },
     { path: '/wards', label: 'Wards', icon: MapPin },
     { path: '/users', label: 'Collector Management', icon: Users },
-    { path: '/reports', label: 'Reports', icon: BarChart3 }
+    { path: '/reports', label: 'Reports', icon: BarChart3 },
+    { path: '/audit-logs', label: 'Audit Logs', icon: Shield }
   ];
 
   return (
