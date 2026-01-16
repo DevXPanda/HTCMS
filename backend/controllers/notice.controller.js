@@ -60,7 +60,7 @@ const validateEscalation = async (demandId, newNoticeType) => {
   // Check if demand is unpaid
   const demand = await Demand.findByPk(demandId);
   if (!demand) {
-    throw new Error('Demand not found');
+    throw new Error('Tax Demand not found');
   }
 
   if (demand.status === 'paid' || demand.balanceAmount <= 0) {
@@ -131,7 +131,7 @@ export const generateNotice = async (req, res, next) => {
     if (!demand) {
       return res.status(404).json({
         success: false,
-        message: 'Demand not found'
+        message: 'Tax Demand not found'
       });
     }
 

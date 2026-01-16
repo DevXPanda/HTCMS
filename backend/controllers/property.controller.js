@@ -289,7 +289,7 @@ export const createProperty = async (req, res, next) => {
     // Handle ownerId: search for matching citizen user
     let finalOwnerId = ownerId;
     let matchedCitizen = null;
-    
+
     if (!finalOwnerId && ownerPhone) {
       // Priority 1: Search for citizen user by exact phone match
       matchedCitizen = await User.findOne({
@@ -299,20 +299,20 @@ export const createProperty = async (req, res, next) => {
           isActive: true
         }
       });
-      
+
       if (matchedCitizen) {
         finalOwnerId = matchedCitizen.id;
         console.log('✅ Found citizen user by phone:', finalOwnerId, matchedCitizen.email);
       }
     }
-    
+
     // Priority 2: If phone match not found and email is provided, search by email
     // Note: Email is not in the form, but keeping this for future extensibility
     if (!matchedCitizen && !finalOwnerId) {
       // Email search would go here if email field is added to the form
       // For now, this is a placeholder
     }
-    
+
     // If no matching citizen found, use admin's ID as fallback
     // Properties without a linked citizen won't appear in citizen panels
     // (citizen panel queries by ownerId === loggedInUser.id)

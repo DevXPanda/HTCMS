@@ -10,7 +10,8 @@ import {
   BarChart3,
   LogOut,
   Bell,
-  Shield
+  Shield,
+  Clock
 } from 'lucide-react';
 
 const AdminSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
@@ -35,12 +36,14 @@ const AdminSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/properties', label: 'Properties', icon: Home },
-    { path: '/assessments', label: 'Assessment', icon: FileText },
-    { path: '/demands', label: 'Demand', icon: Receipt },
+    { path: '/assessments', label: 'Tax Assessment', icon: FileText },
+    { path: '/demands', label: 'Tax Demand', icon: Receipt },
     { path: '/notices', label: 'Notices & Enforcement', icon: Bell },
     { path: '/payments', label: 'Payments', icon: CreditCard },
     { path: '/wards', label: 'Wards', icon: MapPin },
     { path: '/users', label: 'Collector Management', icon: Users },
+    { path: '/attendance', label: 'Attendance', icon: Clock },
+    { path: '/field-monitoring', label: 'Field Monitoring', icon: MapPin },
     { path: '/reports', label: 'Reports', icon: BarChart3 },
     { path: '/audit-logs', label: 'Audit Logs', icon: Shield }
   ];

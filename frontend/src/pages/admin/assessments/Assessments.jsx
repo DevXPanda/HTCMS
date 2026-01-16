@@ -38,7 +38,7 @@ const Assessments = () => {
       setAssessments(response.data.data.assessments);
       setPagination(response.data.data.pagination);
     } catch (error) {
-      toast.error('Failed to fetch assessments');
+      toast.error('Failed to fetch tax assessments');
     } finally {
       setLoading(false);
     }
@@ -62,18 +62,18 @@ const Assessments = () => {
   const handleSubmit = async (assessmentId) => {
     try {
       await assessmentAPI.submit(assessmentId);
-      toast.success('Assessment submitted for approval');
+      toast.success('Tax Assessment submitted for approval');
       fetchAssessments();
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Failed to submit assessment');
+      toast.error(error.response?.data?.error || 'Failed to submit tax assessment');
     }
   };
 
   const handleApprove = async (assessmentId) => {
-    if (!window.confirm('Are you sure you want to approve this assessment?')) return;
+    if (!window.confirm('Are you sure you want to approve this tax assessment?')) return;
     try {
       await assessmentAPI.approve(assessmentId);
-      toast.success('Assessment approved');
+      toast.success('Tax Assessment approved');
       fetchAssessments();
     } catch (error) {
       toast.error(error.response?.data?.error || 'Failed to approve assessment');
@@ -107,12 +107,12 @@ const Assessments = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Assessments</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Tax Assessments</h1>
         <div className="flex gap-2">
           {(isAdmin || isAssessor) && (
             <Link to="/assessments/new" className="btn btn-primary flex items-center">
               <Plus className="w-4 h-4 mr-2" />
-              New Assessment
+              New Tax Assessment
             </Link>
           )}
           <button

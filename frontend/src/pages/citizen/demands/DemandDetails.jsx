@@ -20,24 +20,24 @@ const DemandDetails = () => {
       const response = await demandAPI.getById(id);
       setDemand(response.data.data.demand);
     } catch (error) {
-      toast.error('Failed to fetch demand details');
+      toast.error('Failed to fetch tax demand details');
     } finally {
       setLoading(false);
     }
   };
 
   if (loading) return <Loading />;
-  if (!demand) return <div>Demand not found</div>;
+  if (!demand) return <div>Tax Demand not found</div>;
 
   return (
     <div>
       <Link to="/citizen/demands" className="flex items-center text-primary-600 mb-4">
         <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to Demands
+        Back to Tax Demands
       </Link>
 
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Demand Details</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Tax Demand Details</h1>
         {demand.balanceAmount > 0 && (
           <Link
             to={`/citizen/payments/online/${id}`}
@@ -51,10 +51,10 @@ const DemandDetails = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card">
-          <h2 className="text-xl font-semibold mb-4">Demand Information</h2>
+          <h2 className="text-xl font-semibold mb-4">Tax Demand Information</h2>
           <dl className="space-y-3">
             <div>
-              <dt className="text-sm font-medium text-gray-500">Demand Number</dt>
+              <dt className="text-sm font-medium text-gray-500">Tax Demand Number</dt>
               <dd className="text-lg font-semibold">{demand.demandNumber}</dd>
             </div>
             <div>

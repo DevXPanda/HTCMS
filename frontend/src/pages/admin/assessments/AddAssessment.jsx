@@ -108,7 +108,7 @@ const AddAssessment = () => {
           <Link to="/assessments" className="mr-4 text-primary-600 hover:text-primary-700">
             <ArrowLeft className="w-5 h-5" />
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900">Create New Assessment</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Create New Tax Assessment</h1>
         </div>
       </div>
 

@@ -39,7 +39,7 @@ const Demands = () => {
       setDemands(response.data.data.demands);
       setPagination(response.data.data.pagination);
     } catch (error) {
-      toast.error('Failed to fetch demands');
+      toast.error('Failed to fetch tax demands');
     } finally {
       setLoading(false);
     }
@@ -62,7 +62,7 @@ const Demands = () => {
   };
 
   const handleCalculatePenalty = async (demandId) => {
-    if (!window.confirm('Calculate penalty and interest for this overdue demand?')) return;
+    if (!window.confirm('Calculate penalty and interest for this overdue tax demand?')) return;
     try {
       await demandAPI.calculatePenalty(demandId, {
         penaltyRate: 5, // 5%
@@ -98,12 +98,12 @@ const Demands = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Demands</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Tax Demands</h1>
         <div className="flex gap-2">
           {isAdmin && (
             <Link to="/demands/generate" className="btn btn-primary flex items-center">
               <Zap className="w-4 h-4 mr-2" />
-              Generate Demands
+              Generate Tax Demands
             </Link>
           )}
           <button
@@ -125,7 +125,7 @@ const Demands = () => {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by demand number..."
+              placeholder="Search by tax demand number..."
               className="input pl-10"
             />
           </div>

@@ -34,7 +34,7 @@ const CitizenDashboard = () => {
       link: '/citizen/properties'
     },
     {
-      title: 'Pending Demands',
+      title: 'Pending Tax Demands',
       value: dashboard?.pendingDemands || 0,
       icon: FileText,
       color: 'bg-orange-500',

@@ -24,8 +24,8 @@ const GenerateDemands = () => {
 
   const onSubmit = async (data) => {
     if (!window.confirm(
-      `Are you sure you want to generate demands for financial year ${data.financialYear}?\n\n` +
-      `This will create demands for all approved assessments.`
+      `Are you sure you want to generate tax demands for financial year ${data.financialYear}?\n\n` +
+      `This will create tax demands for all approved tax assessments.`
     )) {
       return;
     }
@@ -41,7 +41,7 @@ const GenerateDemands = () => {
 
       if (response.data.success) {
         setResult(response.data.data);
-        toast.success(`Successfully generated ${response.data.data.created} demands!`);
+        toast.success(`Successfully generated ${response.data.data.created} tax demands!`);
         
         // Auto-navigate after 3 seconds
         setTimeout(() => {

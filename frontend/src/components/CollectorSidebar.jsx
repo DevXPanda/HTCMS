@@ -5,7 +5,9 @@ import {
   Home,
   CreditCard,
   LogOut,
-  History
+  History,
+  Clock,
+  CheckSquare
 } from 'lucide-react';
 
 const CollectorSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
@@ -31,9 +33,11 @@ const CollectorSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
   // Collector menu items
   const navItems = [
     { path: '/collector/dashboard', label: 'Collector Dashboard', icon: LayoutDashboard },
+    { path: '/collector/tasks', label: "Today's Tasks", icon: CheckSquare },
     { path: '/collector/wards', label: 'Assigned Wards', icon: MapPin },
     { path: '/collector/properties', label: 'Property List', icon: Home },
     { path: '/collector/collections', label: 'Collections', icon: CreditCard },
+    { path: '/collector/attendance', label: 'My Attendance', icon: Clock },
     { path: '/collector/activity-logs', label: 'Activity Logs', icon: History }
   ];
 

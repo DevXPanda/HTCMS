@@ -1,6 +1,9 @@
 import { DataTypes } from 'sequelize';
 import { sequelize } from '../config/database.js';
 
+// Tax Demand Model
+// Note: Model name remains 'Demand' for backward compatibility
+// Display name is 'Tax Demand' throughout the system
 export const Demand = sequelize.define('Demand', {
   id: {
     type: DataTypes.INTEGER,
@@ -110,5 +113,32 @@ export const Demand = sequelize.define('Demand', {
   }
 }, {
   tableName: 'demands',
-  timestamps: true
+  timestamps: true,
+  hooks: {
+    afterFind: (demands) => {
+      // Ensure numeric fields are always numbers, not strings
+      // This handles cases where Sequelize returns DECIMAL as strings
+      if (!demands) return;
+      
+      const normalizeDemand = (demand) => {
+        if (!demand || typeof demand !== 'object') return;
+        
+        // Convert DECIMAL fields to numbers
+        if (demand.baseAmount !== undefined) demand.baseAmount = parseFloat(demand.baseAmount) || 0;
+        if (demand.arrearsAmount !== undefined) demand.arrearsAmount = parseFloat(demand.arrearsAmount) || 0;
+        if (demand.penaltyAmount !== undefined) demand.penaltyAmount = parseFloat(demand.penaltyAmount) || 0;
+        if (demand.interestAmount !== undefined) demand.interestAmount = parseFloat(demand.interestAmount) || 0;
+        if (demand.totalAmount !== undefined) demand.totalAmount = parseFloat(demand.totalAmount) || 0;
+        if (demand.paidAmount !== undefined) demand.paidAmount = parseFloat(demand.paidAmount) || 0;
+        if (demand.balanceAmount !== undefined) demand.balanceAmount = parseFloat(demand.balanceAmount) || 0;
+        if (demand.overdueDays !== undefined) demand.overdueDays = parseInt(demand.overdueDays) || 0;
+      };
+      
+      if (Array.isArray(demands)) {
+        demands.forEach(normalizeDemand);
+      } else {
+        normalizeDemand(demands);
+      }
+    }
+  }
 });

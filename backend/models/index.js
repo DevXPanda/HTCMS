@@ -7,6 +7,10 @@ import { Payment } from './Payment.js';
 import { Notice } from './Notice.js';
 import { AuditLog } from './AuditLog.js';
 import { PenaltyRule } from './PenaltyRule.js';
+import { CollectorAttendance } from './CollectorAttendance.js';
+import { FieldVisit } from './FieldVisit.js';
+import { FollowUp } from './FollowUp.js';
+import { CollectorTask } from './CollectorTask.js';
 
 // Define Relationships
 
@@ -77,6 +81,50 @@ User.hasMany(AuditLog, { foreignKey: 'actorUserId', as: 'auditLogs' });
 PenaltyRule.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
 User.hasMany(PenaltyRule, { foreignKey: 'createdBy', as: 'createdPenaltyRules' });
 
+// CollectorAttendance Relationships
+CollectorAttendance.belongsTo(User, { foreignKey: 'collectorId', as: 'collector' });
+User.hasMany(CollectorAttendance, { foreignKey: 'collectorId', as: 'attendanceRecords' });
+
+// FieldVisit Relationships
+FieldVisit.belongsTo(User, { foreignKey: 'collectorId', as: 'collector' });
+FieldVisit.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
+FieldVisit.belongsTo(User, { foreignKey: 'ownerId', as: 'owner' });
+FieldVisit.belongsTo(Demand, { foreignKey: 'demandId', as: 'demand' });
+FieldVisit.belongsTo(CollectorAttendance, { foreignKey: 'attendanceId', as: 'attendance' });
+User.hasMany(FieldVisit, { foreignKey: 'collectorId', as: 'fieldVisits' });
+Property.hasMany(FieldVisit, { foreignKey: 'propertyId', as: 'fieldVisits' });
+Demand.hasMany(FieldVisit, { foreignKey: 'demandId', as: 'fieldVisits' });
+CollectorAttendance.hasMany(FieldVisit, { foreignKey: 'attendanceId', as: 'fieldVisits' });
+
+// FollowUp Relationships
+FollowUp.belongsTo(Demand, { foreignKey: 'demandId', as: 'demand' });
+FollowUp.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
+FollowUp.belongsTo(User, { foreignKey: 'ownerId', as: 'owner' });
+FollowUp.belongsTo(FieldVisit, { foreignKey: 'lastVisitId', as: 'lastVisit' });
+FollowUp.belongsTo(Notice, { foreignKey: 'noticeId', as: 'notice' });
+FollowUp.belongsTo(User, { foreignKey: 'resolvedBy', as: 'resolver' });
+FollowUp.belongsTo(User, { foreignKey: 'lastUpdatedBy', as: 'lastUpdater' });
+Demand.hasOne(FollowUp, { foreignKey: 'demandId', as: 'followUp' });
+Property.hasMany(FollowUp, { foreignKey: 'propertyId', as: 'followUps' });
+User.hasMany(FollowUp, { foreignKey: 'ownerId', as: 'followUps' });
+
+// CollectorTask Relationships
+CollectorTask.belongsTo(User, { foreignKey: 'collectorId', as: 'collector' });
+CollectorTask.belongsTo(Demand, { foreignKey: 'demandId', as: 'demand' });
+CollectorTask.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
+CollectorTask.belongsTo(User, { foreignKey: 'ownerId', as: 'owner' });
+CollectorTask.belongsTo(FollowUp, { foreignKey: 'followUpId', as: 'followUp' });
+CollectorTask.belongsTo(User, { foreignKey: 'completedBy', as: 'completer' });
+CollectorTask.belongsTo(FieldVisit, { foreignKey: 'relatedVisitId', as: 'relatedVisit' });
+User.hasMany(CollectorTask, { foreignKey: 'collectorId', as: 'tasks' });
+Demand.hasMany(CollectorTask, { foreignKey: 'demandId', as: 'tasks' });
+Property.hasMany(CollectorTask, { foreignKey: 'propertyId', as: 'tasks' });
+FollowUp.hasMany(CollectorTask, { foreignKey: 'followUpId', as: 'tasks' });
+
+// Notice Relationships (additional for collector-triggered)
+Notice.belongsTo(FollowUp, { foreignKey: 'followUpId', as: 'followUp' });
+FollowUp.hasMany(Notice, { foreignKey: 'followUpId', as: 'notices' });
+
 export {
   User,
   Property,
@@ -86,5 +134,9 @@ export {
   Payment,
   Notice,
   AuditLog,
-  PenaltyRule
+  PenaltyRule,
+  CollectorAttendance,
+  FieldVisit,
+  FollowUp,
+  CollectorTask
 };

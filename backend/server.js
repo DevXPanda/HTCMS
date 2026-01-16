@@ -70,7 +70,15 @@ import citizenRoutes from "./routes/citizen.routes.js";
 import noticeRoutes from "./routes/notice.routes.js";
 import auditLogRoutes from "./routes/auditLog.routes.js";
 import penaltyRuleRoutes from "./routes/penaltyRule.routes.js";
+import attendanceRoutes from "./routes/attendance.routes.js";
+import fieldVisitRoutes from "./routes/fieldVisit.routes.js";
+import taskEngineRoutes from "./routes/taskEngine.routes.js";
+import fieldMonitoringRoutes from "./routes/fieldMonitoring.routes.js";
+import uploadRoutes from "./routes/upload.routes.js";
 import { startPenaltyCronJob } from "./services/penaltyCron.js";
+import { startTaskGeneratorCronJob } from "./services/taskGeneratorCron.js";
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // API Routes prefix
 app.use("/api/auth", authRoutes);
@@ -85,6 +93,16 @@ app.use("/api/citizen", citizenRoutes);
 app.use("/api/notices", noticeRoutes);
 app.use("/api/audit-logs", auditLogRoutes);
 app.use("/api/penalty-rules", penaltyRuleRoutes);
+app.use("/api/attendance", attendanceRoutes);
+app.use("/api/field-visits", fieldVisitRoutes);
+app.use("/api/tasks", taskEngineRoutes);
+app.use("/api/field-monitoring", fieldMonitoringRoutes);
+app.use("/api/upload", uploadRoutes);
+
+// Serve uploaded files statically
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // 404 route handler
 app.use((req, res) => res.status(404).json({ error: "Route not found" }));
@@ -147,8 +165,9 @@ const startServer = async () => {
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Backend running on port ${PORT}`);
 
-    // Start penalty cron job
+    // Start cron jobs
     startPenaltyCronJob();
+    startTaskGeneratorCronJob();
   });
 };
 

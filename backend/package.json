@@ -10,7 +10,10 @@
     "migrate": "sequelize-cli db:migrate",
     "seed": "sequelize-cli db:seed:all",
     "fix-role-constraint": "node scripts/fix-role-constraint.js",
-    "setup-supabase": "node scripts/setup-supabase-schema.js"
+    "setup-supabase": "node scripts/setup-supabase-schema.js",
+    "migrate-attendance": "node scripts/run-attendance-migration.js",
+    "migrate-field-visits": "node scripts/run-field-visits-migration.js",
+    "fix-audit-enums": "node scripts/run-fix-audit-enums.js"
   },
   "keywords": [
     "htcms",
@@ -27,6 +30,7 @@
     "express-validator": "^7.0.1",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
     "node-cron": "^3.0.3",
     "pdfkit": "^0.15.2",
     "pg": "^8.11.3",

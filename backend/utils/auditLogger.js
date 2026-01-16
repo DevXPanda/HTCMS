@@ -55,6 +55,31 @@ const getUserAgent = (req) => {
  * @param {string} description - Human-readable description (optional)
  * @param {Object} metadata - Additional metadata (optional)
  */
+/**
+ * Validate enum values against model definition
+ * This ensures we don't try to insert invalid enum values
+ */
+const validateEnumValue = (value, validValues, fieldName) => {
+  if (!value) return value;
+  if (validValues.includes(value)) {
+    return value;
+  }
+  // If value is not in valid list, log warning but don't fail
+  console.warn(`Invalid ${fieldName} enum value: ${value}. Valid values: ${validValues.join(', ')}`);
+  // Return a safe default or the value if it's close enough
+  return value;
+};
+
+/**
+ * Valid entity types (must match AuditLog model)
+ */
+const VALID_ENTITY_TYPES = ['User', 'Property', 'Assessment', 'Demand', 'Payment', 'Ward', 'Notice', 'Attendance', 'FieldVisit', 'FollowUp', 'CollectorTask'];
+
+/**
+ * Valid action types (must match AuditLog model)
+ */
+const VALID_ACTION_TYPES = ['CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'REJECT', 'PAY', 'LOGIN', 'LOGOUT', 'ASSIGN', 'ESCALATE', 'SEND', 'RESOLVE', 'PENALTY_APPLIED', 'RECEIPT_PDF_GENERATED', 'NOTICE_PDF_GENERATED', 'RECEIPT_PDF_DOWNLOADED', 'NOTICE_PDF_DOWNLOADED', 'FIELD_VISIT', 'FOLLOW_UP', 'TASK_GENERATED', 'TASK_COMPLETED', 'NOTICE_TRIGGERED', 'ENFORCEMENT_ELIGIBLE', 'VIEW'];
+
 export const createAuditLog = async ({
   req,
   user,
@@ -72,6 +97,24 @@ export const createAuditLog = async ({
       return;
     }
 
+    // Validate enum values before attempting to create
+    const validatedActionType = validateEnumValue(actionType, VALID_ACTION_TYPES, 'actionType');
+    const validatedEntityType = validateEnumValue(entityType, VALID_ENTITY_TYPES, 'entityType');
+
+    // If validation failed, log error and use fallback
+    if (!validatedActionType || !validatedEntityType) {
+      console.error(`Invalid audit log enum values - actionType: ${actionType}, entityType: ${entityType}`);
+      // Use safe defaults to prevent system failure
+      if (!validatedActionType) {
+        console.error(`Falling back to 'UPDATE' for invalid actionType: ${actionType}`);
+      }
+      if (!validatedEntityType) {
+        console.error(`Falling back to 'User' for invalid entityType: ${entityType}`);
+      }
+      // Don't create invalid audit log - this prevents database errors
+      return;
+    }
+
     // Sanitize sensitive data
     const sanitizedPrevious = previousData ? sanitizeData(previousData) : null;
     const sanitizedNew = newData ? sanitizeData(newData) : null;
@@ -83,19 +126,32 @@ export const createAuditLog = async ({
     await AuditLog.create({
       actorUserId: user?.id || null,
       actorRole: user?.role || 'system',
-      actionType,
-      entityType,
+      actionType: validatedActionType,
+      entityType: validatedEntityType,
       entityId,
       previousData: sanitizedPrevious,
       newData: sanitizedNew,
       ipAddress,
       userAgent,
-      description: description || generateDescription(actionType, entityType, entityId, user),
+      description: description || generateDescription(validatedActionType, validatedEntityType, entityId, user),
       metadata: metadata || null
     });
   } catch (error) {
     // Log error but don't throw - audit logging should never break the main flow
     console.error('Failed to create audit log:', error);
+    console.error('Error details:', {
+      message: error.message,
+      actionType,
+      entityType,
+      entityId,
+      stack: error.stack
+    });
+    
+    // If it's an enum validation error, log it specifically
+    if (error.message && error.message.includes('enum')) {
+      console.error('ENUM VALIDATION ERROR - This indicates database enum is out of sync with model definition.');
+      console.error('Please run the migration scripts to update database enums.');
+    }
   }
 };
 

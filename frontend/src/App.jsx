@@ -38,6 +38,8 @@ import AddWard from './pages/admin/wards/AddWard';
 import Users from './pages/admin/users/Users';
 import Reports from './pages/admin/reports/Reports';
 import AuditLogs from './pages/admin/auditLogs/AuditLogs';
+import Attendance from './pages/admin/attendance/Attendance';
+import FieldMonitoring from './pages/admin/fieldMonitoring/FieldMonitoring';
 
 // Citizen Pages
 import CitizenDashboard from './pages/citizen/CitizenDashboard';
@@ -56,6 +58,9 @@ import PropertyList from './pages/collector/PropertyList';
 import CollectorPropertyDetails from './pages/collector/CollectorPropertyDetails';
 import Collections from './pages/collector/Collections';
 import ActivityLogs from './pages/collector/ActivityLogs';
+import CollectorAttendance from './pages/collector/Attendance';
+import DailyTasks from './pages/collector/DailyTasks';
+import RecordFieldVisit from './pages/collector/RecordFieldVisit';
 
 // Error Pages
 import Unauthorized from './pages/Unauthorized';
@@ -135,6 +140,12 @@ function App() {
 
             {/* Audit Logs */}
             <Route path="audit-logs" element={<AuditLogs />} />
+
+            {/* Attendance */}
+            <Route path="attendance" element={<Attendance />} />
+
+            {/* Field Monitoring */}
+            <Route path="field-monitoring" element={<FieldMonitoring />} />
           </Route>
 
           {/* Protected Routes - Collector Portal */}
@@ -152,6 +163,9 @@ function App() {
             <Route path="properties" element={<PropertyList />} />
             <Route path="properties/:id" element={<CollectorPropertyDetails />} />
             <Route path="collections" element={<Collections />} />
+            <Route path="tasks" element={<DailyTasks />} />
+            <Route path="field-visit/new" element={<RecordFieldVisit />} />
+            <Route path="attendance" element={<CollectorAttendance />} />
             <Route path="activity-logs" element={<ActivityLogs />} />
           </Route>
 

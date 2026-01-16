@@ -4,7 +4,7 @@ import { auditLogger } from '../utils/auditLogger.js';
 
 /**
  * @route   GET /api/assessments
- * @desc    Get all assessments (with filters)
+ * @desc    Get all tax assessments (with filters)
  * @access  Private
  */
 export const getAllAssessments = async (req, res, next) => {
@@ -114,7 +114,7 @@ export const getAssessmentById = async (req, res, next) => {
     if (!assessment) {
       return res.status(404).json({
         success: false,
-        message: 'Assessment not found'
+        message: 'Tax Assessment not found'
       });
     }
 
@@ -277,7 +277,7 @@ export const updateAssessment = async (req, res, next) => {
     if (!assessment) {
       return res.status(404).json({
         success: false,
-        message: 'Assessment not found'
+        message: 'Tax Assessment not found'
       });
     }
 
@@ -378,7 +378,7 @@ export const approveAssessment = async (req, res, next) => {
     if (!assessment) {
       return res.status(404).json({
         success: false,
-        message: 'Assessment not found'
+        message: 'Tax Assessment not found'
       });
     }
 
@@ -433,7 +433,7 @@ export const rejectAssessment = async (req, res, next) => {
     if (!assessment) {
       return res.status(404).json({
         success: false,
-        message: 'Assessment not found'
+        message: 'Tax Assessment not found'
       });
     }
 
@@ -478,7 +478,7 @@ export const submitAssessment = async (req, res, next) => {
     if (!assessment) {
       return res.status(404).json({
         success: false,
-        message: 'Assessment not found'
+        message: 'Tax Assessment not found'
       });
     }
 

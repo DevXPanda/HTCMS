@@ -23,35 +23,35 @@ const AssessmentDetails = () => {
       const response = await assessmentAPI.getById(id);
       setAssessment(response.data.data.assessment);
     } catch (error) {
-      toast.error('Failed to fetch assessment details');
+      toast.error('Failed to fetch tax assessment details');
     } finally {
       setLoading(false);
     }
   };
 
   const handleSubmit = async () => {
-    if (!window.confirm('Submit this assessment for approval?')) return;
+    if (!window.confirm('Submit this tax assessment for approval?')) return;
     try {
       setActionLoading(true);
       await assessmentAPI.submit(id);
-      toast.success('Assessment submitted for approval');
+      toast.success('Tax Assessment submitted for approval');
       fetchAssessment();
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Failed to submit assessment');
+      toast.error(error.response?.data?.error || 'Failed to submit tax assessment');
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleApprove = async () => {
-    if (!window.confirm('Approve this assessment?')) return;
+    if (!window.confirm('Approve this tax assessment?')) return;
     try {
       setActionLoading(true);
       await assessmentAPI.approve(id);
-      toast.success('Assessment approved');
+      toast.success('Tax Assessment approved');
       fetchAssessment();
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Failed to approve assessment');
+      toast.error(error.response?.data?.error || 'Failed to approve tax assessment');
     } finally {
       setActionLoading(false);
     }
@@ -63,17 +63,17 @@ const AssessmentDetails = () => {
     try {
       setActionLoading(true);
       await assessmentAPI.reject(id, { remarks });
-      toast.success('Assessment rejected');
+      toast.success('Tax Assessment rejected');
       fetchAssessment();
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Failed to reject assessment');
+      toast.error(error.response?.data?.error || 'Failed to reject tax assessment');
     } finally {
       setActionLoading(false);
     }
   };
 
   if (loading) return <Loading />;
-  if (!assessment) return <div>Assessment not found</div>;
+  if (!assessment) return <div>Tax Assessment not found</div>;
 
   return (
     <div>
@@ -83,7 +83,7 @@ const AssessmentDetails = () => {
       </Link>
 
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Assessment Details</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Tax Assessment Details</h1>
         <div className="flex gap-2">
           {(isAdmin || isAssessor) && assessment?.status === 'draft' && (
             <>

@@ -143,12 +143,21 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('role');
-    localStorage.removeItem('user');
-    setToken(null);
-    setUser(null);
+  const logout = async () => {
+    try {
+      // Call logout API to capture attendance (punch out for collectors)
+      await authAPI.logout();
+    } catch (error) {
+      // Log error but continue with logout even if API call fails
+      console.error('Logout API error:', error);
+    } finally {
+      // Always clear local storage and state
+      localStorage.removeItem('token');
+      localStorage.removeItem('role');
+      localStorage.removeItem('user');
+      setToken(null);
+      setUser(null);
+    }
   };
 
   const updateUser = (userData) => {

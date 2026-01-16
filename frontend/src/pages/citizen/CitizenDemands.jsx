@@ -19,7 +19,7 @@ const CitizenDemands = () => {
       const response = await citizenAPI.getDemands();
       setDemands(response.data.data.demands);
     } catch (error) {
-      toast.error('Failed to fetch demands');
+      toast.error('Failed to fetch tax demands');
     } finally {
       setLoading(false);
     }
@@ -39,7 +39,7 @@ const CitizenDemands = () => {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">My Demands</h1>
+      <h1 className="text-3xl font-bold text-gray-900 mb-6">My Tax Demands</h1>
 
       <div className="card overflow-x-auto">
         <table className="table">
@@ -60,7 +60,7 @@ const CitizenDemands = () => {
             {demands.length === 0 ? (
               <tr>
                 <td colSpan="9" className="text-center py-8 text-gray-500">
-                  No demands found
+                  No tax demands found
                 </td>
               </tr>
             ) : (

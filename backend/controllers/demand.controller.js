@@ -4,7 +4,7 @@ import { auditLogger } from '../utils/auditLogger.js';
 
 /**
  * @route   GET /api/demands
- * @desc    Get all demands (with filters)
+ * @desc    Get all tax demands (with filters)
  * @access  Private
  */
 export const getAllDemands = async (req, res, next) => {
@@ -125,7 +125,7 @@ export const getDemandById = async (req, res, next) => {
     if (!demand) {
       return res.status(404).json({
         success: false,
-        message: 'Demand not found'
+        message: 'Tax Demand not found'
       });
     }
 
@@ -151,7 +151,7 @@ export const getDemandById = async (req, res, next) => {
 
 /**
  * @route   POST /api/demands
- * @desc    Generate demand from approved assessment
+ * @desc    Generate tax demand from approved tax assessment
  * @access  Private (Admin, Assessor)
  */
 export const createDemand = async (req, res, next) => {
@@ -171,7 +171,7 @@ export const createDemand = async (req, res, next) => {
     if (!assessment) {
       return res.status(404).json({
         success: false,
-        message: 'Assessment not found'
+        message: 'Tax Assessment not found'
       });
     }
 
@@ -210,15 +210,17 @@ export const createDemand = async (req, res, next) => {
       }
     });
 
-    const arrearsAmount = previousDemands.reduce((sum, prevDemand) => {
+    // Calculate arrears - ensure numeric conversion
+    const arrearsAmount = Math.round(previousDemands.reduce((sum, prevDemand) => {
       return sum + parseFloat(prevDemand.balanceAmount || 0);
-    }, 0);
+    }, 0) * 100) / 100;
 
-    // Calculate amounts
-    const baseAmount = assessment.annualTaxAmount;
+    // Calculate amounts - ensure all are proper numbers
+    const baseAmount = parseFloat(assessment.annualTaxAmount || 0);
     const penaltyAmount = 0; // Can be calculated based on overdue logic
     const interestAmount = 0; // Can be calculated based on overdue logic
-    const totalAmount = baseAmount + arrearsAmount + penaltyAmount + interestAmount;
+    const totalAmount = Math.round((baseAmount + arrearsAmount + penaltyAmount + interestAmount) * 100) / 100;
+    const balanceAmount = Math.round(totalAmount * 100) / 100;
 
     const demand = await Demand.create({
       demandNumber,
@@ -230,7 +232,7 @@ export const createDemand = async (req, res, next) => {
       penaltyAmount,
       interestAmount,
       totalAmount,
-      balanceAmount: totalAmount,
+      balanceAmount: balanceAmount,
       paidAmount: 0,
       dueDate: new Date(dueDate),
       status: 'pending',
@@ -317,13 +319,15 @@ export const generateBulkDemands = async (req, res, next) => {
           }
         });
 
-        const arrearsAmount = previousDemands.reduce((sum, prevDemand) => {
+        // Calculate arrears - ensure numeric conversion
+        const arrearsAmount = Math.round(previousDemands.reduce((sum, prevDemand) => {
           return sum + parseFloat(prevDemand.balanceAmount || 0);
-        }, 0);
+        }, 0) * 100) / 100;
 
         const demandNumber = `DEM-${financialYear}-${Date.now()}-${assessment.id}`;
-        const baseAmount = assessment.annualTaxAmount;
-        const totalAmount = baseAmount + arrearsAmount;
+        const baseAmount = parseFloat(assessment.annualTaxAmount || 0);
+        const totalAmount = Math.round((baseAmount + arrearsAmount) * 100) / 100;
+        const balanceAmount = Math.round(totalAmount * 100) / 100;
 
         const demand = await Demand.create({
           demandNumber,
@@ -335,7 +339,7 @@ export const generateBulkDemands = async (req, res, next) => {
           penaltyAmount: 0,
           interestAmount: 0,
           totalAmount,
-          balanceAmount: totalAmount,
+          balanceAmount: balanceAmount,
           paidAmount: 0,
           dueDate: new Date(dueDate),
           status: 'pending',
@@ -379,7 +383,7 @@ export const calculatePenalty = async (req, res, next) => {
     if (!demand) {
       return res.status(404).json({
         success: false,
-        message: 'Demand not found'
+        message: 'Tax Demand not found'
       });
     }
 
@@ -392,15 +396,25 @@ export const calculatePenalty = async (req, res, next) => {
       
       // Calculate penalty (one-time, on base amount + arrears)
       const penaltyBase = parseFloat(demand.baseAmount || 0) + parseFloat(demand.arrearsAmount || 0);
-      const penalty = penaltyBase * (penaltyRate || 0.05) / 100;
+      // Ensure all values are numbers before calculation
+      const baseAmount = parseFloat(demand.baseAmount || 0);
+      const arrearsAmount = parseFloat(demand.arrearsAmount || 0);
+      const paidAmount = parseFloat(demand.paidAmount || 0);
+      const balanceAmount = parseFloat(demand.balanceAmount || 0);
+      
+      const penalty = Math.round((penaltyBase * (penaltyRate || 0.05) / 100) * 100) / 100;
       
       // Calculate interest (daily, on balance amount)
-      const interest = (demand.balanceAmount * (interestRate || 0.01) / 100) * daysOverdue;
+      const interest = Math.round((balanceAmount * (interestRate || 0.01) / 100) * daysOverdue * 100) / 100;
+      
+      // Calculate totals using proper numeric arithmetic
+      const totalAmount = Math.round((baseAmount + arrearsAmount + penalty + interest) * 100) / 100;
+      const newBalanceAmount = Math.round((totalAmount - paidAmount) * 100) / 100;
       
       demand.penaltyAmount = penalty;
       demand.interestAmount = interest;
-      demand.totalAmount = demand.baseAmount + demand.arrearsAmount + penalty + interest;
-      demand.balanceAmount = demand.totalAmount - demand.paidAmount;
+      demand.totalAmount = totalAmount;
+      demand.balanceAmount = newBalanceAmount;
       
       if (demand.status === 'pending' && daysOverdue > 0) {
         demand.status = 'overdue';

@@ -1,4 +1,4 @@
-import { Payment, Demand, Property, User, Ward, Assessment } from '../models/index.js';
+import { Payment, Demand, Property, User, Ward, Assessment, FollowUp } from '../models/index.js';
 import { Op } from 'sequelize';
 import { razorpay } from '../config/razorpay.js';
 import crypto from 'crypto';
@@ -190,12 +190,22 @@ export const createPayment = async (req, res, next) => {
     if (!demand) {
       return res.status(404).json({
         success: false,
-        message: 'Demand not found'
+        message: 'Tax Demand not found'
       });
     }
 
+    // Ensure all amounts are proper numbers
+    const paymentAmount = parseFloat(amount);
+    const balanceAmount = parseFloat(demand.balanceAmount || 0);
+    const totalAmount = parseFloat(demand.totalAmount || 0);
+    const paidAmount = parseFloat(demand.paidAmount || 0);
+    const baseAmount = parseFloat(demand.baseAmount || 0);
+    const arrearsAmount = parseFloat(demand.arrearsAmount || 0);
+    const penaltyAmount = parseFloat(demand.penaltyAmount || 0);
+    const interestAmount = parseFloat(demand.interestAmount || 0);
+
     // Validate payment amount
-    if (amount > demand.balanceAmount) {
+    if (paymentAmount > balanceAmount) {
       return res.status(400).json({
         success: false,
         message: 'Payment amount cannot exceed balance amount'
@@ -213,7 +223,7 @@ export const createPayment = async (req, res, next) => {
       paymentNumber,
       demandId,
       propertyId: demand.propertyId,
-      amount,
+      amount: paymentAmount,
       paymentMode: paymentMode || 'cash',
       paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
       chequeNumber,
@@ -226,9 +236,9 @@ export const createPayment = async (req, res, next) => {
       remarks
     });
 
-    // Update demand
-    const newPaidAmount = demand.paidAmount + amount;
-    const newBalanceAmount = demand.totalAmount - newPaidAmount;
+    // Update demand - ensure all calculations use proper numeric arithmetic
+    const newPaidAmount = Math.round((paidAmount + paymentAmount) * 100) / 100;
+    const newBalanceAmount = Math.round((totalAmount - newPaidAmount) * 100) / 100;
 
     demand.paidAmount = newPaidAmount;
     demand.balanceAmount = newBalanceAmount;
@@ -244,6 +254,38 @@ export const createPayment = async (req, res, next) => {
 
     // Update notice status if demand is paid
     await updateNoticeOnPayment(demandId, req, req.user);
+
+    // Auto-close follow-up if demand is fully paid
+    if (newBalanceAmount <= 0) {
+      const followUp = await FollowUp.findOne({
+        where: { demandId }
+      });
+
+      if (followUp && !followUp.isResolved) {
+        await followUp.update({
+          isResolved: true,
+          resolvedDate: new Date(),
+          resolvedBy: req.user.id
+        });
+
+        // Create audit log for follow-up resolution
+        await createAuditLog({
+          req,
+          user: req.user,
+          actionType: 'RESOLVE',
+          entityType: 'FollowUp',
+          entityId: followUp.id,
+          description: `Follow-up resolved automatically after payment. Payment: ${payment.paymentNumber}`,
+          metadata: {
+            followUpId: followUp.id,
+            demandId,
+            paymentId: payment.id,
+            paymentNumber: payment.paymentNumber,
+            amount: payment.amount
+          }
+        });
+      }
+    }
 
     const createdPayment = await Payment.findByPk(payment.id, {
       include: [
@@ -449,12 +491,16 @@ export const createOnlinePaymentOrder = async (req, res, next) => {
     if (!demand) {
       return res.status(404).json({
         success: false,
-        message: 'Demand not found'
+        message: 'Tax Demand not found'
       });
     }
 
     // Validate payment amount
-    if (amount > demand.balanceAmount) {
+    // Ensure amounts are proper numbers
+    const paymentAmount = parseFloat(amount);
+    const balanceAmount = parseFloat(demand.balanceAmount || 0);
+
+    if (paymentAmount > balanceAmount) {
       return res.status(400).json({
         success: false,
         message: 'Payment amount cannot exceed balance amount'
@@ -617,10 +663,14 @@ export const verifyOnlinePayment = async (req, res, next) => {
     payment.receiptNumber = receiptNumber;
     await payment.save();
 
-    // Update demand
+    // Update demand - ensure all values are proper numbers
     const demand = payment.demand;
-    const newPaidAmount = parseFloat(demand.paidAmount || 0) + parseFloat(payment.amount);
-    const newBalanceAmount = parseFloat(demand.totalAmount || 0) - newPaidAmount;
+    const totalAmount = parseFloat(demand.totalAmount || 0);
+    const paidAmount = parseFloat(demand.paidAmount || 0);
+    const paymentAmount = parseFloat(payment.amount || 0);
+    
+    const newPaidAmount = Math.round((paidAmount + paymentAmount) * 100) / 100;
+    const newBalanceAmount = Math.round((totalAmount - newPaidAmount) * 100) / 100;
 
     demand.paidAmount = newPaidAmount;
     demand.balanceAmount = newBalanceAmount;
@@ -636,6 +686,39 @@ export const verifyOnlinePayment = async (req, res, next) => {
 
     // Update notice status if demand is paid
     await updateNoticeOnPayment(demand.id, req, req.user);
+
+    // Auto-close follow-up if demand is fully paid
+    if (newBalanceAmount <= 0) {
+      const followUp = await FollowUp.findOne({
+        where: { demandId: demand.id }
+      });
+
+      if (followUp && !followUp.isResolved) {
+        await followUp.update({
+          isResolved: true,
+          resolvedDate: new Date(),
+          resolvedBy: req.user.id
+        });
+
+        // Create audit log for follow-up resolution
+        await createAuditLog({
+          req,
+          user: req.user,
+          actionType: 'RESOLVE',
+          entityType: 'FollowUp',
+          entityId: followUp.id,
+          description: `Follow-up resolved automatically after online payment. Payment: ${payment.paymentNumber}`,
+          metadata: {
+            followUpId: followUp.id,
+            demandId: demand.id,
+            paymentId: payment.id,
+            paymentNumber: payment.paymentNumber,
+            amount: payment.amount,
+            paymentMode: 'online'
+          }
+        });
+      }
+    }
 
     // Log online payment completion
     await auditLogger.logPay(

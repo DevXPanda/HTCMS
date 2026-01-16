@@ -1,7 +1,8 @@
 import jwt from 'jsonwebtoken';
 import { User, Property } from '../models/index.js';
 import { Op } from 'sequelize';
-import { auditLogger } from '../utils/auditLogger.js';
+import { auditLogger, createAuditLog } from '../utils/auditLogger.js';
+import { parseDeviceInfo } from '../utils/deviceParser.js';
 
 /**
  * Generate JWT Token
@@ -150,6 +151,79 @@ export const login = async (req, res, next) => {
     // Log login action
     await auditLogger.logLogin(req, user);
 
+    // Capture attendance for collectors (automatic punch in)
+    if (user.role === 'collector') {
+      try {
+        // Import CollectorAttendance here to avoid circular dependency
+        const { CollectorAttendance } = await import('../models/index.js');
+        
+        // Check if there's an active session (no logout)
+        const activeSession = await CollectorAttendance.findOne({
+          where: {
+            collectorId: user.id,
+            logoutAt: null
+          },
+          order: [['loginAt', 'DESC']]
+        });
+
+        // If there's an active session, log it but don't create duplicate
+        // This handles cases where user didn't logout properly
+        if (activeSession) {
+          console.warn(`Collector ${user.id} logged in with existing active session. Previous session: ${activeSession.id}`);
+        }
+
+        // Parse device information
+        const deviceInfo = parseDeviceInfo(req);
+        
+        // Get location from request body (if provided by frontend)
+        const { latitude, longitude, address } = req.body;
+
+        // Create attendance record
+        const attendance = await CollectorAttendance.create({
+          collectorId: user.id,
+          loginAt: new Date(),
+          loginLatitude: latitude || null,
+          loginLongitude: longitude || null,
+          loginAddress: address || null,
+          ipAddress: deviceInfo.ipAddress,
+          deviceType: deviceInfo.deviceType,
+          browserName: deviceInfo.browserName,
+          operatingSystem: deviceInfo.operatingSystem,
+          source: deviceInfo.source,
+          isAutoMarked: true
+        });
+
+        // Create audit log for attendance punch in
+        // Wrap in try-catch to ensure attendance creation never fails due to audit log errors
+        try {
+          await createAuditLog({
+            req,
+            user,
+            actionType: 'LOGIN',
+            entityType: 'Attendance',
+            entityId: attendance.id,
+            description: `Collector punched in`,
+            metadata: {
+              attendanceId: attendance.id,
+              location: latitude && longitude ? { latitude, longitude, address } : null,
+              device: deviceInfo.deviceType,
+              browser: deviceInfo.browserName,
+              os: deviceInfo.operatingSystem,
+              ip: deviceInfo.ipAddress,
+              source: deviceInfo.source
+            }
+          });
+        } catch (auditError) {
+          // Log error but don't fail attendance creation
+          console.error('Failed to create audit log for attendance punch in:', auditError);
+          // Attendance record is still created successfully
+        }
+      } catch (attendanceError) {
+        // Log error but don't fail login
+        console.error('Failed to capture attendance on login:', attendanceError);
+      }
+    }
+
     // Sanitized user object with role field
     const sanitizedUser = {
       id: user.id,
@@ -216,6 +290,80 @@ export const getMe = async (req, res, next) => {
     res.json({
       success: true,
       data: { user: sanitizedUser }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   POST /api/auth/logout
+ * @desc    Logout user and capture attendance (punch out for collectors)
+ * @access  Private
+ */
+export const logout = async (req, res, next) => {
+  try {
+    const user = req.user;
+
+    // Capture attendance for collectors (automatic punch out)
+    if (user.role === 'collector') {
+      try {
+        // Import CollectorAttendance here to avoid circular dependency
+        const { CollectorAttendance } = await import('../models/index.js');
+        
+        // Find active attendance session (no logout)
+        const activeAttendance = await CollectorAttendance.findOne({
+          where: {
+            collectorId: user.id,
+            logoutAt: null
+          },
+          order: [['loginAt', 'DESC']]
+        });
+
+        if (activeAttendance) {
+          // Update attendance with logout time
+          await activeAttendance.update({
+            logoutAt: new Date()
+            // workingDurationMinutes is calculated automatically in the model hook
+          });
+
+          // Create audit log for attendance punch out
+          // Wrap in try-catch to ensure logout never fails due to audit log errors
+          try {
+            await createAuditLog({
+              req,
+              user,
+              actionType: 'LOGOUT',
+              entityType: 'Attendance',
+              entityId: activeAttendance.id,
+              description: `Collector punched out`,
+              metadata: {
+                attendanceId: activeAttendance.id,
+                workingDurationMinutes: activeAttendance.workingDurationMinutes,
+                loginAt: activeAttendance.loginAt,
+                logoutAt: activeAttendance.logoutAt
+              }
+            });
+          } catch (auditError) {
+            // Log error but don't fail logout
+            console.error('Failed to create audit log for attendance punch out:', auditError);
+            // Logout and attendance update are still successful
+          }
+        } else {
+          console.warn(`Collector ${user.id} logged out but no active attendance session found`);
+        }
+      } catch (attendanceError) {
+        // Log error but don't fail logout
+        console.error('Failed to capture attendance on logout:', attendanceError);
+      }
+    }
+
+    // Log logout action
+    await auditLogger.logLogout(req, user);
+
+    res.json({
+      success: true,
+      message: 'Logged out successfully'
     });
   } catch (error) {
     next(error);

@@ -33,7 +33,7 @@ const Dashboard = () => {
       color: 'bg-blue-500'
     },
     {
-      title: 'Total Assessments',
+      title: 'Total Tax Assessments',
       value: stats?.totalAssessments || 0,
       icon: FileText,
       color: 'bg-green-500'
@@ -45,13 +45,13 @@ const Dashboard = () => {
       color: 'bg-yellow-500'
     },
     {
-      title: 'Pending Demands',
+      title: 'Pending Tax Demands',
       value: stats?.pendingDemands || 0,
       icon: AlertCircle,
       color: 'bg-orange-500'
     },
     {
-      title: 'Overdue Demands',
+      title: 'Overdue Tax Demands',
       value: stats?.overdueDemands || 0,
       icon: AlertCircle,
       color: 'bg-red-500'
@@ -95,10 +95,10 @@ const Dashboard = () => {
               Manage Properties
             </Link>
             <Link to="/assessments" className="block p-3 bg-gray-50 hover:bg-gray-100 rounded-lg">
-              Create Assessment
+              Create Tax Assessment
             </Link>
             <Link to="/demands" className="block p-3 bg-gray-50 hover:bg-gray-100 rounded-lg">
-              Generate Demands
+              Generate Tax Demands
             </Link>
             <Link to="/payments" className="block p-3 bg-gray-50 hover:bg-gray-100 rounded-lg">
               Record Payment

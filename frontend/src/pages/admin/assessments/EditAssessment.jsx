@@ -100,18 +100,18 @@ const EditAssessment = () => {
       const response = await assessmentAPI.update(id, assessmentData);
 
       if (response.data.success) {
-        toast.success('Assessment updated successfully!');
+        toast.success('Tax Assessment updated successfully!');
         navigate(`/assessments/${id}`);
       }
     } catch (error) {
-      toast.error(error.response?.data?.error || error.response?.data?.message || 'Failed to update assessment');
+      toast.error(error.response?.data?.error || error.response?.data?.message || 'Failed to update tax assessment');
     } finally {
       setLoading(false);
     }
   };
 
   if (loadingAssessment) {
-    return <Loading message="Loading assessment data..." />;
+    return <Loading message="Loading tax assessment data..." />;
   }
 
   return (
@@ -121,7 +121,7 @@ const EditAssessment = () => {
           <Link to={`/assessments/${id}`} className="mr-4 text-primary-600 hover:text-primary-700">
             <ArrowLeft className="w-5 h-5" />
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900">Edit Assessment</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Edit Tax Assessment</h1>
         </div>
       </div>
 
@@ -311,7 +311,7 @@ const EditAssessment = () => {
             className="btn btn-primary flex items-center"
           >
             <Save className="w-4 h-4 mr-2" />
-            {loading ? 'Updating...' : 'Update Assessment'}
+            {loading ? 'Updating...' : 'Update Tax Assessment'}
           </button>
         </div>
       </form>

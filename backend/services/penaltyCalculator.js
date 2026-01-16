@@ -7,6 +7,27 @@ import { Op } from 'sequelize';
  */
 
 /**
+ * Safely convert value to number, handling string decimals
+ */
+const toNumber = (value) => {
+  if (value === null || value === undefined) return 0;
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+  return 0;
+};
+
+/**
+ * Safely round to 2 decimal places for monetary values
+ */
+const roundMoney = (value) => {
+  const num = toNumber(value);
+  return Math.round(num * 100) / 100;
+};
+
+/**
  * Get active penalty rule for a financial year
  */
 export const getActivePenaltyRule = async (financialYear) => {
@@ -67,20 +88,20 @@ export const calculatePenalty = (demand, rule, overdueDays) => {
     return 0;
   }
 
-  // Determine base amount for penalty calculation
+  // Determine base amount for penalty calculation - ensure numeric conversion
   let penaltyBase = 0;
   switch (rule.penaltyBase) {
     case 'base_amount':
-      penaltyBase = parseFloat(demand.baseAmount || 0);
+      penaltyBase = toNumber(demand.baseAmount);
       break;
     case 'total_amount':
-      penaltyBase = parseFloat(demand.baseAmount || 0) + parseFloat(demand.arrearsAmount || 0);
+      penaltyBase = toNumber(demand.baseAmount) + toNumber(demand.arrearsAmount);
       break;
     case 'balance_amount':
-      penaltyBase = parseFloat(demand.balanceAmount || 0);
+      penaltyBase = toNumber(demand.balanceAmount);
       break;
     default:
-      penaltyBase = parseFloat(demand.baseAmount || 0);
+      penaltyBase = toNumber(demand.baseAmount);
   }
 
   if (penaltyBase <= 0) {
@@ -88,35 +109,37 @@ export const calculatePenalty = (demand, rule, overdueDays) => {
   }
 
   let penalty = 0;
+  const penaltyValue = toNumber(rule.penaltyValue);
 
   if (rule.penaltyType === 'flat') {
     // Flat penalty
     if (rule.penaltyFrequency === 'one_time') {
-      penalty = parseFloat(rule.penaltyValue || 0);
+      penalty = penaltyValue;
     } else if (rule.penaltyFrequency === 'monthly') {
       const months = Math.ceil(overdueDays / 30);
-      penalty = parseFloat(rule.penaltyValue || 0) * months;
+      penalty = penaltyValue * months;
     } else if (rule.penaltyFrequency === 'daily') {
-      penalty = parseFloat(rule.penaltyValue || 0) * overdueDays;
+      penalty = penaltyValue * overdueDays;
     }
   } else if (rule.penaltyType === 'percentage') {
     // Percentage-based penalty
     if (rule.penaltyFrequency === 'one_time') {
-      penalty = (penaltyBase * parseFloat(rule.penaltyValue || 0)) / 100;
+      penalty = (penaltyBase * penaltyValue) / 100;
     } else if (rule.penaltyFrequency === 'monthly') {
       const months = Math.ceil(overdueDays / 30);
-      penalty = (penaltyBase * parseFloat(rule.penaltyValue || 0) * months) / 100;
+      penalty = (penaltyBase * penaltyValue * months) / 100;
     } else if (rule.penaltyFrequency === 'daily') {
-      penalty = (penaltyBase * parseFloat(rule.penaltyValue || 0) * overdueDays) / 100;
+      penalty = (penaltyBase * penaltyValue * overdueDays) / 100;
     }
   }
 
   // Apply maximum cap if set
-  if (rule.maxPenaltyAmount && penalty > parseFloat(rule.maxPenaltyAmount)) {
-    penalty = parseFloat(rule.maxPenaltyAmount);
+  const maxPenalty = toNumber(rule.maxPenaltyAmount);
+  if (maxPenalty > 0 && penalty > maxPenalty) {
+    penalty = maxPenalty;
   }
 
-  return Math.round(penalty * 100) / 100; // Round to 2 decimal places
+  return roundMoney(penalty);
 };
 
 /**
@@ -127,20 +150,20 @@ export const calculateInterest = (demand, rule, overdueDays) => {
     return 0;
   }
 
-  // Determine base amount for interest calculation
+  // Determine base amount for interest calculation - ensure numeric conversion
   let interestBase = 0;
   switch (rule.interestBase) {
     case 'base_amount':
-      interestBase = parseFloat(demand.baseAmount || 0);
+      interestBase = toNumber(demand.baseAmount);
       break;
     case 'total_amount':
-      interestBase = parseFloat(demand.baseAmount || 0) + parseFloat(demand.arrearsAmount || 0);
+      interestBase = toNumber(demand.baseAmount) + toNumber(demand.arrearsAmount);
       break;
     case 'balance_amount':
-      interestBase = parseFloat(demand.balanceAmount || 0);
+      interestBase = toNumber(demand.balanceAmount);
       break;
     default:
-      interestBase = parseFloat(demand.balanceAmount || 0);
+      interestBase = toNumber(demand.balanceAmount);
   }
 
   if (interestBase <= 0) {
@@ -148,31 +171,33 @@ export const calculateInterest = (demand, rule, overdueDays) => {
   }
 
   let interest = 0;
+  const interestValue = toNumber(rule.interestValue);
 
   if (rule.interestType === 'flat') {
     // Flat interest
     if (rule.interestFrequency === 'monthly') {
       const months = Math.ceil(overdueDays / 30);
-      interest = parseFloat(rule.interestValue || 0) * months;
+      interest = interestValue * months;
     } else if (rule.interestFrequency === 'daily') {
-      interest = parseFloat(rule.interestValue || 0) * overdueDays;
+      interest = interestValue * overdueDays;
     }
   } else if (rule.interestType === 'percentage') {
     // Percentage-based interest
     if (rule.interestFrequency === 'monthly') {
       const months = Math.ceil(overdueDays / 30);
-      interest = (interestBase * parseFloat(rule.interestValue || 0) * months) / 100;
+      interest = (interestBase * interestValue * months) / 100;
     } else if (rule.interestFrequency === 'daily') {
-      interest = (interestBase * parseFloat(rule.interestValue || 0) * overdueDays) / 100;
+      interest = (interestBase * interestValue * overdueDays) / 100;
     }
   }
 
   // Apply maximum cap if set
-  if (rule.maxInterestAmount && interest > parseFloat(rule.maxInterestAmount)) {
-    interest = parseFloat(rule.maxInterestAmount);
+  const maxInterest = toNumber(rule.maxInterestAmount);
+  if (maxInterest > 0 && interest > maxInterest) {
+    interest = maxInterest;
   }
 
-  return Math.round(interest * 100) / 100; // Round to 2 decimal places
+  return roundMoney(interest);
 };
 
 /**
@@ -188,8 +213,8 @@ export const shouldApplyPenalty = (demand, rule, overdueDays) => {
     return false;
   }
 
-  // If balance is zero, don't apply penalty
-  if (parseFloat(demand.balanceAmount || 0) <= 0) {
+  // If balance is zero, don't apply penalty - ensure numeric comparison
+  if (toNumber(demand.balanceAmount) <= 0) {
     return false;
   }
 
@@ -217,7 +242,7 @@ export const shouldApplyPenalty = (demand, rule, overdueDays) => {
   }
 
   // For one_time penalty, check if it was already applied
-  if (rule.penaltyFrequency === 'one_time' && parseFloat(demand.penaltyAmount || 0) > 0) {
+  if (rule.penaltyFrequency === 'one_time' && toNumber(demand.penaltyAmount) > 0) {
     return false; // Already applied
   }
 
@@ -228,23 +253,28 @@ export const shouldApplyPenalty = (demand, rule, overdueDays) => {
  * Apply penalty and interest to a demand
  */
 export const applyPenaltyToDemand = async (demand, rule, overdueDays) => {
-  const previousPenaltyAmount = parseFloat(demand.penaltyAmount || 0);
-  const previousInterestAmount = parseFloat(demand.interestAmount || 0);
-  const previousTotalAmount = parseFloat(demand.totalAmount || 0);
-  const previousBalanceAmount = parseFloat(demand.balanceAmount || 0);
+  // Safely convert all values to numbers
+  const previousPenaltyAmount = roundMoney(demand.penaltyAmount);
+  const previousInterestAmount = roundMoney(demand.interestAmount);
+  const previousTotalAmount = roundMoney(demand.totalAmount);
+  const previousBalanceAmount = roundMoney(demand.balanceAmount);
+  const baseAmount = roundMoney(demand.baseAmount);
+  const arrearsAmount = roundMoney(demand.arrearsAmount);
+  const paidAmount = roundMoney(demand.paidAmount);
 
-  // Calculate new penalty and interest
-  const newPenalty = calculatePenalty(demand, rule, overdueDays);
-  const newInterest = calculateInterest(demand, rule, overdueDays);
+  // Calculate new penalty and interest (already returns numbers)
+  const newPenalty = roundMoney(calculatePenalty(demand, rule, overdueDays));
+  const newInterest = roundMoney(calculateInterest(demand, rule, overdueDays));
 
-  // Update demand amounts
+  // Calculate total amount using proper numeric arithmetic
+  const totalAmount = roundMoney(baseAmount + arrearsAmount + newPenalty + newInterest);
+  const balanceAmount = roundMoney(totalAmount - paidAmount);
+
+  // Update demand amounts - ensure all values are proper numbers
   demand.penaltyAmount = newPenalty;
   demand.interestAmount = newInterest;
-  demand.totalAmount = parseFloat(demand.baseAmount || 0) + 
-                       parseFloat(demand.arrearsAmount || 0) + 
-                       newPenalty + 
-                       newInterest;
-  demand.balanceAmount = demand.totalAmount - parseFloat(demand.paidAmount || 0);
+  demand.totalAmount = totalAmount;
+  demand.balanceAmount = balanceAmount;
   demand.overdueDays = overdueDays;
   demand.lastPenaltyAppliedAt = new Date();
 
@@ -268,16 +298,17 @@ export const applyPenaltyToDemand = async (demand, rule, overdueDays) => {
 
   await demand.save();
 
+  // Ensure return values are numbers, not strings
   return {
-    previousPenaltyAmount,
-    previousInterestAmount,
-    previousTotalAmount,
-    previousBalanceAmount,
-    newPenalty,
-    newInterest,
-    newTotalAmount: demand.totalAmount,
-    newBalanceAmount: demand.balanceAmount,
-    penaltyAdded: newPenalty - previousPenaltyAmount,
-    interestAdded: newInterest - previousInterestAmount
+    previousPenaltyAmount: roundMoney(previousPenaltyAmount),
+    previousInterestAmount: roundMoney(previousInterestAmount),
+    previousTotalAmount: roundMoney(previousTotalAmount),
+    previousBalanceAmount: roundMoney(previousBalanceAmount),
+    newPenalty: roundMoney(newPenalty),
+    newInterest: roundMoney(newInterest),
+    newTotalAmount: roundMoney(totalAmount),
+    newBalanceAmount: roundMoney(balanceAmount),
+    penaltyAdded: roundMoney(newPenalty - previousPenaltyAmount),
+    interestAdded: roundMoney(newInterest - previousInterestAmount)
   };
 };

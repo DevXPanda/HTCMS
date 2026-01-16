@@ -51,8 +51,9 @@ api.interceptors.response.use(
 
 // Auth API
 export const authAPI = {
-  login: (email, password) => api.post('/auth/login', { email, password }),
+  login: (email, password, location) => api.post('/auth/login', { email, password, ...location }),
   register: (data) => api.post('/auth/register', data),
+  logout: () => api.post('/auth/logout'),
   getMe: () => api.get('/auth/me'),
   changePassword: (currentPassword, newPassword) =>
     api.post('/auth/change-password', { currentPassword, newPassword })
@@ -163,6 +164,46 @@ export const auditLogAPI = {
   getAll: (params) => api.get('/audit-logs', { params }),
   getById: (id) => api.get(`/audit-logs/${id}`),
   getStats: (params) => api.get('/audit-logs/stats/summary', { params })
+};
+
+// Attendance API
+export const attendanceAPI = {
+  getAll: (params) => api.get('/attendance', { params }),
+  getById: (id) => api.get(`/attendance/${id}`),
+  getStats: (params) => api.get('/attendance/stats/summary', { params })
+};
+
+// Field Visit API
+export const fieldVisitAPI = {
+  create: (data) => api.post('/field-visits', data),
+  getAll: (params) => api.get('/field-visits', { params }),
+  getById: (id) => api.get(`/field-visits/${id}`),
+  getContext: (taskId) => api.get(`/field-visits/context/${taskId}`),
+  getAdminDetails: (visitId) => api.get(`/field-visits/admin/${visitId}`)
+};
+
+// Upload API
+export const uploadAPI = {
+  uploadPropertyPhoto: (formData) => api.post('/upload/property-photo', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  uploadFieldVisitPhoto: (formData) => api.post('/upload/field-visit-photo', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+};
+
+// Task Engine API
+export const taskAPI = {
+  getDaily: () => api.get('/tasks/daily'),
+  generate: () => api.post('/tasks/generate'),
+  complete: (id, data) => api.patch(`/tasks/${id}/complete`, data)
+};
+
+// Field Monitoring API (Admin)
+export const fieldMonitoringAPI = {
+  getDashboard: (params) => api.get('/field-monitoring/dashboard', { params }),
+  getCollectorDetails: (collectorId, params) => api.get(`/field-monitoring/collector/${collectorId}`, { params }),
+  getFollowUps: (params) => api.get('/field-monitoring/follow-ups', { params })
 };
 
 export default api;

@@ -85,7 +85,27 @@ export const Notice = sequelize.define('Notice', {
       model: 'Users',
       key: 'id'
     },
-    comment: 'Admin/Assessor who generated the notice'
+    comment: 'Admin/Assessor/Collector who generated the notice'
+  },
+  isCollectorTriggered: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+    comment: 'Whether notice was triggered by collector (after visit threshold)'
+  },
+  triggeredByVisitCount: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    comment: 'Visit count that triggered this notice'
+  },
+  followUpId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'follow_ups',
+      key: 'id'
+    },
+    comment: 'Related follow-up record if collector-triggered'
   },
   previousNoticeId: {
     type: DataTypes.INTEGER,

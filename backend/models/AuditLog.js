@@ -22,12 +22,12 @@ export const AuditLog = sequelize.define('AuditLog', {
     comment: 'Role of the user who performed the action'
   },
   actionType: {
-    type: DataTypes.ENUM('CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'REJECT', 'PAY', 'LOGIN', 'LOGOUT', 'ASSIGN', 'ESCALATE', 'SEND', 'RESOLVE', 'PENALTY_APPLIED', 'RECEIPT_PDF_GENERATED', 'NOTICE_PDF_GENERATED', 'RECEIPT_PDF_DOWNLOADED', 'NOTICE_PDF_DOWNLOADED'),
+    type: DataTypes.ENUM('CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'REJECT', 'PAY', 'LOGIN', 'LOGOUT', 'ASSIGN', 'ESCALATE', 'SEND', 'RESOLVE', 'PENALTY_APPLIED', 'RECEIPT_PDF_GENERATED', 'NOTICE_PDF_GENERATED', 'RECEIPT_PDF_DOWNLOADED', 'NOTICE_PDF_DOWNLOADED', 'FIELD_VISIT', 'FOLLOW_UP', 'TASK_GENERATED', 'TASK_COMPLETED', 'NOTICE_TRIGGERED', 'ENFORCEMENT_ELIGIBLE'),
     allowNull: false,
     comment: 'Type of action performed'
   },
   entityType: {
-    type: DataTypes.ENUM('User', 'Property', 'Assessment', 'Demand', 'Payment', 'Ward', 'Notice'),
+    type: DataTypes.ENUM('User', 'Property', 'Assessment', 'Demand', 'Payment', 'Ward', 'Notice', 'Attendance', 'FieldVisit', 'FollowUp', 'CollectorTask'),
     allowNull: false,
     comment: 'Type of entity affected'
   },

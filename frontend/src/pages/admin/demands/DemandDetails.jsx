@@ -24,24 +24,24 @@ const DemandDetails = () => {
       const response = await demandAPI.getById(id);
       setDemand(response.data.data.demand);
     } catch (error) {
-      toast.error('Failed to fetch demand details');
+      toast.error('Failed to fetch tax demand details');
     } finally {
       setLoading(false);
     }
   };
 
   if (loading) return <Loading />;
-  if (!demand) return <div>Demand not found</div>;
+  if (!demand) return <div>Tax Demand not found</div>;
 
   return (
     <div>
       <Link to={`${basePath}/demands`} className="flex items-center text-primary-600 mb-4">
         <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to Demands
+        Back to Tax Demands
       </Link>
 
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Demand Details</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Tax Demand Details</h1>
         {demand.balanceAmount > 0 && (
           <Link
             to={`${basePath}/payments/online/${id}`}

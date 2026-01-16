@@ -1,6 +1,9 @@
 import { DataTypes } from 'sequelize';
 import { sequelize } from '../config/database.js';
 
+// Tax Assessment Model
+// Note: Model name remains 'Assessment' for backward compatibility
+// Display name is 'Tax Assessment' throughout the system
 export const Assessment = sequelize.define('Assessment', {
   id: {
     type: DataTypes.INTEGER,
