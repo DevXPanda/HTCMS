@@ -25,7 +25,15 @@ const RecordFieldVisit = () => {
     longitude: null,
     address: '',
     proofPhotoUrl: '',
-    proofNote: ''
+    proofNote: '',
+    // Payment collection fields
+    paymentAmount: '',
+    paymentMode: '',
+    transactionId: '',
+    chequeNumber: '',
+    chequeDate: '',
+    bankName: '',
+    paymentRemarks: ''
   });
   const [uploadedPhotoUrl, setUploadedPhotoUrl] = useState(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -170,6 +178,44 @@ const RecordFieldVisit = () => {
         }));
       }
     }
+
+    // If payment mode changes, clear related fields
+    if (name === 'paymentMode') {
+      setFormData(prev => ({
+        ...prev,
+        transactionId: '',
+        chequeNumber: '',
+        chequeDate: '',
+        bankName: ''
+      }));
+    }
+
+    // If visit type or citizen response changes and payment collection is enabled, set default amount
+    if ((name === 'visitType' || name === 'citizenResponse')) {
+      const isCollectingPayment = (name === 'visitType' ? value : formData.visitType) === 'payment_collection' && 
+                                   (name === 'citizenResponse' ? value : formData.citizenResponse) === 'will_pay_today';
+      if (isCollectingPayment && demand) {
+        const balanceAmount = parseFloat(demand.balanceAmount || 0);
+        if (balanceAmount > 0 && !formData.paymentAmount) {
+          setFormData(prev => ({
+            ...prev,
+            paymentAmount: balanceAmount.toString()
+          }));
+        }
+      } else if (!isCollectingPayment) {
+        // Clear payment fields when not collecting payment
+        setFormData(prev => ({
+          ...prev,
+          paymentAmount: '',
+          paymentMode: '',
+          transactionId: '',
+          chequeNumber: '',
+          chequeDate: '',
+          bankName: '',
+          paymentRemarks: ''
+        }));
+      }
+    }
   };
 
   const validate = () => {
@@ -186,6 +232,29 @@ const RecordFieldVisit = () => {
     }
     if (formData.citizenResponse === 'will_pay_later' && !formData.expectedPaymentDate) {
       newErrors.expectedPaymentDate = 'Expected payment date is required when citizen promises to pay later';
+    }
+
+    // Validate payment collection fields
+    const isCollectingPayment = formData.visitType === 'payment_collection' && formData.citizenResponse === 'will_pay_today';
+    if (isCollectingPayment) {
+      if (!formData.paymentAmount || parseFloat(formData.paymentAmount) <= 0) {
+        newErrors.paymentAmount = 'Payment amount is required and must be greater than 0';
+      } else {
+        const paymentAmount = parseFloat(formData.paymentAmount);
+        const balanceAmount = parseFloat(demand?.balanceAmount || 0);
+        if (paymentAmount > balanceAmount) {
+          newErrors.paymentAmount = `Payment amount cannot exceed balance amount (₹${balanceAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })})`;
+        }
+      }
+      if (!formData.paymentMode) {
+        newErrors.paymentMode = 'Payment mode is required';
+      }
+      if ((formData.paymentMode === 'cheque' || formData.paymentMode === 'dd') && !formData.chequeNumber) {
+        newErrors.chequeNumber = 'Cheque number is required for cheque/DD payments';
+      }
+      if ((formData.paymentMode === 'card' || formData.paymentMode === 'upi') && !formData.transactionId) {
+        newErrors.transactionId = 'Transaction reference is required for card/UPI payments';
+      }
     }
 
     setErrors(newErrors);
@@ -218,11 +287,30 @@ const RecordFieldVisit = () => {
         longitude: formData.longitude,
         address: formData.address,
         proofPhotoUrl: uploadedPhotoUrl || formData.proofPhotoUrl || null,
-        proofNote: formData.proofNote || null
+        proofNote: formData.proofNote || null,
+        taskId: taskId || null,
+        // Payment data (only when collecting payment)
+        ...(formData.visitType === 'payment_collection' && formData.citizenResponse === 'will_pay_today' ? {
+          paymentAmount: formData.paymentAmount,
+          paymentMode: formData.paymentMode,
+          transactionId: formData.transactionId || null,
+          chequeNumber: formData.chequeNumber || null,
+          chequeDate: formData.chequeDate || null,
+          bankName: formData.bankName || null,
+          paymentRemarks: formData.paymentRemarks || null
+        } : {})
       };
       const response = await fieldVisitAPI.create(visitData);
       
-      toast.success('Field visit recorded successfully!');
+      const isCollectingPayment = formData.visitType === 'payment_collection' && formData.citizenResponse === 'will_pay_today';
+      
+      if (isCollectingPayment && response.data.data.payment) {
+        toast.success(`Payment collected successfully! Receipt: ${response.data.data.payment.receiptNumber}`, {
+          duration: 6000
+        });
+      } else {
+        toast.success('Field visit recorded successfully!');
+      }
       
       // If notice was triggered, show notification
       if (response.data.data.noticeTriggered) {
@@ -398,6 +486,172 @@ const RecordFieldVisit = () => {
               required
             />
             {errors.expectedPaymentDate && <p className="text-sm text-red-500 mt-1">{errors.expectedPaymentDate}</p>}
+          </div>
+        )}
+
+        {/* Payment Collection Section */}
+        {formData.visitType === 'payment_collection' && formData.citizenResponse === 'will_pay_today' && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              <DollarSign className="w-5 h-5 mr-2 text-blue-600" />
+              Collect Payment
+            </h3>
+
+            {/* Payment Amount */}
+            <div className="mb-4">
+              <label className="label">
+                Payment Amount <span className="text-red-500">*</span>
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  name="paymentAmount"
+                  value={formData.paymentAmount}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '' || (!isNaN(value) && parseFloat(value) >= 0)) {
+                      handleChange(e);
+                    }
+                  }}
+                  onBlur={(e) => {
+                    // Set to full balance if empty or invalid
+                    if (!e.target.value || parseFloat(e.target.value) <= 0) {
+                      const balanceAmount = parseFloat(demand?.balanceAmount || 0);
+                      setFormData(prev => ({
+                        ...prev,
+                        paymentAmount: balanceAmount > 0 ? balanceAmount.toString() : ''
+                      }));
+                    }
+                  }}
+                  min="0"
+                  step="0.01"
+                  max={demand?.balanceAmount || 0}
+                  className={`input flex-1 ${errors.paymentAmount ? 'border-red-500' : ''}`}
+                  placeholder={`Max: ₹${parseFloat(demand?.balanceAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const balanceAmount = parseFloat(demand?.balanceAmount || 0);
+                    setFormData(prev => ({
+                      ...prev,
+                      paymentAmount: balanceAmount > 0 ? balanceAmount.toString() : ''
+                    }));
+                  }}
+                  className="btn btn-secondary text-sm whitespace-nowrap"
+                >
+                  Full Due
+                </button>
+              </div>
+              {demand && (
+                <p className="text-xs text-gray-600 mt-1">
+                  Balance Due: ₹{parseFloat(demand.balanceAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </p>
+              )}
+              {errors.paymentAmount && <p className="text-sm text-red-500 mt-1">{errors.paymentAmount}</p>}
+            </div>
+
+            {/* Payment Mode */}
+            <div className="mb-4">
+              <label className="label">
+                Payment Mode <span className="text-red-500">*</span>
+              </label>
+              <select
+                name="paymentMode"
+                value={formData.paymentMode}
+                onChange={handleChange}
+                className={`input ${errors.paymentMode ? 'border-red-500' : ''}`}
+                required
+              >
+                <option value="">Select payment mode</option>
+                <option value="cash">Cash</option>
+                <option value="cheque">Cheque</option>
+                <option value="dd">Demand Draft (DD)</option>
+                <option value="card">Card</option>
+                <option value="upi">UPI</option>
+              </select>
+              {errors.paymentMode && <p className="text-sm text-red-500 mt-1">{errors.paymentMode}</p>}
+            </div>
+
+            {/* Transaction Reference (for Card/UPI) */}
+            {(formData.paymentMode === 'card' || formData.paymentMode === 'upi') && (
+              <div className="mb-4">
+                <label className="label">
+                  Transaction Reference <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="transactionId"
+                  value={formData.transactionId}
+                  onChange={handleChange}
+                  className={`input ${errors.transactionId ? 'border-red-500' : ''}`}
+                  placeholder={`Enter ${formData.paymentMode === 'card' ? 'card' : 'UPI'} transaction reference`}
+                  required
+                />
+                {errors.transactionId && <p className="text-sm text-red-500 mt-1">{errors.transactionId}</p>}
+              </div>
+            )}
+
+            {/* Cheque Details (for Cheque/DD) */}
+            {(formData.paymentMode === 'cheque' || formData.paymentMode === 'dd') && (
+              <>
+                <div className="mb-4">
+                  <label className="label">
+                    {formData.paymentMode === 'cheque' ? 'Cheque' : 'DD'} Number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="chequeNumber"
+                    value={formData.chequeNumber}
+                    onChange={handleChange}
+                    className={`input ${errors.chequeNumber ? 'border-red-500' : ''}`}
+                    placeholder={`Enter ${formData.paymentMode === 'cheque' ? 'cheque' : 'DD'} number`}
+                    required
+                  />
+                  {errors.chequeNumber && <p className="text-sm text-red-500 mt-1">{errors.chequeNumber}</p>}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="label">
+                      {formData.paymentMode === 'cheque' ? 'Cheque' : 'DD'} Date
+                    </label>
+                    <input
+                      type="date"
+                      name="chequeDate"
+                      value={formData.chequeDate}
+                      onChange={handleChange}
+                      max={new Date().toISOString().split('T')[0]}
+                      className="input"
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Bank Name</label>
+                    <input
+                      type="text"
+                      name="bankName"
+                      value={formData.bankName}
+                      onChange={handleChange}
+                      className="input"
+                      placeholder="Bank name"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Payment Remarks */}
+            <div className="mb-4">
+              <label className="label">Payment Remarks (Optional)</label>
+              <textarea
+                name="paymentRemarks"
+                value={formData.paymentRemarks}
+                onChange={handleChange}
+                rows={2}
+                className="input"
+                placeholder="Additional notes about the payment..."
+              />
+            </div>
           </div>
         )}
 

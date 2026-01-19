@@ -33,7 +33,7 @@ export const Payment = sequelize.define('Payment', {
     allowNull: false
   },
   paymentMode: {
-    type: DataTypes.ENUM('cash', 'cheque', 'dd', 'online', 'card'),
+    type: DataTypes.ENUM('cash', 'cheque', 'dd', 'online', 'card', 'upi'),
     allowNull: false,
     defaultValue: 'cash'
   },
