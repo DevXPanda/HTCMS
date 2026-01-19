@@ -203,17 +203,34 @@ export const createFieldVisit = async (req, res, next) => {
       });
     }
 
-    // Validate visit sequence - prevent skipping levels
-    const nextExpectedSequence = followUp.visitCount + 1;
-    const expectedVisitType = getExpectedVisitType(nextExpectedSequence);
-    
-    if (visitType !== expectedVisitType) {
-      await transaction.rollback();
-      return res.status(400).json({
-        success: false,
-        message: `Invalid visit type. Expected ${expectedVisitType} for visit #${nextExpectedSequence}. Cannot skip visit levels.`
-      });
+    // Count escalation visits (excluding payment_collection) for validation and escalation tracking
+    const escalationVisitTypes = ['reminder', 'warning', 'final_warning'];
+    const escalationVisitCount = await FieldVisit.count({
+      where: {
+        demandId,
+        visitType: {
+          [Op.in]: escalationVisitTypes
+        }
+      },
+      transaction
+    });
+
+    // Validate visit sequence - prevent skipping escalation levels
+    // Payment collection is a resolution action and can be done at any visit level
+    // Only escalation visit types (reminder, warning, final_warning) must follow sequence
+    if (escalationVisitTypes.includes(visitType)) {
+      const nextEscalationSequence = escalationVisitCount + 1;
+      const expectedVisitType = getExpectedEscalationType(nextEscalationSequence);
+      
+      if (visitType !== expectedVisitType) {
+        await transaction.rollback();
+        return res.status(400).json({
+          success: false,
+          message: `Invalid escalation visit type. Expected ${expectedVisitType} for escalation visit #${nextEscalationSequence}. Cannot skip escalation levels. Payment collection can be done at any visit level.`
+        });
+      }
     }
+    // Payment collection visits are allowed at any visit level - no sequence validation needed
 
     // Check attendance window
     const attendanceWindow = await checkAttendanceWindow(user.id, transaction);
@@ -247,6 +264,9 @@ export const createFieldVisit = async (req, res, next) => {
     const sequence = String(existingVisitsCount + 1).padStart(6, '0');
     const visitNumber = `FV-${year}-${sequence}`;
 
+    // Calculate new visit count before creating visit (needed for visitSequenceNumber)
+    const newVisitCount = followUp.visitCount + 1;
+
     // Create field visit
     const visit = await FieldVisit.create({
       visitNumber: visitNumber,
@@ -259,7 +279,7 @@ export const createFieldVisit = async (req, res, next) => {
       citizenResponse,
       expectedPaymentDate: citizenResponse === 'will_pay_later' ? new Date(expectedPaymentDate) : null,
       remarks,
-      visitSequenceNumber: nextExpectedSequence,
+      visitSequenceNumber: newVisitCount,
       visitLatitude: latitude || null,
       visitLongitude: longitude || null,
       visitAddress: address || null,
@@ -277,19 +297,28 @@ export const createFieldVisit = async (req, res, next) => {
     }, { transaction });
 
     // Update follow-up record
-    const newVisitCount = followUp.visitCount + 1;
-    const newEscalationLevel = Math.min(newVisitCount, 4); // Max level 4 (enforcement eligible)
+    // newVisitCount was already calculated above for visitSequenceNumber
     
+    // Escalation level and status only update for escalation visits (not payment_collection)
+    // escalationVisitCount was already calculated above for validation
+    let newEscalationLevel = followUp.escalationLevel;
     let newEscalationStatus = followUp.escalationStatus;
-    if (newVisitCount === 1) {
-      newEscalationStatus = 'first_reminder';
-    } else if (newVisitCount === 2) {
-      newEscalationStatus = 'second_reminder';
-    } else if (newVisitCount === 3) {
-      newEscalationStatus = 'final_warning';
-    } else if (newVisitCount >= 4) {
-      newEscalationStatus = 'enforcement_eligible';
+    
+    if (escalationVisitTypes.includes(visitType)) {
+      const newEscalationVisitCount = escalationVisitCount + 1;
+      newEscalationLevel = Math.min(newEscalationVisitCount, 4); // Max level 4 (enforcement eligible)
+      
+      if (newEscalationVisitCount === 1) {
+        newEscalationStatus = 'first_reminder';
+      } else if (newEscalationVisitCount === 2) {
+        newEscalationStatus = 'second_reminder';
+      } else if (newEscalationVisitCount === 3) {
+        newEscalationStatus = 'final_warning';
+      } else if (newEscalationVisitCount >= 4) {
+        newEscalationStatus = 'enforcement_eligible';
+      }
     }
+    // Payment collection visits don't affect escalation level/status
 
     // Update priority based on visits and overdue days
     let newPriority = 'medium';
@@ -328,18 +357,18 @@ export const createFieldVisit = async (req, res, next) => {
       expectedPaymentDate: citizenResponse === 'will_pay_later' ? new Date(expectedPaymentDate) : null,
       escalationLevel: newEscalationLevel,
       escalationStatus: newEscalationStatus,
-      isEnforcementEligible: newVisitCount >= 4,
-      enforcementEligibleDate: newVisitCount >= 4 && !followUp.isEnforcementEligible ? new Date() : followUp.enforcementEligibleDate,
+      isEnforcementEligible: newEscalationLevel >= 4,
+      enforcementEligibleDate: newEscalationLevel >= 4 && !followUp.isEnforcementEligible ? new Date() : followUp.enforcementEligibleDate,
       priority: newPriority,
       nextFollowUpDate,
       lastUpdatedBy: user.id
     }, { transaction });
 
-    // Check if notice should be triggered (after 3 visits)
+    // Check if notice should be triggered (after 3 escalation visits)
     // Ensure balanceAmount is numeric for comparison
     const balanceAmount = parseFloat(demand.balanceAmount || 0);
     let triggeredNotice = null;
-    if (newVisitCount >= 3 && !followUp.noticeTriggered && balanceAmount > 0) {
+    if (newEscalationLevel >= 3 && !followUp.noticeTriggered && balanceAmount > 0) {
       // Trigger enforcement notice
       triggeredNotice = await triggerEnforcementNotice(demand, property, followUp, user, transaction);
       
@@ -608,13 +637,21 @@ export const createFieldVisit = async (req, res, next) => {
 };
 
 /**
- * Helper function to get expected visit type based on sequence
+ * Helper function to get expected escalation visit type based on escalation sequence
+ * Only returns escalation types (reminder, warning, final_warning)
+ * Payment collection is not an escalation and can be done at any level
+ * 
+ * Escalation sequence:
+ * - 1st escalation: reminder
+ * - 2nd escalation: reminder (can repeat if needed)
+ * - 3rd escalation: warning
+ * - 4th+ escalation: final_warning
  */
-function getExpectedVisitType(sequence) {
-  if (sequence === 1) return 'reminder';
-  if (sequence === 2) return 'payment_collection';
-  if (sequence === 3) return 'warning';
-  if (sequence >= 4) return 'final_warning';
+function getExpectedEscalationType(escalationSequence) {
+  if (escalationSequence === 1) return 'reminder';
+  if (escalationSequence === 2) return 'reminder'; // Second escalation can still be reminder
+  if (escalationSequence === 3) return 'warning';
+  if (escalationSequence >= 4) return 'final_warning';
   return 'reminder';
 }
 
