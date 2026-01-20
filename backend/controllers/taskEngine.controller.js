@@ -94,7 +94,7 @@ export const getDailyTasks = async (req, res, next) => {
         {
           model: Demand,
           as: 'demand',
-          attributes: ['id', 'demandNumber', 'balanceAmount', 'overdueDays', 'dueDate', 'status']
+          attributes: ['id', 'demandNumber', 'balanceAmount', 'overdueDays', 'dueDate', 'status', 'serviceType']
         },
         {
           model: Property,

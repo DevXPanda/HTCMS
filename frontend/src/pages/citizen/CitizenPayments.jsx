@@ -35,6 +35,7 @@ const CitizenPayments = () => {
         <table className="table">
           <thead>
             <tr>
+              <th>Service Type</th>
               <th>Receipt Number</th>
               <th>Property</th>
               <th>Demand</th>
@@ -47,16 +48,27 @@ const CitizenPayments = () => {
           <tbody>
             {payments.length === 0 ? (
               <tr>
-                <td colSpan="7" className="text-center py-8 text-gray-500">
+                <td colSpan="8" className="text-center py-8 text-gray-500">
                   No payments found
                 </td>
               </tr>
             ) : (
-              payments.map((payment) => (
-                <tr key={payment.id}>
-                  <td className="font-medium">{payment.receiptNumber}</td>
-                  <td>{payment.property?.propertyNumber || 'N/A'}</td>
-                  <td>{payment.demand?.demandNumber || 'N/A'}</td>
+              payments.map((payment) => {
+                const isD2DC = payment.demand?.serviceType === 'D2DC';
+                return (
+                  <tr key={payment.id}>
+                    <td>
+                      <span className={`px-2 py-1 text-xs font-semibold rounded ${
+                        isD2DC 
+                          ? 'bg-green-100 text-green-800 border border-green-300'
+                          : 'bg-blue-100 text-blue-800 border border-blue-300'
+                      }`}>
+                        {isD2DC ? 'D2DC' : 'House Tax'}
+                      </span>
+                    </td>
+                    <td className="font-medium">{payment.receiptNumber}</td>
+                    <td>{payment.property?.propertyNumber || 'N/A'}</td>
+                    <td>{payment.demand?.demandNumber || 'N/A'}</td>
                   <td className="font-semibold text-green-600">
                     ₹{parseFloat(payment.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </td>
@@ -71,9 +83,10 @@ const CitizenPayments = () => {
                       <Receipt className="w-4 h-4 mr-1" />
                       Receipt
                     </Link>
-                  </td>
-                </tr>
-              ))
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

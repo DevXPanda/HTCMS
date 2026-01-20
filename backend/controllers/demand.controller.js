@@ -13,6 +13,7 @@ export const getAllDemands = async (req, res, next) => {
       propertyId, 
       financialYear, 
       status,
+      serviceType, // Filter by service type (HOUSE_TAX or D2DC)
       search,
       minAmount,
       maxAmount,
@@ -26,6 +27,7 @@ export const getAllDemands = async (req, res, next) => {
     if (propertyId) where.propertyId = propertyId;
     if (financialYear) where.financialYear = financialYear;
     if (status) where.status = status;
+    if (serviceType) where.serviceType = serviceType; // Filter by service type
 
     // Search by demand number
     if (search) {
@@ -68,7 +70,7 @@ export const getAllDemands = async (req, res, next) => {
             { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] }
           ]
         },
-        { model: Assessment, as: 'assessment' }
+        { model: Assessment, as: 'assessment', required: false } // Make assessment optional for D2DC
       ],
       limit: parseInt(limit),
       offset,
@@ -111,7 +113,7 @@ export const getDemandById = async (req, res, next) => {
             { model: Ward, as: 'ward' }
           ]
         },
-        { model: Assessment, as: 'assessment' },
+        { model: Assessment, as: 'assessment', required: false }, // Optional for D2DC
         { 
           model: Payment, 
           as: 'payments',
@@ -151,60 +153,130 @@ export const getDemandById = async (req, res, next) => {
 
 /**
  * @route   POST /api/demands
- * @desc    Generate tax demand from approved tax assessment
+ * @desc    Generate tax demand from approved tax assessment (HOUSE_TAX) or D2DC demand
  * @access  Private (Admin, Assessor)
  */
 export const createDemand = async (req, res, next) => {
   try {
     const {
       assessmentId,
+      propertyId, // Required for D2DC
+      serviceType = 'HOUSE_TAX', // Default to HOUSE_TAX for backward compatibility
       financialYear,
       dueDate,
+      baseAmount, // Required for D2DC (monthly charge, e.g., ₹50)
       remarks
     } = req.body;
 
-    // Get assessment
-    const assessment = await Assessment.findByPk(assessmentId, {
-      include: [{ model: Property, as: 'property' }]
-    });
-
-    if (!assessment) {
-      return res.status(404).json({
-        success: false,
-        message: 'Tax Assessment not found'
-      });
-    }
-
-    // Check if assessment is approved
-    if (assessment.status !== 'approved') {
+    // Validate serviceType
+    if (!['HOUSE_TAX', 'D2DC'].includes(serviceType)) {
       return res.status(400).json({
         success: false,
-        message: 'Can only generate demand from approved assessment'
+        message: 'Invalid serviceType. Must be HOUSE_TAX or D2DC'
       });
     }
 
-    // Check if demand already exists for this assessment and financial year
-    const existingDemand = await Demand.findOne({
-      where: {
-        assessmentId,
-        financialYear
+    let property;
+    let assessment = null;
+
+    if (serviceType === 'HOUSE_TAX') {
+      // HOUSE_TAX requires assessment - CRITICAL VALIDATION
+      if (!assessmentId) {
+        return res.status(400).json({
+          success: false,
+          message: 'assessmentId is required for HOUSE_TAX demands. HOUSE_TAX demands must be generated from approved tax assessments.'
+        });
       }
+
+      // Ensure propertyId is not provided for HOUSE_TAX (it comes from assessment)
+      if (propertyId) {
+        return res.status(400).json({
+          success: false,
+          message: 'propertyId should not be provided for HOUSE_TAX demands. It is derived from the assessment.'
+        });
+      }
+
+      assessment = await Assessment.findByPk(assessmentId, {
+        include: [{ model: Property, as: 'property' }]
+      });
+
+      if (!assessment) {
+        return res.status(404).json({
+          success: false,
+          message: 'Tax Assessment not found'
+        });
+      }
+
+      // Check if assessment is approved
+      if (assessment.status !== 'approved') {
+        return res.status(400).json({
+          success: false,
+          message: 'Can only generate demand from approved assessment'
+        });
+      }
+
+      property = assessment.property;
+    } else {
+      // D2DC doesn't require assessment - CRITICAL VALIDATION
+      // Ensure assessmentId is NOT provided for D2DC
+      if (assessmentId) {
+        return res.status(400).json({
+          success: false,
+          message: 'assessmentId should not be provided for D2DC demands. D2DC is a municipal service linked directly to property, not assessment.'
+        });
+      }
+
+      if (!propertyId) {
+        return res.status(400).json({
+          success: false,
+          message: 'propertyId is required for D2DC demands'
+        });
+      }
+
+      if (!baseAmount || baseAmount <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'baseAmount is required for D2DC demands (e.g., 50 for ₹50/month)'
+        });
+      }
+
+      property = await Property.findByPk(propertyId);
+      if (!property) {
+        return res.status(404).json({
+          success: false,
+          message: 'Property not found'
+        });
+      }
+    }
+
+    // Check if demand already exists for this property, serviceType, and period
+    // For HOUSE_TAX: check by assessmentId + financialYear
+    // For D2DC: check by propertyId + serviceType + month/year (using financialYear as period identifier)
+    const existingDemandWhere = serviceType === 'HOUSE_TAX' 
+      ? { assessmentId, financialYear, serviceType }
+      : { propertyId, serviceType, financialYear }; // For D2DC, financialYear can represent month/year
+
+    const existingDemand = await Demand.findOne({
+      where: existingDemandWhere
     });
 
     if (existingDemand) {
       return res.status(400).json({
         success: false,
-        message: 'Demand already exists for this assessment and financial year'
+        message: `Demand already exists for this ${serviceType === 'HOUSE_TAX' ? 'assessment and financial year' : 'property and period'}`
       });
     }
 
     // Generate demand number
-    const demandNumber = `DEM-${financialYear}-${Date.now()}`;
+    const demandNumber = serviceType === 'D2DC' 
+      ? `D2DC-${financialYear}-${Date.now()}`
+      : `DEM-${financialYear}-${Date.now()}`;
 
-    // Calculate arrears from previous unpaid demands
+    // Calculate arrears from previous unpaid demands of the same serviceType
     const previousDemands = await Demand.findAll({
       where: {
-        propertyId: assessment.propertyId,
+        propertyId: property.id,
+        serviceType: serviceType,
         financialYear: { [Op.ne]: financialYear },
         status: { [Op.in]: ['pending', 'overdue', 'partially_paid'] }
       }
@@ -215,19 +287,42 @@ export const createDemand = async (req, res, next) => {
       return sum + parseFloat(prevDemand.balanceAmount || 0);
     }, 0) * 100) / 100;
 
-    // Calculate amounts - ensure all are proper numbers
-    const baseAmount = parseFloat(assessment.annualTaxAmount || 0);
+    // Calculate amounts
+    const calculatedBaseAmount = serviceType === 'HOUSE_TAX' 
+      ? parseFloat(assessment.annualTaxAmount || 0)
+      : parseFloat(baseAmount || 0);
+    
     const penaltyAmount = 0; // Can be calculated based on overdue logic
     const interestAmount = 0; // Can be calculated based on overdue logic
-    const totalAmount = Math.round((baseAmount + arrearsAmount + penaltyAmount + interestAmount) * 100) / 100;
+    const totalAmount = Math.round((calculatedBaseAmount + arrearsAmount + penaltyAmount + interestAmount) * 100) / 100;
     const balanceAmount = Math.round(totalAmount * 100) / 100;
+
+    // CRITICAL: Ensure assessmentId is explicitly set based on serviceType
+    const finalAssessmentId = serviceType === 'HOUSE_TAX' ? assessmentId : null;
+    
+    // Double-check: D2DC must have null assessmentId
+    if (serviceType === 'D2DC' && finalAssessmentId !== null) {
+      return res.status(400).json({
+        success: false,
+        message: 'D2DC demands cannot have an assessmentId. D2DC is a municipal service, not a tax assessment.'
+      });
+    }
+
+    // Double-check: HOUSE_TAX must have assessmentId
+    if (serviceType === 'HOUSE_TAX' && !finalAssessmentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'HOUSE_TAX demands require an assessmentId.'
+      });
+    }
 
     const demand = await Demand.create({
       demandNumber,
-      propertyId: assessment.propertyId,
-      assessmentId,
+      propertyId: property.id,
+      assessmentId: finalAssessmentId, // Explicitly null for D2DC, required for HOUSE_TAX
+      serviceType,
       financialYear,
-      baseAmount,
+      baseAmount: calculatedBaseAmount,
       arrearsAmount,
       penaltyAmount,
       interestAmount,
@@ -249,24 +344,164 @@ export const createDemand = async (req, res, next) => {
             { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] }
           ]
         },
-        { model: Assessment, as: 'assessment' }
+        { model: Assessment, as: 'assessment', required: false }
       ]
     });
 
-    // Log demand creation
+    // Log demand creation with serviceType
     await auditLogger.logCreate(
       req,
       req.user,
-      'Demand',
+      serviceType === 'D2DC' ? 'D2DC' : 'Demand',
       demand.id,
-      { demandNumber: demand.demandNumber, propertyId: demand.propertyId, financialYear: demand.financialYear, totalAmount: demand.totalAmount },
-      `Created demand: ${demand.demandNumber}`,
-      { propertyId: demand.propertyId, assessmentId: demand.assessmentId }
+      { 
+        demandNumber: demand.demandNumber, 
+        propertyId: demand.propertyId, 
+        financialYear: demand.financialYear, 
+        totalAmount: demand.totalAmount,
+        serviceType: demand.serviceType
+      },
+      `Created ${serviceType} demand: ${demand.demandNumber}`,
+      { propertyId: demand.propertyId, assessmentId: demand.assessmentId, serviceType: demand.serviceType }
     );
 
     res.status(201).json({
       success: true,
-      message: 'Demand generated successfully',
+      message: `${serviceType} demand generated successfully`,
+      data: { demand: createdDemand }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   POST /api/demands/d2dc
+ * @desc    Generate D2DC (garbage collection) demand for a property
+ * @access  Private (Admin)
+ */
+export const createD2DCDemand = async (req, res, next) => {
+  try {
+    const {
+      propertyId,
+      month, // e.g., "2024-01" for January 2024
+      baseAmount = 50, // Default ₹50/month, configurable
+      dueDate,
+      remarks
+    } = req.body;
+
+    if (!propertyId) {
+      return res.status(400).json({
+        success: false,
+        message: 'propertyId is required'
+      });
+    }
+
+    if (!month) {
+      return res.status(400).json({
+        success: false,
+        message: 'month is required (format: YYYY-MM)'
+      });
+    }
+
+    const property = await Property.findByPk(propertyId);
+    if (!property) {
+      return res.status(404).json({
+        success: false,
+        message: 'Property not found'
+      });
+    }
+
+    // Check if D2DC demand already exists for this property and month
+    const existingDemand = await Demand.findOne({
+      where: {
+        propertyId,
+        serviceType: 'D2DC',
+        financialYear: month // Using financialYear field to store month/year for D2DC
+      }
+    });
+
+    if (existingDemand) {
+      return res.status(400).json({
+        success: false,
+        message: `D2DC demand already exists for ${month}`
+      });
+    }
+
+    // Calculate arrears from previous unpaid D2DC demands
+    const previousDemands = await Demand.findAll({
+      where: {
+        propertyId,
+        serviceType: 'D2DC',
+        financialYear: { [Op.ne]: month },
+        status: { [Op.in]: ['pending', 'overdue', 'partially_paid'] }
+      }
+    });
+
+    const arrearsAmount = Math.round(previousDemands.reduce((sum, prevDemand) => {
+      return sum + parseFloat(prevDemand.balanceAmount || 0);
+    }, 0) * 100) / 100;
+
+    const calculatedBaseAmount = parseFloat(baseAmount || 50);
+    const totalAmount = Math.round((calculatedBaseAmount + arrearsAmount) * 100) / 100;
+    const balanceAmount = Math.round(totalAmount * 100) / 100;
+
+    // CRITICAL: D2DC demands MUST have assessmentId = null
+    // D2DC is a municipal service, NOT a tax assessment
+    // It is linked directly to property, not assessment
+    
+    const demandNumber = `D2DC-${month}-${Date.now()}`;
+    const demand = await Demand.create({
+      demandNumber,
+      propertyId,
+      assessmentId: null, // EXPLICITLY NULL - D2DC doesn't require assessment
+      serviceType: 'D2DC',
+      financialYear: month,
+      baseAmount: calculatedBaseAmount,
+      arrearsAmount,
+      penaltyAmount: 0,
+      interestAmount: 0,
+      totalAmount,
+      balanceAmount,
+      paidAmount: 0,
+      dueDate: dueDate ? new Date(dueDate) : new Date(),
+      status: 'pending',
+      generatedBy: req.user.id,
+      remarks
+    });
+
+    const createdDemand = await Demand.findByPk(demand.id, {
+      include: [
+        { 
+          model: Property, 
+          as: 'property',
+          include: [
+            { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] }
+          ]
+        }
+      ]
+    });
+
+    // Log D2DC demand creation
+    await auditLogger.logCreate(
+      req,
+      req.user,
+      'D2DC',
+      demand.id,
+      { 
+        demandNumber: demand.demandNumber, 
+        propertyId: demand.propertyId, 
+        month: month, 
+        totalAmount: demand.totalAmount,
+        serviceType: 'D2DC'
+      },
+      `Created D2DC demand: ${demand.demandNumber} for ${month}`,
+      { propertyId: demand.propertyId, serviceType: 'D2DC' }
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'D2DC demand generated successfully',
       data: { demand: createdDemand }
     });
   } catch (error) {
@@ -333,6 +568,7 @@ export const generateBulkDemands = async (req, res, next) => {
           demandNumber,
           propertyId: assessment.propertyId,
           assessmentId: assessment.id,
+          serviceType: 'HOUSE_TAX', // Bulk generation is for house tax only
           financialYear,
           baseAmount,
           arrearsAmount,
@@ -445,7 +681,7 @@ export const getDemandsByProperty = async (req, res, next) => {
     const demands = await Demand.findAll({
       where: { propertyId },
       include: [
-        { model: Assessment, as: 'assessment' },
+        { model: Assessment, as: 'assessment', required: false }, // Optional for D2DC
         { 
           model: Payment, 
           as: 'payments',
@@ -454,7 +690,7 @@ export const getDemandsByProperty = async (req, res, next) => {
           ]
         }
       ],
-      order: [['financialYear', 'DESC'], ['createdAt', 'DESC']]
+      order: [['serviceType', 'ASC'], ['financialYear', 'DESC'], ['createdAt', 'DESC']]
     });
 
     res.json({
@@ -490,14 +726,42 @@ export const getDemandStatistics = async (req, res, next) => {
 
     const demands = await Demand.findAll({ where });
 
+    // Separate statistics by serviceType
+    const houseTaxDemands = demands.filter(d => d.serviceType === 'HOUSE_TAX');
+    const d2dcDemands = demands.filter(d => d.serviceType === 'D2DC');
+
+    const calculateStats = (demandList) => ({
+      total: demandList.length,
+      totalAmount: demandList.reduce((sum, d) => sum + parseFloat(d.totalAmount || 0), 0),
+      paidAmount: demandList.reduce((sum, d) => sum + parseFloat(d.paidAmount || 0), 0),
+      balanceAmount: demandList.reduce((sum, d) => sum + parseFloat(d.balanceAmount || 0), 0),
+      arrearsAmount: demandList.reduce((sum, d) => sum + parseFloat(d.arrearsAmount || 0), 0),
+      penaltyAmount: demandList.reduce((sum, d) => sum + parseFloat(d.penaltyAmount || 0), 0),
+      interestAmount: demandList.reduce((sum, d) => sum + parseFloat(d.interestAmount || 0), 0),
+      byStatus: {
+        pending: demandList.filter(d => d.status === 'pending').length,
+        partially_paid: demandList.filter(d => d.status === 'partially_paid').length,
+        paid: demandList.filter(d => d.status === 'paid').length,
+        overdue: demandList.filter(d => d.status === 'overdue').length,
+        cancelled: demandList.filter(d => d.status === 'cancelled').length
+      },
+      overdue: demandList.filter(d => {
+        const today = new Date();
+        const dueDate = new Date(d.dueDate);
+        return today > dueDate && d.balanceAmount > 0;
+      }).length
+    });
+
     const statistics = {
+      // Combined statistics
       total: demands.length,
       totalAmount: demands.reduce((sum, d) => sum + parseFloat(d.totalAmount || 0), 0),
       paidAmount: demands.reduce((sum, d) => sum + parseFloat(d.paidAmount || 0), 0),
       balanceAmount: demands.reduce((sum, d) => sum + parseFloat(d.balanceAmount || 0), 0),
-      arrearsAmount: demands.reduce((sum, d) => sum + parseFloat(d.arrearsAmount || 0), 0),
-      penaltyAmount: demands.reduce((sum, d) => sum + parseFloat(d.penaltyAmount || 0), 0),
-      interestAmount: demands.reduce((sum, d) => sum + parseFloat(d.interestAmount || 0), 0),
+      // Separate by serviceType
+      houseTax: calculateStats(houseTaxDemands),
+      d2dc: calculateStats(d2dcDemands),
+      // Overall byStatus
       byStatus: {
         pending: demands.filter(d => d.status === 'pending').length,
         partially_paid: demands.filter(d => d.status === 'partially_paid').length,

@@ -30,6 +30,7 @@ export const createFieldVisit = async (req, res, next) => {
       demandId,
       propertyId,
       visitType,
+      visitPurpose = 'house_tax', // Default to house_tax for backward compatibility
       citizenResponse,
       expectedPaymentDate,
       remarks,
@@ -40,7 +41,9 @@ export const createFieldVisit = async (req, res, next) => {
       proofNote,
       taskId,
       // Payment data (only when visitType === 'payment_collection' && citizenResponse === 'will_pay_today')
-      paymentAmount,
+      // Support multiple payments: payments array or single paymentAmount for backward compatibility
+      paymentAmount, // Single payment (backward compatibility)
+      payments, // Array of { demandId, amount, paymentMode, ... } for multiple payments
       paymentMode,
       transactionId,
       chequeNumber,
@@ -59,12 +62,31 @@ export const createFieldVisit = async (req, res, next) => {
     }
 
     // Validate visit type
-    const validVisitTypes = ['reminder', 'payment_collection', 'warning', 'final_warning'];
+    const validVisitTypes = ['reminder', 'payment_collection', 'warning', 'final_warning', 'garbage_collection'];
     if (!validVisitTypes.includes(visitType)) {
       await transaction.rollback();
       return res.status(400).json({
         success: false,
         message: `Invalid visit type. Must be one of: ${validVisitTypes.join(', ')}`
+      });
+    }
+
+    // Validate visitPurpose
+    const validVisitPurposes = ['house_tax', 'garbage_collection', 'both'];
+    if (visitPurpose && !validVisitPurposes.includes(visitPurpose)) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: `Invalid visit purpose. Must be one of: ${validVisitPurposes.join(', ')}`
+      });
+    }
+
+    // For garbage_collection visit type, visitPurpose should be garbage_collection or both
+    if (visitType === 'garbage_collection' && visitPurpose === 'house_tax') {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'visitPurpose must be garbage_collection or both for garbage_collection visit type'
       });
     }
 
@@ -90,39 +112,89 @@ export const createFieldVisit = async (req, res, next) => {
     // Validate payment data if collecting payment
     const isCollectingPayment = visitType === 'payment_collection' && citizenResponse === 'will_pay_today';
     if (isCollectingPayment) {
-      if (!paymentAmount || parseFloat(paymentAmount) <= 0) {
-        await transaction.rollback();
-        return res.status(400).json({
-          success: false,
-          message: 'Payment amount is required and must be greater than 0 when collecting payment'
-        });
-      }
-      
-      const validPaymentModes = ['cash', 'cheque', 'dd', 'card', 'upi'];
-      if (!paymentMode || !validPaymentModes.includes(paymentMode)) {
-        await transaction.rollback();
-        return res.status(400).json({
-          success: false,
-          message: `Valid payment mode is required. Must be one of: ${validPaymentModes.join(', ')}`
-        });
-      }
+      // Support both single payment (backward compatibility) and multiple payments
+      if (payments && Array.isArray(payments)) {
+        // Multiple payments - validate each
+        if (payments.length === 0) {
+          await transaction.rollback();
+          return res.status(400).json({
+            success: false,
+            message: 'At least one payment is required when collecting payment'
+          });
+        }
+        
+        const validPaymentModes = ['cash', 'cheque', 'dd', 'card', 'upi'];
+        for (const payment of payments) {
+          if (!payment.demandId || !payment.amount || parseFloat(payment.amount) <= 0) {
+            await transaction.rollback();
+            return res.status(400).json({
+              success: false,
+              message: 'Each payment must have demandId and amount > 0'
+            });
+          }
+          
+          if (!payment.paymentMode || !validPaymentModes.includes(payment.paymentMode)) {
+            await transaction.rollback();
+            return res.status(400).json({
+              success: false,
+              message: `Valid payment mode required for each payment. Must be one of: ${validPaymentModes.join(', ')}`
+            });
+          }
 
-      // Validate cheque-specific fields
-      if ((paymentMode === 'cheque' || paymentMode === 'dd') && !chequeNumber) {
-        await transaction.rollback();
-        return res.status(400).json({
-          success: false,
-          message: 'Cheque number is required for cheque/DD payments'
-        });
-      }
+          // Validate cheque-specific fields
+          if ((payment.paymentMode === 'cheque' || payment.paymentMode === 'dd') && !payment.chequeNumber) {
+            await transaction.rollback();
+            return res.status(400).json({
+              success: false,
+              message: 'Cheque number is required for cheque/DD payments'
+            });
+          }
 
-      // Validate transaction reference for card/UPI
-      if ((paymentMode === 'card' || paymentMode === 'upi') && !transactionId) {
-        await transaction.rollback();
-        return res.status(400).json({
-          success: false,
-          message: 'Transaction reference is required for card/UPI payments'
-        });
+          // Validate transaction reference for card/UPI
+          if ((payment.paymentMode === 'card' || payment.paymentMode === 'upi') && !payment.transactionId) {
+            await transaction.rollback();
+            return res.status(400).json({
+              success: false,
+              message: 'Transaction reference is required for card/UPI payments'
+            });
+          }
+        }
+      } else {
+        // Single payment (backward compatibility)
+        if (!paymentAmount || parseFloat(paymentAmount) <= 0) {
+          await transaction.rollback();
+          return res.status(400).json({
+            success: false,
+            message: 'Payment amount is required and must be greater than 0 when collecting payment'
+          });
+        }
+        
+        const validPaymentModes = ['cash', 'cheque', 'dd', 'card', 'upi'];
+        if (!paymentMode || !validPaymentModes.includes(paymentMode)) {
+          await transaction.rollback();
+          return res.status(400).json({
+            success: false,
+            message: `Valid payment mode is required. Must be one of: ${validPaymentModes.join(', ')}`
+          });
+        }
+
+        // Validate cheque-specific fields
+        if ((paymentMode === 'cheque' || paymentMode === 'dd') && !chequeNumber) {
+          await transaction.rollback();
+          return res.status(400).json({
+            success: false,
+            message: 'Cheque number is required for cheque/DD payments'
+          });
+        }
+
+        // Validate transaction reference for card/UPI
+        if ((paymentMode === 'card' || paymentMode === 'upi') && !transactionId) {
+          await transaction.rollback();
+          return res.status(400).json({
+            success: false,
+            message: 'Transaction reference is required for card/UPI payments'
+          });
+        }
       }
     }
 
@@ -276,6 +348,7 @@ export const createFieldVisit = async (req, res, next) => {
       demandId,
       visitDate: new Date(),
       visitType,
+      visitPurpose: visitPurpose || 'house_tax',
       citizenResponse,
       expectedPaymentDate: citizenResponse === 'will_pay_later' ? new Date(expectedPaymentDate) : null,
       remarks,
@@ -381,24 +454,15 @@ export const createFieldVisit = async (req, res, next) => {
     }
 
     // Handle payment collection if applicable
-    let payment = null;
+    let createdPayments = [];
     let receiptPdfUrl = null;
     if (isCollectingPayment) {
-      const paymentAmountNum = parseFloat(paymentAmount);
-      const currentBalance = parseFloat(demand.balanceAmount || 0);
-      
-      // Validate payment amount doesn't exceed balance
-      if (paymentAmountNum > currentBalance) {
-        await transaction.rollback();
-        return res.status(400).json({
-          success: false,
-          message: `Payment amount (₹${paymentAmountNum.toLocaleString('en-IN', { minimumFractionDigits: 2 })}) cannot exceed balance amount (₹${currentBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })})`
-        });
-      }
+      const paymentsToProcess = Array.isArray(payments) && payments.length > 0 
+        ? payments 
+        : [{ demandId, amount: paymentAmount, paymentMode, transactionId, chequeNumber, chequeDate, bankName }];
 
-      // Generate payment number
       const year = new Date().getFullYear();
-      const existingPaymentsCount = await Payment.count({
+      let paymentSequence = await Payment.count({
         where: {
           paymentDate: {
             [Op.gte]: new Date(`${year}-01-01`),
@@ -407,88 +471,115 @@ export const createFieldVisit = async (req, res, next) => {
         },
         transaction
       });
-      const paymentSequence = String(existingPaymentsCount + 1).padStart(6, '0');
-      const paymentNumber = `PAY-${year}-${paymentSequence}`;
 
-      // Generate receipt number
-      const receiptNumber = `RCP-${year}-${Date.now()}`;
+      // Process each payment
+      for (const paymentData of paymentsToProcess) {
+        const paymentDemandId = paymentData.demandId || demandId;
+        const paymentAmountNum = parseFloat(paymentData.amount);
+        
+        // Get the demand for this payment
+        const paymentDemand = await Demand.findByPk(paymentDemandId, { transaction });
+        if (!paymentDemand) {
+          await transaction.rollback();
+          return res.status(404).json({
+            success: false,
+            message: `Demand ${paymentDemandId} not found`
+          });
+        }
 
-      // Create payment entry
-      payment = await Payment.create({
-        paymentNumber,
-        demandId,
-        propertyId,
-        amount: paymentAmountNum,
-        paymentMode,
-        paymentDate: new Date(),
-        chequeNumber: (paymentMode === 'cheque' || paymentMode === 'dd') ? chequeNumber : null,
-        chequeDate: (paymentMode === 'cheque' || paymentMode === 'dd') && chequeDate ? new Date(chequeDate) : null,
-        bankName: (paymentMode === 'cheque' || paymentMode === 'dd') ? bankName : null,
-        transactionId: (paymentMode === 'card' || paymentMode === 'upi') ? transactionId : null,
-        receiptNumber,
-        status: 'completed',
-        receivedBy: user.id,
-        remarks: paymentRemarks || `Payment collected during field visit ${visit.visitNumber}`
-      }, { transaction });
+        const currentBalance = parseFloat(paymentDemand.balanceAmount || 0);
+        
+        // Validate payment amount doesn't exceed balance
+        if (paymentAmountNum > currentBalance) {
+          await transaction.rollback();
+          return res.status(400).json({
+            success: false,
+            message: `Payment amount (₹${paymentAmountNum.toLocaleString('en-IN', { minimumFractionDigits: 2 })}) cannot exceed balance amount (₹${currentBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}) for demand ${paymentDemand.demandNumber}`
+          });
+        }
 
-      // Update demand amounts
-      const currentPaidAmount = parseFloat(demand.paidAmount || 0);
-      const totalAmount = parseFloat(demand.totalAmount || 0);
-      const newPaidAmount = Math.round((currentPaidAmount + paymentAmountNum) * 100) / 100;
-      const newBalanceAmount = Math.round((totalAmount - newPaidAmount) * 100) / 100;
+        paymentSequence++;
+        const paymentNumber = `PAY-${year}-${String(paymentSequence).padStart(6, '0')}`;
+        const receiptNumber = `RCP-${year}-${Date.now()}-${paymentSequence}`;
 
-      demand.paidAmount = newPaidAmount;
-      demand.balanceAmount = newBalanceAmount;
-
-      // Update demand status
-      if (newBalanceAmount <= 0) {
-        demand.status = 'paid';
-      } else if (newPaidAmount > 0) {
-        demand.status = 'partially_paid';
-      }
-
-      await demand.save({ transaction });
-
-      // Reload demand to ensure we have the latest data for notice update
-      await demand.reload({ transaction });
-
-      // Update notice status if demand is paid (called after transaction commit via setTimeout)
-      // Note: updateNoticeOnPayment doesn't use transactions, so we call it after commit
-      // The demand status will be correct after transaction commits
-
-      // Resolve follow-up if demand is fully paid
-      if (newBalanceAmount <= 0) {
-        await followUp.update({
-          isResolved: true,
-          resolvedDate: new Date(),
-          resolvedBy: user.id
+        // Create payment entry
+        const createdPayment = await Payment.create({
+          paymentNumber,
+          demandId: paymentDemandId,
+          propertyId,
+          amount: paymentAmountNum,
+          paymentMode: paymentData.paymentMode,
+          paymentDate: new Date(),
+          chequeNumber: (paymentData.paymentMode === 'cheque' || paymentData.paymentMode === 'dd') ? paymentData.chequeNumber : null,
+          chequeDate: (paymentData.paymentMode === 'cheque' || paymentData.paymentMode === 'dd') && paymentData.chequeDate ? new Date(paymentData.chequeDate) : null,
+          bankName: (paymentData.paymentMode === 'cheque' || paymentData.paymentMode === 'dd') ? paymentData.bankName : null,
+          transactionId: (paymentData.paymentMode === 'card' || paymentData.paymentMode === 'upi') ? paymentData.transactionId : null,
+          receiptNumber,
+          status: 'completed',
+          receivedBy: user.id,
+          remarks: paymentData.remarks || paymentRemarks || `Payment collected during field visit ${visit.visitNumber}`
         }, { transaction });
 
-        // Create audit log for follow-up resolution
-        try {
-          await createAuditLog({
-            req,
-            user,
-            actionType: 'RESOLVE',
-            entityType: 'FollowUp',
-            entityId: followUp.id,
-            description: `Follow-up resolved automatically after field payment collection. Payment: ${payment.paymentNumber}`,
-            metadata: {
-              followUpId: followUp.id,
-              demandId,
-              paymentId: payment.id,
-              paymentNumber: payment.paymentNumber,
-              amount: payment.amount,
+        createdPayments.push(createdPayment);
+
+        // Update demand amounts
+        const currentPaidAmount = parseFloat(paymentDemand.paidAmount || 0);
+        const totalAmount = parseFloat(paymentDemand.totalAmount || 0);
+        const newPaidAmount = Math.round((currentPaidAmount + paymentAmountNum) * 100) / 100;
+        const newBalanceAmount = Math.round((totalAmount - newPaidAmount) * 100) / 100;
+
+        paymentDemand.paidAmount = newPaidAmount;
+        paymentDemand.balanceAmount = newBalanceAmount;
+
+        // Update demand status
+        if (newBalanceAmount <= 0) {
+          paymentDemand.status = 'paid';
+        } else if (newPaidAmount > 0) {
+          paymentDemand.status = 'partially_paid';
+        }
+
+        await paymentDemand.save({ transaction });
+
+        // Update notice status if demand is paid (for the primary demand)
+        if (paymentDemandId === demandId) {
+          await paymentDemand.reload({ transaction });
+        }
+
+        // Resolve follow-up if primary demand is fully paid
+        if (paymentDemandId === demandId && newBalanceAmount <= 0) {
+          await followUp.update({
+            isResolved: true,
+            resolvedDate: new Date(),
+            resolvedBy: user.id
+          }, { transaction });
+
+          // Create audit log for follow-up resolution
+          try {
+            await createAuditLog({
+              req,
+              user,
+              actionType: 'RESOLVE',
+              entityType: 'FollowUp',
+              entityId: followUp.id,
+              description: `Follow-up resolved automatically after field payment collection. Payment: ${createdPayment.paymentNumber}`,
+              metadata: {
+                followUpId: followUp.id,
+              demandId: paymentDemandId,
+              paymentId: createdPayment.id,
+              paymentNumber: createdPayment.paymentNumber,
+              amount: createdPayment.amount,
               visitId: visit.id,
-              visitNumber: visit.visitNumber
+              visitNumber: visit.visitNumber,
+              serviceType: paymentDemand.serviceType
             }
           });
         } catch (auditError) {
           console.error('Failed to create audit log for follow-up resolution:', auditError);
         }
+        }
       }
 
-      // Close task if taskId is provided
+      // Close task if taskId is provided (for primary demand)
       if (taskId) {
         const task = await CollectorTask.findOne({
           where: {
@@ -500,11 +591,12 @@ export const createFieldVisit = async (req, res, next) => {
         });
 
         if (task && task.status !== 'completed') {
+          const primaryPayment = createdPayments.find(p => p.demandId === demandId) || createdPayments[0];
           await task.update({
             status: 'completed',
             completedAt: new Date(),
             completedBy: user.id,
-            completionNote: `Task completed with payment collection. Payment: ${payment.paymentNumber}`,
+            completionNote: `Task completed with payment collection. Payment: ${primaryPayment.paymentNumber}`,
             relatedVisitId: visit.id
           }, { transaction });
 
@@ -521,8 +613,8 @@ export const createFieldVisit = async (req, res, next) => {
                 taskId: task.id,
                 taskNumber: task.taskNumber,
                 demandId,
-                paymentId: payment.id,
-                paymentNumber: payment.paymentNumber,
+                paymentIds: createdPayments.map(p => p.id),
+                paymentNumbers: createdPayments.map(p => p.paymentNumber),
                 visitId: visit.id,
                 visitNumber: visit.visitNumber
               }
@@ -533,62 +625,71 @@ export const createFieldVisit = async (req, res, next) => {
         }
       }
 
-      // Generate receipt PDF
-      try {
-        const receiptResult = await generatePaymentReceiptPdf(payment.id, req, user);
-        receiptPdfUrl = receiptResult.pdfUrl;
-      } catch (pdfError) {
-        console.error('Error generating receipt PDF:', pdfError);
-        // Don't fail the transaction if PDF generation fails
+      // Generate receipt PDFs for all payments
+      for (const payment of createdPayments) {
+        try {
+          const receiptResult = await generatePaymentReceiptPdf(payment.id, req, user);
+          if (!receiptPdfUrl) receiptPdfUrl = receiptResult.pdfUrl; // Use first receipt URL
+        } catch (pdfError) {
+          console.error(`Error generating receipt PDF for payment ${payment.id}:`, pdfError);
+          // Don't fail the transaction if PDF generation fails
+        }
       }
 
-      // Create audit log for payment
-      try {
-        await createAuditLog({
-          req,
-          user,
-          actionType: 'PAYMENT_COLLECTED',
-          entityType: 'Payment',
-          entityId: payment.id,
-          description: `Payment collected during field visit: ${payment.paymentNumber} - ₹${payment.amount}`,
-          metadata: {
-            paymentId: payment.id,
-            paymentNumber: payment.paymentNumber,
-            amount: payment.amount,
-            paymentMode: payment.paymentMode,
-            receiptNumber: payment.receiptNumber,
-            demandId,
-            propertyId,
-            visitId: visit.id,
-            visitNumber: visit.visitNumber
-          }
-        });
-      } catch (auditError) {
-        console.error('Failed to create audit log for payment:', auditError);
+      // Create audit log for each payment
+      for (const payment of createdPayments) {
+        try {
+          const paymentDemand = await Demand.findByPk(payment.demandId, { transaction });
+          await createAuditLog({
+            req,
+            user,
+            actionType: 'PAYMENT_COLLECTED',
+            entityType: paymentDemand?.serviceType === 'D2DC' ? 'D2DC' : 'Payment',
+            entityId: payment.id,
+            description: `Payment collected during field visit: ${payment.paymentNumber} - ₹${payment.amount} (${paymentDemand?.serviceType || 'HOUSE_TAX'})`,
+            metadata: {
+              paymentId: payment.id,
+              paymentNumber: payment.paymentNumber,
+              amount: payment.amount,
+              paymentMode: payment.paymentMode,
+              receiptNumber: payment.receiptNumber,
+              demandId: payment.demandId,
+              propertyId,
+              visitId: visit.id,
+              visitNumber: visit.visitNumber,
+              serviceType: paymentDemand?.serviceType || 'HOUSE_TAX'
+            }
+          });
+        } catch (auditError) {
+          console.error('Failed to create audit log for payment:', auditError);
+        }
       }
     }
 
     // Create audit log - wrap in try-catch to ensure visit creation never fails
     try {
+      const demandServiceType = demand.serviceType || 'HOUSE_TAX';
       await createAuditLog({
         req,
         user,
         actionType: 'FIELD_VISIT',
-        entityType: 'FieldVisit',
+        entityType: visitType === 'garbage_collection' ? 'D2DC' : 'FieldVisit',
         entityId: visit.id,
-        description: `Collector recorded field visit #${newVisitCount} for demand ${demand.demandNumber}`,
+        description: `Collector recorded ${visitPurpose === 'garbage_collection' ? 'garbage collection' : visitPurpose === 'both' ? 'combined' : 'house tax'} field visit #${newVisitCount} for ${demandServiceType} demand ${demand.demandNumber}`,
         metadata: {
           visitId: visit.id,
           visitNumber: visit.visitNumber,
           demandId,
           propertyId,
           visitType,
+          visitPurpose,
           citizenResponse,
           visitSequence: newVisitCount,
           escalationStatus: newEscalationStatus,
           isWithinAttendanceWindow: isWithinWindow,
           noticeTriggered: triggeredNotice ? true : false,
-          noticeId: triggeredNotice?.id || null
+          noticeId: triggeredNotice?.id || null,
+          serviceType: demandServiceType
         }
       });
     } catch (auditError) {
@@ -601,7 +702,8 @@ export const createFieldVisit = async (req, res, next) => {
 
     // Update notice status if demand is paid (called after transaction commit)
     // This ensures the demand changes are committed before notice updates
-    if (isCollectingPayment && payment) {
+    if (isCollectingPayment && createdPayments.length > 0) {
+      // Update notice for primary demand
       try {
         await updateNoticeOnPayment(demandId, req, user);
       } catch (noticeError) {
@@ -612,7 +714,9 @@ export const createFieldVisit = async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: isCollectingPayment ? 'Field visit recorded and payment collected successfully' : 'Field visit recorded successfully',
+      message: isCollectingPayment 
+        ? `Field visit recorded and ${createdPayments.length} payment(s) collected successfully` 
+        : 'Field visit recorded successfully',
       data: {
         visit,
         followUp,
@@ -620,14 +724,15 @@ export const createFieldVisit = async (req, res, next) => {
           id: triggeredNotice.id,
           noticeNumber: triggeredNotice.noticeNumber
         } : null,
-        payment: payment ? {
-          id: payment.id,
-          paymentNumber: payment.paymentNumber,
-          receiptNumber: payment.receiptNumber,
-          amount: payment.amount,
-          paymentMode: payment.paymentMode,
-          receiptPdfUrl
-        } : null
+        payments: createdPayments.length > 0 ? createdPayments.map(p => ({
+          id: p.id,
+          paymentNumber: p.paymentNumber,
+          receiptNumber: p.receiptNumber,
+          amount: p.amount,
+          paymentMode: p.paymentMode,
+          demandId: p.demandId,
+          receiptPdfUrl: p.id === createdPayments[0].id ? receiptPdfUrl : null // First payment gets PDF URL
+        })) : null
       }
     });
   } catch (error) {
@@ -968,7 +1073,7 @@ export const getFieldVisitContext = async (req, res, next) => {
         {
           model: Demand,
           as: 'demand',
-          attributes: ['id', 'demandNumber', 'balanceAmount', 'overdueDays', 'dueDate', 'status'],
+          attributes: ['id', 'demandNumber', 'balanceAmount', 'overdueDays', 'dueDate', 'status', 'serviceType'],
           required: false
         },
         {
@@ -1037,7 +1142,8 @@ export const getFieldVisitContext = async (req, res, next) => {
         balanceAmount: parseFloat(task.dueAmount || task.demand?.balanceAmount || 0),
         overdueDays: task.overdueDays || task.demand?.overdueDays || 0,
         dueDate: task.demand?.dueDate || null,
-        status: task.demand?.status || 'pending'
+        status: task.demand?.status || 'pending',
+        serviceType: task.demand?.serviceType || 'HOUSE_TAX'
       },
       followUp: task.followUp ? {
         visitCount: task.followUp.visitCount || 0,

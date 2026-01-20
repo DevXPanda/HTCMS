@@ -20,7 +20,7 @@ export const getCitizenDashboard = async (req, res, next) => {
 
     const propertyIds = properties.map(p => p.id);
 
-    // Get total outstanding
+    // Get total outstanding - separate by serviceType
     const demands = await Demand.findAll({
       where: {
         propertyId: { [Op.in]: propertyIds },
@@ -28,7 +28,12 @@ export const getCitizenDashboard = async (req, res, next) => {
       }
     });
 
+    const houseTaxDemands = demands.filter(d => d.serviceType === 'HOUSE_TAX');
+    const d2dcDemands = demands.filter(d => d.serviceType === 'D2DC');
+    
     const totalOutstanding = demands.reduce((sum, d) => sum + parseFloat(d.balanceAmount), 0);
+    const houseTaxOutstanding = houseTaxDemands.reduce((sum, d) => sum + parseFloat(d.balanceAmount), 0);
+    const d2dcOutstanding = d2dcDemands.reduce((sum, d) => sum + parseFloat(d.balanceAmount), 0);
 
     // Get recent payments
     const recentPayments = await Payment.findAll({
@@ -37,13 +42,13 @@ export const getCitizenDashboard = async (req, res, next) => {
         status: 'completed'
       },
       include: [
-        { model: Demand, as: 'demand', attributes: ['id', 'demandNumber', 'financialYear'] }
+        { model: Demand, as: 'demand', attributes: ['id', 'demandNumber', 'financialYear', 'serviceType'], required: false }
       ],
       order: [['paymentDate', 'DESC']],
       limit: 5
     });
 
-    // Get pending demands
+    // Get pending demands - separate by serviceType
     const pendingDemands = await Demand.findAll({
       where: {
         propertyId: { [Op.in]: propertyIds },
@@ -56,10 +61,13 @@ export const getCitizenDashboard = async (req, res, next) => {
           as: 'property',
           attributes: ['id', 'propertyNumber', 'address']
         },
-        { model: Assessment, as: 'assessment', attributes: ['id', 'assessmentNumber'] }
+        { model: Assessment, as: 'assessment', attributes: ['id', 'assessmentNumber'], required: false }
       ],
-      order: [['dueDate', 'ASC']]
+      order: [['serviceType', 'ASC'], ['dueDate', 'ASC']]
     });
+
+    const pendingHouseTaxDemands = pendingDemands.filter(d => d.serviceType === 'HOUSE_TAX');
+    const pendingD2dcDemands = pendingDemands.filter(d => d.serviceType === 'D2DC');
 
     // Get active notices count (not resolved)
     const activeNotices = await Notice.count({
@@ -74,10 +82,16 @@ export const getCitizenDashboard = async (req, res, next) => {
       data: {
         properties: properties.length,
         totalOutstanding,
+        houseTaxOutstanding,
+        d2dcOutstanding,
         pendingDemands: pendingDemands.length,
+        pendingHouseTaxDemands: pendingHouseTaxDemands.length,
+        pendingD2dcDemands: pendingD2dcDemands.length,
         activeNotices,
         recentPayments,
-        pendingDemandsList: pendingDemands
+        pendingDemandsList: pendingDemands,
+        pendingHouseTaxDemandsList: pendingHouseTaxDemands,
+        pendingD2dcDemandsList: pendingD2dcDemands
       }
     });
   } catch (error) {
@@ -140,9 +154,9 @@ export const getCitizenDemands = async (req, res, next) => {
           as: 'property',
           attributes: ['id', 'propertyNumber', 'address']
         },
-        { model: Assessment, as: 'assessment', attributes: ['id', 'assessmentNumber', 'assessmentYear'] }
+        { model: Assessment, as: 'assessment', attributes: ['id', 'assessmentNumber', 'assessmentYear'], required: false }
       ],
-      order: [['dueDate', 'ASC']]
+      order: [['serviceType', 'ASC'], ['dueDate', 'ASC']]
     });
 
     res.json({
@@ -189,7 +203,7 @@ export const getCitizenPayments = async (req, res, next) => {
           as: 'property',
           attributes: ['id', 'propertyNumber', 'address']
         },
-        { model: Demand, as: 'demand', attributes: ['id', 'demandNumber', 'financialYear'] }
+        { model: Demand, as: 'demand', attributes: ['id', 'demandNumber', 'financialYear', 'serviceType'], required: false }
       ],
       order: [['paymentDate', 'DESC']]
     });

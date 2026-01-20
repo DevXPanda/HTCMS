@@ -25,11 +25,18 @@ export const Demand = sequelize.define('Demand', {
   },
   assessmentId: {
     type: DataTypes.INTEGER,
-    allowNull: false,
+    allowNull: true, // Nullable for D2DC demands (D2DC doesn't require assessment)
     references: {
       model: 'Assessments',
       key: 'id'
-    }
+    },
+    comment: 'Assessment ID (required for HOUSE_TAX, null for D2DC)'
+  },
+  serviceType: {
+    type: DataTypes.ENUM('HOUSE_TAX', 'D2DC'),
+    allowNull: false,
+    defaultValue: 'HOUSE_TAX',
+    comment: 'Service type: HOUSE_TAX or D2DC (Door-to-Door Garbage Collection)'
   },
   financialYear: {
     type: DataTypes.STRING(10),
@@ -115,6 +122,29 @@ export const Demand = sequelize.define('Demand', {
   tableName: 'demands',
   timestamps: true,
   hooks: {
+    beforeValidate: (demand) => {
+      // CRITICAL VALIDATION: Ensure assessmentId rules based on serviceType
+      // D2DC is a municipal service, NOT a tax assessment
+      
+      // Default serviceType to HOUSE_TAX for backward compatibility
+      const serviceType = demand.serviceType || 'HOUSE_TAX';
+      
+      if (serviceType === 'D2DC') {
+        // D2DC demands MUST have assessmentId = null
+        // D2DC is linked directly to property, not assessment
+        if (demand.assessmentId !== null && demand.assessmentId !== undefined) {
+          throw new Error('D2DC demands cannot have an assessmentId. D2DC is a municipal service linked directly to property, not assessment.');
+        }
+        // Explicitly set to null to ensure database constraint compliance
+        demand.assessmentId = null;
+      } else if (serviceType === 'HOUSE_TAX') {
+        // HOUSE_TAX demands MUST have assessmentId
+        // HOUSE_TAX is generated from approved tax assessments
+        if (!demand.assessmentId) {
+          throw new Error('HOUSE_TAX demands require an assessmentId. Please provide a valid assessment.');
+        }
+      }
+    },
     afterFind: (demands) => {
       // Ensure numeric fields are always numbers, not strings
       // This handles cases where Sequelize returns DECIMAL as strings

@@ -37,8 +37,8 @@ export const getDashboardStats = async (req, res, next) => {
       where: dateFilter
     });
 
-    // Total Revenue
-    const revenueResult = await Payment.sum('amount', {
+    // Total Revenue - separate by serviceType
+    const payments = await Payment.findAll({
       where: {
         status: 'completed',
         ...(startDate || endDate ? {
@@ -47,9 +47,19 @@ export const getDashboardStats = async (req, res, next) => {
             ...(endDate ? { [Op.lte]: new Date(endDate) } : {})
           }
         } : {})
-      }
+      },
+      include: [
+        { model: Demand, as: 'demand', attributes: ['id', 'serviceType'], required: false }
+      ]
     });
-    const totalRevenue = revenueResult || 0;
+
+    const totalRevenue = payments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+    const houseTaxRevenue = payments
+      .filter(p => p.demand?.serviceType === 'HOUSE_TAX')
+      .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+    const d2dcRevenue = payments
+      .filter(p => p.demand?.serviceType === 'D2DC')
+      .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
 
     // Pending Demands
     const pendingDemands = await Demand.count({
@@ -64,13 +74,29 @@ export const getDashboardStats = async (req, res, next) => {
       }
     });
 
-    // Total Outstanding Amount
-    const outstandingResult = await Demand.sum('balanceAmount', {
+    // Total Outstanding Amount - separate by serviceType
+    const outstandingDemands = await Demand.findAll({
       where: {
         balanceAmount: { [Op.gt]: 0 }
-      }
+      },
+      attributes: ['id', 'balanceAmount', 'serviceType']
     });
-    const totalOutstanding = outstandingResult || 0;
+
+    const totalOutstanding = outstandingDemands.reduce((sum, d) => sum + parseFloat(d.balanceAmount || 0), 0);
+    const houseTaxOutstanding = outstandingDemands
+      .filter(d => d.serviceType === 'HOUSE_TAX')
+      .reduce((sum, d) => sum + parseFloat(d.balanceAmount || 0), 0);
+    const d2dcOutstanding = outstandingDemands
+      .filter(d => d.serviceType === 'D2DC')
+      .reduce((sum, d) => sum + parseFloat(d.balanceAmount || 0), 0);
+
+    // Separate demands by serviceType
+    const houseTaxDemands = await Demand.count({
+      where: { serviceType: 'HOUSE_TAX', ...dateFilter }
+    });
+    const d2dcDemands = await Demand.count({
+      where: { serviceType: 'D2DC', ...dateFilter }
+    });
 
     res.json({
       success: true,
@@ -79,10 +105,16 @@ export const getDashboardStats = async (req, res, next) => {
         totalAssessments,
         approvedAssessments,
         totalDemands,
+        houseTaxDemands,
+        d2dcDemands,
         totalRevenue,
+        houseTaxRevenue,
+        d2dcRevenue,
         pendingDemands,
         overdueDemands,
-        totalOutstanding
+        totalOutstanding,
+        houseTaxOutstanding,
+        d2dcOutstanding
       }
     });
   } catch (error) {
@@ -131,13 +163,20 @@ export const getRevenueReport = async (req, res, next) => {
             { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName'] }
           ]
         },
-        { model: User, as: 'cashier', attributes: ['id', 'firstName', 'lastName'] }
+        { model: User, as: 'cashier', attributes: ['id', 'firstName', 'lastName'] },
+        { model: Demand, as: 'demand', attributes: ['id', 'demandNumber', 'serviceType'], required: false }
       ],
       order: [['paymentDate', 'DESC']]
     });
 
-    // Calculate totals
+    // Calculate totals - separate by serviceType
     const totalAmount = payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+    const houseTaxAmount = payments
+      .filter(p => p.demand?.serviceType === 'HOUSE_TAX')
+      .reduce((sum, p) => sum + parseFloat(p.amount), 0);
+    const d2dcAmount = payments
+      .filter(p => p.demand?.serviceType === 'D2DC')
+      .reduce((sum, p) => sum + parseFloat(p.amount), 0);
     
     // Group by payment mode
     const byPaymentMode = payments.reduce((acc, p) => {
@@ -145,14 +184,25 @@ export const getRevenueReport = async (req, res, next) => {
       return acc;
     }, {});
 
+    // Group by serviceType
+    const byServiceType = {
+      HOUSE_TAX: houseTaxAmount,
+      D2DC: d2dcAmount
+    };
+
     res.json({
       success: true,
       data: {
         payments,
         summary: {
           totalAmount,
+          houseTaxAmount,
+          d2dcAmount,
           totalCount: payments.length,
-          byPaymentMode
+          houseTaxCount: payments.filter(p => p.demand?.serviceType === 'HOUSE_TAX').length,
+          d2dcCount: payments.filter(p => p.demand?.serviceType === 'D2DC').length,
+          byPaymentMode,
+          byServiceType
         }
       }
     });
@@ -191,10 +241,17 @@ export const getOutstandingReport = async (req, res, next) => {
             { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email', 'phone'] }
           ]
         },
-        { model: Assessment, as: 'assessment' }
+        { model: Assessment, as: 'assessment', required: false }
       ],
-      order: [['dueDate', 'ASC']]
+      order: [['serviceType', 'ASC'], ['dueDate', 'ASC']]
     });
+
+    // Separate by serviceType
+    const houseTaxDemands = demands.filter(d => d.serviceType === 'HOUSE_TAX');
+    const d2dcDemands = demands.filter(d => d.serviceType === 'D2DC');
+    
+    const houseTaxOutstanding = houseTaxDemands.reduce((sum, d) => sum + parseFloat(d.balanceAmount || 0), 0);
+    const d2dcOutstanding = d2dcDemands.reduce((sum, d) => sum + parseFloat(d.balanceAmount || 0), 0);
 
     const totalOutstanding = demands.reduce((sum, d) => sum + parseFloat(d.balanceAmount), 0);
 
@@ -202,9 +259,15 @@ export const getOutstandingReport = async (req, res, next) => {
       success: true,
       data: {
         demands,
+        houseTaxDemands,
+        d2dcDemands,
         summary: {
           totalOutstanding,
-          totalCount: demands.length
+          houseTaxOutstanding,
+          d2dcOutstanding,
+          totalCount: demands.length,
+          houseTaxCount: houseTaxDemands.length,
+          d2dcCount: d2dcDemands.length
         }
       }
     });

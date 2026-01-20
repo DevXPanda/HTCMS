@@ -237,6 +237,25 @@ const DailyTasks = () => {
 
 // Task Card Component
 const TaskCard = ({ task, onClick, getPriorityBadge, formatCurrency }) => {
+  // Get serviceType from demand if available
+  const serviceType = task.demand?.serviceType || 'HOUSE_TAX';
+  const isD2DC = serviceType === 'D2DC';
+  
+  const getServiceTypeBadge = () => {
+    if (isD2DC) {
+      return (
+        <span className="px-2 py-1 text-xs font-semibold bg-green-100 text-green-800 rounded border border-green-300">
+          D2DC
+        </span>
+      );
+    }
+    return (
+      <span className="px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-800 rounded border border-blue-300">
+        House Tax
+      </span>
+    );
+  };
+
   return (
     <div
       className="card hover:shadow-lg transition-all cursor-pointer border-l-4"
@@ -249,8 +268,9 @@ const TaskCard = ({ task, onClick, getPriorityBadge, formatCurrency }) => {
     >
       <div className="flex justify-between items-start mb-4">
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
             {getPriorityBadge(task.priority)}
+            {getServiceTypeBadge()}
             <span className="text-xs text-gray-500">Task #{task.taskNumber}</span>
           </div>
           <h3 className="text-lg font-semibold text-gray-900 mb-2">{task.actionRequired}</h3>

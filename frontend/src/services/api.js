@@ -97,6 +97,7 @@ export const demandAPI = {
   getAll: (params) => api.get('/demands', { params }),
   getById: (id) => api.get(`/demands/${id}`),
   create: (data) => api.post('/demands', data),
+  createD2DC: (data) => api.post('/demands/d2dc', data),
   generateBulk: (data) => api.post('/demands/generate-bulk', data),
   calculatePenalty: (id, data) => api.put(`/demands/${id}/calculate-penalty`, data),
   getByProperty: (propertyId) => api.get(`/demands/property/${propertyId}`),

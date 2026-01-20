@@ -34,11 +34,18 @@ const CitizenDashboard = () => {
       link: '/citizen/properties'
     },
     {
-      title: 'Pending Tax Demands',
-      value: dashboard?.pendingDemands || 0,
+      title: 'Pending House Tax',
+      value: dashboard?.pendingHouseTaxDemands || 0,
       icon: FileText,
       color: 'bg-orange-500',
-      link: '/citizen/demands'
+      link: '/citizen/demands?serviceType=HOUSE_TAX'
+    },
+    {
+      title: 'Pending D2DC',
+      value: dashboard?.pendingD2dcDemands || 0,
+      icon: FileText,
+      color: 'bg-green-500',
+      link: '/citizen/demands?serviceType=D2DC'
     },
     {
       title: 'Active Notices',
@@ -54,6 +61,20 @@ const CitizenDashboard = () => {
       icon: DollarSign,
       color: 'bg-red-500',
       link: '/citizen/demands'
+    },
+    {
+      title: 'House Tax Outstanding',
+      value: `₹${(dashboard?.houseTaxOutstanding || 0).toLocaleString('en-IN')}`,
+      icon: DollarSign,
+      color: 'bg-orange-600',
+      link: '/citizen/demands?serviceType=HOUSE_TAX'
+    },
+    {
+      title: 'D2DC Outstanding',
+      value: `₹${(dashboard?.d2dcOutstanding || 0).toLocaleString('en-IN')}`,
+      icon: DollarSign,
+      color: 'bg-green-600',
+      link: '/citizen/demands?serviceType=D2DC'
     },
     {
       title: 'Recent Payments',
@@ -97,17 +118,29 @@ const CitizenDashboard = () => {
           <h2 className="text-xl font-semibold mb-4">Pending Demands</h2>
           {dashboard?.pendingDemandsList && dashboard.pendingDemandsList.length > 0 ? (
             <div className="space-y-3">
-              {dashboard.pendingDemandsList.slice(0, 5).map((demand) => (
-                <div key={demand.id} className="border-b pb-3">
-                  <p className="font-medium">{demand.demandNumber}</p>
-                  <p className="text-sm text-gray-600">
-                    Balance: ₹{parseFloat(demand.balanceAmount).toLocaleString('en-IN')}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Due: {new Date(demand.dueDate).toLocaleDateString()}
-                  </p>
-                </div>
-              ))}
+              {dashboard.pendingDemandsList.slice(0, 5).map((demand) => {
+                const isD2DC = demand.serviceType === 'D2DC';
+                return (
+                  <div key={demand.id} className="border-b pb-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="font-medium">{demand.demandNumber}</p>
+                      <span className={`px-2 py-1 text-xs font-semibold rounded ${
+                        isD2DC 
+                          ? 'bg-green-100 text-green-800 border border-green-300'
+                          : 'bg-blue-100 text-blue-800 border border-blue-300'
+                      }`}>
+                        {isD2DC ? 'D2DC' : 'House Tax'}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      Balance: ₹{parseFloat(demand.balanceAmount).toLocaleString('en-IN')}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Due: {new Date(demand.dueDate).toLocaleDateString()}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <p className="text-gray-500">No pending demands</p>
@@ -118,17 +151,29 @@ const CitizenDashboard = () => {
           <h2 className="text-xl font-semibold mb-4">Recent Payments</h2>
           {dashboard?.recentPayments && dashboard.recentPayments.length > 0 ? (
             <div className="space-y-3">
-              {dashboard.recentPayments.map((payment) => (
-                <div key={payment.id} className="border-b pb-3">
-                  <p className="font-medium">{payment.receiptNumber}</p>
-                  <p className="text-sm text-green-600">
-                    ₹{parseFloat(payment.amount).toLocaleString('en-IN')}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {new Date(payment.paymentDate).toLocaleDateString()}
-                  </p>
-                </div>
-              ))}
+              {dashboard.recentPayments.map((payment) => {
+                const isD2DC = payment.demand?.serviceType === 'D2DC';
+                return (
+                  <div key={payment.id} className="border-b pb-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="font-medium">{payment.receiptNumber}</p>
+                      <span className={`px-2 py-1 text-xs font-semibold rounded ${
+                        isD2DC 
+                          ? 'bg-green-100 text-green-800 border border-green-300'
+                          : 'bg-blue-100 text-blue-800 border border-blue-300'
+                      }`}>
+                        {isD2DC ? 'D2DC' : 'House Tax'}
+                      </span>
+                    </div>
+                    <p className="text-sm text-green-600">
+                      ₹{parseFloat(payment.amount).toLocaleString('en-IN')}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {new Date(payment.paymentDate).toLocaleDateString()}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <p className="text-gray-500">No recent payments</p>

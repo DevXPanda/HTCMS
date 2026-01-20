@@ -56,9 +56,15 @@ export const FieldVisit = sequelize.define('FieldVisit', {
     comment: 'Date and time of visit (auto-captured)'
   },
   visitType: {
-    type: DataTypes.ENUM('reminder', 'payment_collection', 'warning', 'final_warning'),
+    type: DataTypes.ENUM('reminder', 'payment_collection', 'warning', 'final_warning', 'garbage_collection'),
     allowNull: false,
-    comment: 'Type of visit: reminder, payment_collection, warning, final_warning'
+    comment: 'Type of visit: reminder, payment_collection, warning, final_warning, garbage_collection'
+  },
+  visitPurpose: {
+    type: DataTypes.ENUM('house_tax', 'garbage_collection', 'both'),
+    allowNull: true,
+    defaultValue: 'house_tax',
+    comment: 'Purpose of visit: house_tax, garbage_collection, or both (for payment collection)'
   },
   citizenResponse: {
     type: DataTypes.ENUM('will_pay_today', 'will_pay_later', 'refused_to_pay', 'not_available'),

@@ -4,6 +4,7 @@ import {
     getAllDemands,
     getDemandById,
     createDemand,
+    createD2DCDemand,
     generateBulkDemands,
     calculatePenalty,
     getDemandsByProperty,
@@ -23,6 +24,9 @@ router.get('/property/:propertyId', getDemandsByProperty);
 
 // Get all demands (filtered by role)
 router.get('/', getAllDemands);
+
+// Generate D2DC demand (Admin only) - Must be before /:id route
+router.post('/d2dc', authorize('admin'), createD2DCDemand);
 
 // Generate bulk demands (Admin only) - Must be before /:id route
 router.post('/generate-bulk', authorize('admin'), generateBulkDemands);

@@ -1,29 +1,45 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { citizenAPI } from '../../services/api';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
-import { CreditCard, Eye, AlertCircle } from 'lucide-react';
+import { CreditCard, Eye, AlertCircle, Filter } from 'lucide-react';
 
 const CitizenDemands = () => {
   const [demands, setDemands] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [serviceTypeFilter, setServiceTypeFilter] = useState(searchParams.get('serviceType') || 'all');
 
   useEffect(() => {
     fetchDemands();
-  }, []);
+  }, [serviceTypeFilter]);
 
   const fetchDemands = async () => {
     try {
       setLoading(true);
-      const response = await citizenAPI.getDemands();
+      const params = serviceTypeFilter !== 'all' ? { serviceType: serviceTypeFilter } : {};
+      const response = await citizenAPI.getDemands(params);
       setDemands(response.data.data.demands);
     } catch (error) {
-      toast.error('Failed to fetch tax demands');
+      toast.error('Failed to fetch demands');
     } finally {
       setLoading(false);
     }
   };
+
+  const handleServiceTypeFilter = (type) => {
+    setServiceTypeFilter(type);
+    if (type === 'all') {
+      setSearchParams({});
+    } else {
+      setSearchParams({ serviceType: type });
+    }
+  };
+
+  // Group demands by serviceType
+  const houseTaxDemands = demands.filter(d => d.serviceType === 'HOUSE_TAX');
+  const d2dcDemands = demands.filter(d => d.serviceType === 'D2DC');
 
   const getStatusBadge = (status) => {
     const badges = {
@@ -39,15 +55,50 @@ const CitizenDemands = () => {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">My Tax Demands</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-gray-900">My Demands</h1>
+        <div className="flex gap-2">
+          <button
+            onClick={() => handleServiceTypeFilter('all')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium ${
+              serviceTypeFilter === 'all'
+                ? 'bg-primary-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            All ({demands.length})
+          </button>
+          <button
+            onClick={() => handleServiceTypeFilter('HOUSE_TAX')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium ${
+              serviceTypeFilter === 'HOUSE_TAX'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            House Tax ({houseTaxDemands.length})
+          </button>
+          <button
+            onClick={() => handleServiceTypeFilter('D2DC')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium ${
+              serviceTypeFilter === 'D2DC'
+                ? 'bg-green-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            D2DC ({d2dcDemands.length})
+          </button>
+        </div>
+      </div>
 
       <div className="card overflow-x-auto">
         <table className="table">
           <thead>
             <tr>
+              <th>Service Type</th>
               <th>Demand Number</th>
               <th>Property</th>
-              <th>Financial Year</th>
+              <th>Period</th>
               <th>Total Amount</th>
               <th>Paid Amount</th>
               <th>Balance</th>
@@ -59,18 +110,34 @@ const CitizenDemands = () => {
           <tbody>
             {demands.length === 0 ? (
               <tr>
-                <td colSpan="9" className="text-center py-8 text-gray-500">
-                  No tax demands found
+                <td colSpan="10" className="text-center py-8 text-gray-500">
+                  No demands found
                 </td>
               </tr>
             ) : (
               demands.map((demand) => {
                 const isOverdue = new Date(demand.dueDate) < new Date() && demand.balanceAmount > 0;
+                const isD2DC = demand.serviceType === 'D2DC';
                 return (
                   <tr key={demand.id} className={isOverdue ? 'bg-red-50' : ''}>
+                    <td>
+                      <span className={`px-2 py-1 text-xs font-semibold rounded ${
+                        isD2DC 
+                          ? 'bg-green-100 text-green-800 border border-green-300'
+                          : 'bg-blue-100 text-blue-800 border border-blue-300'
+                      }`}>
+                        {isD2DC ? 'D2DC' : 'House Tax'}
+                      </span>
+                    </td>
                     <td className="font-medium">{demand.demandNumber}</td>
                     <td>{demand.property?.propertyNumber || 'N/A'}</td>
-                    <td>{demand.financialYear}</td>
+                    <td>
+                      {isD2DC ? (
+                        <span className="text-sm">{demand.financialYear}</span>
+                      ) : (
+                        <span>{demand.financialYear}</span>
+                      )}
+                    </td>
                     <td>₹{parseFloat(demand.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                     <td className="text-green-600">
                       ₹{parseFloat(demand.paidAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
