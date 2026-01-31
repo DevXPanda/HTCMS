@@ -101,19 +101,29 @@ export const register = async (req, res, next) => {
  */
 export const login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { email, phone, password } = req.body;
 
-    // Validate input
-    if (!email || !password) {
+    // Validate input - accept either email or phone
+    const identifier = email || phone;
+    if (!identifier || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide email and password'
+        message: 'Please provide email or phone number and password'
       });
     }
 
-    // Find user by email - explicitly include role in attributes
+    // Determine if identifier is email or phone number
+    // Simple check: if it contains @, it's an email; otherwise, treat as phone
+    const isEmail = identifier.includes('@');
+    
+    // Build where clause to search by email or phone
+    const whereClause = isEmail 
+      ? { email: identifier }
+      : { phone: identifier };
+
+    // Find user by email or phone - explicitly include role in attributes
     const user = await User.findOne({ 
-      where: { email },
+      where: whereClause,
       attributes: ['id', 'username', 'email', 'password', 'firstName', 'lastName', 'phone', 'role', 'isActive', 'lastLogin']
     });
 

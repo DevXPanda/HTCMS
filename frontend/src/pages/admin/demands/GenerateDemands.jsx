@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { demandAPI, propertyAPI, assessmentAPI } from '../../../services/api';
+import { demandAPI, propertyAPI, assessmentAPI, waterTaxAssessmentAPI } from '../../../services/api';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Zap, AlertCircle, Trash2, Plus } from 'lucide-react';
 import Loading from '../../../components/Loading';
@@ -15,8 +15,12 @@ const GenerateDemands = () => {
   const [properties, setProperties] = useState([]);
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [assessments, setAssessments] = useState([]);
+  const [waterTaxAssessments, setWaterTaxAssessments] = useState([]);
   const [loadingProperties, setLoadingProperties] = useState(false);
   const [generateHouseTax, setGenerateHouseTax] = useState(false);
+  const [generateWaterTax, setGenerateWaterTax] = useState(false);
+  const [generateCombined, setGenerateCombined] = useState(false);
+  const [generateUnified, setGenerateUnified] = useState(false);
   const [generateD2DC, setGenerateD2DC] = useState(false);
 
   const {
@@ -45,6 +49,10 @@ const GenerateDemands = () => {
   useEffect(() => {
     if (selectedProperty) {
       fetchAssessments(selectedProperty);
+      fetchWaterTaxAssessments(selectedProperty);
+    } else {
+      setAssessments([]);
+      setWaterTaxAssessments([]);
     }
   }, [selectedProperty]);
 
@@ -70,6 +78,16 @@ const GenerateDemands = () => {
     } catch (error) {
       console.error('Failed to fetch assessments:', error);
       setAssessments([]);
+    }
+  };
+
+  const fetchWaterTaxAssessments = async (propertyId) => {
+    try {
+      const response = await waterTaxAssessmentAPI.getAll({ propertyId, status: 'approved' });
+      setWaterTaxAssessments(response.data.data.assessments || []);
+    } catch (error) {
+      console.error('Failed to fetch water tax assessments:', error);
+      setWaterTaxAssessments([]);
     }
   };
 
@@ -106,7 +124,7 @@ const GenerateDemands = () => {
   };
 
   const onSubmitProperty = async (data) => {
-    if (!generateHouseTax && !generateD2DC) {
+    if (!generateHouseTax && !generateWaterTax && !generateCombined && !generateUnified && !generateD2DC) {
       toast.error('Please select at least one service to generate');
       return;
     }
@@ -116,13 +134,112 @@ const GenerateDemands = () => {
       return;
     }
 
-    if (generateHouseTax && assessments.length === 0) {
-      toast.error('No approved assessments found for this property');
+    // If unified is selected, use the unified API (generates assessments + demand)
+    if (generateUnified) {
+      const currentYear = new Date().getFullYear();
+      const assessmentYear = currentYear;
+      const financialYear = `${currentYear}-${String(currentYear + 1).slice(-2)}`;
+      
+      const confirmMessage = `Generate Unified Tax Assessment and Demand?\n\n` +
+        `This will:\n` +
+        `1. Create Property Tax Assessment (if not exists)\n` +
+        `2. Create Water Tax Assessments for all active connections (if not exist)\n` +
+        `3. Generate ONE unified demand containing both taxes\n\n` +
+        `Property: ${selectedProperty.propertyNumber}\n` +
+        `Assessment Year: ${assessmentYear}\n` +
+        `Financial Year: ${financialYear}\n` +
+        `Due Date: ${new Date(data.dueDate || new Date()).toLocaleDateString()}`;
+      
+      if (!window.confirm(confirmMessage)) {
+        return;
+      }
+
+      try {
+        setGenerating(true);
+        setResult(null);
+
+        const response = await demandAPI.generateUnified({
+          propertyId: selectedProperty.id,
+          assessmentYear,
+          financialYear,
+          dueDate: data.dueDate || new Date().toISOString().split('T')[0],
+          remarks: data.remarks || null,
+          defaultTaxRate: 1.5
+        });
+
+        if (response.data.success) {
+          setResult(response.data.data);
+          toast.success('Unified assessment and demand generated successfully!');
+          if (response.data.data.unifiedDemand) {
+            toast.success(`Total Amount: ₹${parseFloat(response.data.data.unifiedDemand.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`);
+          }
+          
+          setTimeout(() => {
+            navigate('/demands');
+          }, 3000);
+        }
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to generate unified assessment and demand');
+      } finally {
+        setGenerating(false);
+      }
       return;
     }
 
+    if ((generateHouseTax || generateCombined) && assessments.length === 0) {
+      toast.error('No approved property tax assessments found for this property');
+      return;
+    }
+
+    if ((generateWaterTax || generateCombined) && waterTaxAssessments.length === 0) {
+      toast.error('No approved water tax assessments found for this property');
+      return;
+    }
+
+    // If combined is selected, use the combined API
+    if (generateCombined) {
+      const confirmMessage = `Generate combined demands (Property Tax + Water Tax) for property ${selectedProperty.propertyNumber}?\n\n` +
+        `Financial Year: ${data.financialYear}\n` +
+        `Due Date: ${new Date(data.dueDate).toLocaleDateString()}`;
+      
+      if (!window.confirm(confirmMessage)) {
+        return;
+      }
+
+      try {
+        setGenerating(true);
+        setResult(null);
+
+        const response = await demandAPI.generateCombined({
+          propertyId: selectedProperty.id,
+          financialYear: data.financialYear,
+          dueDate: data.dueDate,
+          remarks: data.remarks || null
+        });
+
+        if (response.data.success) {
+          setResult(response.data.data);
+          toast.success(`Successfully generated ${response.data.data.created} demand(s)!`);
+          if (response.data.data.combinedTotal > 0) {
+            toast.success(`Combined Total: ₹${response.data.data.combinedTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`);
+          }
+          
+          setTimeout(() => {
+            navigate('/demands');
+          }, 3000);
+        }
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to generate combined demands');
+      } finally {
+        setGenerating(false);
+      }
+      return;
+    }
+
+    // Individual generation
     const confirmMessage = `Generate demands for property ${selectedProperty.propertyNumber}?\n\n` +
       `${generateHouseTax ? '✓ House Tax Demand\n' : ''}` +
+      `${generateWaterTax ? '✓ Water Tax Demand\n' : ''}` +
       `${generateD2DC ? '✓ D2DC (Garbage Collection)\n' : ''}`;
     
     if (!window.confirm(confirmMessage)) {
@@ -132,7 +249,7 @@ const GenerateDemands = () => {
     try {
       setGenerating(true);
       setResult(null);
-      const results = { houseTax: null, d2dc: null, errors: [] };
+      const results = { houseTax: null, waterTax: null, d2dc: null, errors: [] };
 
       // Generate House Tax demand
       if (generateHouseTax) {
@@ -152,6 +269,27 @@ const GenerateDemands = () => {
             message: error.response?.data?.message || 'Failed to generate House Tax demand'
           });
           toast.error('Failed to generate House Tax demand');
+        }
+      }
+
+      // Generate Water Tax demand
+      if (generateWaterTax) {
+        try {
+          const waterTaxAssessment = waterTaxAssessments[0]; // Use first approved assessment
+          const response = await demandAPI.create({
+            waterTaxAssessmentId: waterTaxAssessment.id,
+            serviceType: 'WATER_TAX',
+            financialYear: data.financialYear,
+            dueDate: data.dueDate
+          });
+          results.waterTax = response.data.data.demand;
+          toast.success('Water Tax demand generated successfully');
+        } catch (error) {
+          results.errors.push({
+            type: 'WATER_TAX',
+            message: error.response?.data?.message || 'Failed to generate Water Tax demand'
+          });
+          toast.error('Failed to generate Water Tax demand');
         }
       }
 
@@ -177,7 +315,7 @@ const GenerateDemands = () => {
 
       setResult(results);
       
-      if (results.houseTax || results.d2dc) {
+      if (results.houseTax || results.waterTax || results.d2dc) {
         setTimeout(() => {
           navigate('/demands');
         }, 3000);
@@ -391,6 +529,91 @@ const GenerateDemands = () => {
                       </div>
                     </div>
 
+                    {/* Water Tax Checkbox */}
+                    <div className="flex items-start">
+                      <input
+                        type="checkbox"
+                        id="generateWaterTax"
+                        checked={generateWaterTax}
+                        onChange={(e) => {
+                          setGenerateWaterTax(e.target.checked);
+                          if (e.target.checked) {
+                            setGenerateCombined(false);
+                          }
+                        }}
+                        className="mt-1 mr-3 w-5 h-5"
+                        disabled={waterTaxAssessments.length === 0}
+                      />
+                      <div className="flex-1">
+                        <label htmlFor="generateWaterTax" className="font-medium cursor-pointer">
+                          Generate Water Tax
+                        </label>
+                        {waterTaxAssessments.length === 0 ? (
+                          <p className="text-sm text-red-600 mt-1">
+                            No approved water tax assessments found for this property
+                          </p>
+                        ) : (
+                          <p className="text-sm text-gray-600 mt-1">
+                            {waterTaxAssessments.length} approved water tax assessment(s) available
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Unified (Generate Assessments + Demand) Checkbox */}
+                    <div className="flex items-start bg-green-50 p-3 rounded-lg border border-green-200">
+                      <input
+                        type="checkbox"
+                        id="generateUnified"
+                        checked={generateUnified}
+                        onChange={(e) => {
+                          setGenerateUnified(e.target.checked);
+                          if (e.target.checked) {
+                            setGenerateHouseTax(false);
+                            setGenerateWaterTax(false);
+                            setGenerateCombined(false);
+                          }
+                        }}
+                        className="mt-1 mr-3 w-5 h-5"
+                      />
+                      <div className="flex-1">
+                        <label htmlFor="generateUnified" className="font-medium cursor-pointer text-green-800">
+                          Generate Unified Assessment & Demand ⚡
+                        </label>
+                        <p className="text-sm text-green-700 mt-1">
+                          Automatically generates Property Tax Assessment, Water Tax Assessments (for all active connections), and ONE unified demand containing both taxes. Assessments are created if they don't exist.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Combined (Property Tax + Water Tax) Checkbox */}
+                    {(assessments.length > 0 && waterTaxAssessments.length > 0) && (
+                      <div className="flex items-start">
+                        <input
+                          type="checkbox"
+                          id="generateCombined"
+                          checked={generateCombined}
+                          onChange={(e) => {
+                            setGenerateCombined(e.target.checked);
+                            if (e.target.checked) {
+                              setGenerateHouseTax(false);
+                              setGenerateWaterTax(false);
+                              setGenerateUnified(false);
+                            }
+                          }}
+                          className="mt-1 mr-3 w-5 h-5"
+                        />
+                        <div className="flex-1">
+                          <label htmlFor="generateCombined" className="font-medium cursor-pointer">
+                            Generate Combined (Property Tax + Water Tax)
+                          </label>
+                          <p className="text-sm text-gray-600 mt-1">
+                            Generate both demands together with combined total (requires existing approved assessments)
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
                     {/* D2DC Checkbox */}
                     <div className="flex items-start">
                       <input
@@ -411,6 +634,105 @@ const GenerateDemands = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* Combined Section */}
+                {generateUnified && (
+                  <div className="space-y-4 border-t pt-6">
+                    <h3 className="text-lg font-semibold">Unified Generation Details</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="label">
+                          Financial Year <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          {...register('financialYear', {
+                            required: generateUnified ? 'Financial year is required' : false,
+                            pattern: {
+                              value: /^\d{4}-\d{2}$/,
+                              message: 'Format: YYYY-YY (e.g., 2024-25)'
+                            }
+                          })}
+                          className="input"
+                          placeholder="2024-25"
+                        />
+                        {errors.financialYear && (
+                          <p className="text-red-500 text-sm mt-1">{errors.financialYear.message}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="label">
+                          Due Date <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          {...register('dueDate', {
+                            required: generateUnified ? 'Due date is required' : false
+                          })}
+                          className="input"
+                        />
+                        {errors.dueDate && (
+                          <p className="text-red-500 text-sm mt-1">{errors.dueDate.message}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {generateCombined && (
+                  <div className="border border-gray-200 rounded-lg p-6 bg-blue-50">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center">
+                      <span className="w-2 h-2 bg-blue-600 rounded-full mr-2"></span>
+                      Combined Demand (Property Tax + Water Tax)
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="label">
+                          Financial Year <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          {...register('financialYear', {
+                            required: generateCombined ? 'Financial year is required' : false,
+                            pattern: {
+                              value: /^\d{4}-\d{2}$/,
+                              message: 'Format must be YYYY-YY (e.g., 2024-25)'
+                            }
+                          })}
+                          className="input"
+                          placeholder="2024-25"
+                        />
+                        {errors.financialYear && (
+                          <p className="text-red-500 text-sm mt-1">{errors.financialYear.message}</p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="label">
+                          Due Date <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          {...register('dueDate', {
+                            required: generateCombined ? 'Due date is required' : false
+                          })}
+                          className="input"
+                        />
+                        {errors.dueDate && (
+                          <p className="text-red-500 text-sm mt-1">{errors.dueDate.message}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-4 p-4 bg-white rounded border border-blue-200">
+                      <p className="text-sm font-medium text-gray-700 mb-2">Will generate:</p>
+                      <ul className="text-sm text-gray-600 space-y-1">
+                        <li>✓ Property Tax Demand (from approved assessment)</li>
+                        <li>✓ Water Tax Demand (from approved water tax assessment)</li>
+                        <li>✓ Combined total amount will be calculated</li>
+                      </ul>
+                    </div>
+                  </div>
+                )}
 
                 {/* House Tax Section */}
                 {generateHouseTax && (
@@ -448,6 +770,53 @@ const GenerateDemands = () => {
                           type="date"
                           {...register('dueDate', {
                             required: generateHouseTax ? 'Due date is required' : false
+                          })}
+                          className="input"
+                        />
+                        {errors.dueDate && (
+                          <p className="text-red-500 text-sm mt-1">{errors.dueDate.message}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Water Tax Section */}
+                {generateWaterTax && (
+                  <div className="border border-gray-200 rounded-lg p-6 bg-cyan-50">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center">
+                      <span className="w-2 h-2 bg-cyan-600 rounded-full mr-2"></span>
+                      Water Tax Demand
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="label">
+                          Financial Year <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          {...register('financialYear', {
+                            required: generateWaterTax ? 'Financial year is required' : false,
+                            pattern: {
+                              value: /^\d{4}-\d{2}$/,
+                              message: 'Format must be YYYY-YY (e.g., 2024-25)'
+                            }
+                          })}
+                          className="input"
+                          placeholder="2024-25"
+                        />
+                        {errors.financialYear && (
+                          <p className="text-red-500 text-sm mt-1">{errors.financialYear.message}</p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="label">
+                          Due Date <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          {...register('dueDate', {
+                            required: generateWaterTax ? 'Due date is required' : false
                           })}
                           className="input"
                         />
@@ -557,7 +926,7 @@ const GenerateDemands = () => {
                   </Link>
                   <button
                     type="submit"
-                    disabled={generating || loading || (!generateHouseTax && !generateD2DC)}
+                    disabled={generating || loading || (!generateHouseTax && !generateWaterTax && !generateCombined && !generateUnified && !generateD2DC)}
                     className="btn btn-primary flex items-center"
                   >
                     <Zap className="w-4 h-4 mr-2" />

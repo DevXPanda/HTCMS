@@ -8,7 +8,8 @@ import {
     approveAssessment,
     rejectAssessment,
     submitAssessment,
-    getAssessmentsByProperty
+    getAssessmentsByProperty,
+    generateUnifiedAssessment
 } from '../controllers/assessment.controller.js';
 
 const router = express.Router();
@@ -30,6 +31,9 @@ router.post('/', authorize('admin', 'assessor'), createAssessment);
 
 // Update assessment (Assessor, Admin)
 router.put('/:id', authorize('admin', 'assessor'), updateAssessment);
+
+// Generate unified assessment and demand (Assessor, Admin)
+router.post('/generate-unified', authorize('admin', 'assessor'), generateUnifiedAssessment);
 
 // Submit assessment for approval (Assessor, Admin)
 router.post('/:id/submit', authorize('admin', 'assessor'), submitAssessment);

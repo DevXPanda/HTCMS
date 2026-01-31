@@ -5,6 +5,61 @@ import crypto from 'crypto';
 import { updateNoticeOnPayment } from './notice.controller.js';
 import { generatePaymentReceiptPdf } from '../utils/pdfHelpers.js';
 import { auditLogger, createAuditLog } from '../utils/auditLogger.js';
+import { distributePaymentAcrossItems, validatePaymentDistributionIntegrity } from '../services/paymentService.js';
+import { validateAuditAction } from '../utils/auditHelpers.js';
+
+/**
+ * Validate payment amount against demand balance to prevent overpayment
+ * @param {number} paymentAmount - Payment amount being processed
+ * @param {number} balanceAmount - Current demand balance amount
+ * @param {string} demandNumber - Demand number for error message context
+ * @returns {Object} Validation result
+ */
+const validateOverpaymentProtection = (paymentAmount, balanceAmount, demandNumber = null) => {
+  // Ensure amounts are proper numbers
+  const payment = parseFloat(paymentAmount || 0);
+  const balance = parseFloat(balanceAmount || 0);
+  
+  // Check for negative or zero amounts
+  if (payment <= 0) {
+    return {
+      isValid: false,
+      error: 'Payment amount must be greater than 0',
+      errorCode: 'INVALID_AMOUNT'
+    };
+  }
+  
+  // Check for overpayment
+  if (payment > balance) {
+    const context = demandNumber ? ` for demand ${demandNumber}` : '';
+    return {
+      isValid: false,
+      error: `Overpayment detected${context}. Payment amount (₹${payment.toFixed(2)}) cannot exceed balance amount (₹${balance.toFixed(2)}).`,
+      errorCode: 'OVERPAYMENT',
+      details: {
+        paymentAmount: payment,
+        balanceAmount: balance,
+        excessAmount: payment - balance
+      }
+    };
+  }
+  
+  // Check for exact payment match (optional warning)
+  if (Math.abs(payment - balance) < 0.01) {
+    return {
+      isValid: true,
+      warning: 'Payment amount exactly matches the balance. This will fully settle the demand.',
+      paymentAmount: payment,
+      balanceAmount: balance
+    };
+  }
+  
+  return {
+    isValid: true,
+    paymentAmount: payment,
+    balanceAmount: balance
+  };
+};
 
 /**
  * @route   GET /api/payments
@@ -204,11 +259,39 @@ export const createPayment = async (req, res, next) => {
     const penaltyAmount = parseFloat(demand.penaltyAmount || 0);
     const interestAmount = parseFloat(demand.interestAmount || 0);
 
-    // Validate payment amount
-    if (paymentAmount > balanceAmount) {
+    // Enhanced overpayment protection validation
+    const validation = validateOverpaymentProtection(
+      paymentAmount, 
+      balanceAmount, 
+      demand.demandNumber
+    );
+    
+    if (!validation.isValid) {
+      // Log overpayment attempt for security
+      await createAuditLog({
+        req,
+        user: req.user,
+        actionType: 'OVERPAYMENT_ATTEMPT',
+        entityType: 'Payment',
+        entityId: null,
+        description: `Overpayment attempt blocked: ${validation.error}`,
+        metadata: {
+          demandId,
+          demandNumber: demand.demandNumber,
+          attemptedAmount: paymentAmount,
+          balanceAmount: balanceAmount,
+          excessAmount: validation.details?.excessAmount || 0,
+          paymentMode: paymentMode || 'cash',
+          userAgent: req.get('User-Agent'),
+          ip: req.ip
+        }
+      });
+
       return res.status(400).json({
         success: false,
-        message: 'Payment amount cannot exceed balance amount'
+        message: validation.error,
+        errorCode: validation.errorCode,
+        details: validation.details || null
       });
     }
 
@@ -236,27 +319,54 @@ export const createPayment = async (req, res, next) => {
       remarks
     });
 
-    // Update demand - ensure all calculations use proper numeric arithmetic
-    const newPaidAmount = Math.round((paidAmount + paymentAmount) * 100) / 100;
-    const newBalanceAmount = Math.round((totalAmount - newPaidAmount) * 100) / 100;
+    // Distribute payment across demand items (item-level payment tracking)
+    const distributionResult = await distributePaymentAcrossItems(demandId, paymentAmount, null);
+    
+    // Refresh demand data after distribution
+    await demand.reload();
+    
+    // Log payment distribution for audit
+    await createAuditLog({
+      req,
+      user: req.user,
+      actionType: validateAuditAction('PAYMENT_DISTRIBUTION'),
+      entityType: 'Payment',
+      entityId: payment.id,
+      description: `Payment distributed across demand items: ${payment.paymentNumber}`,
+      metadata: {
+        paymentId: payment.id,
+        paymentNumber: payment.paymentNumber,
+        demandId,
+        paymentAmount,
+        distributionSummary: distributionResult.summary
+      }
+    });
 
-    demand.paidAmount = newPaidAmount;
-    demand.balanceAmount = newBalanceAmount;
-
-    // Update demand status
-    if (newBalanceAmount <= 0) {
-      demand.status = 'paid';
-    } else if (newPaidAmount > 0) {
-      demand.status = 'partially_paid';
+    // Validate payment distribution integrity
+    const distributionValidation = await validatePaymentDistributionIntegrity(demandId);
+    if (!distributionValidation.isValid) {
+      console.error('Payment distribution validation failed:', distributionValidation.issues);
+      // Don't fail the payment, but log for investigation
+      await createAuditLog({
+        req,
+        user: req.user,
+        actionType: 'PAYMENT_DISTRIBUTION_VALIDATION_FAILED',
+        entityType: 'Payment',
+        entityId: payment.id,
+        description: `Payment distribution validation failed for ${payment.paymentNumber}`,
+        metadata: {
+          paymentId: payment.id,
+          demandId,
+          issues: distributionValidation.issues
+        }
+      });
     }
-
-    await demand.save();
 
     // Update notice status if demand is paid
     await updateNoticeOnPayment(demandId, req, req.user);
 
     // Auto-close follow-up if demand is fully paid
-    if (newBalanceAmount <= 0) {
+    if (demand.balanceAmount <= 0) {
       const followUp = await FollowUp.findOne({
         where: { demandId }
       });
@@ -495,27 +605,48 @@ export const createOnlinePaymentOrder = async (req, res, next) => {
       });
     }
 
-    // Validate payment amount
+    // Enhanced overpayment protection validation for online payments
     // Ensure amounts are proper numbers
     const paymentAmount = parseFloat(amount);
     const balanceAmount = parseFloat(demand.balanceAmount || 0);
-
-    if (paymentAmount > balanceAmount) {
-      return res.status(400).json({
-        success: false,
-        message: 'Payment amount cannot exceed balance amount'
+    
+    const validation = validateOverpaymentProtection(
+      paymentAmount, 
+      balanceAmount, 
+      demand.demandNumber
+    );
+    
+    if (!validation.isValid) {
+      // Log overpayment attempt for security
+      await createAuditLog({
+        req,
+        user: req.user,
+        actionType: 'OVERPAYMENT_ATTEMPT',
+        entityType: 'Payment',
+        entityId: null,
+        description: `Online overpayment attempt blocked: ${validation.error}`,
+        metadata: {
+          demandId,
+          demandNumber: demand.demandNumber,
+          attemptedAmount: paymentAmount,
+          balanceAmount: balanceAmount,
+          excessAmount: validation.details?.excessAmount || 0,
+          paymentMode: 'online',
+          userAgent: req.get('User-Agent'),
+          ip: req.ip
+        }
       });
-    }
 
-    if (amount <= 0) {
       return res.status(400).json({
         success: false,
-        message: 'Payment amount must be greater than 0'
+        message: validation.error,
+        errorCode: validation.errorCode,
+        details: validation.details || null
       });
     }
 
     // Convert amount to paise (Razorpay uses smallest currency unit)
-    const amountInPaise = Math.round(amount * 100);
+    const amountInPaise = Math.round(paymentAmount * 100);
 
     // Create Razorpay order
     const options = {
@@ -539,7 +670,7 @@ export const createOnlinePaymentOrder = async (req, res, next) => {
       paymentNumber,
       demandId,
       propertyId: demand.propertyId,
-      amount,
+      amount: paymentAmount,
       paymentMode: 'online',
       paymentDate: new Date(),
       razorpayOrderId: order.id,
@@ -663,32 +794,17 @@ export const verifyOnlinePayment = async (req, res, next) => {
     payment.receiptNumber = receiptNumber;
     await payment.save();
 
-    // Update demand - ensure all values are proper numbers
-    const demand = payment.demand;
-    const totalAmount = parseFloat(demand.totalAmount || 0);
-    const paidAmount = parseFloat(demand.paidAmount || 0);
-    const paymentAmount = parseFloat(payment.amount || 0);
+    // Update demand using item-level payment distribution
+    const distributionResult = await distributePaymentAcrossItems(demand.id, parseFloat(payment.amount || 0), null);
     
-    const newPaidAmount = Math.round((paidAmount + paymentAmount) * 100) / 100;
-    const newBalanceAmount = Math.round((totalAmount - newPaidAmount) * 100) / 100;
-
-    demand.paidAmount = newPaidAmount;
-    demand.balanceAmount = newBalanceAmount;
-
-    // Update demand status
-    if (newBalanceAmount <= 0) {
-      demand.status = 'paid';
-    } else if (newPaidAmount > 0) {
-      demand.status = 'partially_paid';
-    }
-
-    await demand.save();
+    // Refresh demand data after distribution
+    await demand.reload();
 
     // Update notice status if demand is paid
     await updateNoticeOnPayment(demand.id, req, req.user);
 
     // Auto-close follow-up if demand is fully paid
-    if (newBalanceAmount <= 0) {
+    if (demand.balanceAmount <= 0) {
       const followUp = await FollowUp.findOne({
         where: { demandId: demand.id }
       });
@@ -822,6 +938,295 @@ export const generateReceiptPdf = async (req, res, next) => {
 };
 
 /**
+ * @route   POST /api/payments/field-collection
+ * @desc    Create field collection payment (Collector Portal)
+ * @access  Private (Collector, Tax Collector)
+ */
+export const createFieldCollectionPayment = async (req, res, next) => {
+  try {
+    const {
+      demandId,
+      amount,
+      paymentMode,
+      paymentDate,
+      chequeNumber,
+      chequeDate,
+      bankName,
+      transactionId,
+      proofUrl,
+      remarks
+    } = req.body;
+
+    // Get demand with property details
+    const demand = await Demand.findByPk(demandId, {
+      include: [
+        { 
+          model: Property, 
+          as: 'property',
+          include: [
+            { model: Ward, as: 'ward' }
+          ]
+        }
+      ]
+    });
+
+    if (!demand) {
+      return res.status(404).json({
+        success: false,
+        message: 'Tax Demand not found'
+      });
+    }
+
+    // Verify collector has access to this property's ward
+    const user = req.user;
+    if (user.role === 'collector' || user.role === 'tax_collector') {
+      // Check if collector is assigned to this ward
+      const hasAccess = await verifyCollectorWardAccess(user.id, demand.property.wardId);
+      if (!hasAccess) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: You are not assigned to this ward'
+        });
+      }
+    }
+
+    // Ensure all amounts are proper numbers
+    const paymentAmount = parseFloat(amount);
+    const balanceAmount = parseFloat(demand.balanceAmount || 0);
+
+    // Enhanced overpayment protection validation
+    const validation = validateOverpaymentProtection(
+      paymentAmount, 
+      balanceAmount, 
+      demand.demandNumber
+    );
+    
+    if (!validation.isValid) {
+      // Log overpayment attempt for security
+      await createAuditLog({
+        req,
+        user: req.user,
+        actionType: 'OVERPAYMENT_ATTEMPT',
+        entityType: 'Payment',
+        entityId: null,
+        description: `Field collection overpayment attempt blocked: ${validation.error}`,
+        metadata: {
+          demandId,
+          demandNumber: demand.demandNumber,
+          attemptedAmount: paymentAmount,
+          balanceAmount: balanceAmount,
+          excessAmount: validation.details?.excessAmount || 0,
+          paymentMode: paymentMode || 'cash',
+          collectionType: 'field',
+          userAgent: req.get('User-Agent'),
+          ip: req.ip
+        }
+      });
+
+      return res.status(400).json({
+        success: false,
+        message: validation.error,
+        errorCode: validation.errorCode,
+        details: validation.details || null
+      });
+    }
+
+    // For offline payments, proof is mandatory
+    if (paymentMode !== 'online' && !proofUrl) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment proof is mandatory for offline payment modes'
+      });
+    }
+
+    // Generate payment number
+    const paymentNumber = `FC-${Date.now()}`; // FC for Field Collection
+
+    // Generate receipt number
+    const receiptNumber = `FCR-${new Date().getFullYear()}-${Date.now()}`; // FCR for Field Collection Receipt
+
+    // Create payment
+    const payment = await Payment.create({
+      paymentNumber,
+      demandId,
+      propertyId: demand.propertyId,
+      amount: paymentAmount,
+      paymentMode: paymentMode || 'cash',
+      paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
+      chequeNumber,
+      chequeDate: chequeDate ? new Date(chequeDate) : null,
+      bankName,
+      transactionId,
+      receiptNumber,
+      status: 'completed',
+      receivedBy: user.id, // For backward compatibility
+      collectedBy: user.id, // New field for field collections
+      proofUrl,
+      remarks: remarks || `Field collection by ${user.firstName} ${user.lastName}`
+    });
+
+    // Distribute payment across demand items (item-level payment tracking)
+    const distributionResult = await distributePaymentAcrossItems(demandId, paymentAmount, null);
+    
+    // Refresh demand data after distribution
+    await demand.reload();
+    
+    // Log payment distribution for audit
+    await createAuditLog({
+      req,
+      user: req.user,
+      actionType: validateAuditAction('PAYMENT_DISTRIBUTION'),
+      entityType: 'Payment',
+      entityId: payment.id,
+      description: `Field collection payment distributed across demand items: ${payment.paymentNumber}`,
+      metadata: {
+        paymentId: payment.id,
+        paymentNumber: payment.paymentNumber,
+        demandId,
+        paymentAmount,
+        collectionType: 'field',
+        distributionSummary: distributionResult.summary
+      }
+    });
+
+    // Validate payment distribution integrity
+    const distributionValidation = await validatePaymentDistributionIntegrity(demandId);
+    if (!distributionValidation.isValid) {
+      console.error('Payment distribution validation failed:', distributionValidation.issues);
+      // Don't fail the payment, but log for investigation
+      await createAuditLog({
+        req,
+        user: req.user,
+        actionType: validateAuditAction('PAYMENT_DISTRIBUTION_VALIDATION_FAILED'),
+        entityType: 'Payment',
+        entityId: payment.id,
+        description: `Payment distribution validation failed for ${payment.paymentNumber}`,
+        metadata: {
+          paymentId: payment.id,
+          demandId,
+          collectionType: 'online',
+          issues: distributionValidation.issues
+        }
+      });
+    }
+
+    // Update notice status if demand is paid
+    await updateNoticeOnPayment(demandId, req, req.user);
+
+    // Auto-close follow-up if demand is fully paid
+    if (demand.balanceAmount <= 0) {
+      const followUp = await FollowUp.findOne({
+        where: { demandId }
+      });
+
+      if (followUp && !followUp.isResolved) {
+        await followUp.update({
+          isResolved: true,
+          resolvedDate: new Date(),
+          resolvedBy: req.user.id
+        });
+
+        // Create audit log for follow-up resolution
+        await createAuditLog({
+          req,
+          user: req.user,
+          actionType: 'RESOLVE',
+          entityType: 'FollowUp',
+          entityId: followUp.id,
+          description: `Follow-up resolved automatically after field collection payment. Payment: ${payment.paymentNumber}`,
+          metadata: {
+            followUpId: followUp.id,
+            demandId,
+            paymentId: payment.id,
+            paymentNumber: payment.paymentNumber,
+            amount: payment.amount,
+            collectionType: 'field'
+          }
+        });
+      }
+    }
+
+    const createdPayment = await Payment.findByPk(payment.id, {
+      include: [
+        {
+          model: Property,
+          as: 'property',
+          include: [
+            { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] },
+            { model: Ward, as: 'ward', attributes: ['id', 'wardNumber', 'wardName'] }
+          ]
+        },
+        { model: Demand, as: 'demand' },
+        { 
+          model: User, 
+          as: 'cashier', 
+          attributes: ['id', 'firstName', 'lastName'] 
+        },
+        {
+          model: User,
+          as: 'collector',
+          attributes: ['id', 'firstName', 'lastName']
+        }
+      ]
+    });
+
+    // Log field collection payment creation
+    await auditLogger.logPay(
+      req,
+      req.user,
+      'Payment',
+      payment.id,
+      { 
+        paymentNumber: payment.paymentNumber, 
+        amount: payment.amount, 
+        paymentMode: payment.paymentMode, 
+        receiptNumber: payment.receiptNumber,
+        collectionType: 'field',
+        proofUrl: payment.proofUrl
+      },
+      `Field collection payment processed: ${payment.paymentNumber} - ₹${payment.amount}`,
+      { demandId: payment.demandId, propertyId: payment.propertyId }
+    );
+
+    // Generate receipt PDF automatically after successful payment
+    try {
+      await generatePaymentReceiptPdf(payment.id, req, req.user);
+    } catch (pdfError) {
+      console.error('Error generating receipt PDF:', pdfError);
+      // Don't fail the payment if PDF generation fails
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Field collection payment recorded successfully',
+      data: { payment: createdPayment }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Verify collector has access to the specified ward
+ */
+const verifyCollectorWardAccess = async (collectorId, wardId) => {
+  try {
+    // Check if collector is assigned to this ward
+    const ward = await Ward.findOne({
+      where: {
+        id: wardId,
+        collectorId: collectorId
+      }
+    });
+    
+    return !!ward;
+  } catch (error) {
+    console.error('Error verifying collector ward access:', error);
+    return false;
+  }
+};
+
+/**
  * @route   GET /api/payments/receipts/:filename
  * @desc    Download receipt PDF
  * @access  Private (Role-based access enforced)
@@ -914,3 +1319,6 @@ export const downloadReceiptPdf = async (req, res, next) => {
     next(error);
   }
 };
+
+// Export the validation function for testing and external use
+export { validateOverpaymentProtection };

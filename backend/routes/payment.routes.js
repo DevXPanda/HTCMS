@@ -10,7 +10,8 @@ import {
   createOnlinePaymentOrder,
   verifyOnlinePayment,
   generateReceiptPdf,
-  downloadReceiptPdf
+  downloadReceiptPdf,
+  createFieldCollectionPayment
 } from '../controllers/payment.controller.js';
 
 const router = express.Router();
@@ -43,5 +44,8 @@ router.get('/:id', getPaymentById);
 
 // Create payment (Cashier, Admin) - for offline payments
 router.post('/', authorize('admin', 'cashier'), createPayment);
+
+// Field collection payment (Collector, Tax Collector)
+router.post('/field-collection', authorize('collector', 'tax_collector'), createFieldCollectionPayment);
 
 export default router;

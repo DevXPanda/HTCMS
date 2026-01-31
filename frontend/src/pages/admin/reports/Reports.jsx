@@ -26,7 +26,8 @@ const Reports = () => {
     startDate: '',
     endDate: '',
     wardId: '',
-    paymentMode: ''
+    paymentMode: '',
+    taxType: '' // 'HOUSE_TAX', 'WATER_TAX', 'D2DC', or '' for all
   });
   const [showFilters, setShowFilters] = useState(false);
 
@@ -51,6 +52,7 @@ const Reports = () => {
       if (filters.endDate) params.endDate = filters.endDate;
       if (filters.wardId) params.wardId = filters.wardId;
       if (filters.paymentMode) params.paymentMode = filters.paymentMode;
+      if (filters.taxType) params.taxType = filters.taxType;
 
       switch (type) {
         case 'revenue':
@@ -86,19 +88,35 @@ const Reports = () => {
       startDate: '',
       endDate: '',
       wardId: '',
-      paymentMode: ''
+      paymentMode: '',
+      taxType: ''
     });
   };
 
-  // Prepare chart data
+  // Prepare chart data - includes both regular payments and water payments
   const getRevenueChartData = () => {
-    if (!data?.payments) return [];
+    if (!data?.payments && !data?.waterPayments) return [];
     const dailyData = {};
-    data.payments.forEach(payment => {
-      const date = new Date(payment.paymentDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
-      dailyData[date] = (dailyData[date] || 0) + parseFloat(payment.amount || 0);
-    });
-    return Object.entries(dailyData).map(([date, amount]) => ({ date, amount }));
+    
+    // Process regular payments
+    if (data.payments) {
+      data.payments.forEach(payment => {
+        const date = new Date(payment.paymentDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+        dailyData[date] = (dailyData[date] || 0) + parseFloat(payment.amount || 0);
+      });
+    }
+    
+    // Process water payments if available
+    if (data.waterPayments) {
+      data.waterPayments.forEach(payment => {
+        const date = new Date(payment.paymentDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+        dailyData[date] = (dailyData[date] || 0) + parseFloat(payment.amount || 0);
+      });
+    }
+    
+    return Object.entries(dailyData)
+      .sort((a, b) => new Date(a[0]) - new Date(b[0]))
+      .map(([date, amount]) => ({ date, amount }));
   };
 
   const getPaymentModeData = () => {
@@ -146,7 +164,7 @@ const Reports = () => {
               Clear All
             </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
               <label className="label">Start Date</label>
               <input
@@ -166,21 +184,36 @@ const Reports = () => {
               />
             </div>
             {activeTab === 'revenue' && (
-              <div>
-                <label className="label">Payment Mode</label>
-                <select
-                  value={filters.paymentMode}
-                  onChange={(e) => handleFilterChange('paymentMode', e.target.value)}
-                  className="input"
-                >
-                  <option value="">All Modes</option>
-                  <option value="cash">Cash</option>
-                  <option value="cheque">Cheque</option>
-                  <option value="dd">DD</option>
-                  <option value="card">Card</option>
-                  <option value="online">Online</option>
-                </select>
-              </div>
+              <>
+                <div>
+                  <label className="label">Tax Type</label>
+                  <select
+                    value={filters.taxType}
+                    onChange={(e) => handleFilterChange('taxType', e.target.value)}
+                    className="input"
+                  >
+                    <option value="">All Types</option>
+                    <option value="HOUSE_TAX">Property Tax</option>
+                    <option value="WATER_TAX">Water Tax</option>
+                    <option value="D2DC">D2DC</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Payment Mode</label>
+                  <select
+                    value={filters.paymentMode}
+                    onChange={(e) => handleFilterChange('paymentMode', e.target.value)}
+                    className="input"
+                  >
+                    <option value="">All Modes</option>
+                    <option value="cash">Cash</option>
+                    <option value="cheque">Cheque</option>
+                    <option value="dd">DD</option>
+                    <option value="card">Card</option>
+                    <option value="online">Online</option>
+                  </select>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -216,9 +249,15 @@ const Reports = () => {
             </div>
           ) : (
             <div>
+              {activeTab === 'revenue' && !data && !loading && (
+                <div className="text-center py-12 text-gray-500">
+                  <p>No revenue data available. Select date range and filters to view reports.</p>
+                </div>
+              )}
               {activeTab === 'revenue' && data && (
                 <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Summary Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="card bg-green-50">
                       <p className="text-sm text-gray-600 mb-1">Total Revenue</p>
                       <p className="text-3xl font-bold text-green-600">
@@ -226,17 +265,45 @@ const Reports = () => {
                       </p>
                     </div>
                     <div className="card bg-blue-50">
-                      <p className="text-sm text-gray-600 mb-1">Total Payments</p>
-                      <p className="text-3xl font-bold text-blue-600">{data.summary?.totalCount || 0}</p>
+                      <p className="text-sm text-gray-600 mb-1">Property Tax</p>
+                      <p className="text-3xl font-bold text-blue-600">
+                        ₹{parseFloat(data.summary?.houseTaxAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">{data.summary?.houseTaxCount || 0} payments</p>
+                    </div>
+                    <div className="card bg-cyan-50">
+                      <p className="text-sm text-gray-600 mb-1">Water Tax</p>
+                      <p className="text-3xl font-bold text-cyan-600">
+                        ₹{parseFloat(data.summary?.waterTaxAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">{data.summary?.waterTaxCount || 0} payments</p>
                     </div>
                     <div className="card bg-purple-50">
-                      <p className="text-sm text-gray-600 mb-1">Average Payment</p>
+                      <p className="text-sm text-gray-600 mb-1">D2DC</p>
                       <p className="text-3xl font-bold text-purple-600">
-                        ₹{data.summary?.totalCount > 0 
-                          ? (parseFloat(data.summary.totalAmount || 0) / data.summary.totalCount).toLocaleString('en-IN', { minimumFractionDigits: 2 })
-                          : '0.00'}
+                        ₹{parseFloat(data.summary?.d2dcAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </p>
+                      <p className="text-xs text-gray-500 mt-1">{data.summary?.d2dcCount || 0} payments</p>
                     </div>
+                  </div>
+
+                  {/* Combined Revenue Breakdown */}
+                  <div className="card">
+                    <h3 className="text-lg font-semibold mb-4">Revenue Breakdown by Tax Type</h3>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={[
+                        { name: 'Property Tax', value: parseFloat(data.summary?.houseTaxAmount || 0) },
+                        { name: 'Water Tax', value: parseFloat(data.summary?.waterTaxAmount || 0) },
+                        { name: 'D2DC', value: parseFloat(data.summary?.d2dcAmount || 0) }
+                      ]}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip formatter={(value) => `₹${parseFloat(value).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`} />
+                        <Legend />
+                        <Bar dataKey="value" fill="#2563eb" name="Revenue (₹)" />
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
 
                   {getRevenueChartData().length > 0 && (
@@ -282,6 +349,11 @@ const Reports = () => {
                 </div>
               )}
 
+              {activeTab === 'outstanding' && !data && !loading && (
+                <div className="text-center py-12 text-gray-500">
+                  <p>No outstanding data available. Select filters to view reports.</p>
+                </div>
+              )}
               {activeTab === 'outstanding' && data && (
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -353,6 +425,11 @@ const Reports = () => {
                 </div>
               )}
 
+              {activeTab === 'ward-wise' && !data && !loading && (
+                <div className="text-center py-12 text-gray-500">
+                  <p>No ward-wise data available. Select filters to view reports.</p>
+                </div>
+              )}
               {activeTab === 'ward-wise' && data && (
                 <div className="space-y-6">
                   {getWardWiseChartData().length > 0 && (

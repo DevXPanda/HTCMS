@@ -60,6 +60,11 @@ export const Payment = sequelize.define('Payment', {
     allowNull: true,
     comment: 'For online/card payments'
   },
+  accountHolderName: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    comment: 'Account holder name for all payment modes'
+  },
   razorpayOrderId: {
     type: DataTypes.STRING(100),
     allowNull: true,
@@ -106,6 +111,20 @@ export const Payment = sequelize.define('Payment', {
     type: DataTypes.DATE,
     allowNull: true,
     comment: 'Timestamp when receipt PDF was generated'
+  },
+  proofUrl: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+    comment: 'URL to payment proof document (for field collections)'
+  },
+  collectedBy: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'Users',
+      key: 'id'
+    },
+    comment: 'Collector who collected the payment in field'
   }
 }, {
   tableName: 'payments',

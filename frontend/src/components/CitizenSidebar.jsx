@@ -6,7 +6,9 @@ import {
   CreditCard,
   LogOut,
   Bell,
-  History
+  History,
+  Droplet,
+  PlusCircle
 } from 'lucide-react';
 
 const CitizenSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
@@ -32,6 +34,8 @@ const CitizenSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
     { path: '/citizen/dashboard', label: 'My Dashboard', icon: LayoutDashboard },
     { path: '/citizen/properties', label: 'My Properties', icon: Home },
     { path: '/citizen/demands', label: 'My Demands', icon: FileText },
+    { path: '/citizen/water-connections', label: 'Water Connections', icon: Droplet },
+    { path: '/citizen/water-connection-request', label: 'Request Water Connection', icon: PlusCircle },
     { path: '/citizen/notices', label: 'My Notices', icon: Bell },
     { path: '/citizen/payments', label: 'Payment History', icon: CreditCard },
     { path: '/citizen/activity-history', label: 'Activity History', icon: History }

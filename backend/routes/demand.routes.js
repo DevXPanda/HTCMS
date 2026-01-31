@@ -6,9 +6,13 @@ import {
     createDemand,
     createD2DCDemand,
     generateBulkDemands,
+    generateCombinedDemands,
+    generateUnifiedDemand,
     calculatePenalty,
     getDemandsByProperty,
-    getDemandStatistics
+    getDemandStatistics,
+    getDemandBreakdown,
+    getUnifiedTaxSummary
 } from '../controllers/demand.controller.js';
 
 const router = express.Router();
@@ -31,8 +35,17 @@ router.post('/d2dc', authorize('admin'), createD2DCDemand);
 // Generate bulk demands (Admin only) - Must be before /:id route
 router.post('/generate-bulk', authorize('admin'), generateBulkDemands);
 
+// Generate combined demands (Property Tax + Water Tax) (Admin, Assessor)
+router.post('/generate-combined', authorize('admin', 'assessor'), generateCombinedDemands);
+
+// Generate unified demand (Property Tax + Water Tax in one demand) (Admin, Assessor)
+router.post('/generate-unified', authorize('admin', 'assessor'), generateUnifiedDemand);
+
 // Get demand by ID
 router.get('/:id', getDemandById);
+
+// Get unified demand breakdown
+router.get('/:id/breakdown', getDemandBreakdown);
 
 // Create single demand (Admin, Assessor)
 router.post('/', authorize('admin', 'assessor'), createDemand);

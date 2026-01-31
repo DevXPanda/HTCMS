@@ -4,7 +4,10 @@ import {
   getCitizenDashboard,
   getCitizenProperties,
   getCitizenDemands,
-  getCitizenPayments
+  getCitizenPayments,
+  getCitizenWaterConnections,
+  createWaterConnectionRequest,
+  getCitizenWaterConnectionRequests
 } from '../controllers/citizen.controller.js';
 import {
   getCitizenNotices,
@@ -32,5 +35,12 @@ router.get('/payments', getCitizenPayments);
 // Get citizen's notices
 router.get('/notices', getCitizenNotices);
 router.get('/notices/:id', getCitizenNoticeById);
+
+// Get citizen's water connections
+router.get('/water-connections', getCitizenWaterConnections);
+
+// Water connection requests
+router.post('/water-connection-requests', createWaterConnectionRequest);
+router.get('/water-connection-requests', getCitizenWaterConnectionRequests);
 
 export default router;

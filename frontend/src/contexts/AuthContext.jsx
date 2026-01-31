@@ -73,9 +73,9 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, [token]);
 
-  const login = async (email, password) => {
+  const login = async (emailOrPhone, password) => {
     try {
-      const response = await authAPI.login(email, password);
+      const response = await authAPI.login(emailOrPhone, password);
       
       // Backend returns: { token, user: sanitizedUser } or { success: true, data: { user, token } }
       const responseData = response.data;

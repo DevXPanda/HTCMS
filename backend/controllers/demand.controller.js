@@ -1,6 +1,7 @@
-import { Demand, Assessment, Property, Payment, User, Ward } from '../models/index.js';
+import { Demand, Assessment, Property, Payment, User, Ward, WaterTaxAssessment, WaterConnection, DemandItem } from '../models/index.js';
 import { Op, Sequelize } from 'sequelize';
 import { auditLogger } from '../utils/auditLogger.js';
+import { generateUnifiedTaxAssessmentAndDemand, getUnifiedDemandBreakdown, getUnifiedTaxSummary as getUnifiedTaxSummaryService } from '../services/unifiedTaxService.js';
 
 /**
  * @route   GET /api/demands
@@ -18,6 +19,10 @@ export const getAllDemands = async (req, res, next) => {
       minAmount,
       maxAmount,
       overdue,
+      remarks, // Filter by remarks (for unified demands)
+      collectorId, // Filter by collector's assigned wards
+      wardId, // Filter by ward
+      dueDate, // Filter by due date
       page = 1, 
       limit = 10 
     } = req.query;
@@ -28,6 +33,13 @@ export const getAllDemands = async (req, res, next) => {
     if (financialYear) where.financialYear = financialYear;
     if (status) where.status = status;
     if (serviceType) where.serviceType = serviceType; // Filter by service type
+    if (wardId) where.wardId = wardId;
+    if (dueDate) where.dueDate = dueDate;
+
+    // Filter by remarks (for unified demands)
+    if (remarks) {
+      where.remarks = { [Op.iLike]: `%${remarks}%` };
+    }
 
     // Search by demand number
     if (search) {
@@ -58,6 +70,36 @@ export const getAllDemands = async (req, res, next) => {
       where.propertyId = { [Op.in]: propertyIds };
     }
 
+    // For collectors, show only demands from their assigned wards
+    if (req.user.role === 'collector' || req.user.role === 'tax_collector') {
+      // Get collector's assigned wards
+      const collectorWards = await Ward.findAll({
+        where: {
+          collectorId: req.user.id
+        },
+        attributes: ['id']
+      });
+      
+      if (collectorWards.length === 0) {
+        // If collector has no assigned wards, return empty result
+        return res.json({
+          success: true,
+          data: {
+            demands: [],
+            pagination: {
+              total: 0,
+              page: parseInt(page),
+              limit: parseInt(limit),
+              pages: 0
+            }
+          }
+        });
+      }
+      
+      const wardIds = collectorWards.map(w => w.id);
+      where['$property.wardId$'] = { [Op.in]: wardIds };
+    }
+
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
     const { count, rows } = await Demand.findAndCountAll({
@@ -70,7 +112,15 @@ export const getAllDemands = async (req, res, next) => {
             { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] }
           ]
         },
-        { model: Assessment, as: 'assessment', required: false } // Make assessment optional for D2DC
+        { model: Assessment, as: 'assessment', required: false }, // Optional for D2DC and WATER_TAX
+        { 
+          model: WaterTaxAssessment, 
+          as: 'waterTaxAssessment', 
+          required: false,
+          include: [
+            { model: WaterConnection, as: 'waterConnection', attributes: ['id', 'connectionNumber'] }
+          ]
+        } // Optional for HOUSE_TAX and D2DC
       ],
       limit: parseInt(limit),
       offset,
@@ -110,10 +160,25 @@ export const getDemandById = async (req, res, next) => {
           as: 'property',
           include: [
             { model: User, as: 'owner', attributes: { exclude: ['password'] } },
-            { model: Ward, as: 'ward' }
+            { model: Ward, as: 'ward' },
+            { 
+              model: WaterConnection, 
+              as: 'waterConnections',
+              where: { status: 'ACTIVE' },
+              required: false
+            }
           ]
         },
-        { model: Assessment, as: 'assessment', required: false }, // Optional for D2DC
+        { model: Assessment, as: 'assessment', required: false }, // Optional for D2DC and WATER_TAX
+        { model: WaterTaxAssessment, as: 'waterTaxAssessment', required: false }, // Optional for HOUSE_TAX and D2DC
+        { 
+          model: DemandItem, 
+          as: 'items',
+          include: [
+            { model: WaterConnection, as: 'waterConnection', required: false }
+          ],
+          order: [['taxType', 'ASC'], ['id', 'ASC']]
+        },
         { 
           model: Payment, 
           as: 'payments',
@@ -169,10 +234,10 @@ export const createDemand = async (req, res, next) => {
     } = req.body;
 
     // Validate serviceType
-    if (!['HOUSE_TAX', 'D2DC'].includes(serviceType)) {
+    if (!['HOUSE_TAX', 'D2DC', 'WATER_TAX'].includes(serviceType)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid serviceType. Must be HOUSE_TAX or D2DC'
+        message: 'Invalid serviceType. Must be HOUSE_TAX, D2DC, or WATER_TAX'
       });
     }
 
@@ -216,6 +281,49 @@ export const createDemand = async (req, res, next) => {
       }
 
       property = assessment.property;
+    } else if (serviceType === 'WATER_TAX') {
+      // WATER_TAX requires waterTaxAssessmentId
+      const waterTaxAssessmentId = req.body.waterTaxAssessmentId || req.body.water_tax_assessment_id;
+      
+      if (!waterTaxAssessmentId) {
+        return res.status(400).json({
+          success: false,
+          message: 'waterTaxAssessmentId is required for WATER_TAX demands'
+        });
+      }
+
+      // Ensure assessmentId is NOT provided for WATER_TAX
+      if (assessmentId) {
+        return res.status(400).json({
+          success: false,
+          message: 'assessmentId should not be provided for WATER_TAX demands. Use waterTaxAssessmentId instead.'
+        });
+      }
+
+      const waterTaxAssessment = await WaterTaxAssessment.findByPk(waterTaxAssessmentId, {
+        include: [
+          { model: Property, as: 'property' },
+          { model: WaterConnection, as: 'waterConnection' }
+        ]
+      });
+
+      if (!waterTaxAssessment) {
+        return res.status(404).json({
+          success: false,
+          message: 'Water Tax Assessment not found'
+        });
+      }
+
+      // Check if water tax assessment is approved
+      if (waterTaxAssessment.status !== 'approved') {
+        return res.status(400).json({
+          success: false,
+          message: 'Can only generate demand from approved water tax assessment'
+        });
+      }
+
+      property = waterTaxAssessment.property;
+      assessment = null; // Not used for WATER_TAX
     } else {
       // D2DC doesn't require assessment - CRITICAL VALIDATION
       // Ensure assessmentId is NOT provided for D2DC
@@ -251,10 +359,17 @@ export const createDemand = async (req, res, next) => {
 
     // Check if demand already exists for this property, serviceType, and period
     // For HOUSE_TAX: check by assessmentId + financialYear
+    // For WATER_TAX: check by waterTaxAssessmentId + financialYear
     // For D2DC: check by propertyId + serviceType + month/year (using financialYear as period identifier)
-    const existingDemandWhere = serviceType === 'HOUSE_TAX' 
-      ? { assessmentId, financialYear, serviceType }
-      : { propertyId, serviceType, financialYear }; // For D2DC, financialYear can represent month/year
+    let existingDemandWhere;
+    if (serviceType === 'HOUSE_TAX') {
+      existingDemandWhere = { assessmentId, financialYear, serviceType };
+    } else if (serviceType === 'WATER_TAX') {
+      const waterTaxAssessmentId = req.body.waterTaxAssessmentId || req.body.water_tax_assessment_id;
+      existingDemandWhere = { waterTaxAssessmentId, financialYear, serviceType };
+    } else {
+      existingDemandWhere = { propertyId: property.id, serviceType, financialYear };
+    }
 
     const existingDemand = await Demand.findOne({
       where: existingDemandWhere
@@ -263,13 +378,15 @@ export const createDemand = async (req, res, next) => {
     if (existingDemand) {
       return res.status(400).json({
         success: false,
-        message: `Demand already exists for this ${serviceType === 'HOUSE_TAX' ? 'assessment and financial year' : 'property and period'}`
+        message: `Demand already exists for this ${serviceType === 'HOUSE_TAX' ? 'assessment and financial year' : serviceType === 'WATER_TAX' ? 'water tax assessment and financial year' : 'property and period'}`
       });
     }
 
     // Generate demand number
     const demandNumber = serviceType === 'D2DC' 
       ? `D2DC-${financialYear}-${Date.now()}`
+      : serviceType === 'WATER_TAX'
+      ? `WTD-${financialYear}-${Date.now()}`
       : `DEM-${financialYear}-${Date.now()}`;
 
     // Calculate arrears from previous unpaid demands of the same serviceType
@@ -288,19 +405,49 @@ export const createDemand = async (req, res, next) => {
     }, 0) * 100) / 100;
 
     // Calculate amounts
-    const calculatedBaseAmount = serviceType === 'HOUSE_TAX' 
-      ? parseFloat(assessment.annualTaxAmount || 0)
-      : parseFloat(baseAmount || 0);
+    let calculatedBaseAmount;
+    let finalAssessmentId = null;
+    let finalWaterTaxAssessmentId = null;
+
+    if (serviceType === 'HOUSE_TAX') {
+      calculatedBaseAmount = parseFloat(assessment.annualTaxAmount || 0);
+      finalAssessmentId = assessmentId;
+    } else if (serviceType === 'WATER_TAX') {
+      const waterTaxAssessmentId = req.body.waterTaxAssessmentId || req.body.water_tax_assessment_id;
+      const waterTaxAssessment = await WaterTaxAssessment.findByPk(waterTaxAssessmentId, {
+        include: [{ model: WaterConnection, as: 'waterConnection' }]
+      });
+      
+      if (!waterTaxAssessment) {
+        return res.status(404).json({
+          success: false,
+          message: 'Water Tax Assessment not found'
+        });
+      }
+
+      // Calculate base amount from water tax assessment
+      // For METERED: rate is per unit, we'll use a default consumption or monthly estimate
+      // For FIXED: rate is the fixed monthly amount
+      if (waterTaxAssessment.assessmentType === 'FIXED') {
+        calculatedBaseAmount = parseFloat(waterTaxAssessment.rate || 0) * 12; // Annual amount
+      } else {
+        // METERED: Use rate * estimated annual consumption (e.g., 1000 units/year default)
+        // This should ideally come from actual meter readings, but for now use a default
+        const estimatedAnnualConsumption = 1000; // Default, should be configurable
+        calculatedBaseAmount = parseFloat(waterTaxAssessment.rate || 0) * estimatedAnnualConsumption;
+      }
+      finalWaterTaxAssessmentId = waterTaxAssessmentId;
+    } else {
+      // D2DC
+      calculatedBaseAmount = parseFloat(baseAmount || 0);
+    }
     
     const penaltyAmount = 0; // Can be calculated based on overdue logic
     const interestAmount = 0; // Can be calculated based on overdue logic
     const totalAmount = Math.round((calculatedBaseAmount + arrearsAmount + penaltyAmount + interestAmount) * 100) / 100;
     const balanceAmount = Math.round(totalAmount * 100) / 100;
 
-    // CRITICAL: Ensure assessmentId is explicitly set based on serviceType
-    const finalAssessmentId = serviceType === 'HOUSE_TAX' ? assessmentId : null;
-    
-    // Double-check: D2DC must have null assessmentId
+    // Validation checks
     if (serviceType === 'D2DC' && finalAssessmentId !== null) {
       return res.status(400).json({
         success: false,
@@ -308,7 +455,6 @@ export const createDemand = async (req, res, next) => {
       });
     }
 
-    // Double-check: HOUSE_TAX must have assessmentId
     if (serviceType === 'HOUSE_TAX' && !finalAssessmentId) {
       return res.status(400).json({
         success: false,
@@ -316,10 +462,18 @@ export const createDemand = async (req, res, next) => {
       });
     }
 
+    if (serviceType === 'WATER_TAX' && !finalWaterTaxAssessmentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'WATER_TAX demands require a waterTaxAssessmentId.'
+      });
+    }
+
     const demand = await Demand.create({
       demandNumber,
       propertyId: property.id,
-      assessmentId: finalAssessmentId, // Explicitly null for D2DC, required for HOUSE_TAX
+      assessmentId: finalAssessmentId, // null for D2DC and WATER_TAX
+      waterTaxAssessmentId: finalWaterTaxAssessmentId, // null for HOUSE_TAX and D2DC
       serviceType,
       financialYear,
       baseAmount: calculatedBaseAmount,
@@ -344,7 +498,8 @@ export const createDemand = async (req, res, next) => {
             { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] }
           ]
         },
-        { model: Assessment, as: 'assessment', required: false }
+        { model: Assessment, as: 'assessment', required: false },
+        { model: WaterTaxAssessment, as: 'waterTaxAssessment', required: false }
       ]
     });
 
@@ -369,6 +524,278 @@ export const createDemand = async (req, res, next) => {
       success: true,
       message: `${serviceType} demand generated successfully`,
       data: { demand: createdDemand }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   POST /api/demands/generate-combined
+ * @desc    Generate combined demands (Property Tax + Water Tax) for a property
+ * @access  Private (Admin, Assessor)
+ */
+export const generateCombinedDemands = async (req, res, next) => {
+  try {
+    const {
+      propertyId,
+      property_id,
+      financialYear,
+      financial_year,
+      dueDate,
+      due_date,
+      remarks
+    } = req.body;
+
+    // Normalize to camelCase
+    const normalizedPropertyId = propertyId || property_id;
+    const normalizedFinancialYear = financialYear || financial_year;
+    const normalizedDueDate = dueDate || due_date;
+
+    // Validation
+    if (!normalizedPropertyId) {
+      return res.status(400).json({
+        success: false,
+        message: 'propertyId is required'
+      });
+    }
+
+    if (!normalizedFinancialYear) {
+      return res.status(400).json({
+        success: false,
+        message: 'financialYear is required'
+      });
+    }
+
+    // Fetch property
+    const property = await Property.findByPk(normalizedPropertyId);
+    if (!property) {
+      return res.status(404).json({
+        success: false,
+        message: 'Property not found'
+      });
+    }
+
+    // Fetch property tax assessment (if exists and approved)
+    const propertyAssessment = await Assessment.findOne({
+      where: {
+        propertyId: normalizedPropertyId,
+        status: 'approved'
+      },
+      include: [{ model: Property, as: 'property' }],
+      order: [['createdAt', 'DESC']] // Get latest approved assessment
+    });
+
+    // Fetch water tax assessment (if exists and approved)
+    // Get all water connections for the property first
+    const waterConnections = await WaterConnection.findAll({
+      where: {
+        propertyId: normalizedPropertyId,
+        status: 'ACTIVE'
+      }
+    });
+
+    let waterTaxAssessment = null;
+    if (waterConnections.length > 0) {
+      // Get latest approved water tax assessment for any active connection
+      waterTaxAssessment = await WaterTaxAssessment.findOne({
+        where: {
+          propertyId: normalizedPropertyId,
+          status: 'approved'
+        },
+        include: [
+          { model: Property, as: 'property' },
+          { model: WaterConnection, as: 'waterConnection' }
+        ],
+        order: [['createdAt', 'DESC']] // Get latest approved assessment
+      });
+    }
+
+    const createdDemands = [];
+    const errors = [];
+
+    // Generate Property Tax Demand (if assessment exists)
+    if (propertyAssessment) {
+      try {
+        // Check if demand already exists
+        const existingDemand = await Demand.findOne({
+          where: {
+            assessmentId: propertyAssessment.id,
+            financialYear: normalizedFinancialYear,
+            serviceType: 'HOUSE_TAX'
+          }
+        });
+
+        if (existingDemand) {
+          errors.push({
+            type: 'HOUSE_TAX',
+            message: 'Property tax demand already exists for this assessment and financial year'
+          });
+        } else {
+          // Calculate arrears for property tax
+          const previousDemands = await Demand.findAll({
+            where: {
+              propertyId: normalizedPropertyId,
+              serviceType: 'HOUSE_TAX',
+              financialYear: { [Op.ne]: normalizedFinancialYear },
+              status: { [Op.in]: ['pending', 'overdue', 'partially_paid'] }
+            }
+          });
+
+          const arrearsAmount = Math.round(previousDemands.reduce((sum, prevDemand) => {
+            return sum + parseFloat(prevDemand.balanceAmount || 0);
+          }, 0) * 100) / 100;
+
+          const demandNumber = `DEM-${normalizedFinancialYear}-${Date.now()}-${propertyAssessment.id}`;
+          const baseAmount = parseFloat(propertyAssessment.annualTaxAmount || 0);
+          const totalAmount = Math.round((baseAmount + arrearsAmount) * 100) / 100;
+
+          const demand = await Demand.create({
+            demandNumber,
+            propertyId: normalizedPropertyId,
+            assessmentId: propertyAssessment.id,
+            waterTaxAssessmentId: null,
+            serviceType: 'HOUSE_TAX',
+            financialYear: normalizedFinancialYear,
+            baseAmount,
+            arrearsAmount,
+            penaltyAmount: 0,
+            interestAmount: 0,
+            totalAmount,
+            balanceAmount: totalAmount,
+            paidAmount: 0,
+            dueDate: new Date(normalizedDueDate || new Date()),
+            status: 'pending',
+            generatedBy: req.user.id,
+            remarks
+          });
+
+          createdDemands.push(demand);
+        }
+      } catch (error) {
+        errors.push({
+          type: 'HOUSE_TAX',
+          message: error.message
+        });
+      }
+    }
+
+    // Generate Water Tax Demand (if assessment exists)
+    if (waterTaxAssessment) {
+      try {
+        // Check if demand already exists
+        const existingDemand = await Demand.findOne({
+          where: {
+            waterTaxAssessmentId: waterTaxAssessment.id,
+            financialYear: normalizedFinancialYear,
+            serviceType: 'WATER_TAX'
+          }
+        });
+
+        if (existingDemand) {
+          errors.push({
+            type: 'WATER_TAX',
+            message: 'Water tax demand already exists for this assessment and financial year'
+          });
+        } else {
+          // Calculate arrears for water tax
+          const previousDemands = await Demand.findAll({
+            where: {
+              propertyId: normalizedPropertyId,
+              serviceType: 'WATER_TAX',
+              financialYear: { [Op.ne]: normalizedFinancialYear },
+              status: { [Op.in]: ['pending', 'overdue', 'partially_paid'] }
+            }
+          });
+
+          const arrearsAmount = Math.round(previousDemands.reduce((sum, prevDemand) => {
+            return sum + parseFloat(prevDemand.balanceAmount || 0);
+          }, 0) * 100) / 100;
+
+          // Calculate base amount from water tax assessment
+          let baseAmount;
+          if (waterTaxAssessment.assessmentType === 'FIXED') {
+            baseAmount = parseFloat(waterTaxAssessment.rate || 0) * 12; // Annual amount
+          } else {
+            // METERED: Use rate * estimated annual consumption
+            const estimatedAnnualConsumption = 1000; // Default, should be configurable
+            baseAmount = parseFloat(waterTaxAssessment.rate || 0) * estimatedAnnualConsumption;
+          }
+
+          const totalAmount = Math.round((baseAmount + arrearsAmount) * 100) / 100;
+          const demandNumber = `WTD-${normalizedFinancialYear}-${Date.now()}-${waterTaxAssessment.id}`;
+
+          const demand = await Demand.create({
+            demandNumber,
+            propertyId: normalizedPropertyId,
+            assessmentId: null,
+            waterTaxAssessmentId: waterTaxAssessment.id,
+            serviceType: 'WATER_TAX',
+            financialYear: normalizedFinancialYear,
+            baseAmount,
+            arrearsAmount,
+            penaltyAmount: 0,
+            interestAmount: 0,
+            totalAmount,
+            balanceAmount: totalAmount,
+            paidAmount: 0,
+            dueDate: new Date(normalizedDueDate || new Date()),
+            status: 'pending',
+            generatedBy: req.user.id,
+            remarks
+          });
+
+          createdDemands.push(demand);
+        }
+      } catch (error) {
+        errors.push({
+          type: 'WATER_TAX',
+          message: error.message
+        });
+      }
+    }
+
+    // If no assessments found
+    if (!propertyAssessment && !waterTaxAssessment) {
+      return res.status(400).json({
+        success: false,
+        message: 'No approved assessments found for this property. Please create and approve assessments first.'
+      });
+    }
+
+    // Fetch created demands with full details
+    const demandsWithDetails = await Demand.findAll({
+      where: {
+        id: { [Op.in]: createdDemands.map(d => d.id) }
+      },
+      include: [
+        { 
+          model: Property, 
+          as: 'property',
+          include: [
+            { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] }
+          ]
+        },
+        { model: Assessment, as: 'assessment', required: false },
+        { model: WaterTaxAssessment, as: 'waterTaxAssessment', required: false }
+      ]
+    });
+
+    // Calculate combined total
+    const combinedTotal = demandsWithDetails.reduce((sum, d) => {
+      return sum + parseFloat(d.totalAmount || 0);
+    }, 0);
+
+    res.status(201).json({
+      success: true,
+      message: `Generated ${createdDemands.length} demand(s)`,
+      data: {
+        demands: demandsWithDetails,
+        combinedTotal: Math.round(combinedTotal * 100) / 100,
+        created: createdDemands.length,
+        errors: errors.length,
+        errorDetails: errors
+      }
     });
   } catch (error) {
     next(error);
@@ -779,6 +1206,146 @@ export const getDemandStatistics = async (req, res, next) => {
     res.json({
       success: true,
       data: { statistics }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   POST /api/demands/generate-unified
+ * @desc    Generate unified tax demand (Property + Water Tax) for a property
+ * @access  Private (Admin, Assessor)
+ */
+export const generateUnifiedDemand = async (req, res, next) => {
+  try {
+    const {
+      propertyId,
+      property_id,
+      assessmentYear,
+      assessment_year,
+      financialYear,
+      financial_year,
+      dueDate,
+      due_date,
+      remarks,
+      defaultTaxRate
+    } = req.body;
+
+    // Normalize to camelCase
+    const normalizedPropertyId = propertyId || property_id;
+    const normalizedAssessmentYear = assessmentYear || assessment_year;
+    const normalizedFinancialYear = financialYear || financial_year;
+    const normalizedDueDate = dueDate || due_date;
+
+    // Validation
+    if (!normalizedPropertyId) {
+      return res.status(400).json({
+        success: false,
+        message: 'propertyId is required'
+      });
+    }
+
+    if (!normalizedAssessmentYear) {
+      return res.status(400).json({
+        success: false,
+        message: 'assessmentYear is required'
+      });
+    }
+
+    if (!normalizedFinancialYear) {
+      return res.status(400).json({
+        success: false,
+        message: 'financialYear is required (format: YYYY-YY, e.g., 2024-25)'
+      });
+    }
+
+    // Generate unified assessment and demand
+    const result = await generateUnifiedTaxAssessmentAndDemand({
+      propertyId: parseInt(normalizedPropertyId),
+      assessmentYear: parseInt(normalizedAssessmentYear),
+      financialYear: normalizedFinancialYear,
+      assessorId: req.user.id,
+      dueDate: normalizedDueDate ? new Date(normalizedDueDate) : null,
+      remarks: remarks || null,
+      defaultTaxRate: parseFloat(defaultTaxRate) || 1.5
+    });
+
+    // Log the action - Use 'Demand' as entityType since it's a valid enum value
+    if (result.unifiedDemand?.id) {
+      await auditLogger.logCreate(
+        req,
+        req.user,
+        'Demand',
+        result.unifiedDemand.id,
+        {
+          propertyId: normalizedPropertyId,
+          assessmentYear: normalizedAssessmentYear,
+          financialYear: normalizedFinancialYear
+        },
+        `Generated unified tax demand for property ${normalizedPropertyId}`,
+        { propertyId: normalizedPropertyId }
+      );
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Unified tax demand generated successfully',
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   GET /api/demands/:id/breakdown
+ * @desc    Get unified demand breakdown (if it's a unified demand)
+ * @access  Private
+ */
+export const getDemandBreakdown = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const breakdown = await getUnifiedDemandBreakdown(parseInt(id));
+
+    res.json({
+      success: true,
+      data: {
+        ...breakdown,
+        // Option A: Penalty/interest are demand-level only (items remain 0)
+        penaltyModel: breakdown?.breakdown?.penaltyModel || 'DEMAND_LEVEL'
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   GET /api/tax/unified-summary
+ * @desc    Get unified tax summary for a property
+ * @access  Private
+ */
+export const getUnifiedTaxSummary = async (req, res, next) => {
+  try {
+    const { propertyId, assessmentYear } = req.query;
+
+    if (!propertyId) {
+      return res.status(400).json({
+        success: false,
+        message: 'propertyId is required'
+      });
+    }
+
+    const summary = await getUnifiedTaxSummaryService(
+      parseInt(propertyId),
+      assessmentYear ? parseInt(assessmentYear) : null
+    );
+
+    res.json({
+      success: true,
+      data: summary
     });
   } catch (error) {
     next(error);

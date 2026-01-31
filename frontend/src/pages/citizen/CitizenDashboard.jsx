@@ -41,6 +41,13 @@ const CitizenDashboard = () => {
       link: '/citizen/demands?serviceType=HOUSE_TAX'
     },
     {
+      title: 'Pending Water Tax',
+      value: dashboard?.pendingWaterTaxDemands || 0,
+      icon: FileText,
+      color: 'bg-cyan-500',
+      link: '/citizen/demands?serviceType=WATER_TAX'
+    },
+    {
       title: 'Pending D2DC',
       value: dashboard?.pendingD2dcDemands || 0,
       icon: FileText,
@@ -70,6 +77,13 @@ const CitizenDashboard = () => {
       link: '/citizen/demands?serviceType=HOUSE_TAX'
     },
     {
+      title: 'Water Tax Outstanding',
+      value: `₹${(dashboard?.waterTaxOutstanding || 0).toLocaleString('en-IN')}`,
+      icon: DollarSign,
+      color: 'bg-cyan-600',
+      link: '/citizen/demands?serviceType=WATER_TAX'
+    },
+    {
       title: 'D2DC Outstanding',
       value: `₹${(dashboard?.d2dcOutstanding || 0).toLocaleString('en-IN')}`,
       icon: DollarSign,
@@ -89,7 +103,7 @@ const CitizenDashboard = () => {
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-6">My Dashboard</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {statCards.map((stat, index) => {
           const Icon = stat.icon;
           return (
@@ -116,10 +130,11 @@ const CitizenDashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card">
           <h2 className="text-xl font-semibold mb-4">Pending Demands</h2>
-          {dashboard?.pendingDemandsList && dashboard.pendingDemandsList.length > 0 ? (
+              {dashboard?.pendingDemandsList && dashboard.pendingDemandsList.length > 0 ? (
             <div className="space-y-3">
               {dashboard.pendingDemandsList.slice(0, 5).map((demand) => {
                 const isD2DC = demand.serviceType === 'D2DC';
+                const isWaterTax = demand.serviceType === 'WATER_TAX';
                 return (
                   <div key={demand.id} className="border-b pb-3">
                     <div className="flex items-center justify-between mb-1">
@@ -127,9 +142,11 @@ const CitizenDashboard = () => {
                       <span className={`px-2 py-1 text-xs font-semibold rounded ${
                         isD2DC 
                           ? 'bg-green-100 text-green-800 border border-green-300'
+                          : isWaterTax
+                          ? 'bg-cyan-100 text-cyan-800 border border-cyan-300'
                           : 'bg-blue-100 text-blue-800 border border-blue-300'
                       }`}>
-                        {isD2DC ? 'D2DC' : 'House Tax'}
+                        {isD2DC ? 'D2DC' : isWaterTax ? 'Water Tax' : 'House Tax'}
                       </span>
                     </div>
                     <p className="text-sm text-gray-600">
@@ -153,6 +170,7 @@ const CitizenDashboard = () => {
             <div className="space-y-3">
               {dashboard.recentPayments.map((payment) => {
                 const isD2DC = payment.demand?.serviceType === 'D2DC';
+                const isWaterTax = payment.demand?.serviceType === 'WATER_TAX';
                 return (
                   <div key={payment.id} className="border-b pb-3">
                     <div className="flex items-center justify-between mb-1">
@@ -160,9 +178,11 @@ const CitizenDashboard = () => {
                       <span className={`px-2 py-1 text-xs font-semibold rounded ${
                         isD2DC 
                           ? 'bg-green-100 text-green-800 border border-green-300'
+                          : isWaterTax
+                          ? 'bg-cyan-100 text-cyan-800 border border-cyan-300'
                           : 'bg-blue-100 text-blue-800 border border-blue-300'
                       }`}>
-                        {isD2DC ? 'D2DC' : 'House Tax'}
+                        {isD2DC ? 'D2DC' : isWaterTax ? 'Water Tax' : 'House Tax'}
                       </span>
                     </div>
                     <p className="text-sm text-green-600">

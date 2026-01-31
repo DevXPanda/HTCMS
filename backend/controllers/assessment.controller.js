@@ -1,6 +1,8 @@
 import { Assessment, Property, User, Ward } from '../models/index.js';
 import { Op } from 'sequelize';
 import { auditLogger } from '../utils/auditLogger.js';
+import { generateUnifiedTaxAssessmentAndDemand } from '../services/unifiedTaxService.js';
+import { validatePropertyId } from '../utils/queryHelpers.js';
 
 /**
  * @route   GET /api/assessments
@@ -10,7 +12,6 @@ import { auditLogger } from '../utils/auditLogger.js';
 export const getAllAssessments = async (req, res, next) => {
   try {
     const { 
-      propertyId, 
       assessmentYear, 
       status, 
       assessorId,
@@ -21,9 +22,22 @@ export const getAllAssessments = async (req, res, next) => {
       limit = 10 
     } = req.query;
 
+    // Safely extract and validate propertyId
+    let validPropertyId = null;
+    if (req.query.propertyId) {
+      try {
+        validPropertyId = validatePropertyId(req.query, 'propertyId');
+      } catch (error) {
+        return res.status(400).json({
+          success: false,
+          message: error.message
+        });
+      }
+    }
+
     const where = {};
     
-    if (propertyId) where.propertyId = propertyId;
+    if (validPropertyId) where.propertyId = validPropertyId;
     if (assessmentYear) where.assessmentYear = assessmentYear;
     if (status) where.status = status;
     if (assessorId) where.assessorId = assessorId;
@@ -167,12 +181,20 @@ export const createAssessment = async (req, res, next) => {
       });
     }
 
-    // Validate property exists
+    // Validate property exists and is active
     const property = await Property.findByPk(propertyId);
     if (!property) {
       return res.status(404).json({
         success: false,
         message: 'Property not found'
+      });
+    }
+
+    // Prevent assessment generation for inactive properties
+    if (property.isActive === false) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot create assessment for inactive property ${property.propertyNumber || propertyId}. Property must be active to receive assessments.`
       });
     }
 
@@ -523,6 +545,92 @@ export const getAssessmentsByProperty = async (req, res, next) => {
     res.json({
       success: true,
       data: { assessments }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   POST /api/assessments/generate-unified
+ * @desc    Generate unified tax assessment and demand (Property + Water)
+ * @access  Private (Assessor, Admin)
+ */
+export const generateUnifiedAssessment = async (req, res, next) => {
+  try {
+    const {
+      propertyId,
+      property_id,
+      assessmentYear,
+      assessment_year,
+      financialYear,
+      financial_year,
+      dueDate,
+      due_date,
+      remarks,
+      defaultTaxRate
+    } = req.body;
+
+    // Normalize to camelCase
+    const normalizedPropertyId = propertyId || property_id;
+    const normalizedAssessmentYear = assessmentYear || assessment_year;
+    const normalizedFinancialYear = financialYear || financial_year;
+    const normalizedDueDate = dueDate || due_date;
+
+    // Validation
+    if (!normalizedPropertyId) {
+      return res.status(400).json({
+        success: false,
+        message: 'propertyId is required'
+      });
+    }
+
+    if (!normalizedAssessmentYear) {
+      return res.status(400).json({
+        success: false,
+        message: 'assessmentYear is required'
+      });
+    }
+
+    if (!normalizedFinancialYear) {
+      return res.status(400).json({
+        success: false,
+        message: 'financialYear is required (format: YYYY-YY, e.g., 2024-25)'
+      });
+    }
+
+    // Generate unified assessment and demand
+    const result = await generateUnifiedTaxAssessmentAndDemand({
+      propertyId: parseInt(normalizedPropertyId),
+      assessmentYear: parseInt(normalizedAssessmentYear),
+      financialYear: normalizedFinancialYear,
+      assessorId: req.user.id,
+      dueDate: normalizedDueDate ? new Date(normalizedDueDate) : null,
+      remarks: remarks || null,
+      defaultTaxRate: parseFloat(defaultTaxRate) || 1.5
+    });
+
+    // Log the action - Use 'Demand' as entityType since unified demand is the main output
+    if (result.unifiedDemand?.id) {
+      await auditLogger.logCreate(
+        req,
+        req.user,
+        'Demand',
+        result.unifiedDemand.id,
+        {
+          propertyId: normalizedPropertyId,
+          assessmentYear: normalizedAssessmentYear,
+          financialYear: normalizedFinancialYear
+        },
+        `Generated unified tax assessment and demand for property ${normalizedPropertyId}`,
+        { propertyId: normalizedPropertyId }
+      );
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Unified tax assessment and demand generated successfully',
+      data: result
     });
   } catch (error) {
     next(error);

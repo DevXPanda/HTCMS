@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { User, Home } from 'lucide-react';
 
 const CitizenLogin = () => {
-  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [formData, setFormData] = useState({ emailOrPhone: '', password: '' });
   const [loading, setLoading] = useState(false);
   const { login, user, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -52,7 +52,7 @@ const CitizenLogin = () => {
     setLoading(true);
 
     try {
-      const result = await login(formData.email, formData.password);
+      const result = await login(formData.emailOrPhone, formData.password);
 
       if (result.success && result.user) {
         const loggedInUser = result.user;
@@ -109,18 +109,18 @@ const CitizenLogin = () => {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="label">
-                Email Address
+              <label htmlFor="emailOrPhone" className="label">
+                Email or Phone Number
               </label>
               <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
+                type="text"
+                id="emailOrPhone"
+                name="emailOrPhone"
+                value={formData.emailOrPhone}
                 onChange={handleChange}
                 required
                 className="input"
-                placeholder="Enter your email"
+                placeholder="Enter your email or phone number"
               />
             </div>
 

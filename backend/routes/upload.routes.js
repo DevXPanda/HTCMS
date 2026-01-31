@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticate, authorize } from '../middleware/auth.js';
-import { upload, uploadPropertyPhoto, uploadFieldVisitPhoto } from '../controllers/upload.controller.js';
+import { upload, uploadPropertyPhoto, uploadFieldVisitPhoto, uploadPaymentProof } from '../controllers/upload.controller.js';
 
 const router = express.Router();
 
@@ -12,5 +12,8 @@ router.post('/property-photo', authorize('admin', 'assessor', 'collector'), uplo
 
 // Upload field visit photo (Collector only)
 router.post('/field-visit-photo', authorize('collector'), upload.single('photo'), uploadFieldVisitPhoto);
+
+// Upload payment proof (Collector, Tax Collector)
+router.post('/payment-proof', authorize('collector', 'tax_collector'), upload.single('proof'), uploadPaymentProof);
 
 export default router;

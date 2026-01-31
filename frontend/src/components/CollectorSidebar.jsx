@@ -7,7 +7,8 @@ import {
   LogOut,
   History,
   Clock,
-  CheckSquare
+  CheckSquare,
+  FileText
 } from 'lucide-react';
 
 const CollectorSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
@@ -36,6 +37,7 @@ const CollectorSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
     { path: '/collector/tasks', label: "Today's Tasks", icon: CheckSquare },
     { path: '/collector/wards', label: 'Assigned Wards', icon: MapPin },
     { path: '/collector/properties', label: 'Property List', icon: Home },
+    { path: '/collector/tax-summary', label: 'Tax Summary', icon: FileText },
     { path: '/collector/collections', label: 'Collections', icon: CreditCard },
     { path: '/collector/attendance', label: 'My Attendance', icon: Clock },
     { path: '/collector/activity-logs', label: 'Activity Logs', icon: History }

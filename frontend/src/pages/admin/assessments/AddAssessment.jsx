@@ -343,12 +343,61 @@ const AddAssessment = () => {
             Cancel
           </Link>
           <button
+            type="button"
+            onClick={async () => {
+              const formData = watch();
+              if (!formData.propertyId || !formData.assessmentYear) {
+                toast.error('Please fill in Property and Assessment Year first');
+                return;
+              }
+              const currentYear = new Date().getFullYear();
+              const financialYear = `${currentYear}-${String(currentYear + 1).slice(-2)}`;
+              
+              if (!window.confirm(
+                `Generate Unified Tax Assessment and Demand?\n\n` +
+                `This will:\n` +
+                `1. Create Property Tax Assessment (if not exists)\n` +
+                `2. Create Water Tax Assessments for all active connections (if not exist)\n` +
+                `3. Generate ONE unified demand containing both taxes\n\n` +
+                `Property: ${properties.find(p => p.id === parseInt(formData.propertyId))?.propertyNumber || 'N/A'}\n` +
+                `Assessment Year: ${formData.assessmentYear}\n` +
+                `Financial Year: ${financialYear}`
+              )) {
+                return;
+              }
+
+              try {
+                setLoading(true);
+                const response = await assessmentAPI.generateUnified({
+                  propertyId: parseInt(formData.propertyId),
+                  assessmentYear: parseInt(formData.assessmentYear),
+                  financialYear,
+                  defaultTaxRate: parseFloat(formData.taxRate) || 1.5
+                });
+
+                if (response.data.success) {
+                  toast.success('Unified assessment and demand generated successfully!');
+                  navigate('/assessments');
+                }
+              } catch (error) {
+                toast.error(error.response?.data?.message || 'Failed to generate unified assessment');
+              } finally {
+                setLoading(false);
+              }
+            }}
+            disabled={loading}
+            className="btn btn-success flex items-center"
+          >
+            <Calculator className="w-4 h-4 mr-2" />
+            {loading ? 'Generating...' : 'Generate Unified Assessment & Demand'}
+          </button>
+          <button
             type="submit"
             disabled={loading}
             className="btn btn-primary flex items-center"
           >
             <Save className="w-4 h-4 mr-2" />
-            {loading ? 'Creating...' : 'Create Assessment'}
+            {loading ? 'Creating...' : 'Create Assessment Only'}
           </button>
         </div>
       </form>

@@ -1,4 +1,4 @@
-import { Ward, User, Property, Demand, Payment } from '../models/index.js';
+import { Ward, User, Property, Demand, DemandItem, Payment } from '../models/index.js';
 import { Op } from 'sequelize';
 import { auditLogger } from '../utils/auditLogger.js';
 
@@ -459,9 +459,44 @@ export const getCollectorDashboard = async (req, res, next) => {
     });
     const propertyIds = properties.map(p => p.id);
 
-    // Get demands
-    const demands = await Demand.findAll({
-      where: { propertyId: { [Op.in]: propertyIds } },
+    // Get unified tax demands (primary source of truth for collector)
+    // Fetch demands with UNIFIED_DEMAND in remarks, or regular demands
+    const unifiedDemands = await Demand.findAll({
+      where: {
+        propertyId: { [Op.in]: propertyIds },
+        remarks: {
+          [Op.like]: '%UNIFIED_DEMAND%'
+        },
+        balanceAmount: { [Op.gt]: 0 } // Only outstanding demands
+      },
+      include: [
+        {
+          model: Property,
+          as: 'property',
+          include: [
+            { model: Ward, as: 'ward' },
+            { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'phone'] }
+          ]
+        },
+        {
+          model: DemandItem,
+          as: 'items',
+          attributes: ['id', 'taxType', 'baseAmount', 'arrearsAmount', 'penaltyAmount', 'interestAmount', 'totalAmount'],
+          required: false
+        }
+      ],
+      order: [['dueDate', 'ASC']]
+    });
+
+    // Also get non-unified demands for backward compatibility
+    const regularDemands = await Demand.findAll({
+      where: {
+        propertyId: { [Op.in]: propertyIds },
+        remarks: {
+          [Op.notLike]: '%UNIFIED_DEMAND%'
+        },
+        balanceAmount: { [Op.gt]: 0 }
+      },
       include: [
         {
           model: Property,
@@ -471,8 +506,12 @@ export const getCollectorDashboard = async (req, res, next) => {
             { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'phone'] }
           ]
         }
-      ]
+      ],
+      order: [['dueDate', 'ASC']]
     });
+
+    // Combine all demands for statistics
+    const allDemands = [...unifiedDemands, ...regularDemands];
 
     // Get payments
     const payments = await Payment.findAll({
@@ -482,21 +521,116 @@ export const getCollectorDashboard = async (req, res, next) => {
       }
     });
 
+    // Process unified demands: Group by property and calculate breakdown
+    const propertyWiseDemands = {};
+    
+    unifiedDemands.forEach(demand => {
+      const propertyId = demand.propertyId;
+      
+      if (!propertyWiseDemands[propertyId]) {
+        propertyWiseDemands[propertyId] = {
+          property: demand.property,
+          demands: [],
+          propertyTax: 0,
+          waterTax: 0,
+          penalty: 0,
+          interest: 0,
+          totalPayable: 0,
+          dueDate: demand.dueDate,
+          status: demand.status
+        };
+      }
+      
+      // Option A: Penalty/interest are stored ONLY at demand level (not distributed to items)
+      // Collector wants a clear breakup + one payable amount. We show:
+      // - propertyTaxSubtotal = sum(item.base + item.arrears) for PROPERTY items
+      // - waterTaxSubtotal = sum(item.base + item.arrears) for WATER items
+      // - penalty/interest at demand level
+      // - totalPayable = demand.balanceAmount
+      let propertyTaxSubtotal = 0;
+      let waterTaxSubtotal = 0;
+
+      if (Array.isArray(demand.items) && demand.items.length > 0) {
+        demand.items.forEach((item) => {
+          const subtotal = parseFloat(item.baseAmount || 0) + parseFloat(item.arrearsAmount || 0);
+          if (item.taxType === 'PROPERTY') propertyTaxSubtotal += subtotal;
+          if (item.taxType === 'WATER') waterTaxSubtotal += subtotal;
+        });
+      } else if (typeof demand.remarks === 'string' && demand.remarks.includes('UNIFIED_DEMAND')) {
+        // Fallback: attempt to parse remarks JSON breakdown (no hardcoded split)
+        try {
+          const parsed = JSON.parse(demand.remarks);
+          if (parsed?.breakdown?.propertyTax && parsed?.breakdown?.waterTax) {
+            propertyTaxSubtotal =
+              parseFloat(parsed.breakdown.propertyTax.baseAmount || 0) +
+              parseFloat(parsed.breakdown.propertyTax.arrears || 0);
+            waterTaxSubtotal =
+              parseFloat(parsed.breakdown.waterTax.baseAmount || 0) +
+              parseFloat(parsed.breakdown.waterTax.arrears || 0);
+          }
+        } catch {
+          // ignore
+        }
+      }
+      
+      const penaltyAmount = parseFloat(demand.penaltyAmount || 0);
+      const interestAmount = parseFloat(demand.interestAmount || 0);
+      const balanceAmount = parseFloat(demand.balanceAmount || 0);
+      
+      propertyWiseDemands[propertyId].demands.push(demand);
+      propertyWiseDemands[propertyId].propertyTax += propertyTaxSubtotal;
+      propertyWiseDemands[propertyId].waterTax += waterTaxSubtotal;
+      propertyWiseDemands[propertyId].penalty += penaltyAmount;
+      propertyWiseDemands[propertyId].interest += interestAmount;
+      propertyWiseDemands[propertyId].totalPayable += balanceAmount;
+      
+      // Use earliest due date
+      if (new Date(demand.dueDate) < new Date(propertyWiseDemands[propertyId].dueDate)) {
+        propertyWiseDemands[propertyId].dueDate = demand.dueDate;
+      }
+    });
+    
+    // Convert to array for frontend
+    const propertyWiseList = Object.values(propertyWiseDemands).map(item => ({
+      propertyId: item.property.id,
+      property: item.property,
+      propertyTax: Math.round(item.propertyTax * 100) / 100,
+      waterTax: Math.round(item.waterTax * 100) / 100,
+      penalty: Math.round(item.penalty * 100) / 100,
+      interest: Math.round(item.interest * 100) / 100,
+      totalPayable: Math.round(item.totalPayable * 100) / 100,
+      dueDate: item.dueDate,
+      status: item.status,
+      demandCount: item.demands.length,
+      demands: item.demands.map(d => ({
+        id: d.id,
+        demandNumber: d.demandNumber,
+        financialYear: d.financialYear
+      }))
+    }));
+
+    // Calculate pending and overdue from unified demands
+    const today = new Date();
+    const pendingUnifiedDemands = unifiedDemands.filter(d => 
+      d.status === 'pending' && parseFloat(d.balanceAmount || 0) > 0
+    );
+    const overdueUnifiedDemands = unifiedDemands.filter(d => {
+      const dueDate = new Date(d.dueDate);
+      return today > dueDate && parseFloat(d.balanceAmount || 0) > 0;
+    });
+
     const dashboard = {
       totalWards: wards.length,
       totalProperties: properties.length,
-      totalDemands: demands.length,
-      pendingDemands: demands.filter(d => d.status === 'pending' && parseFloat(d.balanceAmount || 0) > 0),
-      overdueDemands: demands.filter(d => {
-        const today = new Date();
-        const dueDate = new Date(d.dueDate);
-        return today > dueDate && parseFloat(d.balanceAmount || 0) > 0;
-      }),
+      totalDemands: allDemands.length,
+      pendingDemands: pendingUnifiedDemands,
+      overdueDemands: overdueUnifiedDemands,
       totalCollection: payments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0),
-      totalOutstanding: demands
-        .filter(d => parseFloat(d.balanceAmount || 0) > 0)
+      totalOutstanding: allDemands
         .reduce((sum, d) => sum + parseFloat(d.balanceAmount || 0), 0),
-      recentPayments: payments.slice(0, 10).sort((a, b) => new Date(b.paymentDate) - new Date(a.paymentDate))
+      recentPayments: payments.slice(0, 10).sort((a, b) => new Date(b.paymentDate) - new Date(a.paymentDate)),
+      // New: Property-wise unified demands with breakdown
+      propertyWiseDemands: propertyWiseList
     };
 
     res.json({

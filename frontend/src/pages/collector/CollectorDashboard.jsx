@@ -93,6 +93,92 @@ const CollectorDashboard = () => {
         })}
       </div>
 
+      {/* Property-wise Unified Demands - Primary View */}
+      <div className="card lg:col-span-2 mb-6">
+        <h2 className="text-xl font-semibold mb-4">Property-wise Collection Summary</h2>
+        {dashboard?.propertyWiseDemands && dashboard.propertyWiseDemands.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Property</th>
+                  <th>Owner</th>
+                  <th>Property (Base+Arrears)</th>
+                  <th>Water (Base+Arrears)</th>
+                  <th>Penalty / Interest</th>
+                  <th>Total Payable</th>
+                  <th>Due Date</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dashboard.propertyWiseDemands.map((item) => (
+                  <tr key={item.propertyId} className={item.status === 'overdue' ? 'bg-red-50' : ''}>
+                    <td>
+                      <div>
+                        <p className="font-medium">{item.property?.propertyNumber || 'N/A'}</p>
+                        <p className="text-xs text-gray-500">{item.property?.address}</p>
+                        <p className="text-xs text-gray-400">{item.property?.ward?.wardName}</p>
+                      </div>
+                    </td>
+                    <td>
+                      <div>
+                        <p className="text-sm">
+                          {item.property?.owner?.firstName} {item.property?.owner?.lastName}
+                        </p>
+                        {item.property?.owner?.phone && (
+                          <p className="text-xs text-gray-500">{item.property.owner.phone}</p>
+                        )}
+                      </div>
+                    </td>
+                    <td className="text-blue-600 font-semibold">
+                      ₹{item.propertyTax.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="text-cyan-600 font-semibold">
+                      ₹{item.waterTax.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="text-orange-600 font-semibold">
+                      ₹{item.penalty.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      {item.interest > 0 && (
+                        <span className="block text-xs text-gray-500">
+                          + Interest: ₹{item.interest.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </span>
+                      )}
+                    </td>
+                    <td className="text-red-600 font-bold text-lg">
+                      ₹{item.totalPayable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      <p className="text-xs text-gray-500 font-normal mt-1">
+                        (Balance to collect)
+                      </p>
+                    </td>
+                    <td>
+                      <p className="text-sm">{new Date(item.dueDate).toLocaleDateString()}</p>
+                      {new Date(item.dueDate) < new Date() && (
+                        <p className="text-xs text-red-600 font-semibold">
+                          Overdue: {Math.floor((new Date() - new Date(item.dueDate)) / (1000 * 60 * 60 * 24))} days
+                        </p>
+                      )}
+                    </td>
+                    <td>
+                      <span className={`badge ${
+                        item.status === 'paid' ? 'badge-success' :
+                        item.status === 'partially_paid' ? 'badge-info' :
+                        item.status === 'overdue' ? 'badge-danger' :
+                        'badge-warning'
+                      } capitalize`}>
+                        {item.status.replace('_', ' ')}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-gray-500">No outstanding unified demands</p>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Pending Demands */}
         <div className="card">

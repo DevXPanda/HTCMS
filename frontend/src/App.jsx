@@ -40,6 +40,13 @@ import Reports from './pages/admin/reports/Reports';
 import AuditLogs from './pages/admin/auditLogs/AuditLogs';
 import Attendance from './pages/admin/attendance/Attendance';
 import FieldMonitoring from './pages/admin/fieldMonitoring/FieldMonitoring';
+import WaterConnections from './pages/admin/water/WaterConnections';
+import WaterConnectionDetails from './pages/admin/water/WaterConnectionDetails';
+import WaterBills from './pages/admin/water/WaterBills';
+import WaterTaxAssessments from './pages/admin/water/WaterTaxAssessments';
+import AddWaterTaxAssessment from './pages/admin/water/AddWaterTaxAssessment';
+import WaterTaxAssessmentDetails from './pages/admin/water/WaterTaxAssessmentDetails';
+import WaterConnectionRequests from './pages/admin/water/WaterConnectionRequests';
 
 // Citizen Pages
 import CitizenDashboard from './pages/citizen/CitizenDashboard';
@@ -50,6 +57,8 @@ import CitizenNotices from './pages/citizen/CitizenNotices';
 import CitizenNoticeDetails from './pages/citizen/CitizenNoticeDetails';
 import CitizenPayments from './pages/citizen/CitizenPayments';
 import ActivityHistory from './pages/citizen/ActivityHistory';
+import CitizenWaterConnections from './pages/citizen/CitizenWaterConnections';
+import WaterConnectionRequest from './pages/citizen/WaterConnectionRequest';
 
 // Collector Pages
 import CollectorDashboard from './pages/collector/CollectorDashboard';
@@ -61,6 +70,7 @@ import ActivityLogs from './pages/collector/ActivityLogs';
 import CollectorAttendance from './pages/collector/Attendance';
 import DailyTasks from './pages/collector/DailyTasks';
 import RecordFieldVisit from './pages/collector/RecordFieldVisit';
+import TaxSummarySimple from './pages/collector/TaxSummarySimple';
 
 // Error Pages
 import Unauthorized from './pages/Unauthorized';
@@ -146,6 +156,17 @@ function App() {
 
             {/* Field Monitoring */}
             <Route path="field-monitoring" element={<FieldMonitoring />} />
+
+            {/* Water Tax Module */}
+            <Route path="water/connections" element={<WaterConnections />} />
+            <Route path="water/connections/:id" element={<WaterConnectionDetails />} />
+            <Route path="water/connection-requests" element={<WaterConnectionRequests />} />
+            <Route path="water/assessments" element={<WaterTaxAssessments />} />
+            <Route path="water/assessments/new" element={<AddWaterTaxAssessment />} />
+            <Route path="water/assessments/:id" element={<WaterTaxAssessmentDetails />} />
+            <Route path="water/bills" element={<WaterBills />} />
+            <Route path="water/payments" element={<div className="p-6"><h1 className="text-2xl font-bold">Water Payments</h1><p className="text-gray-600 mt-2">Water payments management page - Coming soon</p></div>} />
+            <Route path="water/reports" element={<div className="p-6"><h1 className="text-2xl font-bold">Water Reports</h1><p className="text-gray-600 mt-2">Water reports page - Coming soon</p></div>} />
           </Route>
 
           {/* Protected Routes - Collector Portal */}
@@ -162,6 +183,7 @@ function App() {
             <Route path="wards" element={<AssignedWards />} />
             <Route path="properties" element={<PropertyList />} />
             <Route path="properties/:id" element={<CollectorPropertyDetails />} />
+            <Route path="tax-summary" element={<TaxSummarySimple />} />
             <Route path="collections" element={<Collections />} />
             <Route path="tasks" element={<DailyTasks />} />
             <Route path="field-visit/new" element={<RecordFieldVisit />} />
@@ -184,6 +206,8 @@ function App() {
             <Route path="properties/:id" element={<CitizenPropertyDetails />} />
             <Route path="demands" element={<CitizenDemands />} />
             <Route path="demands/:id" element={<DemandDetails />} />
+            <Route path="water-connections" element={<CitizenWaterConnections />} />
+            <Route path="water-connection-request" element={<WaterConnectionRequest />} />
             <Route path="notices" element={<CitizenNotices />} />
             <Route path="notices/:id" element={<CitizenNoticeDetails />} />
             <Route path="payments" element={<CitizenPayments />} />

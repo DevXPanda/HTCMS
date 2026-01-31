@@ -26,13 +26,13 @@ const storage = multer.diskStorage({
   }
 });
 
-// File filter - only images
+// File filter - images and PDFs for payment proofs
 const fileFilter = (req, file, cb) => {
-  const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+  const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
   if (allowedMimes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.'), false);
+    cb(new Error('Invalid file type. Only JPEG, PNG, GIF, WebP images and PDF files are allowed.'), false);
   }
 };
 
@@ -110,6 +110,49 @@ export const uploadFieldVisitPhoto = async (req, res, next) => {
     res.json({
       success: true,
       message: 'Field visit photo uploaded successfully',
+      data: {
+        url: fullUrl,
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   POST /api/upload/payment-proof
+ * @desc    Upload payment proof document (Collector)
+ * @access  Private (Collector, Tax Collector)
+ */
+export const uploadPaymentProof = async (req, res, next) => {
+  try {
+    const user = req.user;
+
+    if (user.role !== 'collector' && user.role !== 'tax_collector') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only collectors can upload payment proofs'
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+    }
+
+    // Generate URL for the uploaded file
+    const fileUrl = `/uploads/${req.file.filename}`;
+    const fullUrl = `${req.protocol}://${req.get('host')}${fileUrl}`;
+
+    res.json({
+      success: true,
+      message: 'Payment proof uploaded successfully',
       data: {
         url: fullUrl,
         filename: req.file.filename,

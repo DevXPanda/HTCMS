@@ -39,7 +39,33 @@ const CitizenDemands = () => {
 
   // Group demands by serviceType
   const houseTaxDemands = demands.filter(d => d.serviceType === 'HOUSE_TAX');
+  const waterTaxDemands = demands.filter(d => d.serviceType === 'WATER_TAX');
   const d2dcDemands = demands.filter(d => d.serviceType === 'D2DC');
+
+  // Group demands by property and financial year for combined view
+  const groupedDemands = demands.reduce((acc, demand) => {
+    const key = `${demand.propertyId}-${demand.financialYear}`;
+    if (!acc[key]) {
+      acc[key] = {
+        property: demand.property,
+        financialYear: demand.financialYear,
+        demands: [],
+        totalAmount: 0,
+        paidAmount: 0,
+        balanceAmount: 0,
+        dueDate: demand.dueDate
+      };
+    }
+    acc[key].demands.push(demand);
+    acc[key].totalAmount += parseFloat(demand.totalAmount || 0);
+    acc[key].paidAmount += parseFloat(demand.paidAmount || 0);
+    acc[key].balanceAmount += parseFloat(demand.balanceAmount || 0);
+    // Use earliest due date
+    if (new Date(demand.dueDate) < new Date(acc[key].dueDate)) {
+      acc[key].dueDate = demand.dueDate;
+    }
+    return acc;
+  }, {});
 
   const getStatusBadge = (status) => {
     const badges = {
@@ -77,6 +103,16 @@ const CitizenDemands = () => {
             }`}
           >
             House Tax ({houseTaxDemands.length})
+          </button>
+          <button
+            onClick={() => handleServiceTypeFilter('WATER_TAX')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium ${
+              serviceTypeFilter === 'WATER_TAX'
+                ? 'bg-cyan-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Water Tax ({waterTaxDemands.length})
           </button>
           <button
             onClick={() => handleServiceTypeFilter('D2DC')}
@@ -118,15 +154,18 @@ const CitizenDemands = () => {
               demands.map((demand) => {
                 const isOverdue = new Date(demand.dueDate) < new Date() && demand.balanceAmount > 0;
                 const isD2DC = demand.serviceType === 'D2DC';
+                const isWaterTax = demand.serviceType === 'WATER_TAX';
                 return (
                   <tr key={demand.id} className={isOverdue ? 'bg-red-50' : ''}>
                     <td>
                       <span className={`px-2 py-1 text-xs font-semibold rounded ${
                         isD2DC 
                           ? 'bg-green-100 text-green-800 border border-green-300'
+                          : isWaterTax
+                          ? 'bg-cyan-100 text-cyan-800 border border-cyan-300'
                           : 'bg-blue-100 text-blue-800 border border-blue-300'
                       }`}>
-                        {isD2DC ? 'D2DC' : 'House Tax'}
+                        {isD2DC ? 'D2DC' : isWaterTax ? 'Water Tax' : 'House Tax'}
                       </span>
                     </td>
                     <td className="font-medium">{demand.demandNumber}</td>

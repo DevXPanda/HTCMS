@@ -25,18 +25,27 @@ export const Demand = sequelize.define('Demand', {
   },
   assessmentId: {
     type: DataTypes.INTEGER,
-    allowNull: true, // Nullable for D2DC demands (D2DC doesn't require assessment)
+    allowNull: true, // Nullable for D2DC and WATER_TAX demands
     references: {
       model: 'Assessments',
       key: 'id'
     },
-    comment: 'Assessment ID (required for HOUSE_TAX, null for D2DC)'
+    comment: 'Assessment ID (required for HOUSE_TAX, null for D2DC and WATER_TAX)'
+  },
+  waterTaxAssessmentId: {
+    type: DataTypes.INTEGER,
+    allowNull: true, // Nullable, only for WATER_TAX demands
+    references: {
+      model: 'WaterTaxAssessments',
+      key: 'id'
+    },
+    comment: 'Water Tax Assessment ID (required for WATER_TAX, null for others)'
   },
   serviceType: {
-    type: DataTypes.ENUM('HOUSE_TAX', 'D2DC'),
+    type: DataTypes.ENUM('HOUSE_TAX', 'D2DC', 'WATER_TAX'),
     allowNull: false,
     defaultValue: 'HOUSE_TAX',
-    comment: 'Service type: HOUSE_TAX or D2DC (Door-to-Door Garbage Collection)'
+    comment: 'Service type: HOUSE_TAX, D2DC, or WATER_TAX'
   },
   financialYear: {
     type: DataTypes.STRING(10),
@@ -137,12 +146,49 @@ export const Demand = sequelize.define('Demand', {
         }
         // Explicitly set to null to ensure database constraint compliance
         demand.assessmentId = null;
+        demand.waterTaxAssessmentId = null;
       } else if (serviceType === 'HOUSE_TAX') {
         // HOUSE_TAX demands MUST have assessmentId
         // HOUSE_TAX is generated from approved tax assessments
-        if (!demand.assessmentId) {
+        // EXCEPTION: Unified demands may have both assessments stored in demand items
+        // Check if this is a unified demand (has UNIFIED_DEMAND in remarks)
+        let isUnifiedDemand = false;
+        
+        if (demand.remarks) {
+          if (typeof demand.remarks === 'string') {
+            // Check if it's a JSON string containing UNIFIED_DEMAND
+            try {
+              const remarksObj = JSON.parse(demand.remarks);
+              isUnifiedDemand = remarksObj.type === 'UNIFIED_DEMAND' || 
+                               (typeof remarksObj === 'string' && remarksObj.includes('UNIFIED_DEMAND'));
+            } catch (e) {
+              // If it's not valid JSON, check as simple string
+              isUnifiedDemand = demand.remarks.includes('UNIFIED_DEMAND');
+            }
+          } else if (typeof demand.remarks === 'object') {
+            // If it's already an object
+            isUnifiedDemand = demand.remarks.type === 'UNIFIED_DEMAND';
+          }
+        }
+        
+        if (!isUnifiedDemand && !demand.assessmentId) {
           throw new Error('HOUSE_TAX demands require an assessmentId. Please provide a valid assessment.');
         }
+        // For unified demands:
+        // - If property assessment exists, assessmentId should be set
+        // - If only water assessments exist, assessmentId can be null (will use WATER_TAX serviceType)
+        // - We allow waterTaxAssessmentId to be set for unified demands
+        // The actual breakdown is stored in demand items
+        if (!isUnifiedDemand) {
+          demand.waterTaxAssessmentId = null;
+        }
+      } else if (serviceType === 'WATER_TAX') {
+        // WATER_TAX demands MUST have waterTaxAssessmentId
+        // WATER_TAX is generated from approved water tax assessments
+        if (!demand.waterTaxAssessmentId) {
+          throw new Error('WATER_TAX demands require a waterTaxAssessmentId. Please provide a valid water tax assessment.');
+        }
+        demand.assessmentId = null;
       }
     },
     afterFind: (demands) => {

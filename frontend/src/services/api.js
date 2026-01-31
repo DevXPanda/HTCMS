@@ -51,7 +51,14 @@ api.interceptors.response.use(
 
 // Auth API
 export const authAPI = {
-  login: (email, password, location) => api.post('/auth/login', { email, password, ...location }),
+  login: (emailOrPhone, password, location) => {
+    // Determine if input is email or phone number
+    const isEmail = emailOrPhone.includes('@');
+    const loginData = isEmail 
+      ? { email: emailOrPhone, password, ...location }
+      : { phone: emailOrPhone, password, ...location };
+    return api.post('/auth/login', loginData);
+  },
   register: (data) => api.post('/auth/register', data),
   logout: () => api.post('/auth/logout'),
   getMe: () => api.get('/auth/me'),
@@ -89,7 +96,8 @@ export const assessmentAPI = {
   submit: (id) => api.post(`/assessments/${id}/submit`),
   approve: (id, data) => api.post(`/assessments/${id}/approve`, data),
   reject: (id, data) => api.post(`/assessments/${id}/reject`, data),
-  getByProperty: (propertyId) => api.get(`/assessments/property/${propertyId}`)
+  getByProperty: (propertyId) => api.get(`/assessments/property/${propertyId}`),
+  generateUnified: (data) => api.post('/assessments/generate-unified', data)
 };
 
 // Demand API
@@ -99,9 +107,17 @@ export const demandAPI = {
   create: (data) => api.post('/demands', data),
   createD2DC: (data) => api.post('/demands/d2dc', data),
   generateBulk: (data) => api.post('/demands/generate-bulk', data),
+  generateCombined: (data) => api.post('/demands/generate-combined', data),
+  generateUnified: (data) => api.post('/demands/generate-unified', data),
   calculatePenalty: (id, data) => api.put(`/demands/${id}/calculate-penalty`, data),
   getByProperty: (propertyId) => api.get(`/demands/property/${propertyId}`),
-  getStatistics: (params) => api.get('/demands/statistics/summary', { params })
+  getStatistics: (params) => api.get('/demands/statistics/summary', { params }),
+  getBreakdown: (id) => api.get(`/demands/${id}/breakdown`)
+};
+
+// Tax API (Unified Tax Summary)
+export const taxAPI = {
+  getUnifiedSummary: (params) => api.get('/tax/unified-summary', { params })
 };
 
 // Payment API
@@ -109,6 +125,7 @@ export const paymentAPI = {
   getAll: (params) => api.get('/payments', { params }),
   getById: (id) => api.get(`/payments/${id}`),
   create: (data) => api.post('/payments', data),
+  createFieldCollection: (data) => api.post('/payments/field-collection', data),
   getReceipt: (receiptNumber) => api.get(`/payments/receipt/${receiptNumber}`),
   getStatistics: (params) => api.get('/payments/statistics/summary', { params }),
   getByDemand: (demandId) => api.get(`/payments/demand/${demandId}`),
@@ -146,7 +163,10 @@ export const citizenAPI = {
   getDemands: (params) => api.get('/citizen/demands', { params }),
   getPayments: (params) => api.get('/citizen/payments', { params }),
   getNotices: (params) => api.get('/citizen/notices', { params }),
-  getNoticeById: (id) => api.get(`/citizen/notices/${id}`)
+  getNoticeById: (id) => api.get(`/citizen/notices/${id}`),
+  getWaterConnections: () => api.get('/citizen/water-connections'),
+  createWaterConnectionRequest: (data) => api.post('/citizen/water-connection-requests', data),
+  getWaterConnectionRequests: () => api.get('/citizen/water-connection-requests')
 };
 
 // Notice API
@@ -190,6 +210,9 @@ export const uploadAPI = {
   }),
   uploadFieldVisitPhoto: (formData) => api.post('/upload/field-visit-photo', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  uploadPaymentProof: (formData) => api.post('/upload/payment-proof', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
   })
 };
 
@@ -205,6 +228,60 @@ export const fieldMonitoringAPI = {
   getDashboard: (params) => api.get('/field-monitoring/dashboard', { params }),
   getCollectorDetails: (collectorId, params) => api.get(`/field-monitoring/collector/${collectorId}`, { params }),
   getFollowUps: (params) => api.get('/field-monitoring/follow-ups', { params })
+};
+
+// Water Connection API
+export const waterConnectionAPI = {
+  getAll: (params) => api.get('/water-connections', { params }),
+  getById: (id) => api.get(`/water-connections/${id}`),
+  create: (data) => api.post('/water-connections', data),
+  update: (id, data) => api.put(`/water-connections/${id}`, data),
+  getByProperty: (propertyId) => api.get(`/water-connections/property/${propertyId}`)
+};
+
+// Water Bill API
+export const waterBillAPI = {
+  getAll: (params) => api.get('/water-bills', { params }),
+  getById: (id) => api.get(`/water-bills/${id}`),
+  generate: (data) => api.post('/water-bills/generate', data),
+  getByConnection: (connectionId) => api.get(`/water-bills/connection/${connectionId}`)
+};
+
+// Water Payment API
+export const waterPaymentAPI = {
+  getAll: (params) => api.get('/water-payments', { params }),
+  getById: (id) => api.get(`/water-payments/${id}`),
+  create: (data) => api.post('/water-payments', data),
+  getByBill: (billId) => api.get(`/water-payments/bill/${billId}`),
+  getByConnection: (connectionId) => api.get(`/water-payments/connection/${connectionId}`)
+};
+
+// Water Tax Assessment API
+export const waterTaxAssessmentAPI = {
+  getAll: (params) => api.get('/water-tax-assessments', { params }),
+  getById: (id) => api.get(`/water-tax-assessments/${id}`),
+  create: (data) => api.post('/water-tax-assessments', data)
+};
+
+// Water Connection Document API
+export const waterConnectionDocumentAPI = {
+  getAll: (params) => api.get('/water-connection-documents', { params }),
+  getById: (id) => api.get(`/water-connection-documents/${id}`),
+  upload: (formData) => api.post('/water-connection-documents', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  delete: (id) => api.delete(`/water-connection-documents/${id}`),
+  checkMandatory: (waterConnectionId) => api.get('/water-connection-documents/mandatory/check', {
+    params: { waterConnectionId }
+  })
+};
+
+// Water Connection Request API (Admin)
+export const waterConnectionRequestAPI = {
+  getAll: (params) => api.get('/water-connection-requests', { params }),
+  getById: (id) => api.get(`/water-connection-requests/${id}`),
+  approve: (id, data) => api.post(`/water-connection-requests/${id}/approve`, data),
+  reject: (id, data) => api.post(`/water-connection-requests/${id}/reject`, data)
 };
 
 export default api;
