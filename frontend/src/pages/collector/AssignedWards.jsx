@@ -4,10 +4,10 @@ import { wardAPI } from '../../services/api';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
 import { Eye, MapPin, Home, Users } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useStaffAuth } from '../../contexts/StaffAuthContext';
 
 const AssignedWards = () => {
-  const { user } = useAuth();
+  const { user } = useStaffAuth();
   const [wards, setWards] = useState([]);
   const [loading, setLoading] = useState(true);
 

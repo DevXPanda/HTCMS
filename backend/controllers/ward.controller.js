@@ -1,6 +1,8 @@
 import { Ward, User, Property, Demand, DemandItem, Payment } from '../models/index.js';
+import { AdminManagement } from '../models/AdminManagement.js';
 import { Op } from 'sequelize';
 import { auditLogger } from '../utils/auditLogger.js';
+import { wardAccessControl, specificWardAccess } from '../middleware/wardAccess.js';
 
 /**
  * @route   GET /api/wards
@@ -9,9 +11,23 @@ import { auditLogger } from '../utils/auditLogger.js';
  */
 export const getAllWards = async (req, res, next) => {
   try {
-    const { isActive, search } = req.query;
+    const { isActive, search, ids } = req.query;
 
     const where = {};
+
+    // Apply ward access control filter for non-admin users
+    if (req.wardFilter) {
+      Object.assign(where, req.wardFilter);
+    }
+
+    // Support filtering by specific IDs (for inspector dashboard)
+    if (ids) {
+      const idArray = ids.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+      if (idArray.length > 0) {
+        where.id = { [Op.in]: idArray };
+      }
+    }
+
     if (isActive !== undefined) where.isActive = isActive === 'true';
     if (search) {
       where[Op.or] = [
@@ -23,10 +39,10 @@ export const getAllWards = async (req, res, next) => {
     const wards = await Ward.findAll({
       where,
       include: [
-        { 
-          model: User, 
-          as: 'collector', 
-          attributes: ['id', 'firstName', 'lastName', 'email', 'phone'] 
+        {
+          model: AdminManagement,
+          as: 'collector',
+          attributes: ['id', 'full_name', 'email', 'phone_number']
         }
       ],
       order: [['wardNumber', 'ASC']]
@@ -52,10 +68,25 @@ export const getWardById = async (req, res, next) => {
 
     const ward = await Ward.findByPk(id, {
       include: [
-        { 
-          model: User, 
-          as: 'collector', 
-          attributes: ['id', 'firstName', 'lastName', 'email', 'phone'] 
+        {
+          model: AdminManagement,
+          as: 'collector',
+          attributes: ['id', 'full_name', 'email', 'phone_number']
+        },
+        {
+          model: AdminManagement,
+          as: 'clerk',
+          attributes: ['id', 'full_name', 'email', 'phone_number']
+        },
+        {
+          model: AdminManagement,
+          as: 'inspector',
+          attributes: ['id', 'full_name', 'email', 'phone_number']
+        },
+        {
+          model: AdminManagement,
+          as: 'officer',
+          attributes: ['id', 'full_name', 'email', 'phone_number']
         },
         {
           model: Property,
@@ -106,11 +137,11 @@ export const createWard = async (req, res, next) => {
 
     // Validate collector if provided
     if (collectorId) {
-      const collector = await User.findByPk(collectorId);
+      const collector = await AdminManagement.findByPk(collectorId);
       if (!collector || collector.role !== 'collector') {
         return res.status(400).json({
           success: false,
-          message: 'Invalid collector. User must have collector role.'
+          message: 'Invalid collector. Staff member must have collector role.'
         });
       }
     }
@@ -124,10 +155,10 @@ export const createWard = async (req, res, next) => {
 
     const createdWard = await Ward.findByPk(ward.id, {
       include: [
-        { 
-          model: User, 
-          as: 'collector', 
-          attributes: ['id', 'firstName', 'lastName', 'email', 'phone'] 
+        {
+          model: AdminManagement,
+          as: 'collector',
+          attributes: ['id', 'full_name', 'email', 'phone_number']
         }
       ]
     });
@@ -178,17 +209,17 @@ export const updateWard = async (req, res, next) => {
 
     // Validate collector if provided
     if (collectorId) {
-      const collector = await User.findByPk(collectorId);
+      const collector = await AdminManagement.findByPk(collectorId);
       if (!collector || collector.role !== 'collector') {
         return res.status(400).json({
           success: false,
-          message: 'Invalid collector. User must have collector role.'
+          message: 'Invalid collector. Staff member must have collector role.'
         });
       }
     }
 
     const isCollectorAssignment = collectorId !== undefined && collectorId !== ward.collectorId;
-    
+
     if (wardName) ward.wardName = wardName;
     if (description !== undefined) ward.description = description;
     if (collectorId !== undefined) {
@@ -229,10 +260,10 @@ export const updateWard = async (req, res, next) => {
 
     const updatedWard = await Ward.findByPk(id, {
       include: [
-        { 
-          model: User, 
-          as: 'collector', 
-          attributes: ['id', 'firstName', 'lastName', 'email', 'phone'] 
+        {
+          model: AdminManagement,
+          as: 'collector',
+          attributes: ['id', 'full_name', 'email', 'phone_number']
         }
       ]
     });
@@ -272,11 +303,11 @@ export const assignCollector = async (req, res, next) => {
       });
     }
 
-    const collector = await User.findByPk(collectorId);
+    const collector = await AdminManagement.findByPk(collectorId);
     if (!collector || collector.role !== 'collector') {
       return res.status(400).json({
         success: false,
-        message: 'Invalid collector. User must have collector role.'
+        message: 'Invalid collector. Staff member must have collector role.'
       });
     }
 
@@ -297,10 +328,10 @@ export const assignCollector = async (req, res, next) => {
 
     const updatedWard = await Ward.findByPk(id, {
       include: [
-        { 
-          model: User, 
-          as: 'collector', 
-          attributes: ['id', 'firstName', 'lastName', 'email', 'phone'] 
+        {
+          model: AdminManagement,
+          as: 'collector',
+          attributes: ['id', 'full_name', 'email', 'phone_number']
         }
       ]
     });
@@ -379,7 +410,9 @@ export const getWardStatistics = async (req, res, next) => {
       where: {
         propertyId: { [Op.in]: propertyIds },
         status: 'completed'
-      }
+      },
+      order: [['paymentDate', 'DESC']],
+      limit: 10
     });
 
     const statistics = {
@@ -443,7 +476,18 @@ export const getWardsByCollector = async (req, res, next) => {
  */
 export const getCollectorDashboard = async (req, res, next) => {
   try {
-    const collectorId = req.params.collectorId || req.user.id;
+    console.log('Backend - getCollectorDashboard called');
+    console.log('Backend - Authenticated user:', {
+      id: req.user.id,
+      staff_id: req.user.staff_id,
+      employee_id: req.user.employee_id,
+      role: req.user.role,
+      userType: req.userType
+    });
+
+    // Use staff_id from JWT token to identify the authenticated collector
+    const collectorId = req.user.staff_id || req.user.id;
+    console.log('🆔 Backend - Using collectorId:', collectorId);
 
     // Get all wards assigned to this collector
     const wards = await Ward.findAll({
@@ -451,6 +495,27 @@ export const getCollectorDashboard = async (req, res, next) => {
       attributes: ['id']
     });
     const wardIds = wards.map(w => w.id);
+    console.log('Backend - Found wards:', wardIds.length, 'wardIds:', wardIds);
+
+    if (wardIds.length === 0) {
+      console.log('Backend - No wards found for collector, returning empty dashboard');
+      return res.json({
+        success: true,
+        data: {
+          dashboard: {
+            totalWards: 0,
+            totalProperties: 0,
+            totalDemands: 0,
+            pendingDemands: [],
+            overdueDemands: [],
+            totalCollection: 0,
+            totalOutstanding: 0,
+            recentPayments: [],
+            propertyWiseDemands: []
+          }
+        }
+      });
+    }
 
     // Get properties in these wards
     const properties = await Property.findAll({
@@ -458,6 +523,25 @@ export const getCollectorDashboard = async (req, res, next) => {
       attributes: ['id']
     });
     const propertyIds = properties.map(p => p.id);
+
+    if (propertyIds.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          dashboard: {
+            totalWards: wards.length,
+            totalProperties: 0,
+            totalDemands: 0,
+            pendingDemands: [],
+            overdueDemands: [],
+            totalCollection: 0,
+            totalOutstanding: 0,
+            recentPayments: [],
+            propertyWiseDemands: []
+          }
+        }
+      });
+    }
 
     // Get unified tax demands (primary source of truth for collector)
     // Fetch demands with UNIFIED_DEMAND in remarks, or regular demands
@@ -523,10 +607,10 @@ export const getCollectorDashboard = async (req, res, next) => {
 
     // Process unified demands: Group by property and calculate breakdown
     const propertyWiseDemands = {};
-    
+
     unifiedDemands.forEach(demand => {
       const propertyId = demand.propertyId;
-      
+
       if (!propertyWiseDemands[propertyId]) {
         propertyWiseDemands[propertyId] = {
           property: demand.property,
@@ -540,7 +624,7 @@ export const getCollectorDashboard = async (req, res, next) => {
           status: demand.status
         };
       }
-      
+
       // Option A: Penalty/interest are stored ONLY at demand level (not distributed to items)
       // Collector wants a clear breakup + one payable amount. We show:
       // - propertyTaxSubtotal = sum(item.base + item.arrears) for PROPERTY items
@@ -572,24 +656,24 @@ export const getCollectorDashboard = async (req, res, next) => {
           // ignore
         }
       }
-      
+
       const penaltyAmount = parseFloat(demand.penaltyAmount || 0);
       const interestAmount = parseFloat(demand.interestAmount || 0);
       const balanceAmount = parseFloat(demand.balanceAmount || 0);
-      
+
       propertyWiseDemands[propertyId].demands.push(demand);
       propertyWiseDemands[propertyId].propertyTax += propertyTaxSubtotal;
       propertyWiseDemands[propertyId].waterTax += waterTaxSubtotal;
       propertyWiseDemands[propertyId].penalty += penaltyAmount;
       propertyWiseDemands[propertyId].interest += interestAmount;
       propertyWiseDemands[propertyId].totalPayable += balanceAmount;
-      
+
       // Use earliest due date
       if (new Date(demand.dueDate) < new Date(propertyWiseDemands[propertyId].dueDate)) {
         propertyWiseDemands[propertyId].dueDate = demand.dueDate;
       }
     });
-    
+
     // Convert to array for frontend
     const propertyWiseList = Object.values(propertyWiseDemands).map(item => ({
       propertyId: item.property.id,
@@ -611,7 +695,7 @@ export const getCollectorDashboard = async (req, res, next) => {
 
     // Calculate pending and overdue from unified demands
     const today = new Date();
-    const pendingUnifiedDemands = unifiedDemands.filter(d => 
+    const pendingUnifiedDemands = unifiedDemands.filter(d =>
       d.status === 'pending' && parseFloat(d.balanceAmount || 0) > 0
     );
     const overdueUnifiedDemands = unifiedDemands.filter(d => {
@@ -628,10 +712,19 @@ export const getCollectorDashboard = async (req, res, next) => {
       totalCollection: payments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0),
       totalOutstanding: allDemands
         .reduce((sum, d) => sum + parseFloat(d.balanceAmount || 0), 0),
-      recentPayments: payments.slice(0, 10).sort((a, b) => new Date(b.paymentDate) - new Date(a.paymentDate)),
+      recentPayments: payments,
       // New: Property-wise unified demands with breakdown
       propertyWiseDemands: propertyWiseList
     };
+
+    console.log('Backend - Final dashboard summary:', {
+      totalWards: dashboard.totalWards,
+      totalProperties: dashboard.totalProperties,
+      totalDemands: dashboard.totalDemands,
+      pendingDemands: dashboard.pendingDemands.length,
+      overdueDemands: dashboard.overdueDemands.length,
+      propertyWiseDemands: dashboard.propertyWiseDemands.length
+    });
 
     res.json({
       success: true,

@@ -1,4 +1,4 @@
-import { CollectorAttendance, User, Ward } from '../models/index.js';
+import { CollectorAttendance, User, Ward, AdminManagement } from '../models/index.js';
 import { Op } from 'sequelize';
 
 /**
@@ -28,9 +28,14 @@ export const getAttendanceRecords = async (req, res, next) => {
     const user = req.user;
 
     // Role-based access control
-    if (user.role === 'collector') {
-      // Collectors can only see their own attendance
+    if (user.role === 'collector' || user.role === 'clerk' || user.role === 'inspector' || user.role === 'officer') {
+      // Staff members can only see their own attendance
       where.collectorId = user.id;
+
+      // For staff roles (not collectors), filter by usertype to ensure we get admin_management records
+      if (user.role !== 'collector') {
+        where.usertype = 'admin_management';
+      }
     } else if (user.role === 'admin' || user.role === 'assessor') {
       // Admin and Assessor can see all attendance records
       // Apply filters if provided
@@ -62,8 +67,7 @@ export const getAttendanceRecords = async (req, res, next) => {
     } else {
       // Citizens have no access
       return res.status(403).json({
-        success: false,
-        message: 'Access denied'
+        message: 'Access denied. Insufficient permissions to view attendance records.'
       });
     }
 
@@ -101,42 +105,82 @@ export const getAttendanceRecords = async (req, res, next) => {
     // For now, we'll apply a simple date filter - can be enhanced later
 
     // Search filter (by collector name)
-    let includeCollector = {
-      model: User,
-      as: 'collector',
-      attributes: ['id', 'firstName', 'lastName', 'email', 'phone'],
-      required: true
-    };
-
-    if (search && (user.role === 'admin' || user.role === 'assessor')) {
-      includeCollector.where = {
-        [Op.or]: [
-          { firstName: { [Op.iLike]: `%${search}%` } },
-          { lastName: { [Op.iLike]: `%${search}%` } },
-          { email: { [Op.iLike]: `%${search}%` } }
-        ]
-      };
-    }
+    // We'll handle collector info separately after fetching attendance records
+    let whereConditions = where;
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
+    // First fetch attendance records without includes
     const { count, rows } = await CollectorAttendance.findAndCountAll({
-      where,
-      include: [includeCollector],
+      where: whereConditions,
       limit: parseInt(limit),
       offset,
       order: [[sortBy, sortOrder.toUpperCase()]]
     });
 
+    // Now fetch collector information for each attendance record
+    const attendanceWithCollectors = await Promise.all(
+      rows.map(async (attendance) => {
+        let collector = null;
+
+        if (attendance.usertype === 'admin_management') {
+          // Staff user - fetch from AdminManagement
+          collector = await AdminManagement.findByPk(attendance.collectorId, {
+            attributes: ['id', 'full_name', 'email', 'phone_number', 'employee_id', 'role']
+          });
+
+          if (collector) {
+            // Format staff collector data
+            collector = {
+              id: collector.id,
+              firstName: collector.full_name?.split(' ')[0] || '',
+              lastName: collector.full_name?.split(' ').slice(1).join(' ') || '',
+              email: collector.email,
+              phone: collector.phone_number,
+              employee_id: collector.employee_id,
+              role: collector.role,
+              full_name: collector.full_name
+            };
+          }
+        } else {
+          // Regular user - fetch from Users
+          collector = await User.findByPk(attendance.collectorId, {
+            attributes: ['id', 'firstName', 'lastName', 'email', 'phone', 'role']
+          });
+        }
+
+        return {
+          ...attendance.toJSON(),
+          collector: collector
+        };
+      })
+    );
+
+    // Apply search filter if needed (filter after fetching collector info)
+    let filteredAttendance = attendanceWithCollectors;
+    if (search && (user.role === 'admin' || user.role === 'assessor')) {
+      filteredAttendance = attendanceWithCollectors.filter(record => {
+        if (!record.collector) return false;
+        const collector = record.collector;
+        const searchLower = search.toLowerCase();
+        return (
+          (collector.firstName && collector.firstName.toLowerCase().includes(searchLower)) ||
+          (collector.lastName && collector.lastName.toLowerCase().includes(searchLower)) ||
+          (collector.email && collector.email.toLowerCase().includes(searchLower)) ||
+          (collector.full_name && collector.full_name.toLowerCase().includes(searchLower))
+        );
+      });
+    }
+
     res.json({
       success: true,
       data: {
-        attendance: rows,
+        attendance: filteredAttendance,
         pagination: {
-          total: count,
+          total: search ? filteredAttendance.length : count,
           page: parseInt(page),
           limit: parseInt(limit),
-          pages: Math.ceil(count / parseInt(limit))
+          pages: Math.ceil((search ? filteredAttendance.length : count) / parseInt(limit))
         }
       }
     });

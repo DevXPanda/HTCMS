@@ -9,12 +9,18 @@ export const WaterConnectionDocument = sequelize.define('WaterConnectionDocument
   },
   waterConnectionId: {
     type: DataTypes.INTEGER,
-    allowNull: false,
+    allowNull: true,
+    comment: 'Foreign key to water_connections table'
+  },
+  waterConnectionRequestId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'waterconnectionrequestid', // Map to actual database column name
     references: {
-      model: 'WaterConnections',
+      model: 'WaterConnectionRequests',
       key: 'id'
     },
-    comment: 'Foreign key to water_connections table'
+    comment: 'Foreign key to water_connection_requests table'
   },
   documentType: {
     type: DataTypes.STRING(50),
@@ -49,11 +55,7 @@ export const WaterConnectionDocument = sequelize.define('WaterConnectionDocument
   uploadedBy: {
     type: DataTypes.INTEGER,
     allowNull: true,
-    references: {
-      model: 'Users',
-      key: 'id'
-    },
-    comment: 'User who uploaded the document'
+    comment: 'User who uploaded the document (can be from Users or AdminManagement table)'
   },
   uploadedAt: {
     type: DataTypes.DATE,

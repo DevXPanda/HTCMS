@@ -52,7 +52,15 @@ const ACTION_TYPE_MAPPING = {
   'USER_LOGIN': 'LOGIN',
   'USER_LOGOUT': 'LOGOUT',
   'DATA_EXPORT': 'EXPORT',
-  'DATA_IMPORT': 'IMPORT'
+  'DATA_IMPORT': 'IMPORT',
+  'APPLICATION_CREATED': 'CREATE',
+  'APPLICATION_SUBMITTED': 'SEND',
+  'APPLICATION_FORWARDED': 'SEND',
+  'APPLICATION_APPROVED': 'APPROVE',
+  'APPLICATION_REJECTED': 'REJECT',
+  'APPLICATION_RETURNED': 'SEND',
+  'APPLICATION_UPDATED': 'UPDATE',
+  'PAYMENT_COLLECTED': 'COLLECT'
 };
 
 /**
@@ -78,7 +86,7 @@ export const validateAuditAction = (actionType) => {
 
   // If no mapping found, try to find a close match or use default
   const upperAction = actionType.toUpperCase();
-  
+
   // Check for partial matches
   if (upperAction.includes('PAY') || upperAction.includes('COLLECT')) {
     return 'PAY';

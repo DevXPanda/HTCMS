@@ -17,7 +17,7 @@ export const WaterConnectionRequest = sequelize.define('WaterConnectionRequest',
     type: DataTypes.INTEGER,
     allowNull: false,
     references: {
-      model: 'Properties',
+      model: 'properties',
       key: 'id'
     },
     comment: 'Foreign key to properties table'
@@ -26,7 +26,7 @@ export const WaterConnectionRequest = sequelize.define('WaterConnectionRequest',
     type: DataTypes.INTEGER,
     allowNull: false,
     references: {
-      model: 'Users',
+      model: 'users',
       key: 'id'
     },
     comment: 'User who requested the connection'
@@ -42,9 +42,9 @@ export const WaterConnectionRequest = sequelize.define('WaterConnectionRequest',
     comment: 'Type of water connection requested'
   },
   status: {
-    type: DataTypes.ENUM('PENDING', 'APPROVED', 'REJECTED', 'COMPLETED'),
+    type: DataTypes.ENUM('DRAFT', 'SUBMITTED', 'UNDER_INSPECTION', 'ESCALATED_TO_OFFICER', 'APPROVED', 'REJECTED', 'RETURNED', 'COMPLETED'),
     allowNull: false,
-    defaultValue: 'PENDING',
+    defaultValue: 'DRAFT',
     comment: 'Request status'
   },
   remarks: {
@@ -57,11 +57,58 @@ export const WaterConnectionRequest = sequelize.define('WaterConnectionRequest',
     allowNull: true,
     comment: 'Remarks from admin when approving/rejecting'
   },
+  returnReason: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    comment: 'Reason for returning application to clerk'
+  },
+  createdBy: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'id'
+    },
+    comment: 'Clerk who created this application (if applicable)'
+  },
+  submittedAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: 'When application was submitted for inspection'
+  },
+  inspectedBy: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'id'
+    },
+    comment: 'Assessor who inspected the application'
+  },
+  inspectedAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: 'When inspection was completed'
+  },
+  escalatedBy: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'id'
+    },
+    comment: 'Inspector who escalated the request to officer'
+  },
+  escalatedAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: 'When request was escalated to officer'
+  },
   processedBy: {
     type: DataTypes.INTEGER,
     allowNull: true,
     references: {
-      model: 'Users',
+      model: 'users',
       key: 'id'
     },
     comment: 'Admin who processed the request'
@@ -75,10 +122,32 @@ export const WaterConnectionRequest = sequelize.define('WaterConnectionRequest',
     type: DataTypes.INTEGER,
     allowNull: true,
     references: {
-      model: 'WaterConnections',
+      model: 'water_connections',
       key: 'id'
     },
     comment: 'Water connection created from this request (if approved)'
+  },
+  officerremarks: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    field: 'officerremarks',
+    comment: 'Remarks from officer when making final decision'
+  },
+  decidedby: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'decidedby',
+    references: {
+      model: 'users',
+      key: 'id'
+    },
+    comment: 'Officer who made the final decision'
+  },
+  decidedat: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'decidedat',
+    comment: 'When officer made the final decision'
   }
 }, {
   tableName: 'water_connection_requests',

@@ -19,7 +19,7 @@ const validateOverpaymentProtection = (paymentAmount, balanceAmount, demandNumbe
   // Ensure amounts are proper numbers
   const payment = parseFloat(paymentAmount || 0);
   const balance = parseFloat(balanceAmount || 0);
-  
+
   // Check for negative or zero amounts
   if (payment <= 0) {
     return {
@@ -28,7 +28,7 @@ const validateOverpaymentProtection = (paymentAmount, balanceAmount, demandNumbe
       errorCode: 'INVALID_AMOUNT'
     };
   }
-  
+
   // Check for overpayment
   if (payment > balance) {
     const context = demandNumber ? ` for demand ${demandNumber}` : '';
@@ -43,7 +43,7 @@ const validateOverpaymentProtection = (paymentAmount, balanceAmount, demandNumbe
       }
     };
   }
-  
+
   // Check for exact payment match (optional warning)
   if (Math.abs(payment - balance) < 0.01) {
     return {
@@ -53,7 +53,7 @@ const validateOverpaymentProtection = (paymentAmount, balanceAmount, demandNumbe
       balanceAmount: balance
     };
   }
-  
+
   return {
     isValid: true,
     paymentAmount: payment,
@@ -239,7 +239,13 @@ export const createPayment = async (req, res, next) => {
 
     // Get demand
     const demand = await Demand.findByPk(demandId, {
-      include: [{ model: Property, as: 'property' }]
+      include: [
+        {
+          model: Property,
+          as: 'property',
+          include: [{ model: Ward, as: 'ward' }]
+        }
+      ]
     });
 
     if (!demand) {
@@ -247,6 +253,17 @@ export const createPayment = async (req, res, next) => {
         success: false,
         message: 'Tax Demand not found'
       });
+    }
+
+    // Verify collector has access to this property's ward
+    if (req.user.role === 'collector') {
+      const hasAccess = await verifyCollectorWardAccess(req.user.id, demand.property.wardId);
+      if (!hasAccess) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: You are not assigned to this ward'
+        });
+      }
     }
 
     // Ensure all amounts are proper numbers
@@ -261,11 +278,11 @@ export const createPayment = async (req, res, next) => {
 
     // Enhanced overpayment protection validation
     const validation = validateOverpaymentProtection(
-      paymentAmount, 
-      balanceAmount, 
+      paymentAmount,
+      balanceAmount,
       demand.demandNumber
     );
-    
+
     if (!validation.isValid) {
       // Log overpayment attempt for security
       await createAuditLog({
@@ -321,10 +338,10 @@ export const createPayment = async (req, res, next) => {
 
     // Distribute payment across demand items (item-level payment tracking)
     const distributionResult = await distributePaymentAcrossItems(demandId, paymentAmount, null);
-    
+
     // Refresh demand data after distribution
     await demand.reload();
-    
+
     // Log payment distribution for audit
     await createAuditLog({
       req,
@@ -609,13 +626,13 @@ export const createOnlinePaymentOrder = async (req, res, next) => {
     // Ensure amounts are proper numbers
     const paymentAmount = parseFloat(amount);
     const balanceAmount = parseFloat(demand.balanceAmount || 0);
-    
+
     const validation = validateOverpaymentProtection(
-      paymentAmount, 
-      balanceAmount, 
+      paymentAmount,
+      balanceAmount,
       demand.demandNumber
     );
-    
+
     if (!validation.isValid) {
       // Log overpayment attempt for security
       await createAuditLog({
@@ -796,7 +813,7 @@ export const verifyOnlinePayment = async (req, res, next) => {
 
     // Update demand using item-level payment distribution
     const distributionResult = await distributePaymentAcrossItems(demand.id, parseFloat(payment.amount || 0), null);
-    
+
     // Refresh demand data after distribution
     await demand.reload();
 
@@ -960,8 +977,8 @@ export const createFieldCollectionPayment = async (req, res, next) => {
     // Get demand with property details
     const demand = await Demand.findByPk(demandId, {
       include: [
-        { 
-          model: Property, 
+        {
+          model: Property,
           as: 'property',
           include: [
             { model: Ward, as: 'ward' }
@@ -996,11 +1013,11 @@ export const createFieldCollectionPayment = async (req, res, next) => {
 
     // Enhanced overpayment protection validation
     const validation = validateOverpaymentProtection(
-      paymentAmount, 
-      balanceAmount, 
+      paymentAmount,
+      balanceAmount,
       demand.demandNumber
     );
-    
+
     if (!validation.isValid) {
       // Log overpayment attempt for security
       await createAuditLog({
@@ -1067,10 +1084,10 @@ export const createFieldCollectionPayment = async (req, res, next) => {
 
     // Distribute payment across demand items (item-level payment tracking)
     const distributionResult = await distributePaymentAcrossItems(demandId, paymentAmount, null);
-    
+
     // Refresh demand data after distribution
     await demand.reload();
-    
+
     // Log payment distribution for audit
     await createAuditLog({
       req,
@@ -1157,10 +1174,10 @@ export const createFieldCollectionPayment = async (req, res, next) => {
           ]
         },
         { model: Demand, as: 'demand' },
-        { 
-          model: User, 
-          as: 'cashier', 
-          attributes: ['id', 'firstName', 'lastName'] 
+        {
+          model: User,
+          as: 'cashier',
+          attributes: ['id', 'firstName', 'lastName']
         },
         {
           model: User,
@@ -1176,10 +1193,10 @@ export const createFieldCollectionPayment = async (req, res, next) => {
       req.user,
       'Payment',
       payment.id,
-      { 
-        paymentNumber: payment.paymentNumber, 
-        amount: payment.amount, 
-        paymentMode: payment.paymentMode, 
+      {
+        paymentNumber: payment.paymentNumber,
+        amount: payment.amount,
+        paymentMode: payment.paymentMode,
         receiptNumber: payment.receiptNumber,
         collectionType: 'field',
         proofUrl: payment.proofUrl
@@ -1218,7 +1235,7 @@ const verifyCollectorWardAccess = async (collectorId, wardId) => {
         collectorId: collectorId
       }
     });
-    
+
     return !!ward;
   } catch (error) {
     console.error('Error verifying collector ward access:', error);

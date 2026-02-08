@@ -11,6 +11,8 @@ const Unauthorized = () => {
     const timer = setTimeout(() => {
       if (role === 'admin' || role === 'assessor' || role === 'cashier') {
         navigate('/dashboard', { replace: true });
+      } else if (role === 'clerk') {
+        navigate('/clerk/dashboard', { replace: true });
       } else if (role === 'collector') {
         navigate('/collector/dashboard', { replace: true });
       } else if (role === 'citizen') {
@@ -39,6 +41,8 @@ const Unauthorized = () => {
           onClick={() => {
             if (role === 'admin' || role === 'assessor' || role === 'cashier') {
               navigate('/dashboard', { replace: true });
+            } else if (role === 'clerk') {
+              navigate('/clerk/dashboard', { replace: true });
             } else if (role === 'collector') {
               navigate('/collector/dashboard', { replace: true });
             } else if (role === 'citizen') {

@@ -1,4 +1,5 @@
-import { User } from '../models/index.js';
+import { User, Ward } from '../models/index.js';
+import { AdminManagement } from '../models/AdminManagement.js';
 import { Op } from 'sequelize';
 import { auditLogger } from '../utils/auditLogger.js';
 
@@ -12,12 +13,27 @@ export const getAllUsers = async (req, res, next) => {
     const { role, isActive, search, page = 1, limit = 10 } = req.query;
 
     const where = {};
+    
+    // Only allow citizen and admin roles in users table
+    const allowedRoles = ['citizen', 'admin'];
+    where.role = {
+      [Op.in]: allowedRoles
+    };
+    
     // Normalize role to lowercase for matching
     if (role) {
       const normalizedRole = role.toLowerCase().trim();
-      // Map 'tax_collector' to 'collector' for backward compatibility
-      where.role = normalizedRole === 'tax_collector' ? 'collector' : normalizedRole;
+      // Only allow filtering by citizen or admin roles
+      if (allowedRoles.includes(normalizedRole)) {
+        where.role = normalizedRole;
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid role specified. Only citizen and admin roles are allowed.'
+        });
+      }
     }
+    
     if (isActive !== undefined) where.isActive = isActive === 'true';
     if (search) {
       where[Op.or] = [
@@ -105,21 +121,16 @@ export const getUserById = async (req, res, next) => {
  */
 export const createUser = async (req, res, next) => {
   try {
-    const { username, email, password, firstName, lastName, phone, role } = req.body;
+    const { username, email, password, firstName, lastName, phone, role, wardIds } = req.body;
 
-    // Validate and normalize role
-    const validRoles = ['admin', 'assessor', 'cashier', 'collector', 'citizen'];
+    // Only allow citizen and admin roles in users table
+    const validRoles = ['citizen', 'admin'];
     let normalizedRole = role ? role.toLowerCase().trim() : 'citizen';
-    
-    // Map 'tax_collector' to 'collector' for backward compatibility
-    if (normalizedRole === 'tax_collector') {
-      normalizedRole = 'collector';
-    }
-    
+
     if (!validRoles.includes(normalizedRole)) {
       return res.status(400).json({
         success: false,
-        message: `Invalid role. Must be one of: ${validRoles.join(', ')}`
+        message: `Invalid role. Only citizen and admin roles are allowed. Staff roles must be created through Staff Management.`
       });
     }
 
@@ -147,6 +158,47 @@ export const createUser = async (req, res, next) => {
       role: normalizedRole,
       createdBy: req.user.id
     });
+
+    // Handle ward assignment for roles that require wards
+    if (rolesRequiringWards.includes(normalizedRole) && wardIds && Array.isArray(wardIds) && wardIds.length > 0) {
+      try {
+        // Determine which field to update based on role
+        const roleFieldMap = {
+          'collector': 'collectorId',
+          'clerk': 'clerkid',
+          'inspector': 'inspectorid',
+          'officer': 'officerid'
+        };
+        
+        const fieldToUpdate = roleFieldMap[normalizedRole];
+        
+        // Update wards to assign this user to the appropriate role field
+        await Ward.update(
+          { [fieldToUpdate]: user.id },
+          { 
+            where: { 
+              id: { [Op.in]: wardIds },
+              isActive: true
+            } 
+          }
+        );
+
+        // Log ward assignments
+        for (const wardId of wardIds) {
+          await auditLogger.logAssign(
+            req,
+            req.user,
+            'Ward',
+            wardId,
+            { [fieldToUpdate]: user.id },
+            `Assigned ${normalizedRole} ${user.firstName} ${user.lastName} to ward ID: ${wardId}`
+          );
+        }
+      } catch (wardError) {
+        console.error('Failed to assign wards:', wardError);
+        // Don't fail the user creation, but log the error
+      }
+    }
 
     // Log user creation
     await auditLogger.logCreate(
@@ -224,14 +276,14 @@ export const updateUser = async (req, res, next) => {
       if (phone) user.phone = phone;
       if (role) {
         // Validate and normalize role
-        const validRoles = ['admin', 'assessor', 'cashier', 'collector', 'citizen'];
+        const validRoles = ['admin', 'assessor', 'cashier', 'collector', 'citizen', 'clerk'];
         let normalizedRole = role.toLowerCase().trim();
-        
+
         // Map 'tax_collector' to 'collector' for backward compatibility
         if (normalizedRole === 'tax_collector') {
           normalizedRole = 'collector';
         }
-        
+
         if (!validRoles.includes(normalizedRole)) {
           return res.status(400).json({
             success: false,
@@ -334,24 +386,36 @@ export const deleteUser = async (req, res, next) => {
 
 /**
  * @route   GET /api/users/collectors
- * @desc    Get all collectors (users with role='collector')
+ * @desc    Get all collectors from AdminManagement table
  * @access  Private (Admin only)
  */
 export const getCollectors = async (req, res, next) => {
   try {
-    const collectors = await User.findAll({
+    const collectors = await AdminManagement.findAll({
       where: {
         role: 'collector',
-        isActive: true
+        status: 'active'
       },
-      attributes: { exclude: ['password'] },
-      order: [['firstName', 'ASC'], ['lastName', 'ASC']]
+      attributes: ['id', 'full_name', 'email', 'phone_number', 'employee_id', 'role', 'status'],
+      order: [['full_name', 'ASC']]
     });
+
+    // Transform to match frontend expectations
+    const formattedCollectors = collectors.map(c => ({
+      id: c.id,
+      firstName: c.full_name?.split(' ')[0] || c.full_name,
+      lastName: c.full_name?.split(' ').slice(1).join(' ') || '',
+      email: c.email,
+      phone: c.phone_number,
+      employeeId: c.employee_id,
+      role: c.role,
+      isActive: c.status === 'active'
+    }));
 
     res.json({
       success: true,
       data: {
-        collectors
+        collectors: formattedCollectors
       }
     });
   } catch (error) {

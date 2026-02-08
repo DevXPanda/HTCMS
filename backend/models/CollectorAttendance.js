@@ -10,11 +10,13 @@ export const CollectorAttendance = sequelize.define('CollectorAttendance', {
   collectorId: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    references: {
-      model: 'Users',
-      key: 'id'
-    },
-    comment: 'Foreign key to Users table (collector)'
+    comment: 'Foreign key to Users or AdminManagement table (collector)'
+  },
+  usertype: {
+    type: DataTypes.ENUM('user', 'admin_management'),
+    allowNull: false,
+    defaultValue: 'user',
+    comment: 'Type of collector: user (legacy) or admin_management (staff)'
   },
   loginAt: {
     type: DataTypes.DATE,

@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticate, authorize } from '../middleware/auth.js';
+import { authenticate, authorize } from '../middleware/enhancedAuth.js';
 import {
     getAllDemands,
     getDemandById,
@@ -27,7 +27,17 @@ router.get('/statistics/summary', getDemandStatistics);
 router.get('/property/:propertyId', getDemandsByProperty);
 
 // Get all demands (filtered by role)
-router.get('/', getAllDemands);
+router.get('/', (req, res, next) => {
+  console.log('🔍 Demand API - Get all demands called');
+  console.log('👤 Demand API - Authenticated user:', {
+    id: req.user?.id,
+    role: req.user?.role,
+    userType: req.user?.userType,
+    employee_id: req.user?.employee_id
+  });
+  console.log('📋 Demand API - Query params:', req.query);
+  next();
+}, getAllDemands);
 
 // Generate D2DC demand (Admin only) - Must be before /:id route
 router.post('/d2dc', authorize('admin'), createD2DCDemand);

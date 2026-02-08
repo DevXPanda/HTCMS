@@ -44,9 +44,11 @@ const AdminSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
     }
   }, [location.pathname]);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    // Call logout function from context to clear auth data
+    await logout();
+    // Navigate to admin login using React Router with replace to prevent back navigation
+    navigate('/admin/login', { replace: true });
   };
 
   // Format role for display - use exact role from localStorage, no mapping
@@ -81,7 +83,9 @@ const AdminSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
     { path: '/notices', label: 'Notices & Enforcement', icon: Bell },
     { path: '/payments', label: 'Payments', icon: CreditCard },
     { path: '/wards', label: 'Wards', icon: MapPin },
-    { path: '/users', label: 'Collector Management', icon: Users },
+    { path: '/users', label: 'Citizen Management', icon: Users },
+    { path: '/admin-management', label: 'Staff Management', icon: Users },
+    // { path: '/admin-management', label: 'Employee Management', icon: Users },
     { path: '/attendance', label: 'Attendance', icon: Clock },
     { path: '/field-monitoring', label: 'Field Monitoring', icon: MapPin },
     { path: '/reports', label: 'Reports', icon: BarChart3 },
@@ -106,7 +110,7 @@ const AdminSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="p-6 border-b">
-            <h1 className="text-xl font-bold text-primary-600">HTCMS</h1>
+            <h1 className="text-xl font-bold text-primary-600">TMS</h1>
             <p className="text-sm text-gray-500">Tax Management System</p>
           </div>
 

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useStaffAuth } from '../../contexts/StaffAuthContext';
 import { toast } from 'react-hot-toast';
 import { demandAPI, paymentAPI, uploadAPI } from '../../services/api';
 import { CreditCard, X, Upload, Check } from 'lucide-react';
 
 const TaxSummarySimple = () => {
+  const { user } = useStaffAuth();
   const [demands, setDemands] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -177,7 +179,7 @@ const TaxSummarySimple = () => {
         transactionId: paymentForm.transactionId,
         accountHolderName: paymentForm.accountHolderName, // Add account holder name
         proofUrl,
-        remarks: `Field collection by ${JSON.parse(localStorage.getItem('user')).firstName}`
+        remarks: `Field collection by ${user?.firstName || user?.full_name || 'Collector'}`
       };
 
       const response = await paymentAPI.createFieldCollection(paymentData);

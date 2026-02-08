@@ -12,14 +12,21 @@ const FieldMonitoring = () => {
   const [filters, setFilters] = useState({
     dateFrom: '',
     dateTo: '',
-    collectorId: ''
+    collectorId: '',
+    role: 'all',
+    wardId: 'all',
+    activityType: 'all',
+    status: 'all'
   });
   const [collectors, setCollectors] = useState([]);
+  const [wards, setWards] = useState([]);
   const [selectedVisitId, setSelectedVisitId] = useState(null);
   const [showVisitModal, setShowVisitModal] = useState(false);
+  const [showActivities, setShowActivities] = useState(false);
 
   useEffect(() => {
     fetchCollectors();
+    fetchWards();
     fetchDashboard();
   }, [filters]);
 
@@ -29,6 +36,15 @@ const FieldMonitoring = () => {
       setCollectors(response.data.data.users);
     } catch (error) {
       console.error('Failed to fetch collectors:', error);
+    }
+  };
+
+  const fetchWards = async () => {
+    try {
+      const response = await fieldMonitoringAPI.getWards();
+      setWards(response.data.data.wards || []);
+    } catch (error) {
+      console.error('Failed to fetch wards:', error);
     }
   };
 
@@ -55,7 +71,11 @@ const FieldMonitoring = () => {
     setFilters({
       dateFrom: '',
       dateTo: '',
-      collectorId: ''
+      collectorId: '',
+      role: 'all',
+      wardId: 'all',
+      activityType: 'all',
+      status: 'all'
     });
   };
 
@@ -90,7 +110,7 @@ const FieldMonitoring = () => {
               Clear All
             </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
             <div>
               <label className="label">Collector</label>
               <select
@@ -104,6 +124,65 @@ const FieldMonitoring = () => {
                     {collector.firstName} {collector.lastName}
                   </option>
                 ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">Role</label>
+              <select
+                value={filters.role}
+                onChange={(e) => handleFilterChange('role', e.target.value)}
+                className="input"
+              >
+                <option value="all">All Roles</option>
+                <option value="collector">Collector</option>
+                <option value="inspector">Inspector</option>
+                <option value="clerk">Clerk</option>
+                <option value="officer">Officer</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">Ward</label>
+              <select
+                value={filters.wardId}
+                onChange={(e) => handleFilterChange('wardId', e.target.value)}
+                className="input"
+              >
+                <option value="all">All Wards</option>
+                {wards.map(ward => (
+                  <option key={ward.id} value={ward.id}>
+                    {ward.wardNumber} - {ward.wardName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">Activity Type</label>
+              <select
+                value={filters.activityType}
+                onChange={(e) => handleFilterChange('activityType', e.target.value)}
+                className="input"
+              >
+                <option value="all">All Activities</option>
+                <option value="field visit">Field Visit</option>
+                <option value="property inspection">Property Inspection</option>
+                <option value="water connection inspection">Water Connection Inspection</option>
+                <option value="property application processing">Property Application Processing</option>
+                <option value="water connection processing">Water Connection Processing</option>
+                <option value="property application decision">Property Application Decision</option>
+                <option value="water connection decision">Water Connection Decision</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">Status</label>
+              <select
+                value={filters.status}
+                onChange={(e) => handleFilterChange('status', e.target.value)}
+                className="input"
+              >
+                <option value="all">All Statuses</option>
+                <option value="completed">Completed</option>
+                <option value="pending">Pending</option>
+                <option value="delayed">Delayed</option>
               </select>
             </div>
             <div>
@@ -358,6 +437,157 @@ const FieldMonitoring = () => {
                 </tbody>
               </table>
             </div>
+          </div>
+
+          {/* Activity Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div className="card bg-blue-50 border-blue-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-blue-600 font-medium">Total Activities</p>
+                  <p className="text-2xl font-bold text-blue-900">{dashboard?.activitySummary?.totalActivities || 0}</p>
+                </div>
+                <BarChart3 className="w-8 h-8 text-blue-600" />
+              </div>
+            </div>
+            <div className="card bg-green-50 border-green-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-green-600 font-medium">Completed</p>
+                  <p className="text-2xl font-bold text-green-900">{dashboard?.activitySummary?.byStatus?.completed || 0}</p>
+                </div>
+                <TrendingUp className="w-8 h-8 text-green-600" />
+              </div>
+            </div>
+            <div className="card bg-yellow-50 border-yellow-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-yellow-600 font-medium">Pending</p>
+                  <p className="text-2xl font-bold text-yellow-900">{dashboard?.activitySummary?.byStatus?.pending || 0}</p>
+                </div>
+                <Calendar className="w-8 h-8 text-yellow-600" />
+              </div>
+            </div>
+            <div className="card bg-red-50 border-red-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-red-600 font-medium">Delayed</p>
+                  <p className="text-2xl font-bold text-red-900">{dashboard?.activitySummary?.byStatus?.delayed || 0}</p>
+                </div>
+                <AlertTriangle className="w-8 h-8 text-red-600" />
+              </div>
+            </div>
+          </div>
+
+          {/* Comprehensive Field Activities */}
+          <div className="card">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold flex items-center">
+                <Users className="w-5 h-5 mr-2" />
+                All Field Activities
+              </h2>
+              <button
+                onClick={() => setShowActivities(!showActivities)}
+                className="btn btn-secondary flex items-center"
+              >
+                <Filter className="w-4 h-4 mr-2" />
+                {showActivities ? 'Hide Activities' : 'Show Activities'}
+              </button>
+            </div>
+
+            {showActivities && (
+              <>
+                {/* Role-based Summary */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                  <div className="text-center p-4 bg-gray-50 rounded-lg">
+                    <p className="text-2xl font-bold text-blue-600">{dashboard?.activitySummary?.byRole?.collector || 0}</p>
+                    <p className="text-sm text-gray-600">Collector Activities</p>
+                  </div>
+                  <div className="text-center p-4 bg-gray-50 rounded-lg">
+                    <p className="text-2xl font-bold text-purple-600">{dashboard?.activitySummary?.byRole?.inspector || 0}</p>
+                    <p className="text-sm text-gray-600">Inspector Activities</p>
+                  </div>
+                  <div className="text-center p-4 bg-gray-50 rounded-lg">
+                    <p className="text-2xl font-bold text-green-600">{dashboard?.activitySummary?.byRole?.clerk || 0}</p>
+                    <p className="text-sm text-gray-600">Clerk Activities</p>
+                  </div>
+                  <div className="text-center p-4 bg-gray-50 rounded-lg">
+                    <p className="text-2xl font-bold text-orange-600">{dashboard?.activitySummary?.byRole?.officer || 0}</p>
+                    <p className="text-sm text-gray-600">Officer Activities</p>
+                  </div>
+                </div>
+
+                {/* Activities Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-3 px-4 font-semibold text-gray-700">User</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-700">Role</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-700">Ward</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-700">Activity Type</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-700">Entity</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-700">Timestamp</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dashboard?.allFieldActivities && dashboard.allFieldActivities.length > 0 ? (
+                        dashboard.allFieldActivities.map((activity) => (
+                          <tr key={activity.id} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="py-3 px-4">
+                              <div className="font-medium">{activity.userName}</div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className={`px-2 py-1 text-xs rounded capitalize ${
+                                activity.role === 'Collector' ? 'bg-blue-100 text-blue-800' :
+                                activity.role === 'Inspector' ? 'bg-purple-100 text-purple-800' :
+                                activity.role === 'Clerk' ? 'bg-green-100 text-green-800' :
+                                'bg-orange-100 text-orange-800'
+                              }`}>
+                                {activity.role}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="text-sm">{activity.ward}</div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="text-sm capitalize">{activity.activityType}</div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div>
+                                <div className="font-medium text-sm">{activity.entityIdentifier}</div>
+                                <div className="text-xs text-gray-500">{activity.entityType}</div>
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="text-sm">
+                                {new Date(activity.timestamp).toLocaleString()}
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className={`px-2 py-1 text-xs rounded capitalize ${
+                                activity.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                activity.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-red-100 text-red-800'
+                              }`}>
+                                {activity.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="7" className="text-center py-8 text-gray-500">
+                            No field activities found matching the current filters
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
           </div>
         </>
       )}

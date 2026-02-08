@@ -874,7 +874,7 @@ export const downloadNoticePdf = async (req, res, next) => {
       const property = await Property.findByPk(notice.propertyId, {
         include: [{ model: Ward, as: 'ward' }]
       });
-      if (!property || !property.ward || property.ward.collectorId !== req.user.id) {
+      if (!property || !property.ward || property.ward.collectorId !== (req.user.staff_id || req.user.id)) {
         return res.status(403).json({
           success: false,
           message: 'Access denied. You can only view notices for your assigned wards.'

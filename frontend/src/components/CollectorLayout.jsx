@@ -1,11 +1,11 @@
 import { Outlet } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useStaffAuth } from '../contexts/StaffAuthContext';
 import CollectorSidebar from './CollectorSidebar';
 import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
 
 const CollectorLayout = () => {
-  const { user, logout } = useAuth();
+  const { user, logout } = useStaffAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
@@ -31,7 +31,7 @@ const CollectorLayout = () => {
             <div className="flex-1" />
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">
-                Welcome, <span className="font-medium">{user?.firstName || JSON.parse(localStorage.getItem('user') || 'null')?.firstName}</span>
+                Welcome, <span className="font-medium">{user?.firstName || user?.full_name || 'User'}</span>
               </span>
             </div>
           </div>

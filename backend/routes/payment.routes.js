@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticate, authorize } from '../middleware/auth.js';
+import { authenticate, authorize } from '../middleware/enhancedAuth.js';
 import {
   getAllPayments,
   getPaymentById,
@@ -26,7 +26,17 @@ router.get('/statistics/summary', getPaymentStatistics);
 router.get('/demand/:demandId', getPaymentsByDemand);
 
 // Get all payments (filtered by role)
-router.get('/', getAllPayments);
+router.get('/', (req, res, next) => {
+  console.log('🔍 Payment API - Get all payments called');
+  console.log('👤 Payment API - Authenticated user:', {
+    id: req.user?.id,
+    role: req.user?.role,
+    userType: req.user?.userType,
+    employee_id: req.user?.employee_id
+  });
+  console.log('📋 Payment API - Query params:', req.query);
+  next();
+}, getAllPayments);
 
 // Online payment routes (must be before /:id)
 router.post('/online/create-order', createOnlinePaymentOrder);
@@ -43,7 +53,7 @@ router.get('/receipt/:receiptNumber', getPaymentReceipt);
 router.get('/:id', getPaymentById);
 
 // Create payment (Cashier, Admin) - for offline payments
-router.post('/', authorize('admin', 'cashier'), createPayment);
+router.post('/', authorize('admin', 'cashier', 'collector'), createPayment);
 
 // Field collection payment (Collector, Tax Collector)
 router.post('/field-collection', authorize('collector', 'tax_collector'), createFieldCollectionPayment);

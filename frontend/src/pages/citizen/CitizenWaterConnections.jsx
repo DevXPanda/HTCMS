@@ -41,7 +41,10 @@ const CitizenWaterConnections = () => {
   const fetchRequests = async () => {
     try {
       const response = await citizenAPI.getWaterConnectionRequests();
-      setRequests(response.data.data.requests || []);
+      const requestsData = response.data.data.requests || [];
+      console.log('Fetched water connection requests:', requestsData);
+      console.log('Number of requests:', requestsData.length);
+      setRequests(requestsData);
     } catch (error) {
       console.error('Error fetching water connection requests:', error);
     }
@@ -79,12 +82,16 @@ const CitizenWaterConnections = () => {
 
   const getRequestStatusBadge = (status) => {
     const statusConfig = {
-      PENDING: { color: 'bg-yellow-100 text-yellow-800 border-yellow-300', label: 'Pending', icon: Clock },
+      DRAFT: { color: 'bg-gray-100 text-gray-800 border-gray-300', label: 'Draft', icon: FileText },
+      SUBMITTED: { color: 'bg-blue-100 text-blue-800 border-blue-300', label: 'Submitted', icon: Clock },
+      UNDER_INSPECTION: { color: 'bg-yellow-100 text-yellow-800 border-yellow-300', label: 'Under Inspection', icon: Clock },
+      ESCALATED_TO_OFFICER: { color: 'bg-orange-100 text-orange-800 border-orange-300', label: 'Escalated to Officer', icon: Clock },
       APPROVED: { color: 'bg-green-100 text-green-800 border-green-300', label: 'Approved', icon: CheckCircle },
       REJECTED: { color: 'bg-red-100 text-red-800 border-red-300', label: 'Rejected', icon: XCircle },
-      COMPLETED: { color: 'bg-blue-100 text-blue-800 border-blue-300', label: 'Completed', icon: CheckCircle }
+      RETURNED: { color: 'bg-purple-100 text-purple-800 border-purple-300', label: 'Returned', icon: XCircle },
+      COMPLETED: { color: 'bg-teal-100 text-teal-800 border-teal-300', label: 'Completed', icon: CheckCircle }
     };
-    const config = statusConfig[status] || statusConfig.PENDING;
+    const config = statusConfig[status] || statusConfig.SUBMITTED;
     const Icon = config.icon;
     return (
       <span className={`px-2 py-1 text-xs font-semibold rounded border flex items-center gap-1 ${config.color}`}>
@@ -251,6 +258,7 @@ const CitizenWaterConnections = () => {
       {/* Requests History Tab */}
       {activeTab === 'requests' && (
         <>
+          {console.log('Rendering requests tab. Total requests:', requests.length)}
           {requests.length === 0 ? (
             <div className="card text-center py-12">
               <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -265,7 +273,9 @@ const CitizenWaterConnections = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-6">
-              {requests.map((request) => (
+              {requests.map((request, index) => {
+                console.log(`Rendering request ${index + 1}:`, request);
+                return (
                 <div key={request.id} className="card">
                   <div className="flex justify-between items-start mb-4">
                     <div>
@@ -346,7 +356,8 @@ const CitizenWaterConnections = () => {
                     </div>
                   )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </>

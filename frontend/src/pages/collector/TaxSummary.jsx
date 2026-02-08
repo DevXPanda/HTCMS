@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useStaffAuth } from '../../contexts/StaffAuthContext';
+import { demandAPI, wardAPI, paymentAPI, uploadAPI } from '../../services/api';
 import { toast } from 'react-hot-toast';
-import { demandAPI, paymentAPI, uploadAPI, wardAPI } from '../../services/api';
 import { 
   Search, 
   Filter, 
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react';
 
 const TaxSummary = () => {
+  const { user } = useStaffAuth();
   const [demands, setDemands] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({
@@ -56,10 +58,9 @@ const TaxSummary = () => {
       if (filters.search) params.search = filters.search;
       
       // For collectors, only show demands from their assigned wards
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
       console.log('Current user:', user);
       
-      if (user.role === 'collector' || user.role === 'tax_collector') {
+      if (user?.role === 'collector' || user?.role === 'tax_collector') {
         // This will be filtered on backend based on collector's assigned wards
         params.collectorId = user.id;
       }
@@ -84,10 +85,9 @@ const TaxSummary = () => {
 
   const fetchWards = async () => {
     try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
       console.log('Fetching wards for user:', user);
       
-      if (user.role === 'collector' || user.role === 'tax_collector') {
+      if (user?.role === 'collector' || user?.role === 'tax_collector') {
         // Get collector's assigned wards
         const response = await wardAPI.getByCollector(user.id);
         console.log('Collector wards response:', response.data);
@@ -210,7 +210,7 @@ const TaxSummary = () => {
         bankName: paymentForm.bankName,
         transactionId: paymentForm.transactionId,
         proofUrl,
-        remarks: `Field collection by ${JSON.parse(localStorage.getItem('user')).firstName}`
+        remarks: `Field collection by ${user?.firstName || user?.full_name || 'Collector'}`
       };
 
       const response = await paymentAPI.createFieldCollection(paymentData);

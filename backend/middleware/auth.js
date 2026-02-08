@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { User } from '../models/index.js';
+import { User, AdminManagement } from '../models/index.js';
 
 /**
  * Authentication Middleware
@@ -17,10 +17,17 @@ export const authenticate = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Get user from database
-    const user = await User.findByPk(decoded.userId, {
+    // Try to find user in User table first (for admin/citizen users)
+    let user = await User.findByPk(decoded.userId, {
       attributes: { exclude: ['password'] }
     });
+
+    // If not found in User table, try AdminManagement table (for staff users)
+    if (!user) {
+      user = await AdminManagement.findByPk(decoded.userId, {
+        attributes: { exclude: ['password'] }
+      });
+    }
 
     if (!user) {
       return res.status(401).json({ message: 'Token is not valid' });
@@ -40,6 +47,9 @@ export const authenticate = async (req, res, next) => {
   }
 };
 
+// Alias for authenticate function for consistency
+export const authenticateToken = authenticate;
+
 /**
  * Role-based Authorization Middleware
  * Checks if user has required role(s)
@@ -52,6 +62,27 @@ export const authorize = (...roles) => {
     }
 
     if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ 
+        message: 'Access denied. Insufficient permissions.' 
+      });
+    }
+
+    next();
+  };
+};
+
+/**
+ * Single Role Authorization Middleware
+ * Checks if user has specific role
+ * @param {string} role - Required role
+ */
+export const requireRole = (role) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    if (req.user.role !== role) {
       return res.status(403).json({ 
         message: 'Access denied. Insufficient permissions.' 
       });

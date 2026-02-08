@@ -39,7 +39,7 @@ export const register = async (req, res, next) => {
       });
     }
 
-    // Validate and normalize role if provided
+    // Validate and normalize role if provided - ONLY allow admin and citizen for self-registration
     let normalizedRole = role;
     if (role) {
       normalizedRole = role.toLowerCase().trim();
@@ -47,11 +47,13 @@ export const register = async (req, res, next) => {
       if (normalizedRole === 'tax_collector') {
         normalizedRole = 'collector';
       }
-      const validRoles = ['admin', 'assessor', 'cashier', 'collector', 'citizen'];
-      if (!validRoles.includes(normalizedRole)) {
+      // IMPORTANT: Only allow admin and citizen roles for self-registration
+      // Staff roles (clerk, inspector, officer, collector) must be created by admin only
+      const allowedSelfRegistrationRoles = ['admin', 'citizen'];
+      if (!allowedSelfRegistrationRoles.includes(normalizedRole)) {
         return res.status(400).json({
           success: false,
-          message: `Invalid role. Must be one of: ${validRoles.join(', ')}`
+          message: 'Staff registration is not allowed'
         });
       }
     }
@@ -105,6 +107,7 @@ export const login = async (req, res, next) => {
 
     // Validate input - accept either email or phone
     const identifier = email || phone;
+    
     if (!identifier || !password) {
       return res.status(400).json({
         success: false,
@@ -115,14 +118,14 @@ export const login = async (req, res, next) => {
     // Determine if identifier is email or phone number
     // Simple check: if it contains @, it's an email; otherwise, treat as phone
     const isEmail = identifier.includes('@');
-    
+
     // Build where clause to search by email or phone
-    const whereClause = isEmail 
+    const whereClause = isEmail
       ? { email: identifier }
       : { phone: identifier };
 
     // Find user by email or phone - explicitly include role in attributes
-    const user = await User.findOne({ 
+    const user = await User.findOne({
       where: whereClause,
       attributes: ['id', 'username', 'email', 'password', 'firstName', 'lastName', 'phone', 'role', 'isActive', 'lastLogin']
     });
@@ -166,7 +169,7 @@ export const login = async (req, res, next) => {
       try {
         // Import CollectorAttendance here to avoid circular dependency
         const { CollectorAttendance } = await import('../models/index.js');
-        
+
         // Check if there's an active session (no logout)
         const activeSession = await CollectorAttendance.findOne({
           where: {
@@ -184,7 +187,7 @@ export const login = async (req, res, next) => {
 
         // Parse device information
         const deviceInfo = parseDeviceInfo(req);
-        
+
         // Get location from request body (if provided by frontend)
         const { latitude, longitude, address } = req.body;
 
@@ -317,10 +320,12 @@ export const logout = async (req, res, next) => {
 
     // Capture attendance for collectors (automatic punch out)
     if (user.role === 'collector') {
+      console.log('🔍 Logout - Collector detected:', user.id, 'Role:', user.role, 'UserType:', user.userType);
+      
       try {
         // Import CollectorAttendance here to avoid circular dependency
         const { CollectorAttendance } = await import('../models/index.js');
-        
+
         // Find active attendance session (no logout)
         const activeAttendance = await CollectorAttendance.findOne({
           where: {
@@ -330,12 +335,25 @@ export const logout = async (req, res, next) => {
           order: [['loginAt', 'DESC']]
         });
 
+        console.log('🔍 Logout - Active attendance found:', activeAttendance ? 'YES' : 'NO');
+        if (activeAttendance) {
+          console.log('🔍 Logout - Attendance details:', {
+            id: activeAttendance.id,
+            collectorId: activeAttendance.collectorId,
+            usertype: activeAttendance.usertype,
+            loginAt: activeAttendance.loginAt,
+            logoutAt: activeAttendance.logoutAt
+          });
+        }
+
         if (activeAttendance) {
           // Update attendance with logout time
           await activeAttendance.update({
             logoutAt: new Date()
             // workingDurationMinutes is calculated automatically in the model hook
           });
+
+          console.log('✅ Logout - Attendance updated with logout time:', activeAttendance.logoutAt);
 
           // Create audit log for attendance punch out
           // Wrap in try-catch to ensure logout never fails due to audit log errors
@@ -361,6 +379,18 @@ export const logout = async (req, res, next) => {
           }
         } else {
           console.warn(`Collector ${user.id} logged out but no active attendance session found`);
+          
+          // Check all attendance records for this collector to debug
+          const allRecords = await CollectorAttendance.findAll({
+            where: { collectorId: user.id },
+            order: [['loginAt', 'DESC']],
+            limit: 3
+          });
+          
+          console.log('🔍 Debug - All attendance records for collector:', user.id);
+          allRecords.forEach((record, index) => {
+            console.log(`   ${index + 1}. ID: ${record.id}, UserType: ${record.usertype}, Login: ${record.loginAt}, Logout: ${record.logoutAt || 'Active'}`);
+          });
         }
       } catch (attendanceError) {
         // Log error but don't fail logout

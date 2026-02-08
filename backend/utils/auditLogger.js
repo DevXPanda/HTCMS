@@ -10,16 +10,16 @@ import { AuditLog } from '../models/index.js';
  */
 const sanitizeData = (data) => {
   if (!data || typeof data !== 'object') return data;
-  
+
   const sensitiveFields = ['password', 'token', 'secret', 'key', 'authorization'];
   const sanitized = { ...data };
-  
+
   for (const field of sensitiveFields) {
     if (sanitized[field]) {
       sanitized[field] = '[REDACTED]';
     }
   }
-  
+
   return sanitized;
 };
 
@@ -27,12 +27,12 @@ const sanitizeData = (data) => {
  * Extract IP address from request
  */
 const getIpAddress = (req) => {
-  return req.ip || 
-         req.connection?.remoteAddress || 
-         req.socket?.remoteAddress ||
-         (req.headers['x-forwarded-for'] || '').split(',')[0].trim() ||
-         req.headers['x-real-ip'] ||
-         'unknown';
+  return req.ip ||
+    req.connection?.remoteAddress ||
+    req.socket?.remoteAddress ||
+    (req.headers['x-forwarded-for'] || '').split(',')[0].trim() ||
+    req.headers['x-real-ip'] ||
+    'unknown';
 };
 
 /**
@@ -123,8 +123,12 @@ export const createAuditLog = async ({
     const ipAddress = req ? getIpAddress(req) : null;
     const userAgent = req ? getUserAgent(req) : null;
 
+    // For staff users from admin_management table, set actorUserId to null to avoid FK violations
+    // We track them via actorRole and can add employee_id to metadata if needed
+    const actorUserId = (user?.userType === 'admin_management') ? null : (user?.id || null);
+
     await AuditLog.create({
-      actorUserId: user?.id || null,
+      actorUserId,
       actorRole: user?.role || 'system',
       actionType: validatedActionType,
       entityType: validatedEntityType,
@@ -146,7 +150,7 @@ export const createAuditLog = async ({
       entityId,
       stack: error.stack
     });
-    
+
     // If it's an enum validation error, log it specifically
     if (error.message && error.message.includes('enum')) {
       console.error('ENUM VALIDATION ERROR - This indicates database enum is out of sync with model definition.');
@@ -161,7 +165,7 @@ export const createAuditLog = async ({
 const generateDescription = (actionType, entityType, entityId, user) => {
   const userName = user ? `${user.firstName} ${user.lastName}` : 'System';
   const entityRef = entityId ? ` (ID: ${entityId})` : '';
-  
+
   const descriptions = {
     CREATE: `${userName} created ${entityType}${entityRef}`,
     UPDATE: `${userName} updated ${entityType}${entityRef}`,

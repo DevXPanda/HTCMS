@@ -1,8 +1,18 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useStaffAuth } from '../contexts/StaffAuthContext';
 
 const RoleBasedRedirect = () => {
-  const { user, loading } = useAuth();
+  const { user: adminUser, loading: adminLoading } = useAuth();
+  let staffAuth;
+  
+  try {
+    staffAuth = useStaffAuth();
+  } catch (error) {
+    staffAuth = null;
+  }
+
+  const loading = adminLoading || (staffAuth?.loading ?? false);
 
   if (loading) {
     return (
@@ -15,19 +25,28 @@ const RoleBasedRedirect = () => {
     );
   }
 
-  // Get role from localStorage or user object
-  const role = localStorage.getItem('role') || user?.role;
+  // Get role from localStorage or user object - prioritize staff auth for staff roles
+  const role = staffAuth?.user?.role || localStorage.getItem('role') || adminUser?.role;
 
   // Helper functions to check role groups
   const isAdminRole = (role) => role === 'admin' || role === 'assessor' || role === 'cashier';
   const isCollectorRole = (role) => role === 'collector' || role === 'tax_collector';
   const isCitizenRole = (role) => role === 'citizen';
+  const isClerkRole = (role) => role === 'clerk';
+  const isInspectorRole = (role) => role === 'inspector';
+  const isOfficerRole = (role) => role === 'officer';
 
   // Redirect based on role - exact role matching
   if (role === 'citizen') {
     return <Navigate to="/citizen/dashboard" replace />;
+  } else if (role === 'clerk') {
+    return <Navigate to="/clerk/dashboard" replace />;
   } else if (role === 'collector' || role === 'tax_collector') {
     return <Navigate to="/collector/dashboard" replace />;
+  } else if (role === 'inspector') {
+    return <Navigate to="/inspector/dashboard" replace />;
+  } else if (role === 'officer') {
+    return <Navigate to="/officer/dashboard" replace />;
   } else if (role === 'admin' || role === 'assessor' || role === 'cashier') {
     return <Navigate to="/dashboard" replace />;
   }

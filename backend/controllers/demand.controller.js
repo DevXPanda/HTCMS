@@ -75,7 +75,7 @@ export const getAllDemands = async (req, res, next) => {
       // Get collector's assigned wards
       const collectorWards = await Ward.findAll({
         where: {
-          collectorId: req.user.id
+          collectorId: req.user.staff_id || req.user.id
         },
         attributes: ['id']
       });

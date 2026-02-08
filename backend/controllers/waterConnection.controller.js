@@ -113,7 +113,7 @@ export const createWaterConnection = async (req, res, next) => {
       remarks: remarks || null,
       status: WATER_CONNECTION_STATUS.DRAFT, // Start as DRAFT, require documents for activation
       connectionDate: new Date(),
-      createdBy: req.user?.id || null
+      createdBy: req.user?.id || null // Works for both User and AdminManagement tables
     });
 
     // Fetch created connection with property details
@@ -235,12 +235,16 @@ export const updateWaterConnection = async (req, res, next) => {
  */
 export const getAllWaterConnections = async (req, res, next) => {
   try {
+    console.log('Water Connections API - User:', req.user.role, 'Ward IDs:', req.user.ward_ids);
+    console.log('Water Connections API - Query params:', req.query);
+
     const {
       propertyId,
       status,
       connectionType,
       isMetered,
       search,
+      wardId,
       page = 1,
       limit = 10
     } = req.query;
@@ -260,7 +264,7 @@ export const getAllWaterConnections = async (req, res, next) => {
         return res.json({
           success: true,
           data: {
-            waterConnections: [],
+            connections: [],
             pagination: {
               total: 0,
               page: parseInt(page),
@@ -272,9 +276,74 @@ export const getAllWaterConnections = async (req, res, next) => {
       }
 
       where.propertyId = { [Op.in]: propertyIds };
+    } else if (req.user.role === 'clerk') {
+      // Clerks see only water connections from their assigned ward
+      if (req.user.ward_ids && req.user.ward_ids.length > 0) {
+        // Get properties from clerk's assigned ward
+        const wardProperties = await Property.findAll({
+          where: {
+            wardId: { [Op.in]: req.user.ward_ids },
+            isActive: true
+          },
+          attributes: ['id']
+        });
+        const propertyIds = wardProperties.map(p => p.id);
+
+        if (propertyIds.length === 0) {
+          return res.json({
+            success: true,
+            data: {
+              connections: [],
+              pagination: {
+                total: 0,
+                page: parseInt(page),
+                limit: parseInt(limit),
+                pages: 0
+              }
+            }
+          });
+        }
+
+        where.propertyId = { [Op.in]: propertyIds };
+      }
     } else if (propertyId) {
       // For other roles, allow filtering by propertyId if provided
       where.propertyId = parseInt(propertyId);
+    }
+
+    // Ward-based filtering (for clerks or when explicitly requested)
+    if (wardId) {
+      const wardProperties = await Property.findAll({
+        where: {
+          wardId: parseInt(wardId),
+          isActive: true
+        },
+        attributes: ['id']
+      });
+      const propertyIds = wardProperties.map(p => p.id);
+
+      if (propertyIds.length === 0) {
+        return res.json({
+          success: true,
+          data: {
+            connections: [],
+            pagination: {
+              total: 0,
+              page: parseInt(page),
+              limit: parseInt(limit),
+              pages: 0
+            }
+          }
+        });
+      }
+
+      // If propertyId filter is also present, intersect the property IDs
+      if (where.propertyId && where.propertyId[Op.in]) {
+        const existingPropertyIds = where.propertyId[Op.in];
+        where.propertyId = { [Op.in]: existingPropertyIds.filter(id => propertyIds.includes(id)) };
+      } else {
+        where.propertyId = { [Op.in]: propertyIds };
+      }
     }
     if (status) {
       where.status = status;
@@ -310,10 +379,13 @@ export const getAllWaterConnections = async (req, res, next) => {
       order: [['createdAt', 'DESC']]
     });
 
+    console.log('Water Connections API - Found connections:', count);
+    console.log('Water Connections API - Where clause:', where);
+
     res.json({
       success: true,
       data: {
-        waterConnections: rows,
+        waterConnections: rows, // Changed back to 'waterConnections' to match frontend expectation
         pagination: {
           total: count,
           page: parseInt(page),

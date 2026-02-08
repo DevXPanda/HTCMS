@@ -14,12 +14,16 @@ import {
 const CollectorSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const role = localStorage.getItem('role') || user?.role || null;
-  const userData = JSON.parse(localStorage.getItem('user') || 'null') || user;
+  
+  // Use only the user prop - no localStorage fallback to prevent cached data issues
+  const role = user?.role || null;
+  const userData = user || null;
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    // Call logout function from context to clear auth data
+    await logout();
+    // Navigate to staff login using React Router with replace to prevent back navigation
+    navigate('/staff/login', { replace: true });
   };
 
   // Format role for display - use exact role from localStorage, no mapping
@@ -40,7 +44,7 @@ const CollectorSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
     { path: '/collector/tax-summary', label: 'Tax Summary', icon: FileText },
     { path: '/collector/collections', label: 'Collections', icon: CreditCard },
     { path: '/collector/attendance', label: 'My Attendance', icon: Clock },
-    { path: '/collector/activity-logs', label: 'Activity Logs', icon: History }
+    // { path: '/collector/activity-logs', label: 'Activity Logs', icon: History }
   ];
 
   return (
@@ -93,7 +97,7 @@ const CollectorSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
           <div className="p-4 border-t">
             <div className="mb-3">
               <p className="text-sm font-medium text-gray-900">
-                {userData?.firstName} {userData?.lastName}
+                {userData?.full_name || `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim() || userData?.employee_id || 'Staff User'}
               </p>
               <p className="text-xs text-gray-500">{getRoleDisplay(role)}</p>
             </div>

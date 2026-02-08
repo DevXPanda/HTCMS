@@ -19,6 +19,8 @@ import { WaterTaxAssessment } from './WaterTaxAssessment.js';
 import { WaterConnectionDocument } from './WaterConnectionDocument.js';
 import { DemandItem } from './DemandItem.js';
 import { WaterConnectionRequest } from './WaterConnectionRequest.js';
+import { PropertyApplication } from './PropertyApplication.js';
+import { AdminManagement } from './AdminManagement.js';
 
 // Define Relationships
 
@@ -30,8 +32,10 @@ User.hasMany(Assessment, { foreignKey: 'approvedBy', as: 'approvedAssessments' }
 User.hasMany(Demand, { foreignKey: 'generatedBy', as: 'generatedDemands' });
 User.hasMany(Payment, { foreignKey: 'receivedBy', as: 'receivedPayments' });
 User.hasMany(Payment, { foreignKey: 'collectedBy', as: 'collectedPayments' });
-User.hasMany(Ward, { foreignKey: 'collectorId', as: 'assignedWards' });
 User.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
+
+// AdminManagement Relationships
+AdminManagement.hasMany(Ward, { foreignKey: 'collectorId', as: 'assignedWards' });
 
 // Property Relationships
 Property.belongsTo(User, { foreignKey: 'ownerId', as: 'owner' });
@@ -43,7 +47,10 @@ Property.hasMany(Payment, { foreignKey: 'propertyId', as: 'payments' });
 Property.hasMany(WaterConnection, { foreignKey: 'propertyId', as: 'waterConnections' });
 
 // Ward Relationships
-Ward.belongsTo(User, { foreignKey: 'collectorId', as: 'collector' });
+Ward.belongsTo(AdminManagement, { foreignKey: 'collectorId', as: 'collector' });
+Ward.belongsTo(AdminManagement, { foreignKey: 'clerkId', as: 'clerk' });
+Ward.belongsTo(AdminManagement, { foreignKey: 'inspectorId', as: 'inspector' });
+Ward.belongsTo(AdminManagement, { foreignKey: 'officerId', as: 'officer' });
 Ward.hasMany(Property, { foreignKey: 'wardId', as: 'properties' });
 
 // Assessment Relationships
@@ -174,6 +181,7 @@ WaterPayment.belongsTo(User, { foreignKey: 'receivedBy', as: 'cashier' });
 // WaterConnectionDocument Relationships
 WaterConnectionDocument.belongsTo(WaterConnection, { foreignKey: 'waterConnectionId', as: 'waterConnection' });
 WaterConnectionDocument.belongsTo(User, { foreignKey: 'uploadedBy', as: 'uploader' });
+WaterConnectionDocument.belongsTo(WaterConnectionRequest, { foreignKey: 'waterConnectionRequestId', as: 'waterConnectionRequest' });
 
 // WaterTaxAssessment Relationships
 WaterTaxAssessment.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
@@ -198,18 +206,53 @@ DemandItem.belongsTo(WaterConnection, { foreignKey: 'connectionId', as: 'waterCo
 // WaterConnectionRequest Relationships
 WaterConnectionRequest.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
 WaterConnectionRequest.belongsTo(User, { foreignKey: 'requestedBy', as: 'requester' });
+WaterConnectionRequest.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
+WaterConnectionRequest.belongsTo(User, { foreignKey: 'inspectedBy', as: 'inspector' });
 WaterConnectionRequest.belongsTo(User, { foreignKey: 'processedBy', as: 'processor' });
+WaterConnectionRequest.belongsTo(AdminManagement, { foreignKey: 'escalatedBy', as: 'escalatedByInspector' });
+WaterConnectionRequest.belongsTo(User, { foreignKey: 'decidedby', as: 'decidedByOfficer' });
 WaterConnectionRequest.belongsTo(WaterConnection, { foreignKey: 'waterConnectionId', as: 'waterConnection' });
+WaterConnectionRequest.hasMany(WaterConnectionDocument, { foreignKey: 'waterConnectionRequestId', as: 'documents' });
 
 // Property Relationships (additional for water connection requests)
 Property.hasMany(WaterConnectionRequest, { foreignKey: 'propertyId', as: 'waterConnectionRequests' });
 
 // User Relationships (additional for water connection requests)
 User.hasMany(WaterConnectionRequest, { foreignKey: 'requestedBy', as: 'waterConnectionRequests' });
+User.hasMany(WaterConnectionRequest, { foreignKey: 'createdBy', as: 'createdWaterConnectionRequests' });
+User.hasMany(WaterConnectionRequest, { foreignKey: 'inspectedBy', as: 'inspectedWaterConnectionRequests' });
 User.hasMany(WaterConnectionRequest, { foreignKey: 'processedBy', as: 'processedWaterConnectionRequests' });
+User.hasMany(WaterConnectionRequest, { foreignKey: 'escalatedBy', as: 'escalatedWaterConnectionRequests' });
+User.hasMany(WaterConnectionRequest, { foreignKey: 'decidedby', as: 'officerDecidedWaterConnectionRequests' });
 
 // WaterConnection Relationships (additional for requests)
 WaterConnection.hasOne(WaterConnectionRequest, { foreignKey: 'waterConnectionId', as: 'request' });
+
+// PropertyApplication Relationships
+PropertyApplication.belongsTo(User, { foreignKey: 'applicantId', as: 'applicant' });
+PropertyApplication.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
+PropertyApplication.belongsTo(Ward, { foreignKey: 'wardId', as: 'ward' });
+PropertyApplication.belongsTo(User, { foreignKey: 'inspectedBy', as: 'inspector' });
+PropertyApplication.belongsTo(User, { foreignKey: 'escalatedBy', as: 'escalatedByInspector' });
+PropertyApplication.belongsTo(User, { foreignKey: 'decidedby', as: 'decidedByOfficer' });
+PropertyApplication.belongsTo(Property, { foreignKey: 'approvedPropertyId', as: 'approvedProperty' });
+
+// User Relationships (additional for property applications)
+User.hasMany(PropertyApplication, { foreignKey: 'applicantId', as: 'propertyApplications' });
+User.hasMany(PropertyApplication, { foreignKey: 'createdBy', as: 'createdPropertyApplications' });
+User.hasMany(PropertyApplication, { foreignKey: 'inspectedBy', as: 'inspectedPropertyApplications' });
+User.hasMany(PropertyApplication, { foreignKey: 'escalatedBy', as: 'escalatedPropertyApplications' });
+User.hasMany(PropertyApplication, { foreignKey: 'decidedby', as: 'officerDecidedPropertyApplications' });
+
+// Ward Relationships (additional for property applications)
+Ward.hasMany(PropertyApplication, { foreignKey: 'wardId', as: 'propertyApplications' });
+
+// Property Relationships (additional for property applications)
+Property.hasOne(PropertyApplication, { foreignKey: 'approvedPropertyId', as: 'propertyApplication' });
+
+// AdminManagement Relationships
+AdminManagement.belongsTo(User, { foreignKey: 'created_by_admin_id', as: 'creator' });
+User.hasMany(AdminManagement, { foreignKey: 'created_by_admin_id', as: 'createdEmployees' });
 
 export {
   User,
@@ -232,5 +275,7 @@ export {
   WaterPayment,
   WaterTaxAssessment,
   WaterConnectionDocument,
-  WaterConnectionRequest
+  WaterConnectionRequest,
+  PropertyApplication,
+  AdminManagement
 };

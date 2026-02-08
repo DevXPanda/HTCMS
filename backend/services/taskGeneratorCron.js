@@ -10,7 +10,7 @@ export const startTaskGeneratorCronJob = () => {
   // Schedule task generation at 6:00 AM every day
   cron.schedule('0 6 * * *', async () => {
     console.log('🔄 Starting daily task generation for collectors...');
-    
+
     try {
       // Get today's date in Asia/Kolkata timezone
       const todayInfo = getTodayInKolkata();
@@ -40,14 +40,14 @@ export const startTaskGeneratorCronJob = () => {
         totalTasksGenerated += result.tasksGenerated;
       }
 
-      console.log(`✅ Generated ${totalTasksGenerated} tasks for ${collectors.length} collectors`);
+      console.log(`Generated ${totalTasksGenerated} tasks for ${collectors.length} collectors`);
     } catch (error) {
-      console.error('❌ Error in task generator cron job:', error);
+      console.error('Error in task generator cron job:', error);
     }
   }, {
     scheduled: true,
     timezone: 'Asia/Kolkata'
   });
 
-  console.log('✅ Daily task generator cron job scheduled (runs at 6:00 AM daily, Asia/Kolkata timezone)');
+  console.log('Daily task generator cron job scheduled (runs at 6:00 AM daily, Asia/Kolkata timezone)');
 };

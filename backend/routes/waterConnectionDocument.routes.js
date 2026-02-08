@@ -3,6 +3,7 @@ import { authenticate } from '../middleware/auth.js';
 import { upload } from '../controllers/upload.controller.js';
 import {
   uploadDocument,
+  uploadDocumentForRequest,
   getDocuments,
   getDocumentById,
   deleteDocument,
@@ -73,6 +74,9 @@ router.get('/', getDocuments);
 
 // Upload document (must be before /:id route)
 router.post('/', documentUpload.single('file'), uploadDocument);
+
+// Upload document for water connection request (before connection exists)
+router.post('/upload', documentUpload.single('file'), uploadDocumentForRequest);
 
 // Get document by ID
 router.get('/:id', getDocumentById);

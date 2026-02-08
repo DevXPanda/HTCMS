@@ -10,24 +10,22 @@ export const AuditLog = sequelize.define('AuditLog', {
   actorUserId: {
     type: DataTypes.INTEGER,
     allowNull: true,
-    references: {
-      model: 'Users',
-      key: 'id'
-    },
-    comment: 'User who performed the action (null for system actions)'
+    // Removed foreign key constraint - staff users (clerk, inspector, officer) are in admin_management table
+    // and citizens/collectors can be in either Users or admin_management table
+    comment: 'User who performed the action (null for system actions or when user is from admin_management table)'
   },
   actorRole: {
-    type: DataTypes.ENUM('admin', 'assessor', 'cashier', 'collector', 'citizen', 'system'),
+    type: DataTypes.ENUM('admin', 'assessor', 'cashier', 'collector', 'citizen', 'clerk', 'inspector', 'system'),
     allowNull: false,
     comment: 'Role of the user who performed the action'
   },
   actionType: {
-    type: DataTypes.ENUM('CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'REJECT', 'PAY', 'LOGIN', 'LOGOUT', 'ASSIGN', 'ESCALATE', 'SEND', 'RESOLVE', 'PENALTY_APPLIED', 'RECEIPT_PDF_GENERATED', 'NOTICE_PDF_GENERATED', 'RECEIPT_PDF_DOWNLOADED', 'NOTICE_PDF_DOWNLOADED', 'FIELD_VISIT', 'FOLLOW_UP', 'TASK_GENERATED', 'TASK_COMPLETED', 'NOTICE_TRIGGERED', 'ENFORCEMENT_ELIGIBLE'),
+    type: DataTypes.ENUM('CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'REJECT', 'RETURN', 'PAY', 'LOGIN', 'LOGOUT', 'ASSIGN', 'ESCALATE', 'SEND', 'RESOLVE', 'PENALTY_APPLIED', 'RECEIPT_PDF_GENERATED', 'NOTICE_PDF_GENERATED', 'RECEIPT_PDF_DOWNLOADED', 'NOTICE_PDF_DOWNLOADED', 'FIELD_VISIT', 'FOLLOW_UP', 'TASK_GENERATED', 'TASK_COMPLETED', 'NOTICE_TRIGGERED', 'ENFORCEMENT_ELIGIBLE'),
     allowNull: false,
     comment: 'Type of action performed'
   },
   entityType: {
-    type: DataTypes.ENUM('User', 'Property', 'Assessment', 'Demand', 'Payment', 'Ward', 'Notice', 'Attendance', 'FieldVisit', 'FollowUp', 'CollectorTask'),
+    type: DataTypes.ENUM('User', 'Property', 'Assessment', 'Demand', 'Payment', 'Ward', 'Notice', 'Attendance', 'FieldVisit', 'FollowUp', 'CollectorTask', 'PropertyApplication', 'WaterConnectionRequest'),
     allowNull: false,
     comment: 'Type of entity affected'
   },

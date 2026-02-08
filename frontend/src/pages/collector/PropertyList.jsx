@@ -4,10 +4,10 @@ import { propertyAPI, wardAPI } from '../../services/api';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
 import { Eye, Search, Filter, X, MapPin } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useStaffAuth } from '../../contexts/StaffAuthContext';
 
 const PropertyList = () => {
-  const { user } = useAuth();
+  const { user } = useStaffAuth();
   const [searchParams] = useSearchParams();
   const wardIdParam = searchParams.get('wardId');
   

@@ -105,6 +105,72 @@ export const uploadDocument = async (req, res, next) => {
 };
 
 /**
+ * @route   POST /api/water-connection-documents/upload
+ * @desc    Upload document for water connection request (before connection exists)
+ * @access  Private
+ */
+export const uploadDocumentForRequest = async (req, res, next) => {
+  try {
+    const { waterConnectionRequestId, documentType, documentName } = req.body;
+    const file = req.file;
+
+    // Validate required fields
+    if (!documentType) {
+      return res.status(400).json({
+        success: false,
+        message: 'documentType is required'
+      });
+    }
+
+    if (!file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+    }
+
+    // Store relative path for filePath (for serving via static route)
+    const relativeFilePath = `/uploads/${file.filename}`;
+
+    // Create document record (waterConnectionRequestId can be null initially)
+    const document = await WaterConnectionDocument.create({
+      waterConnectionRequestId: waterConnectionRequestId ? parseInt(waterConnectionRequestId) : null,
+      waterConnectionId: null, // Will be set later when connection is created
+      documentType,
+      documentName: documentName || file.originalname,
+      fileName: file.filename,
+      filePath: relativeFilePath,
+      fileSize: file.size,
+      mimeType: file.mimetype,
+      uploadedBy: req.user.id
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Document uploaded successfully',
+      data: {
+        id: document.id,
+        fileName: file.filename,
+        filePath: relativeFilePath,
+        documentType,
+        fileSize: file.size,
+        mimeType: file.mimetype
+      }
+    });
+  } catch (error) {
+    // Delete uploaded file on error
+    if (req.file && req.file.path) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (unlinkError) {
+        console.error('Error deleting file:', unlinkError);
+      }
+    }
+    next(error);
+  }
+};
+
+/**
  * @route   GET /api/water-connection-documents
  * @desc    Get all documents for a water connection
  * @access  Private
@@ -204,7 +270,7 @@ export const deleteDocument = async (req, res, next) => {
       // If relative path without /uploads/, construct absolute path
       filePath = path.join(uploadsDir, path.basename(filePath));
     }
-    
+
     if (fs.existsSync(filePath)) {
       try {
         fs.unlinkSync(filePath);

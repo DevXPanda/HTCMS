@@ -24,10 +24,40 @@ export const Ward = sequelize.define('Ward', {
     type: DataTypes.INTEGER,
     allowNull: true,
     references: {
-      model: 'Users',
+      model: 'admin_management',
       key: 'id'
     },
-    comment: 'Assigned Tax Collector'
+    comment: 'Assigned Tax Collector (Staff)'
+  },
+  clerkId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'clerkid',
+    references: {
+      model: 'admin_management',
+      key: 'id'
+    },
+    comment: 'Assigned Clerk (admin_management)'
+  },
+  inspectorId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'inspectorid',
+    references: {
+      model: 'admin_management',
+      key: 'id'
+    },
+    comment: 'Assigned Inspector'
+  },
+  officerId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'officerid',
+    references: {
+      model: 'admin_management',
+      key: 'id'
+    },
+    comment: 'Assigned Officer'
   },
   isActive: {
     type: DataTypes.BOOLEAN,

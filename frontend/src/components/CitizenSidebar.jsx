@@ -14,12 +14,16 @@ import {
 const CitizenSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const role = localStorage.getItem('role') || user?.role || null;
-  const userData = JSON.parse(localStorage.getItem('user') || 'null') || user;
+  
+  // Use only the user prop - no localStorage fallback to prevent cached data issues
+  const role = user?.role || null;
+  const userData = user || null;
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    // Call logout function from context to clear auth data
+    await logout();
+    // Navigate to citizen login using React Router with replace to prevent back navigation
+    navigate('/citizen/login', { replace: true });
   };
 
   // Format role for display - use exact role from localStorage, no mapping

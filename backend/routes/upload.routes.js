@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticate, authorize } from '../middleware/auth.js';
+import { authenticate, authorize } from '../middleware/enhancedAuth.js';
 import { upload, uploadPropertyPhoto, uploadFieldVisitPhoto, uploadPaymentProof } from '../controllers/upload.controller.js';
 
 const router = express.Router();

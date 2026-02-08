@@ -4,10 +4,10 @@ import { wardAPI } from '../../services/api';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
 import { MapPin, Home, FileText, DollarSign, AlertCircle, TrendingUp } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useStaffAuth } from '../../contexts/StaffAuthContext';
 
 const CollectorDashboard = () => {
-  const { user } = useAuth();
+  const { user } = useStaffAuth();
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -20,9 +20,14 @@ const CollectorDashboard = () => {
   const fetchDashboard = async () => {
     try {
       setLoading(true);
-      const response = await wardAPI.getCollectorDashboard(user.id);
+      console.log('🔍 Collector Dashboard - Fetching dashboard data for user:', user?.id, user?.employee_id);
+      // Backend will use authenticated user from JWT token
+      const response = await wardAPI.getCollectorDashboard();
+      console.log('📊 Collector Dashboard - Raw API response:', response.data);
+      console.log('📋 Collector Dashboard - Dashboard data:', response.data.data?.dashboard);
       setDashboard(response.data.data.dashboard);
     } catch (error) {
+      console.error('❌ Collector Dashboard - Error fetching dashboard:', error);
       toast.error('Failed to fetch dashboard data');
     } finally {
       setLoading(false);

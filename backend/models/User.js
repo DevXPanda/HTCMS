@@ -38,7 +38,7 @@ export const User = sequelize.define('User', {
     allowNull: true
   },
   role: {
-    type: DataTypes.ENUM('admin', 'assessor', 'cashier', 'collector', 'citizen'),
+    type: DataTypes.ENUM('admin', 'assessor', 'cashier', 'collector', 'citizen', 'clerk', 'inspector', 'officer'),
     allowNull: false,
     defaultValue: 'citizen'
   },
@@ -94,11 +94,11 @@ export const User = sequelize.define('User', {
 });
 
 // Instance method to compare password
-User.prototype.comparePassword = async function(candidatePassword) {
+User.prototype.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
 // Instance method to get full name
-User.prototype.getFullName = function() {
+User.prototype.getFullName = function () {
   return `${this.firstName} ${this.lastName}`;
 };

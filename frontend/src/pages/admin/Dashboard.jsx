@@ -162,8 +162,8 @@ const Dashboard = () => {
       {/* Page Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600">Welcome to HTCMS Admin Dashboard</p>
+          <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+          <p className="text-gray-600">Welcome to Tax Managment System</p>
         </div>
         <button
           onClick={fetchDashboardData}

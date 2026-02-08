@@ -16,7 +16,9 @@ const api = axios.create({
 // Request interceptor to add token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    // Try staff token first (for staff routes)
+    let token = localStorage.getItem('staffToken') || localStorage.getItem('token');
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -29,16 +31,22 @@ api.interceptors.request.use(
 
 // Response interceptor to handle errors
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    return response;
+  },
   (error) => {
     if (error.response?.status === 401) {
       const url = error.config?.url || '';
 
       // Only clear token for authentication endpoint failures
-      // This means the token itself is invalid/expired
-      if (url.includes('/auth/me')) {
+      // This means token itself is invalid/expired
+      if (url.includes('/auth/me') || url.includes('/employee-auth/profile')) {
         console.warn('Token invalid, clearing authentication');
         localStorage.removeItem('token');
+        localStorage.removeItem('staffToken');
+        localStorage.removeItem('role');
+        localStorage.removeItem('user');
+        localStorage.removeItem('userType');
         // Don't redirect here - let AuthContext handle it through PrivateRoute
       }
       // For other 401 errors (like permission denied on data endpoints),
@@ -54,7 +62,7 @@ export const authAPI = {
   login: (emailOrPhone, password, location) => {
     // Determine if input is email or phone number
     const isEmail = emailOrPhone.includes('@');
-    const loginData = isEmail 
+    const loginData = isEmail
       ? { email: emailOrPhone, password, ...location }
       : { phone: emailOrPhone, password, ...location };
     return api.post('/auth/login', loginData);
@@ -64,6 +72,18 @@ export const authAPI = {
   getMe: () => api.get('/auth/me'),
   changePassword: (currentPassword, newPassword) =>
     api.post('/auth/change-password', { currentPassword, newPassword })
+};
+
+// Staff Authentication API (for clerk, inspector, officer, collector)
+export const staffAuthAPI = {
+  login: (login_identifier, password) => {
+    return api.post('/employee-auth/login', { identifier: login_identifier, password });
+  },
+  logout: () => api.post('/employee-auth/logout'),
+  getProfile: () => api.get('/employee-auth/profile'),
+  changePassword: (currentPassword, newPassword) =>
+    api.post('/employee-auth/change-password', { currentPassword, newPassword }),
+  updateProfile: (data) => api.put('/employee-auth/profile', data)
 };
 
 // User API
@@ -145,7 +165,7 @@ export const wardAPI = {
   delete: (id) => api.delete(`/wards/${id}`),
   getStatistics: (id) => api.get(`/wards/${id}/statistics`),
   getByCollector: (collectorId) => api.get(`/wards/collector/${collectorId}`),
-  getCollectorDashboard: (collectorId) => api.get(`/wards/collector/${collectorId}/dashboard`)
+  getCollectorDashboard: () => api.get('/wards/collector/dashboard')
 };
 
 // Report API
@@ -227,7 +247,8 @@ export const taskAPI = {
 export const fieldMonitoringAPI = {
   getDashboard: (params) => api.get('/field-monitoring/dashboard', { params }),
   getCollectorDetails: (collectorId, params) => api.get(`/field-monitoring/collector/${collectorId}`, { params }),
-  getFollowUps: (params) => api.get('/field-monitoring/follow-ups', { params })
+  getFollowUps: (params) => api.get('/field-monitoring/follow-ups', { params }),
+  getWards: () => api.get('/wards')
 };
 
 // Water Connection API
@@ -280,8 +301,88 @@ export const waterConnectionDocumentAPI = {
 export const waterConnectionRequestAPI = {
   getAll: (params) => api.get('/water-connection-requests', { params }),
   getById: (id) => api.get(`/water-connection-requests/${id}`),
+  create: (data) => api.post('/water-connection-requests', data),
+  update: (id, data) => api.put(`/water-connection-requests/${id}`, data),
+  submit: (id) => api.post(`/water-connection-requests/${id}/submit`),
+  review: (id, data) => api.post(`/water-connection-requests/${id}/review`, data),
+  delete: (id) => api.delete(`/water-connection-requests/${id}`),
+  // Legacy endpoints for backward compatibility
   approve: (id, data) => api.post(`/water-connection-requests/${id}/approve`, data),
   reject: (id, data) => api.post(`/water-connection-requests/${id}/reject`, data)
+};
+
+// Clerk API
+export const clerkAPI = {
+  // Dashboard
+  getDashboard: () => api.get('/clerk/dashboard'),
+
+  // Wards
+  getWards: () => api.get('/wards'),
+
+  // Property Applications
+  getPropertyApplications: (params) => api.get('/property-applications', { params }),
+  getPropertyApplicationById: (id) => api.get(`/property-applications/${id}`),
+  createPropertyApplication: (data) => api.post('/property-applications', data),
+  updatePropertyApplication: (id, data) => api.put(`/property-applications/${id}`, data),
+  submitPropertyApplication: (id) => api.post(`/property-applications/${id}/submit`),
+  deletePropertyApplication: (id) => api.delete(`/property-applications/${id}`),
+
+  // Water Connection Requests
+  getWaterApplications: (params) => api.get('/water-connection-requests', { params }),
+  getWaterApplicationById: (id) => api.get(`/water-connection-requests/${id}`),
+  createWaterApplication: (data) => api.post('/water-connection-requests', data),
+  updateWaterApplication: (id, data) => api.put(`/water-connection-requests/${id}`, data),
+  submitWaterApplication: (id) => api.post(`/water-connection-requests/${id}/submit`),
+  processWaterApplication: (id, data) => api.post(`/water-connection-requests/${id}/process`, data),
+  deleteWaterApplication: (id) => api.delete(`/water-connection-requests/${id}`),
+
+  // Water Connection Requests (new workflow)
+  waterConnectionRequests: {
+    getAll: (params) => api.get('/water-connection-requests', { params }),
+    getById: (id) => api.get(`/water-connection-requests/${id}`),
+    create: (data) => api.post('/water-connection-requests', data),
+    createAndSubmit: (data) => api.post('/water-connection-requests/create-and-submit', data),
+    update: (id, data) => api.put(`/water-connection-requests/${id}`, data),
+    submit: (id) => api.post(`/water-connection-requests/${id}/submit`),
+    delete: (id) => api.delete(`/water-connection-requests/${id}`)
+  },
+
+  // Staff Water Connections (dedicated endpoints for staff users)
+  waterConnections: {
+    getAll: (params) => api.get('/clerk/water-connections', { params }),
+    getById: (id) => api.get(`/water-connections/${id}`),
+    getDocuments: (id) => api.get('/water-connection-documents', { params: { waterConnectionId: id } }),
+    create: (data) => api.post('/water-connections', data),
+    update: (id, data) => api.put(`/water-connections/${id}`, data),
+    getByProperty: (propertyId) => api.get(`/water-connections/property/${propertyId}`)
+  },
+
+  // Document Upload
+  uploadDocument: (formData) => api.post('/water-connection-documents/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+};
+
+// Inspector API
+export const inspectorAPI = {
+  // Dashboard
+  getDashboardStats: () => api.get('/inspector/dashboard/stats'),
+  getRecentInspections: () => api.get('/inspector/dashboard/recent-inspections'),
+
+  // Property Applications
+  getPendingPropertyApplications: () => api.get('/inspector/property-applications/pending'),
+  getPropertyApplicationForInspection: (id) => api.get(`/inspector/property-applications/${id}/inspection`),
+  processPropertyInspection: (id, data) => api.post(`/inspector/property-applications/${id}/inspect`, data),
+
+  // Water Connection Requests
+  getPendingWaterConnectionRequests: () => api.get('/inspector/water-connections/pending'),
+  getWaterConnectionRequestForInspection: (id) => api.get(`/inspector/water-connections/${id}/inspection`),
+  processWaterInspection: (id, data) => api.post(`/inspector/water-connections/${id}/inspect`, data),
+
+  // Properties (read-only for inspection context)
+  getWardProperties: () => api.get('/inspector/properties'),
+  getPropertyDetails: (id) => api.get(`/inspector/properties/${id}`),
+  getPropertyWaterConnections: (id) => api.get(`/inspector/properties/${id}/water-connections`)
 };
 
 export default api;

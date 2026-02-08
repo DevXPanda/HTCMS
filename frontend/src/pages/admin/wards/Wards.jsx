@@ -17,13 +17,36 @@ const Wards = () => {
     fetchWards();
   }, [search, filterActive]);
 
+  // Listen for ward assignment changes from Staff Management
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'wardAssignmentUpdated') {
+        fetchWards();
+      }
+    };
+
+    // Listen for storage events from other tabs/windows
+    window.addEventListener('storage', handleStorageChange);
+
+    // Listen for custom events from same tab
+    const handleCustomEvent = () => {
+      fetchWards();
+    };
+    window.addEventListener('wardAssignmentUpdated', handleCustomEvent);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('wardAssignmentUpdated', handleCustomEvent);
+    };
+  }, []);
+
   const fetchWards = async () => {
     try {
       setLoading(true);
       const params = {};
       if (search) params.search = search;
       if (filterActive !== 'all') params.isActive = filterActive === 'active';
-      
+
       const response = await wardAPI.getAll(params);
       setWards(response.data.data.wards);
     } catch (error) {
@@ -99,11 +122,14 @@ const Wards = () => {
                   <span className="text-gray-600">Collector:</span>
                   <span className="ml-2 font-medium">
                     {ward.collector
-                      ? `${ward.collector.firstName} ${ward.collector.lastName}`
+                      ? (ward.collector.full_name ||
+                        (ward.collector.firstName && ward.collector.lastName
+                          ? `${ward.collector.firstName} ${ward.collector.lastName}`
+                          : 'Not Assigned'))
                       : 'Not Assigned'}
                   </span>
                 </div>
-                {ward.collector && (
+                {ward.collector && ward.collector.email && (
                   <div className="text-xs text-gray-500 ml-6">
                     {ward.collector.email}
                   </div>

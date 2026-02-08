@@ -113,7 +113,7 @@ export const getPropertyById = async (req, res, next) => {
     } else if (req.user.role === 'collector' || req.user.role === 'tax_collector') {
       // Collectors can only view properties in their assigned wards
       const assignedWards = await Ward.findAll({
-        where: { collectorId: req.user.id, isActive: true },
+        where: { collectorId: req.user.staff_id || req.user.id, isActive: true },
         attributes: ['id']
       });
       const assignedWardIds = assignedWards.map(w => w.id);
@@ -302,7 +302,7 @@ export const createProperty = async (req, res, next) => {
 
       if (matchedCitizen) {
         finalOwnerId = matchedCitizen.id;
-        console.log('✅ Found citizen user by phone:', finalOwnerId, matchedCitizen.email);
+        console.log('Found citizen user by phone:', finalOwnerId, matchedCitizen.email);
       }
     }
 
@@ -318,10 +318,10 @@ export const createProperty = async (req, res, next) => {
     // (citizen panel queries by ownerId === loggedInUser.id)
     if (!finalOwnerId) {
       finalOwnerId = req.user.id;
-      console.log('⚠️ No matching citizen found. Using admin ID as fallback:', finalOwnerId);
+      console.log('No matching citizen found. Using admin ID as fallback:', finalOwnerId);
       console.log('   Property will not appear in any citizen panel.');
     } else {
-      console.log('✅ Property will be linked to citizen ID:', finalOwnerId);
+      console.log('Property will be linked to citizen ID:', finalOwnerId);
     }
 
     // Validate that ownerId exists in database

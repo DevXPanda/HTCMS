@@ -1,16 +1,22 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
+import { StaffAuthProvider } from './contexts/StaffAuthContext';
 import PrivateRoute from './components/PrivateRoute';
 import AdminLayout from './components/AdminLayout';
 import CitizenLayout from './components/CitizenLayout';
 import CollectorLayout from './components/CollectorLayout';
+import ClerkLayout from './components/ClerkLayout';
+import InspectorLayout from './components/InspectorLayout';
+import OfficerLayout from './components/OfficerLayout';
 import RoleBasedRedirect from './components/RoleBasedRedirect';
 
 // Auth Pages
 import AdminLogin from './pages/auth/AdminLogin';
-import CollectorLogin from './pages/auth/CollectorLogin';
+import StaffLogin from './pages/auth/StaffLogin';
 import CitizenLogin from './pages/auth/CitizenLogin';
+import EmployeeLogin from './pages/auth/EmployeeLogin';
+import EmployeeChangePassword from './pages/auth/EmployeeChangePassword';
 import Register from './pages/auth/Register';
 
 // Admin/Staff Pages
@@ -36,6 +42,7 @@ import Wards from './pages/admin/wards/Wards';
 import WardDetails from './pages/admin/wards/WardDetails';
 import AddWard from './pages/admin/wards/AddWard';
 import Users from './pages/admin/users/Users';
+import AdminManagement from './pages/admin/AdminManagement';
 import Reports from './pages/admin/reports/Reports';
 import AuditLogs from './pages/admin/auditLogs/AuditLogs';
 import Attendance from './pages/admin/attendance/Attendance';
@@ -72,6 +79,44 @@ import DailyTasks from './pages/collector/DailyTasks';
 import RecordFieldVisit from './pages/collector/RecordFieldVisit';
 import TaxSummarySimple from './pages/collector/TaxSummarySimple';
 
+// Clerk Pages
+import ClerkDashboard from './pages/clerk/ClerkDashboard';
+import PropertyApplications from './pages/clerk/PropertyApplications';
+import NewPropertyApplication from './pages/clerk/NewPropertyApplication';
+import WaterApplications from './pages/clerk/WaterApplications';
+import NewWaterApplication from './pages/clerk/NewWaterApplication';
+import ReturnedApplications from './pages/clerk/ReturnedApplications';
+import ClerkActivityHistory from './pages/clerk/ActivityHistory';
+import PropertyApplicationDetails from './pages/clerk/PropertyApplicationDetails';
+import EditPropertyApplication from './pages/clerk/EditPropertyApplication';
+import WaterApplicationDetails from './pages/clerk/WaterApplicationDetails';
+import EditWaterApplication from './pages/clerk/EditWaterApplication';
+import ClerkProperties from './pages/clerk/Properties';
+import ClerkPropertyDetails from './pages/clerk/PropertyDetails';
+import ClerkWaterConnections from './pages/clerk/WaterConnections';
+import ClerkWaterConnectionDetails from './pages/clerk/WaterConnectionDetails';
+import ClerkExistingWaterConnections from './pages/clerk/ExistingWaterConnections';
+import ClerkAttendance from './pages/clerk/Attendance';
+
+// Inspector Pages
+import InspectorDashboard from './pages/inspector/Dashboard';
+import PropertyApplicationsInspection from './pages/inspector/PropertyApplications';
+import PropertyApplicationInspection from './pages/inspector/PropertyApplicationInspection';
+import WaterConnectionsInspection from './pages/inspector/WaterConnections';
+import WaterConnectionInspection from './pages/inspector/WaterConnectionInspection';
+import RecentInspections from './pages/inspector/RecentInspections';
+import InspectorProperties from './pages/inspector/Properties';
+import InspectorPropertyDetails from './pages/inspector/PropertyDetails';
+import InspectorAttendance from './pages/inspector/Attendance';
+
+// Officer Pages
+import OfficerDashboard from './pages/officer/OfficerDashboard';
+import OfficerPropertyApplications from './pages/officer/PropertyApplications';
+import OfficerWaterRequests from './pages/officer/WaterRequests';
+import WaterRequestDetails from './pages/officer/WaterRequestDetails';
+import OfficerDecisionHistory from './pages/officer/DecisionHistory';
+import OfficerAttendance from './pages/officer/Attendance';
+
 // Error Pages
 import Unauthorized from './pages/Unauthorized';
 
@@ -87,11 +132,24 @@ function App() {
           {/* Public Routes - Separate Login Pages */}
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/register" element={<Register />} />
-          <Route path="/collector/login" element={<CollectorLogin />} />
-          <Route path="/collector/register" element={<Register />} />
+          <Route
+            path="/staff/login"
+            element={
+              <StaffAuthProvider>
+                <StaffLogin />
+              </StaffAuthProvider>
+            }
+          />
           <Route path="/citizen/login" element={<CitizenLogin />} />
-          <Route path="/citizen/register" element={<Register />} />
+          <Route path="/employee/login" element={<EmployeeLogin />} />
+          <Route path="/employee/change-password" element={<EmployeeChangePassword />} />
           <Route path="/register" element={<Register />} />
+          {/* Redirect old login pages to new unified staff login */}
+          <Route path="/collector/login" element={<Navigate to="/staff/login" replace />} />
+          <Route path="/collector/register" element={<Navigate to="/register" replace />} />
+          <Route path="/clerk/login" element={<Navigate to="/staff/login" replace />} />
+          <Route path="/inspector/login" element={<Navigate to="/staff/login" replace />} />
+          <Route path="/officer/login" element={<Navigate to="/staff/login" replace />} />
           {/* Redirect old /login to citizen login for backward compatibility */}
           <Route path="/login" element={<Navigate to="/citizen/login" replace />} />
 
@@ -145,6 +203,9 @@ function App() {
             {/* Users (Collector Management) */}
             <Route path="users" element={<Users />} />
 
+            {/* Admin Management */}
+            <Route path="admin-management" element={<AdminManagement />} />
+
             {/* Reports */}
             <Route path="reports" element={<Reports />} />
 
@@ -173,9 +234,11 @@ function App() {
           <Route
             path="/collector"
             element={
-              <PrivateRoute allowedRoles={['collector', 'tax_collector']}>
-                <CollectorLayout />
-              </PrivateRoute>
+              <StaffAuthProvider>
+                <PrivateRoute allowedRoles={['collector', 'tax_collector']}>
+                  <CollectorLayout />
+                </PrivateRoute>
+              </StaffAuthProvider>
             }
           >
             <Route index element={<Navigate to="/collector/dashboard" replace />} />
@@ -189,6 +252,82 @@ function App() {
             <Route path="field-visit/new" element={<RecordFieldVisit />} />
             <Route path="attendance" element={<CollectorAttendance />} />
             <Route path="activity-logs" element={<ActivityLogs />} />
+          </Route>
+
+          {/* Protected Routes - Clerk Portal */}
+          <Route
+            path="/clerk"
+            element={
+              <StaffAuthProvider>
+                <PrivateRoute allowedRoles={['clerk']}>
+                  <ClerkLayout />
+                </PrivateRoute>
+              </StaffAuthProvider>
+            }
+          >
+            <Route index element={<Navigate to="/clerk/dashboard" replace />} />
+            <Route path="dashboard" element={<ClerkDashboard />} />
+            <Route path="property-applications" element={<PropertyApplications />} />
+            <Route path="property-applications/new" element={<NewPropertyApplication />} />
+            <Route path="property-applications/:id" element={<PropertyApplicationDetails />} />
+            <Route path="property-applications/:id/edit" element={<EditPropertyApplication />} />
+            <Route path="property-connections" element={<ClerkProperties />} />
+            <Route path="properties" element={<ClerkProperties />} />
+            <Route path="properties/:id" element={<ClerkPropertyDetails />} />
+            <Route path="water-applications" element={<WaterApplications />} />
+            <Route path="water-applications/new" element={<NewWaterApplication />} />
+            <Route path="water-applications/:id" element={<WaterApplicationDetails />} />
+            <Route path="water-applications/:id/edit" element={<EditWaterApplication />} />
+            <Route path="water-connections" element={<ClerkWaterConnections />} />
+            <Route path="water-connections/:id" element={<ClerkWaterConnectionDetails />} />
+            <Route path="existing-water-connections" element={<ClerkExistingWaterConnections />} />
+            <Route path="existing-water-connections/:id" element={<ClerkWaterConnectionDetails />} />
+            <Route path="returned-applications" element={<ReturnedApplications />} />
+            <Route path="attendance" element={<ClerkAttendance />} />
+            <Route path="activity-history" element={<ClerkActivityHistory />} />
+          </Route>
+
+          {/* Protected Routes - Inspector Portal */}
+          <Route
+            path="/inspector"
+            element={
+              <StaffAuthProvider>
+                <PrivateRoute allowedRoles={['inspector']}>
+                  <InspectorLayout />
+                </PrivateRoute>
+              </StaffAuthProvider>
+            }
+          >
+            <Route index element={<Navigate to="/inspector/dashboard" replace />} />
+            <Route path="dashboard" element={<InspectorDashboard />} />
+            <Route path="property-applications" element={<PropertyApplicationsInspection />} />
+            <Route path="property-applications/:id/inspect" element={<PropertyApplicationInspection />} />
+            <Route path="water-connections" element={<WaterConnectionsInspection />} />
+            <Route path="water-connections/:id/inspect" element={<WaterConnectionInspection />} />
+            <Route path="recent-inspections" element={<RecentInspections />} />
+            <Route path="properties" element={<InspectorProperties />} />
+            <Route path="properties/:id" element={<InspectorPropertyDetails />} />
+            <Route path="attendance" element={<InspectorAttendance />} />
+          </Route>
+
+          {/* Protected Routes - Officer Portal */}
+          <Route
+            path="/officer"
+            element={
+              <StaffAuthProvider>
+                <PrivateRoute allowedRoles={['officer']}>
+                  <OfficerLayout />
+                </PrivateRoute>
+              </StaffAuthProvider>
+            }
+          >
+            <Route index element={<Navigate to="/officer/dashboard" replace />} />
+            <Route path="dashboard" element={<OfficerDashboard />} />
+            <Route path="property-applications" element={<OfficerPropertyApplications />} />
+            <Route path="water-requests" element={<OfficerWaterRequests />} />
+            <Route path="water-requests/:id" element={<WaterRequestDetails />} />
+            <Route path="decision-history" element={<OfficerDecisionHistory />} />
+            <Route path="attendance" element={<OfficerAttendance />} />
           </Route>
 
           {/* Protected Routes - Citizen Portal */}

@@ -302,6 +302,17 @@ export const createWaterConnectionRequest = async (req, res, next) => {
       });
     }
 
+    // Validate status is one of allowed values
+    const allowedStatuses = ['DRAFT', 'SUBMITTED', 'UNDER_INSPECTION', 'ESCALATED_TO_OFFICER', 'APPROVED', 'REJECTED', 'RETURNED', 'COMPLETED'];
+    const requestStatus = 'SUBMITTED'; // Always use SUBMITTED for new citizen requests
+    
+    if (!allowedStatuses.includes(requestStatus)) {
+      return res.status(500).json({
+        success: false,
+        message: 'Invalid status configuration in system'
+      });
+    }
+
     // Verify property belongs to user
     const property = await Property.findOne({
       where: { id: propertyId, ownerId: userId, isActive: true }
@@ -318,7 +329,7 @@ export const createWaterConnectionRequest = async (req, res, next) => {
     const existingRequest = await WaterConnectionRequest.findOne({
       where: {
         propertyId,
-        status: 'PENDING'
+        status: 'SUBMITTED'
       }
     });
 
@@ -333,16 +344,20 @@ export const createWaterConnectionRequest = async (req, res, next) => {
     const requestCount = await WaterConnectionRequest.count();
     const requestNumber = `WCR-${String(requestCount + 1).padStart(6, '0')}`;
 
-    // Create request
-    const request = await WaterConnectionRequest.create({
+    // Create request with safe default status
+    const requestData = {
       requestNumber,
       propertyId,
       requestedBy: userId,
       propertyLocation,
       connectionType,
       remarks: remarks || null,
-      status: 'PENDING'
-    });
+      status: requestStatus // Use validated status
+    };
+
+    console.log('Creating water connection request with data:', requestData);
+    
+    const request = await WaterConnectionRequest.create(requestData);
 
     // Fetch with relations
     const requestWithDetails = await WaterConnectionRequest.findByPk(request.id, {
@@ -361,6 +376,39 @@ export const createWaterConnectionRequest = async (req, res, next) => {
       data: { request: requestWithDetails }
     });
   } catch (error) {
+    console.error('Error creating water connection request:', error);
+    
+    // Handle specific database constraint violations
+    if (error.name === 'SequelizeValidationError') {
+      const validationErrors = error.errors.map(err => ({
+        field: err.path,
+        message: err.message,
+        value: err.value
+      }));
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        errors: validationErrors
+      });
+    }
+    
+    // Handle check constraint violations
+    if (error.name === 'SequelizeDatabaseError' && error.message.includes('check constraint')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid status value provided. Please contact support.',
+        technical: error.message
+      });
+    }
+    
+    // Handle unique constraint violations
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({
+        success: false,
+        message: 'A request with this identifier already exists'
+      });
+    }
+    
     next(error);
   }
 };

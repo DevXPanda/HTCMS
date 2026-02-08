@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticate } from '../middleware/auth.js';
+import { authenticate } from '../middleware/enhancedAuth.js';
 import { getUnifiedTaxSummary } from '../controllers/demand.controller.js';
 
 const router = express.Router();

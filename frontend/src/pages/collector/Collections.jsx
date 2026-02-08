@@ -4,10 +4,10 @@ import { paymentAPI, wardAPI } from '../../services/api';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
 import { Eye, Search, Receipt, Download, Filter, X } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useStaffAuth } from '../../contexts/StaffAuthContext';
 
 const Collections = () => {
-  const { user } = useAuth();
+  const { user } = useStaffAuth();
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');

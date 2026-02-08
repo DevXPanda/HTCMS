@@ -21,50 +21,32 @@ export const AuthProvider = ({ children }) => {
     const checkAuth = async () => {
       if (token) {
         try {
+          const storedRole = localStorage.getItem('role');
+          const staffRoles = ['clerk', 'inspector', 'officer', 'collector'];
+          if (storedRole && staffRoles.includes(storedRole)) {
+            setLoading(false);
+            return;
+          }
+
           const response = await authAPI.getMe();
           // Backend returns: { success: true, data: { user } }
           const responseData = response.data;
           const userData = responseData.data?.user || responseData.user || responseData.data;
           
           if (userData && userData.id) {
-            // Store role and user in localStorage
-            if (userData.role) {
-              localStorage.setItem('role', userData.role);
-            }
-            localStorage.setItem('user', JSON.stringify(userData));
+            // Completely overwrite user state - don't merge with cached data
             setUser(userData);
           } else {
             throw new Error('Invalid user data received');
           }
         } catch (error) {
           console.error('Auth check failed:', error);
-            // Only clear token if it's an auth error (401), not permission error
-          if (error.response?.status === 401) {
-            localStorage.removeItem('token');
-            localStorage.removeItem('role');
-            localStorage.removeItem('user');
-            setToken(null);
-            setUser(null);
-          } else {
-            // Other errors - keep token but don't set user
-            // This handles cases where API is down or network issues
-            console.warn('Auth check failed but keeping token:', error.message);
-            // If it's a network error or API is not available, clear token to allow login
-            if (!error.response) {
-              // Network error - API might be down
-              localStorage.removeItem('token');
-              localStorage.removeItem('role');
-              localStorage.removeItem('user');
-              setToken(null);
-              setUser(null);
-            }
-          }
+          // Clear all cached data on any auth error
+          clearAllAuthData();
         }
       } else {
-        // No token, ensure user is null and clear role and user
-        localStorage.removeItem('role');
-        localStorage.removeItem('user');
-        setUser(null);
+        // No token, ensure all auth data is cleared
+        clearAllAuthData();
       }
       // Always set loading to false after check completes
       setLoading(false);
@@ -72,6 +54,16 @@ export const AuthProvider = ({ children }) => {
 
     checkAuth();
   }, [token]);
+
+  // Helper function to clear all auth data
+  const clearAllAuthData = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('role');
+    localStorage.removeItem('user');
+    localStorage.removeItem('userType');
+    setToken(null);
+    setUser(null);
+  };
 
   const login = async (emailOrPhone, password) => {
     try {
@@ -90,13 +82,16 @@ export const AuthProvider = ({ children }) => {
         throw new Error('User role not found in response');
       }
       
-      // Store token, role, and user - use exact role from API
+      // Clear any existing cached data first
+      clearAllAuthData();
+      
+      // Store fresh token and user data
       localStorage.setItem('token', token);
       localStorage.setItem('role', user.role);
       localStorage.setItem('user', JSON.stringify(user));
       setToken(token);
       
-      // Set user state - this triggers re-render and updates isAuthenticated
+      // Completely overwrite user state - don't merge with existing data
       setUser(user);
       
       // Return user immediately for navigation
@@ -127,7 +122,10 @@ export const AuthProvider = ({ children }) => {
         throw new Error('User role not found in response');
       }
       
-      // Store token, role, and user - use exact role from API
+      // Clear any existing cached data first
+      clearAllAuthData();
+      
+      // Store fresh token and user data
       localStorage.setItem('token', token);
       localStorage.setItem('role', user.role);
       localStorage.setItem('user', JSON.stringify(user));
@@ -151,12 +149,8 @@ export const AuthProvider = ({ children }) => {
       // Log error but continue with logout even if API call fails
       console.error('Logout API error:', error);
     } finally {
-      // Always clear local storage and state
-      localStorage.removeItem('token');
-      localStorage.removeItem('role');
-      localStorage.removeItem('user');
-      setToken(null);
-      setUser(null);
+      // Always clear all auth data completely
+      clearAllAuthData();
     }
   };
 

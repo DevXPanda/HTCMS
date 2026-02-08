@@ -219,38 +219,145 @@ const WardDetails = () => {
         <div className="card">
           <h2 className="text-xl font-semibold mb-4 flex items-center">
             <Users className="w-5 h-5 mr-2" />
-            Assigned Collector
+            Assigned Staffs
           </h2>
-          {ward.collector ? (
-            <dl className="space-y-3">
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Name</dt>
-                <dd className="font-semibold">
-                  {ward.collector.firstName} {ward.collector.lastName}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Email</dt>
-                <dd>{ward.collector.email}</dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Phone</dt>
-                <dd>{ward.collector.phone || 'N/A'}</dd>
-              </div>
-              {isAdmin && (
-                <div className="pt-3 border-t">
-                  <Link
-                    to={`/users/${ward.collector.id}`}
-                    className="text-primary-600 hover:text-primary-700 text-sm font-medium"
-                  >
-                    View Collector Profile →
-                  </Link>
+          {(ward.collector || ward.clerk || ward.inspector || ward.officer) ? (
+            <div className="space-y-4">
+              {/* Collector */}
+              {ward.collector && (
+                <div className="pb-3 border-b border-gray-200">
+                  <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Collector</div>
+                  <dl className="space-y-2">
+                    <div>
+                      <dt className="text-sm font-medium text-gray-500">Name</dt>
+                      <dd className="font-semibold">
+                        {ward.collector.full_name || `${ward.collector.firstName} ${ward.collector.lastName}`}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm font-medium text-gray-500">Email</dt>
+                      <dd>{ward.collector.email}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm font-medium text-gray-500">Phone</dt>
+                      <dd>{ward.collector.phone_number || ward.collector.phone || 'N/A'}</dd>
+                    </div>
+                    {isAdmin && (
+                      <div className="pt-2">
+                        <Link
+                          to={`/users/${ward.collector.id}`}
+                          className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+                        >
+                          View Profile →
+                        </Link>
+                      </div>
+                    )}
+                  </dl>
                 </div>
               )}
-            </dl>
+
+              {/* Clerk */}
+              {ward.clerk && (
+                <div className="pb-3 border-b border-gray-200">
+                  <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Clerk</div>
+                  <dl className="space-y-2">
+                    <div>
+                      <dt className="text-sm font-medium text-gray-500">Name</dt>
+                      <dd className="font-semibold">
+                        {ward.clerk.full_name || `${ward.clerk.firstName} ${ward.clerk.lastName}`}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm font-medium text-gray-500">Email</dt>
+                      <dd>{ward.clerk.email}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm font-medium text-gray-500">Phone</dt>
+                      <dd>{ward.clerk.phone_number || ward.clerk.phone || 'N/A'}</dd>
+                    </div>
+                    {isAdmin && (
+                      <div className="pt-2">
+                        <Link
+                          to={`/users/${ward.clerk.id}`}
+                          className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+                        >
+                          View Profile →
+                        </Link>
+                      </div>
+                    )}
+                  </dl>
+                </div>
+              )}
+
+              {/* Inspector */}
+              {ward.inspector && (
+                <div className="pb-3 border-b border-gray-200">
+                  <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Inspector</div>
+                  <dl className="space-y-2">
+                    <div>
+                      <dt className="text-sm font-medium text-gray-500">Name</dt>
+                      <dd className="font-semibold">
+                        {ward.inspector.full_name || `${ward.inspector.firstName} ${ward.inspector.lastName}`}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm font-medium text-gray-500">Email</dt>
+                      <dd>{ward.inspector.email}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm font-medium text-gray-500">Phone</dt>
+                      <dd>{ward.inspector.phone_number || ward.inspector.phone || 'N/A'}</dd>
+                    </div>
+                    {isAdmin && (
+                      <div className="pt-2">
+                        <Link
+                          to={`/users/${ward.inspector.id}`}
+                          className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+                        >
+                          View Profile →
+                        </Link>
+                      </div>
+                    )}
+                  </dl>
+                </div>
+              )}
+
+              {/* Officer */}
+              {ward.officer && (
+                <div className="pb-3">
+                  <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Officer</div>
+                  <dl className="space-y-2">
+                    <div>
+                      <dt className="text-sm font-medium text-gray-500">Name</dt>
+                      <dd className="font-semibold">
+                        {ward.officer.full_name || `${ward.officer.firstName} ${ward.officer.lastName}`}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm font-medium text-gray-500">Email</dt>
+                      <dd>{ward.officer.email}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm font-medium text-gray-500">Phone</dt>
+                      <dd>{ward.officer.phone_number || ward.officer.phone || 'N/A'}</dd>
+                    </div>
+                    {isAdmin && (
+                      <div className="pt-2">
+                        <Link
+                          to={`/users/${ward.officer.id}`}
+                          className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+                        >
+                          View Profile →
+                        </Link>
+                      </div>
+                    )}
+                  </dl>
+                </div>
+              )}
+            </div>
           ) : (
             <div>
-              <p className="text-gray-500 mb-3">No collector assigned</p>
+              <p className="text-gray-500 mb-3">No staff assigned to this ward</p>
               {isAdmin && (
                 <button
                   onClick={() => setShowAssignCollector(true)}
@@ -295,11 +402,10 @@ const WardDetails = () => {
                     </td>
                     <td className="capitalize">{property.propertyType || 'N/A'}</td>
                     <td>
-                      <span className={`badge ${
-                        property.status === 'active' ? 'badge-success' :
-                        property.status === 'inactive' ? 'badge-danger' :
-                        'badge-warning'
-                      } capitalize`}>
+                      <span className={`badge ${property.status === 'active' ? 'badge-success' :
+                          property.status === 'inactive' ? 'badge-danger' :
+                            'badge-warning'
+                        } capitalize`}>
                         {property.status || 'active'}
                       </span>
                     </td>

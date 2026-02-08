@@ -8,6 +8,14 @@ import { testConnection as testPgConnection, closePool } from "./db.js";
 // Load env
 dotenv.config();
 
+// Global production safety: Disable debug console methods in production
+if (process.env.NODE_ENV === 'production') {
+  console.log = () => { };
+  console.debug = () => { };
+  console.info = () => { };
+  // console.error and console.warn remain active for critical logging
+}
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -39,7 +47,8 @@ app.options("*", cors());
 // Middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(morgan("dev"));
+// Use minimal logging format in production, dev format in development
+app.use(morgan(process.env.NODE_ENV === 'production' ? ':method :url :status :response-time ms' : 'dev'));
 
 // Root Test Route
 app.get("/", (req, res) => {
@@ -83,7 +92,13 @@ import waterDashboardRoutes from "./routes/waterDashboard.routes.js";
 import waterTaxAssessmentRoutes from "./routes/waterTaxAssessment.routes.js";
 import waterConnectionDocumentRoutes from "./routes/waterConnectionDocument.routes.js";
 import waterConnectionRequestRoutes from "./routes/waterConnectionRequest.routes.js";
+import propertyApplicationRoutes from "./routes/propertyApplication.routes.js";
+import clerkRoutes from "./routes/clerk.routes.js";
 import taxRoutes from "./routes/tax.routes.js";
+import inspectorRoutes from "./routes/inspector.routes.js";
+import officerRoutes from "./routes/officer.routes.js";
+import adminManagementRoutes from "./routes/adminManagement.routes.js";
+import employeeAuthRoutes from "./routes/employeeAuth.routes.js";
 import { startPenaltyCronJob } from "./services/penaltyCron.js";
 import { startTaskGeneratorCronJob } from "./services/taskGeneratorCron.js";
 import path from 'path';
@@ -115,7 +130,13 @@ app.use("/api/water-dashboard", waterDashboardRoutes);
 app.use("/api/water-tax-assessments", waterTaxAssessmentRoutes);
 app.use("/api/water-connection-documents", waterConnectionDocumentRoutes);
 app.use("/api/water-connection-requests", waterConnectionRequestRoutes);
+app.use("/api/property-applications", propertyApplicationRoutes);
+app.use("/api/clerk", clerkRoutes);
 app.use("/api/tax", taxRoutes);
+app.use("/api/inspector", inspectorRoutes);
+app.use("/api/officer", officerRoutes);
+app.use("/api/admin-management", adminManagementRoutes);
+app.use("/api/employee-auth", employeeAuthRoutes);
 
 // Serve uploaded files statically
 const __filename = fileURLToPath(import.meta.url);
@@ -127,7 +148,10 @@ app.use((req, res) => res.status(404).json({ error: "Route not found" }));
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
+  // Only log error details in development
+  if (process.env.NODE_ENV === 'development') {
+    console.error('Error:', err);
+  }
 
   // Sequelize validation errors
   if (err.name === 'SequelizeValidationError') {

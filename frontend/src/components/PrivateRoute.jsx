@@ -1,9 +1,24 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useStaffAuth } from '../contexts/StaffAuthContext';
 
 const PrivateRoute = ({ children, allowedRoles }) => {
-  const { isAuthenticated, loading } = useAuth();
   const location = useLocation();
+  const { isAuthenticated: isUserAuthenticated, loading: userLoading } = useAuth();
+  let staffAuth;
+
+  try {
+    staffAuth = useStaffAuth();
+  } catch (error) {
+    staffAuth = null;
+  }
+
+  const isStaffRoute = location.pathname.startsWith('/collector') ||
+    location.pathname.startsWith('/clerk') ||
+    location.pathname.startsWith('/inspector') ||
+    location.pathname.startsWith('/officer');
+  const isAuthenticated = isStaffRoute && staffAuth ? staffAuth.isAuthenticated : isUserAuthenticated;
+  const loading = isStaffRoute && staffAuth ? staffAuth.loading : userLoading;
 
   if (loading) {
     return (
@@ -26,14 +41,18 @@ const PrivateRoute = ({ children, allowedRoles }) => {
         pathname.startsWith('/reports') || pathname === '/') {
       return <Navigate to="/admin/login" replace />;
     } else if (pathname.startsWith('/collector')) {
-      return <Navigate to="/collector/login" replace />;
+      return <Navigate to="/staff/login" replace />;
+    } else if (pathname.startsWith('/inspector')) {
+      return <Navigate to="/inspector/login" replace />;
+    } else if (pathname.startsWith('/clerk') || pathname.startsWith('/officer')) {
+      return <Navigate to="/staff/login" replace />;
     } else {
       return <Navigate to="/citizen/login" replace />;
     }
   }
 
   // Get role from localStorage only - exact value from API
-  const role = localStorage.getItem('role');
+  const role = staffAuth?.user?.role || localStorage.getItem('role');
   
   // If no role found, redirect to login
   if (!role) {
@@ -41,7 +60,11 @@ const PrivateRoute = ({ children, allowedRoles }) => {
     if (pathname.startsWith('/admin') || pathname.startsWith('/dashboard')) {
       return <Navigate to="/admin/login" replace />;
     } else if (pathname.startsWith('/collector')) {
-      return <Navigate to="/collector/login" replace />;
+      return <Navigate to="/staff/login" replace />;
+    } else if (pathname.startsWith('/inspector')) {
+      return <Navigate to="/inspector/login" replace />;
+    } else if (pathname.startsWith('/clerk') || pathname.startsWith('/officer')) {
+      return <Navigate to="/staff/login" replace />;
     } else {
       return <Navigate to="/citizen/login" replace />;
     }

@@ -61,16 +61,11 @@ const CitizenLogin = () => {
         // Validate that user has citizen role - exact matching
         if (role !== 'citizen') {
           toast.error('Access denied. This login is only for citizens.');
-          localStorage.removeItem('token');
-          localStorage.removeItem('role');
-          localStorage.removeItem('user');
+          // Clear auth data through AuthContext logout
+          await login('logout', 'dummy'); // This will trigger logout
           setLoading(false);
           return;
         }
-
-        // Ensure role is stored exactly as received from backend - DO NOT override
-        localStorage.setItem('role', role);
-        localStorage.setItem('user', JSON.stringify(loggedInUser));
         
         toast.success('Login successful!');
         
@@ -164,8 +159,8 @@ const CitizenLogin = () => {
                 Admin Login
               </a>
               <span className="text-gray-300">|</span>
-              <a href="/collector/login" className="text-gray-600 hover:text-purple-600">
-                Collector Login
+              <a href="/staff/login" className="text-gray-600 hover:text-purple-600">
+                Staff Login
               </a>
             </div>
           </div>

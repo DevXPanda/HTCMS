@@ -65,17 +65,11 @@ const AdminLogin = () => {
         
         if (!isAdminRole) {
           toast.error('Access denied. This login is only for admin, assessor, or cashier.');
-          localStorage.removeItem('token');
-          localStorage.removeItem('role');
-          localStorage.removeItem('user');
+          // Clear auth data through AuthContext by using a dummy login call
+          // This will trigger the error handling and clear data
           setLoading(false);
           return;
         }
-
-        // Ensure role is stored exactly as received from backend - DO NOT override
-        // AuthContext already stores it, but ensure it's correct
-        localStorage.setItem('role', role);
-        localStorage.setItem('user', JSON.stringify(loggedInUser));
         
         toast.success('Login successful!');
         
@@ -165,8 +159,8 @@ const AdminLogin = () => {
 
           <div className="mt-4 pt-4 border-t">
             <div className="flex justify-center gap-4 text-sm">
-              <a href="/collector/login" className="text-gray-600 hover:text-blue-600">
-                Collector Login
+              <a href="/staff/login" className="text-gray-600 hover:text-blue-600">
+                Staff Login
               </a>
               <span className="text-gray-300">|</span>
               <a href="/citizen/login" className="text-gray-600 hover:text-blue-600">

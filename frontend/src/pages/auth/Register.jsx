@@ -13,15 +13,11 @@ const Register = () => {
     // Check URL path first
     if (location.pathname.startsWith('/admin/register')) {
       return 'admin';
-    } else if (location.pathname.startsWith('/collector/register')) {
-      return 'collector';
     }
     
-    // Then check URL param
-    if (roleParam === 'admin' || roleParam === 'assessor' || roleParam === 'cashier') {
+    // Then check URL param - only allow admin and citizen
+    if (roleParam === 'admin') {
       return roleParam;
-    } else if (roleParam === 'collector' || roleParam === 'tax_collector') {
-      return 'collector';
     }
     
     return 'citizen';
@@ -70,10 +66,8 @@ const Register = () => {
       const role = result.user.role;
       
       // Redirect based on exact role from API
-      if (role === 'admin' || role === 'assessor' || role === 'cashier') {
+      if (role === 'admin') {
         navigate('/dashboard', { replace: true });
-      } else if (role === 'collector') {
-        navigate('/collector/dashboard', { replace: true });
       } else if (role === 'citizen') {
         navigate('/citizen/dashboard', { replace: true });
       }
@@ -87,21 +81,15 @@ const Register = () => {
   // Determine theme based on role
   const getTheme = () => {
     const role = formData.role;
-    if (role === 'admin' || role === 'assessor' || role === 'cashier') {
+    if (role === 'admin') {
       return {
         bg: 'from-blue-50 to-blue-100',
         text: 'text-blue-600',
         button: 'bg-blue-600 hover:bg-blue-700',
         link: 'text-blue-600'
       };
-    } else if (role === 'collector' || role === 'tax_collector') {
-      return {
-        bg: 'from-green-50 to-green-100',
-        text: 'text-green-600',
-        button: 'bg-green-600 hover:bg-green-700',
-        link: 'text-green-600'
-      };
     } else {
+      // citizen
       return {
         bg: 'from-purple-50 to-purple-100',
         text: 'text-purple-600',
@@ -122,12 +110,21 @@ const Register = () => {
             <p className="text-gray-600">Create your HTCMS account</p>
             {formData.role !== 'citizen' && (
               <p className="text-sm text-gray-500 mt-2">
-                {formData.role === 'collector' ? 'For Field Collectors' : 
-                 formData.role === 'admin' ? 'For Administrators' :
-                 formData.role === 'assessor' ? 'For Assessors' :
-                 formData.role === 'cashier' ? 'For Cashiers' : ''}
+                {formData.role === 'admin' ? 'For System Administrators - Full system access' : ''}
               </p>
             )}
+          </div>
+
+          <div className="mb-6 p-4 bg-amber-50 rounded-lg border border-amber-200">
+            <div className="flex items-center gap-2 mb-2">
+              <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 className="text-sm font-medium text-amber-900">Registration Notice</h3>
+            </div>
+            <p className="text-xs text-amber-700">
+              Only Citizen and Admin accounts can be self-registered. Staff accounts (Clerk, Inspector, Officer, Collector) must be created by system administrators.
+            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -144,13 +141,10 @@ const Register = () => {
                 className="input"
               >
                 <option value="citizen">Citizen (Property Owner)</option>
-                <option value="collector">Field Collector</option>
                 <option value="admin">Administrator</option>
-                <option value="assessor">Assessor</option>
-                <option value="cashier">Cashier</option>
               </select>
               <p className="text-xs text-gray-500 mt-1">
-                Select your account category. Admin, Assessor, and Cashier accounts require approval.
+                Only Citizen and Admin accounts can be self-registered. Staff accounts are created by administrators.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -276,14 +270,9 @@ const Register = () => {
                   Login here
                 </Link>
               )}
-              {formData.role === 'collector' && (
-                <Link to="/collector/login" className={`${theme.link} hover:underline font-medium`}>
-                  Login here
-                </Link>
-              )}
-              {(formData.role === 'admin' || formData.role === 'assessor' || formData.role === 'cashier') && (
-                <Link to="/admin/login" className={`${theme.link} hover:underline font-medium`}>
-                  Login here
+              {formData.role === 'admin' && (
+                <Link to="/staff/login" className={`${theme.link} hover:underline font-medium`}>
+                  Staff Login
                 </Link>
               )}
             </p>
@@ -293,12 +282,8 @@ const Register = () => {
                   Citizen Login
                 </Link>
                 <span className="text-gray-300">|</span>
-                <Link to="/collector/login" className="text-gray-600 hover:underline">
-                  Collector Login
-                </Link>
-                <span className="text-gray-300">|</span>
-                <Link to="/admin/login" className="text-gray-600 hover:underline">
-                  Admin Login
+                <Link to="/staff/login" className="text-gray-600 hover:underline">
+                  Staff Login
                 </Link>
               </div>
             </div>

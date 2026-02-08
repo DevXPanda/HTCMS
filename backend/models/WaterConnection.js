@@ -72,11 +72,7 @@ export const WaterConnection = sequelize.define('WaterConnection', {
   createdBy: {
     type: DataTypes.INTEGER,
     allowNull: true,
-    references: {
-      model: 'Users',
-      key: 'id'
-    },
-    comment: 'User who created the connection'
+    comment: 'User who created the connection (can be from Users or AdminManagement table)'
   }
 }, {
   tableName: 'water_connections',

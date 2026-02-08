@@ -1,28 +1,47 @@
 import express from 'express';
-import { authenticate, authorize } from '../middleware/auth.js';
+import { authenticate, authorize } from '../middleware/enhancedAuth.js';
 import {
-  getAllWaterConnectionRequests,
+  createWaterConnectionRequest,
+  createAndSubmitWaterConnectionRequest,
+  getWaterConnectionRequests,
   getWaterConnectionRequestById,
-  approveWaterConnectionRequest,
-  rejectWaterConnectionRequest
-} from '../controllers/waterConnection.controller.js';
+  updateWaterConnectionRequest,
+  submitWaterConnectionRequest,
+  inspectionReviewWaterConnectionRequest,
+  deleteWaterConnectionRequest
+} from '../controllers/waterConnectionRequest.controller.js';
+import { processWaterApplication } from '../controllers/clerk.controller.js';
 
 const router = express.Router();
 
-// All routes require authentication and admin/assessor role
+// All routes require authentication
 router.use(authenticate);
-router.use(authorize('admin', 'assessor'));
 
-// Get all water connection requests
-router.get('/', getAllWaterConnectionRequests);
+// Create and submit water connection request (Clerk, Admin) - for immediate submission
+router.post('/create-and-submit', authorize('clerk', 'admin'), createAndSubmitWaterConnectionRequest);
 
-// Get water connection request by ID
-router.get('/:id', getWaterConnectionRequestById);
+// Create water connection request (Citizen, Clerk, Admin)
+router.post('/', authorize('citizen', 'clerk', 'admin'), createWaterConnectionRequest);
 
-// Approve water connection request
-router.post('/:id/approve', approveWaterConnectionRequest);
+// Get all requests (Citizen sees own, Clerk sees created, Assessor/Admin see all)
+router.get('/', authorize('citizen', 'clerk', 'assessor', 'admin'), getWaterConnectionRequests);
 
-// Reject water connection request
-router.post('/:id/reject', rejectWaterConnectionRequest);
+// Get request by ID (Citizen sees own, Clerk sees created, Assessor/Admin see all)
+router.get('/:id', authorize('citizen', 'clerk', 'assessor', 'admin'), getWaterConnectionRequestById);
+
+// Update request (Citizen, Clerk, Admin - only DRAFT/RETURNED)
+router.put('/:id', authorize('citizen', 'clerk', 'admin'), updateWaterConnectionRequest);
+
+// Submit request for inspection (Citizen, Clerk, Admin)
+router.post('/:id/submit', authorize('citizen', 'clerk', 'admin'), submitWaterConnectionRequest);
+
+// Process request - forward to inspector or reject (Clerk, Admin only)
+router.post('/:id/process', authorize('clerk', 'admin'), processWaterApplication);
+
+// Inspection review (Assessor, Admin only)
+router.post('/:id/review', authorize('assessor', 'admin'), inspectionReviewWaterConnectionRequest);
+
+// Delete request (Citizen, Clerk, Admin - only DRAFT)
+router.delete('/:id', authorize('citizen', 'clerk', 'admin'), deleteWaterConnectionRequest);
 
 export default router;

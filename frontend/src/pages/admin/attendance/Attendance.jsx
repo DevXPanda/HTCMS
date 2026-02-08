@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import { attendanceAPI, userAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { Search, Filter, X, Eye, Calendar, User, Clock, MapPin, Monitor, Smartphone, Tablet, Globe } from 'lucide-react';
+import { Search, Filter, X, Eye, Calendar, User, Clock, MapPin, Monitor, Smartphone, Tablet, Globe, Users, Briefcase, Shield, UserCheck } from 'lucide-react';
 import AttendanceDetailsModal from './AttendanceDetailsModal';
 
 const Attendance = () => {
   const [attendance, setAttendance] = useState([]);
+  const [allAttendance, setAllAttendance] = useState([]); // Store all fetched records for frontend filtering
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState(null);
   const [search, setSearch] = useState('');
@@ -14,6 +15,7 @@ const Attendance = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [collectors, setCollectors] = useState([]);
+  const [selectedRole, setSelectedRole] = useState('collector'); // Default to collector for backwards compatibility
   const [filters, setFilters] = useState({
     collectorId: '',
     dateFrom: '',
@@ -28,6 +30,16 @@ const Attendance = () => {
     fetchCollectors();
     fetchAttendance();
   }, [page, search, filters]);
+
+  // Frontend filter when selected role changes
+  useEffect(() => {
+    if (allAttendance.length > 0) {
+      const filtered = selectedRole === 'collector'
+        ? allAttendance.filter(record => record.collector?.role === 'collector' || record.collector?.role === 'tax_collector')
+        : allAttendance.filter(record => record.collector?.role === selectedRole);
+      setAttendance(filtered);
+    }
+  }, [selectedRole, allAttendance]);
 
   const fetchCollectors = async () => {
     try {
@@ -44,13 +56,18 @@ const Attendance = () => {
       const params = {
         page,
         search,
-        limit: 20,
+        limit: 1000, // Fetch all records for frontend filtering
         sortBy: 'loginAt',
         sortOrder: 'DESC',
         ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''))
       };
       const response = await attendanceAPI.getAll(params);
-      setAttendance(response.data.data.attendance);
+      const records = response.data.data.attendance;
+      setAllAttendance(records);
+
+      // Apply frontend role filtering
+      const filtered = records.filter(record => record.collector?.role === selectedRole);
+      setAttendance(filtered);
       setPagination(response.data.data.pagination);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to fetch attendance records');
@@ -116,8 +133,8 @@ const Attendance = () => {
     <div>
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Collector Attendance</h1>
-          <p className="text-gray-600 mt-1">Automatic attendance tracking for collectors</p>
+          <h1 className="text-3xl font-bold text-gray-900">Staff Attendance</h1>
+          <p className="text-gray-600 mt-1">Track attendance for all staff members</p>
         </div>
         <button
           onClick={() => setShowFilters(!showFilters)}
@@ -125,6 +142,89 @@ const Attendance = () => {
         >
           <Filter className="w-4 h-4 mr-2" />
           Filters
+        </button>
+      </div>
+
+      {/* Role Summary Boxes */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <button
+          onClick={() => {
+            setSelectedRole('clerk');
+            const filtered = allAttendance.filter(record => record.collector?.role === 'clerk');
+            setAttendance(filtered);
+          }}
+          className={`card p-4 cursor-pointer transition-all hover:shadow-lg ${selectedRole === 'clerk' ? 'ring-2 ring-blue-500 bg-blue-50' : ''
+            }`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Clerk Attendance</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {allAttendance.filter(r => r.collector?.role === 'clerk').length}
+              </p>
+            </div>
+            <Briefcase className="w-8 h-8 text-blue-500" />
+          </div>
+        </button>
+
+        <button
+          onClick={() => {
+            setSelectedRole('inspector');
+            const filtered = allAttendance.filter(record => record.collector?.role === 'inspector');
+            setAttendance(filtered);
+          }}
+          className={`card p-4 cursor-pointer transition-all hover:shadow-lg ${selectedRole === 'inspector' ? 'ring-2 ring-green-500 bg-green-50' : ''
+            }`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Inspector Attendance</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {allAttendance.filter(r => r.collector?.role === 'inspector').length}
+              </p>
+            </div>
+            <Shield className="w-8 h-8 text-green-500" />
+          </div>
+        </button>
+
+        <button
+          onClick={() => {
+            setSelectedRole('officer');
+            const filtered = allAttendance.filter(record => record.collector?.role === 'officer');
+            setAttendance(filtered);
+          }}
+          className={`card p-4 cursor-pointer transition-all hover:shadow-lg ${selectedRole === 'officer' ? 'ring-2 ring-purple-500 bg-purple-50' : ''
+            }`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Officer Attendance</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {allAttendance.filter(r => r.collector?.role === 'officer').length}
+              </p>
+            </div>
+            <UserCheck className="w-8 h-8 text-purple-500" />
+          </div>
+        </button>
+
+        <button
+          onClick={() => {
+            setSelectedRole('collector');
+            const filtered = allAttendance.filter(record => record.collector?.role === 'collector' || record.collector?.role === 'tax_collector');
+            setAttendance(filtered);
+          }}
+          className={`card p-4 cursor-pointer transition-all hover:shadow-lg ${selectedRole === 'collector' ? 'ring-2 ring-orange-500 bg-orange-50' : ''
+            }`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Collector Attendance</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {allAttendance.filter(r => r.collector?.role === 'collector' || r.collector?.role === 'tax_collector').length}
+              </p>
+            </div>
+            <Users className="w-8 h-8 text-orange-500" />
+          </div>
         </button>
       </div>
 
@@ -241,7 +341,7 @@ const Attendance = () => {
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 font-semibold text-gray-700">Collector</th>
+                <th className="text-left py-3 px-4 font-semibold text-gray-700">Staff Member</th>
                 <th className="text-left py-3 px-4 font-semibold text-gray-700">Login Time</th>
                 <th className="text-left py-3 px-4 font-semibold text-gray-700">Logout Time</th>
                 <th className="text-left py-3 px-4 font-semibold text-gray-700">Duration</th>
@@ -267,9 +367,10 @@ const Attendance = () => {
                         <User className="w-4 h-4 mr-2 text-gray-400" />
                         <div>
                           <div className="font-medium">
-                            {record.collector?.firstName} {record.collector?.lastName}
+                            {record.collector?.firstName || record.collector?.full_name} {record.collector?.lastName || ''}
                           </div>
-                          <div className="text-sm text-gray-500">{record.collector?.email}</div>
+                          <div className="text-xs text-gray-500">{record.collector?.email}</div>
+                          <div className="text-xs text-blue-600 capitalize">{record.collector?.role}</div>
                         </div>
                       </div>
                     </td>

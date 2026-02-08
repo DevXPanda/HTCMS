@@ -8,19 +8,7 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "migrate": "sequelize-cli db:migrate",
-    "seed": "sequelize-cli db:seed:all",
-    "fix-role-constraint": "node scripts/fix-role-constraint.js",
-    "setup-supabase": "node scripts/setup-supabase-schema.js",
-    "migrate-attendance": "node scripts/run-attendance-migration.js",
-    "migrate-field-visits": "node scripts/run-field-visits-migration.js",
-    "migrate-water-tax": "node scripts/run-water-tax-migration.js",
-    "fix-water-connections": "node scripts/run-fix-water-connections.js",
-    "migrate-water-tax-assessments": "node scripts/run-water-tax-assessments-migration.js",
-    "migrate-water-tax-demands": "node scripts/run-water-tax-demands-migration.js",
-    "migrate-water-connection-documents": "node scripts/run-water-connection-documents-migration.js",
-    "migrate-water-connection-requests": "node scripts/run-water-connection-requests-migration.js",
-    "migrate-tax-demand-items": "node scripts/run-tax-demand-items-migration.js",
-    "fix-audit-enums": "node scripts/run-fix-audit-enums.js"
+    "seed": "sequelize-cli db:seed:all"
   },
   "keywords": [
     "htcms",
@@ -30,6 +18,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "axios": "^1.13.4",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
