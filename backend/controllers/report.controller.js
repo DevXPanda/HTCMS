@@ -1,4 +1,4 @@
-import { Payment, Demand, DemandItem, Property, Assessment, Ward, User, WaterConnection, WaterBill, WaterPayment } from '../models/index.js';
+import { Payment, Demand, DemandItem, Property, Assessment, Ward, User, WaterConnection, WaterBill, WaterPayment, AdminManagement } from '../models/index.js';
 import { Op, Sequelize } from 'sequelize';
 import { WATER_PAYMENT_STATUS, getUnpaidBillStatuses } from '../constants/waterTaxStatuses.js';
 
@@ -9,7 +9,7 @@ import { WATER_PAYMENT_STATUS, getUnpaidBillStatuses } from '../constants/waterT
  */
 const isUnifiedDemand = (demand) => {
   if (!demand) return false;
-  
+
   // Check if remarks contains UNIFIED_DEMAND
   if (demand.remarks && typeof demand.remarks === 'string') {
     if (demand.remarks.includes('UNIFIED_DEMAND')) {
@@ -25,7 +25,7 @@ const isUnifiedDemand = (demand) => {
       // Not JSON, continue checking
     }
   }
-  
+
   // Check if demand has items (unified demands have demand items)
   if (demand.items && Array.isArray(demand.items) && demand.items.length > 0) {
     const hasPropertyItem = demand.items.some(item => item.taxType === 'PROPERTY');
@@ -34,7 +34,7 @@ const isUnifiedDemand = (demand) => {
       return true;
     }
   }
-  
+
   return false;
 };
 
@@ -54,14 +54,14 @@ const splitUnifiedPayment = (payment, demand) => {
     }
     return { propertyTaxAmount: 0, waterTaxAmount: 0 };
   }
-  
+
   const paymentAmount = parseFloat(payment.amount || 0);
   const demandBaseAmount = parseFloat(demand.baseAmount || 0);
-  
+
   // Calculate total base amount for property and water items separately
   let propertyBaseAmount = 0;
   let waterBaseAmount = 0;
-  
+
   demand.items.forEach(item => {
     const itemBaseAmount = parseFloat(item.baseAmount || 0);
     if (item.taxType === 'PROPERTY') {
@@ -85,15 +85,15 @@ const splitUnifiedPayment = (payment, demand) => {
     }
     return { propertyTaxAmount: 0, waterTaxAmount: 0 };
   }
-  
+
   // Split payment proportionally based on base amounts
   const propertyTaxAmount = Math.round((paymentAmount * propertyBaseAmount / splitDenominator) * 100) / 100;
   const waterTaxAmount = Math.round((paymentAmount * waterBaseAmount / splitDenominator) * 100) / 100;
-  
+
   // Handle rounding errors - ensure total equals payment amount
   const total = propertyTaxAmount + waterTaxAmount;
   const difference = paymentAmount - total;
-  
+
   // Add rounding difference to the larger portion
   if (Math.abs(difference) > 0.01) {
     if (propertyTaxAmount >= waterTaxAmount) {
@@ -108,7 +108,7 @@ const splitUnifiedPayment = (payment, demand) => {
       };
     }
   }
-  
+
   return { propertyTaxAmount, waterTaxAmount };
 };
 
@@ -161,9 +161,9 @@ export const getDashboardStats = async (req, res, next) => {
         } : {})
       },
       include: [
-        { 
-          model: Demand, 
-          as: 'demand', 
+        {
+          model: Demand,
+          as: 'demand',
           attributes: ['id', 'serviceType', 'baseAmount', 'remarks'],
           required: false,
           include: [
@@ -183,16 +183,16 @@ export const getDashboardStats = async (req, res, next) => {
     let houseTaxRevenue = 0;
     let d2dcRevenue = 0;
     let waterTaxRevenueFromUnified = 0;
-    
+
     payments.forEach(payment => {
       const paymentAmount = parseFloat(payment.amount || 0);
       totalRevenue += paymentAmount;
-      
+
       const demand = payment.demand;
       if (!demand) {
         return;
       }
-      
+
       // Check if unified demand
       if (isUnifiedDemand(demand)) {
         const split = splitUnifiedPayment(payment, demand);
@@ -266,7 +266,7 @@ export const getDashboardStats = async (req, res, next) => {
     });
 
     const totalWaterRevenue = waterPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
-    
+
     // Add water tax revenue from unified demands
     const totalWaterTaxRevenue = totalWaterRevenue + waterTaxRevenueFromUnified;
 
@@ -357,7 +357,7 @@ export const getRevenueReport = async (req, res, next) => {
         }
       ]
     };
-    
+
     if (taxType && taxType !== 'WATER_TAX') {
       // For HOUSE_TAX or D2DC, filter by serviceType in demand
       // But we still need to check for unified demands
@@ -388,16 +388,16 @@ export const getRevenueReport = async (req, res, next) => {
     let d2dcAmount = 0;
     let waterTaxAmount = 0;
     let waterTaxAmountFromUnified = 0;
-    
+
     payments.forEach(payment => {
       const paymentAmount = parseFloat(payment.amount || 0);
       totalAmount += paymentAmount;
-      
+
       const demand = payment.demand;
       if (!demand) {
         return;
       }
-      
+
       // Check if unified demand
       if (isUnifiedDemand(demand)) {
         const split = splitUnifiedPayment(payment, demand);
@@ -414,7 +414,7 @@ export const getRevenueReport = async (req, res, next) => {
         }
       }
     });
-    
+
     // Get Water Tax revenue from WaterPayment table (only if taxType is not specified or is WATER_TAX)
     let waterPayments = [];
     if (!taxType || taxType === 'WATER_TAX') {
@@ -435,7 +435,7 @@ export const getRevenueReport = async (req, res, next) => {
     const waterTaxRevenueFromPayments = waterPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
     // Include unified demand water tax portion
     const totalWaterTaxRevenue = waterTaxAmount + waterTaxAmountFromUnified + waterTaxRevenueFromPayments;
-    
+
     // Filter payments if taxType is specified
     // For unified demands, we need to check if they contain the requested tax type
     let filteredPayments = payments;
@@ -458,7 +458,7 @@ export const getRevenueReport = async (req, res, next) => {
         });
       }
     }
-    
+
     // Group by payment mode (from regular payments)
     const byPaymentMode = payments.reduce((acc, p) => {
       acc[p.paymentMode] = (acc[p.paymentMode] || 0) + parseFloat(p.amount);
@@ -479,12 +479,12 @@ export const getRevenueReport = async (req, res, next) => {
     let finalD2dcAmount = d2dcAmount;
     let finalWaterTaxAmount = totalWaterTaxRevenue;
     let finalTotalCount = payments.length + waterPayments.length;
-    
+
     // Count payments by type (unified demands count for both property and water)
     let houseTaxCount = 0;
     let d2dcCount = 0;
     let waterTaxCount = waterPayments.length;
-    
+
     payments.forEach(p => {
       if (!p.demand) return;
       if (isUnifiedDemand(p.demand)) {
@@ -496,11 +496,11 @@ export const getRevenueReport = async (req, res, next) => {
         else if (p.demand.serviceType === 'WATER_TAX') waterTaxCount++;
       }
     });
-    
+
     let finalHouseTaxCount = houseTaxCount;
     let finalD2dcCount = d2dcCount;
     let finalWaterTaxCount = waterTaxCount;
-    
+
     if (taxType) {
       if (taxType === 'HOUSE_TAX') {
         finalTotalAmount = houseTaxAmount;
@@ -545,7 +545,7 @@ export const getRevenueReport = async (req, res, next) => {
         byServiceType
       }
     };
-    
+
     // Include water payments for chart data if needed
     if (!taxType || taxType === 'WATER_TAX') {
       responseData.waterPayments = waterPayments;
@@ -598,7 +598,7 @@ export const getOutstandingReport = async (req, res, next) => {
     // Separate by serviceType
     const houseTaxDemands = demands.filter(d => d.serviceType === 'HOUSE_TAX');
     const d2dcDemands = demands.filter(d => d.serviceType === 'D2DC');
-    
+
     const houseTaxOutstanding = houseTaxDemands.reduce((sum, d) => sum + parseFloat(d.balanceAmount || 0), 0);
     const d2dcOutstanding = d2dcDemands.reduce((sum, d) => sum + parseFloat(d.balanceAmount || 0), 0);
 
@@ -637,7 +637,11 @@ export const getWardWiseReport = async (req, res, next) => {
     const wards = await Ward.findAll({
       where: { isActive: true },
       include: [
-        { model: User, as: 'collector', attributes: ['id', 'firstName', 'lastName'] }
+        {
+          model: AdminManagement,
+          as: 'collector',
+          attributes: ['id', 'full_name', 'employee_id']
+        }
       ]
     });
 

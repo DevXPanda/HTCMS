@@ -54,6 +54,9 @@ import WaterTaxAssessments from './pages/admin/water/WaterTaxAssessments';
 import AddWaterTaxAssessment from './pages/admin/water/AddWaterTaxAssessment';
 import WaterTaxAssessmentDetails from './pages/admin/water/WaterTaxAssessmentDetails';
 import WaterConnectionRequests from './pages/admin/water/WaterConnectionRequests';
+import PropertyTaxModule from './pages/admin/PropertyTaxModule';
+import WaterTaxModule from './pages/admin/WaterTaxModule';
+import TaxManagement from './pages/admin/TaxManagement';
 
 // Citizen Pages
 import CitizenDashboard from './pages/citizen/CitizenDashboard';
@@ -167,6 +170,10 @@ function App() {
           >
             <Route index element={<RoleBasedRedirect />} />
             <Route path="dashboard" element={<Dashboard />} />
+            {/* New Modules */}
+            <Route path="tax-management" element={<TaxManagement />} />
+            <Route path="property-tax" element={<PropertyTaxModule />} />
+            <Route path="water-tax" element={<WaterTaxModule />} />
 
             {/* Properties */}
             <Route path="properties" element={<Properties />} />

@@ -97,7 +97,7 @@ const Reports = () => {
   const getRevenueChartData = () => {
     if (!data?.payments && !data?.waterPayments) return [];
     const dailyData = {};
-    
+
     // Process regular payments
     if (data.payments) {
       data.payments.forEach(payment => {
@@ -105,7 +105,7 @@ const Reports = () => {
         dailyData[date] = (dailyData[date] || 0) + parseFloat(payment.amount || 0);
       });
     }
-    
+
     // Process water payments if available
     if (data.waterPayments) {
       data.waterPayments.forEach(payment => {
@@ -113,7 +113,7 @@ const Reports = () => {
         dailyData[date] = (dailyData[date] || 0) + parseFloat(payment.amount || 0);
       });
     }
-    
+
     return Object.entries(dailyData)
       .sort((a, b) => new Date(a[0]) - new Date(b[0]))
       .map(([date, amount]) => ({ date, amount }));
@@ -228,11 +228,10 @@ const Reports = () => {
                 <button
                   key={tab.id}
                   onClick={() => handleTabChange(tab.id)}
-                  className={`flex items-center px-4 py-2 border-b-2 transition-colors ${
-                    activeTab === tab.id
+                  className={`flex items-center px-4 py-2 border-b-2 transition-colors ${activeTab === tab.id
                       ? 'border-primary-600 text-primary-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
+                    }`}
                 >
                   <Icon className="w-4 h-4 mr-2" />
                   {tab.label}
@@ -370,7 +369,7 @@ const Reports = () => {
                     <div className="card bg-yellow-50">
                       <p className="text-sm text-gray-600 mb-1">Average Outstanding</p>
                       <p className="text-3xl font-bold text-yellow-600">
-                        ₹{data.summary?.totalCount > 0 
+                        ₹{data.summary?.totalCount > 0
                           ? (parseFloat(data.summary.totalOutstanding || 0) / data.summary.totalCount).toLocaleString('en-IN', { minimumFractionDigits: 2 })
                           : '0.00'}
                       </p>
@@ -398,7 +397,7 @@ const Reports = () => {
                                 <td className="font-medium">{demand.demandNumber}</td>
                                 <td>{demand.property?.propertyNumber || 'N/A'}</td>
                                 <td>
-                                  {demand.property?.owner 
+                                  {demand.property?.owner
                                     ? `${demand.property.owner.firstName} ${demand.property.owner.lastName}`
                                     : 'N/A'}
                                 </td>
@@ -407,11 +406,10 @@ const Reports = () => {
                                   ₹{parseFloat(demand.balanceAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                 </td>
                                 <td>
-                                  <span className={`badge ${
-                                    demand.status === 'overdue' ? 'badge-danger' :
-                                    demand.status === 'pending' ? 'badge-warning' :
-                                    'badge-info'
-                                  } capitalize`}>
+                                  <span className={`badge ${demand.status === 'overdue' ? 'badge-danger' :
+                                      demand.status === 'pending' ? 'badge-warning' :
+                                        'badge-info'
+                                    } capitalize`}>
                                     {demand.status.replace('_', ' ')}
                                   </span>
                                 </td>
@@ -473,8 +471,8 @@ const Reports = () => {
                                 </div>
                               </td>
                               <td>
-                                {ward.ward.collector 
-                                  ? `${ward.ward.collector.firstName} ${ward.ward.collector.lastName}`
+                                {ward.ward.collector
+                                  ? (ward.ward.collector.full_name || `${ward.ward.collector.firstName} ${ward.ward.collector.lastName}`)
                                   : 'Not Assigned'}
                               </td>
                               <td>{ward.totalProperties}</td>
