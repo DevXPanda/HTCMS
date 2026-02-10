@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, Droplet, Store, Truck, ArrowLeft } from 'lucide-react';
+import { Building2, Droplet, Store, Truck, ArrowLeft, Zap } from 'lucide-react';
 
 const TaxManagement = () => {
     const taxModules = [
@@ -38,11 +38,21 @@ const TaxManagement = () => {
             name: 'D2DC',
             description: 'Door-to-door collection and field monitoring',
             icon: Truck,
-            link: '/field-monitoring',
+            link: '/tax-management/d2dc',
             color: 'bg-purple-600',
             bgColor: 'bg-purple-50',
             borderColor: 'border-purple-100',
             textColor: 'text-purple-700'
+        },
+        {
+            name: 'Unified Tax Demand',
+            description: 'Generate Property, Water & D2DC demands in one go',
+            icon: Zap,
+            link: '/demands/unified',
+            color: 'bg-gradient-to-r from-indigo-600 to-purple-600',
+            bgColor: 'bg-indigo-50',
+            borderColor: 'border-indigo-100',
+            textColor: 'text-indigo-700'
         }
     ];
 

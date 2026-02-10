@@ -17,16 +17,30 @@ export const authenticate = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Try to find user in User table first (for admin/citizen users)
-    let user = await User.findByPk(decoded.userId, {
-      attributes: { exclude: ['password'] }
-    });
+    let user = null;
 
-    // If not found in User table, try AdminManagement table (for staff users)
-    if (!user) {
+    // Check userType from JWT token to determine which table to search first
+    // This prevents ID collisions between User and AdminManagement tables
+    if (decoded.userType === 'admin_management') {
+      // Staff user - check admin_management table first
       user = await AdminManagement.findByPk(decoded.userId, {
         attributes: { exclude: ['password'] }
       });
+
+      // If found, ensure role is attached (AdminManagement has role column)
+      // No need to fall back to User table if userType is explicitly admin_management
+    } else {
+      // Regular user or unspecified - check users table first
+      user = await User.findByPk(decoded.userId, {
+        attributes: { exclude: ['password'] }
+      });
+
+      // Valid fallback for backward compatibility or cross-role tokens
+      if (!user) {
+        user = await AdminManagement.findByPk(decoded.userId, {
+          attributes: { exclude: ['password'] }
+        });
+      }
     }
 
     if (!user) {
@@ -62,8 +76,8 @@ export const authorize = (...roles) => {
     }
 
     if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ 
-        message: 'Access denied. Insufficient permissions.' 
+      return res.status(403).json({
+        message: 'Access denied. Insufficient permissions.'
       });
     }
 
@@ -83,8 +97,8 @@ export const requireRole = (role) => {
     }
 
     if (req.user.role !== role) {
-      return res.status(403).json({ 
-        message: 'Access denied. Insufficient permissions.' 
+      return res.status(403).json({
+        message: 'Access denied. Insufficient permissions.'
       });
     }
 

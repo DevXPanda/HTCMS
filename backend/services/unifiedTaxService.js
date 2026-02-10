@@ -21,25 +21,19 @@ import {
 /**
  * Generate assessment number for property tax
  */
-const generatePropertyAssessmentNumber = async (assessmentYear) => {
-  const year = new Date().getFullYear();
-  const timestamp = Date.now().toString().slice(-6);
-  return `ASS-${assessmentYear}-${timestamp}`;
+const generateUniquePropertyAssessmentNumber = async (assessmentYear) => {
+  const timestamp = Date.now().toString(); // Use full timestamp
+  const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+  return `ASS-${assessmentYear}-${timestamp.slice(-8)}-${random}`;
 };
 
 /**
  * Generate assessment number for water tax
  */
 const generateWaterAssessmentNumber = async (assessmentYear) => {
-  const count = await WaterTaxAssessment.count({
-    where: {
-      assessmentNumber: {
-        [Op.like]: `WTA-${assessmentYear}-%`
-      }
-    }
-  });
-  const sequence = String(count + 1).padStart(6, '0');
-  return `WTA-${assessmentYear}-${sequence}`;
+  const timestamp = Date.now().toString(); // Use full timestamp
+  const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+  return `WTA-${assessmentYear}-${timestamp.slice(-8)}-${random}`;
 };
 
 /**
@@ -94,7 +88,8 @@ const generatePropertyTaxAssessment = async (propertyId, assessmentYear, assesso
   const annualTaxAmount = (netAssessedValue * taxRate) / 100;
 
   // Generate assessment number
-  const assessmentNumber = await generatePropertyAssessmentNumber(assessmentYear);
+  const assessmentNumber = await generateUniquePropertyAssessmentNumber(assessmentYear);
+  console.log('DEBUG: propertyId:', propertyId, 'Generated Assessment Number:', assessmentNumber);
 
   // Create assessment
   const assessment = await Assessment.create({
@@ -141,7 +136,7 @@ const generateWaterTaxAssessment = async (waterConnectionId, propertyId, assessm
   if (!property) {
     throw new Error('Property not found');
   }
-  
+
   // Prevent assessment generation for inactive properties
   if (property.isActive === false) {
     throw new Error(`Cannot generate water tax assessment for inactive property ${property.propertyNumber || propertyId}. Property must be active to receive assessments.`);
@@ -267,7 +262,7 @@ export const generateUnifiedTaxAssessmentAndDemand = async ({
     if (!property) {
       throw new Error('Property not found');
     }
-    
+
     // Prevent assessment generation for inactive properties
     if (property.isActive === false) {
       throw new Error(`Cannot generate assessment for inactive property ${property.propertyNumber || propertyId}. Property must be active to receive assessments.`);
@@ -296,6 +291,7 @@ export const generateUnifiedTaxAssessmentAndDemand = async ({
 
     // Step 1: Generate or get Property Tax Assessment
     try {
+      console.log('DEBUG: Generating Property Assessment...');
       const { assessment, created } = await generatePropertyTaxAssessment(
         propertyId,
         assessmentYear,
@@ -303,9 +299,11 @@ export const generateUnifiedTaxAssessmentAndDemand = async ({
         defaultTaxRate,
         transaction
       );
+      console.log('DEBUG: Generated Property Assessment:', assessment.assessmentNumber, 'Created:', created);
       results.propertyAssessment = assessment;
       results.created.propertyAssessment = created;
     } catch (error) {
+      console.error('DEBUG: Property Assessment Error:', error);
       results.errors.push({
         type: 'PROPERTY_ASSESSMENT',
         message: error.message
@@ -324,6 +322,7 @@ export const generateUnifiedTaxAssessmentAndDemand = async ({
     // Step 3: Generate or get Water Tax Assessments for each active connection
     for (const connection of waterConnections) {
       try {
+        console.log('DEBUG: Generating Water Assessment for connection', connection.id);
         const { assessment, created } = await generateWaterTaxAssessment(
           connection.id,
           propertyId,
@@ -331,9 +330,11 @@ export const generateUnifiedTaxAssessmentAndDemand = async ({
           assessorId,
           transaction
         );
+        console.log('DEBUG: Generated Water Assessment:', assessment.assessmentNumber, 'Created:', created);
         results.waterAssessments.push(assessment);
         results.created.waterAssessments.push({ connectionId: connection.id, created });
       } catch (error) {
+        console.error('DEBUG: Water Assessment Error:', error);
         results.errors.push({
           type: 'WATER_ASSESSMENT',
           connectionId: connection.id,
@@ -382,11 +383,11 @@ export const generateUnifiedTaxAssessmentAndDemand = async ({
       );
       waterTaxBaseAmount += amount;
     }
-    
+
     // Calculate water arrears by summing individual connection arrears
     for (const waterAssessment of results.waterAssessments) {
       const connectionArrears = await calculateWaterArrearsPerConnection(
-        waterAssessment.waterConnectionId, 
+        waterAssessment.waterConnectionId,
         financialYear
       );
       waterTaxArrears += connectionArrears;
@@ -579,7 +580,7 @@ export const generateUnifiedTaxAssessmentAndDemand = async ({
       );
       // Calculate arrears per connection based on previous unpaid demands for this specific connection
       const waterItemArrears = await calculateWaterArrearsPerConnection(
-        waterAssessment.waterConnectionId, 
+        waterAssessment.waterConnectionId,
         financialYear
       );
       const waterItemTotal = Math.round((waterItemBaseAmount + waterItemArrears) * 100) / 100;
@@ -631,8 +632,8 @@ export const generateUnifiedTaxAssessmentAndDemand = async ({
         },
         { model: Assessment, as: 'assessment', required: false },
         { model: WaterTaxAssessment, as: 'waterTaxAssessment', required: false },
-        { 
-          model: DemandItem, 
+        {
+          model: DemandItem,
           as: 'items',
           include: [
             { model: WaterConnection, as: 'waterConnection', required: false }
@@ -656,14 +657,14 @@ export const generateUnifiedTaxAssessmentAndDemand = async ({
 export const getUnifiedDemandBreakdown = async (demandId) => {
   const demand = await Demand.findByPk(demandId, {
     include: [
-      { 
-        model: Property, 
+      {
+        model: Property,
         as: 'property',
         include: [
           { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email', 'phone'] },
           { model: Ward, as: 'ward', attributes: ['id', 'wardNumber', 'wardName'] },
-          { 
-            model: WaterConnection, 
+          {
+            model: WaterConnection,
             as: 'waterConnections',
             where: { status: 'ACTIVE' },
             required: false
@@ -672,8 +673,8 @@ export const getUnifiedDemandBreakdown = async (demandId) => {
       },
       { model: Assessment, as: 'assessment', required: false },
       { model: WaterTaxAssessment, as: 'waterTaxAssessment', required: false },
-      { 
-        model: DemandItem, 
+      {
+        model: DemandItem,
         as: 'items',
         include: [
           { model: WaterConnection, as: 'waterConnection', required: false }
@@ -774,8 +775,8 @@ export const getUnifiedTaxSummary = async (propertyId, assessmentYear = null) =>
     include: [
       { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email', 'phone'] },
       { model: Ward, as: 'ward', attributes: ['id', 'wardNumber', 'wardName'] },
-      { 
-        model: WaterConnection, 
+      {
+        model: WaterConnection,
         as: 'waterConnections',
         where: { status: 'ACTIVE' },
         required: false
@@ -825,8 +826,8 @@ export const getUnifiedTaxSummary = async (propertyId, assessmentYear = null) =>
       }
     },
     include: [
-      { 
-        model: DemandItem, 
+      {
+        model: DemandItem,
         as: 'items',
         include: [
           { model: WaterConnection, as: 'waterConnection', required: false }

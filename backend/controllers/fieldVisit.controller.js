@@ -1,4 +1,4 @@
-import { FieldVisit, FollowUp, Demand, Property, User, CollectorAttendance, Notice, Ward, CollectorTask, Payment } from '../models/index.js';
+import { FieldVisit, FollowUp, Demand, Property, User, CollectorAttendance, Notice, Ward, CollectorTask, Payment, D2DCRecord } from '../models/index.js';
 import { Op } from 'sequelize';
 import { parseDeviceInfo } from '../utils/deviceParser.js';
 import { createAuditLog } from '../utils/auditLogger.js';
@@ -13,10 +13,10 @@ import { generatePaymentReceiptPdf } from '../utils/pdfHelpers.js';
  */
 export const createFieldVisit = async (req, res, next) => {
   const transaction = await sequelize.transaction();
-  
+
   try {
     const user = req.user;
-    
+
     // Only collectors can create field visits
     if (user.role !== 'collector') {
       await transaction.rollback();
@@ -122,7 +122,7 @@ export const createFieldVisit = async (req, res, next) => {
             message: 'At least one payment is required when collecting payment'
           });
         }
-        
+
         const validPaymentModes = ['cash', 'cheque', 'dd', 'card', 'upi'];
         for (const payment of payments) {
           if (!payment.demandId || !payment.amount || parseFloat(payment.amount) <= 0) {
@@ -132,7 +132,7 @@ export const createFieldVisit = async (req, res, next) => {
               message: 'Each payment must have demandId and amount > 0'
             });
           }
-          
+
           if (!payment.paymentMode || !validPaymentModes.includes(payment.paymentMode)) {
             await transaction.rollback();
             return res.status(400).json({
@@ -168,7 +168,7 @@ export const createFieldVisit = async (req, res, next) => {
             message: 'Payment amount is required and must be greater than 0 when collecting payment'
           });
         }
-        
+
         const validPaymentModes = ['cash', 'cheque', 'dd', 'card', 'upi'];
         if (!paymentMode || !validPaymentModes.includes(paymentMode)) {
           await transaction.rollback();
@@ -293,7 +293,7 @@ export const createFieldVisit = async (req, res, next) => {
     if (escalationVisitTypes.includes(visitType)) {
       const nextEscalationSequence = escalationVisitCount + 1;
       const expectedVisitType = getExpectedEscalationType(nextEscalationSequence);
-      
+
       if (visitType !== expectedVisitType) {
         await transaction.rollback();
         return res.status(400).json({
@@ -371,16 +371,16 @@ export const createFieldVisit = async (req, res, next) => {
 
     // Update follow-up record
     // newVisitCount was already calculated above for visitSequenceNumber
-    
+
     // Escalation level and status only update for escalation visits (not payment_collection)
     // escalationVisitCount was already calculated above for validation
     let newEscalationLevel = followUp.escalationLevel;
     let newEscalationStatus = followUp.escalationStatus;
-    
+
     if (escalationVisitTypes.includes(visitType)) {
       const newEscalationVisitCount = escalationVisitCount + 1;
       newEscalationLevel = Math.min(newEscalationVisitCount, 4); // Max level 4 (enforcement eligible)
-      
+
       if (newEscalationVisitCount === 1) {
         newEscalationStatus = 'first_reminder';
       } else if (newEscalationVisitCount === 2) {
@@ -444,7 +444,7 @@ export const createFieldVisit = async (req, res, next) => {
     if (newEscalationLevel >= 3 && !followUp.noticeTriggered && balanceAmount > 0) {
       // Trigger enforcement notice
       triggeredNotice = await triggerEnforcementNotice(demand, property, followUp, user, transaction);
-      
+
       if (triggeredNotice) {
         await followUp.update({
           noticeTriggered: true,
@@ -457,8 +457,8 @@ export const createFieldVisit = async (req, res, next) => {
     let createdPayments = [];
     let receiptPdfUrl = null;
     if (isCollectingPayment) {
-      const paymentsToProcess = Array.isArray(payments) && payments.length > 0 
-        ? payments 
+      const paymentsToProcess = Array.isArray(payments) && payments.length > 0
+        ? payments
         : [{ demandId, amount: paymentAmount, paymentMode, transactionId, chequeNumber, chequeDate, bankName }];
 
       const year = new Date().getFullYear();
@@ -476,7 +476,7 @@ export const createFieldVisit = async (req, res, next) => {
       for (const paymentData of paymentsToProcess) {
         const paymentDemandId = paymentData.demandId || demandId;
         const paymentAmountNum = parseFloat(paymentData.amount);
-        
+
         // Get the demand for this payment
         const paymentDemand = await Demand.findByPk(paymentDemandId, { transaction });
         if (!paymentDemand) {
@@ -488,7 +488,7 @@ export const createFieldVisit = async (req, res, next) => {
         }
 
         const currentBalance = parseFloat(paymentDemand.balanceAmount || 0);
-        
+
         // Validate payment amount doesn't exceed balance
         if (paymentAmountNum > currentBalance) {
           await transaction.rollback();
@@ -564,18 +564,18 @@ export const createFieldVisit = async (req, res, next) => {
               description: `Follow-up resolved automatically after field payment collection. Payment: ${createdPayment.paymentNumber}`,
               metadata: {
                 followUpId: followUp.id,
-              demandId: paymentDemandId,
-              paymentId: createdPayment.id,
-              paymentNumber: createdPayment.paymentNumber,
-              amount: createdPayment.amount,
-              visitId: visit.id,
-              visitNumber: visit.visitNumber,
-              serviceType: paymentDemand.serviceType
-            }
-          });
-        } catch (auditError) {
-          console.error('Failed to create audit log for follow-up resolution:', auditError);
-        }
+                demandId: paymentDemandId,
+                paymentId: createdPayment.id,
+                paymentNumber: createdPayment.paymentNumber,
+                amount: createdPayment.amount,
+                visitId: visit.id,
+                visitNumber: visit.visitNumber,
+                serviceType: paymentDemand.serviceType
+              }
+            });
+          } catch (auditError) {
+            console.error('Failed to create audit log for follow-up resolution:', auditError);
+          }
         }
       }
 
@@ -636,17 +636,34 @@ export const createFieldVisit = async (req, res, next) => {
         }
       }
 
-      // Create audit log for each payment
+      // Create audit log and D2DC record for each payment
       for (const payment of createdPayments) {
         try {
           const paymentDemand = await Demand.findByPk(payment.demandId, { transaction });
+          const serviceType = paymentDemand?.serviceType || 'HOUSE_TAX';
+
+          // Create D2DC Record if applicable
+          if (serviceType === 'D2DC') {
+            await D2DCRecord.create({
+              type: 'PAYMENT_COLLECTION',
+              collectorId: user.id,
+              propertyId,
+              wardId: property.wardId,
+              demandId: payment.demandId,
+              paymentId: payment.id,
+              amount: payment.amount,
+              timestamp: new Date(),
+              remarks: payment.remarks
+            }, { transaction });
+          }
+
           await createAuditLog({
             req,
             user,
             actionType: 'PAYMENT_COLLECTED',
-            entityType: paymentDemand?.serviceType === 'D2DC' ? 'D2DC' : 'Payment',
+            entityType: serviceType === 'D2DC' ? 'D2DC' : 'Payment',
             entityId: payment.id,
-            description: `Payment collected during field visit: ${payment.paymentNumber} - ₹${payment.amount} (${paymentDemand?.serviceType || 'HOUSE_TAX'})`,
+            description: `Payment collected during field visit: ${payment.paymentNumber} - ₹${payment.amount} (${serviceType})`,
             metadata: {
               paymentId: payment.id,
               paymentNumber: payment.paymentNumber,
@@ -657,11 +674,11 @@ export const createFieldVisit = async (req, res, next) => {
               propertyId,
               visitId: visit.id,
               visitNumber: visit.visitNumber,
-              serviceType: paymentDemand?.serviceType || 'HOUSE_TAX'
+              serviceType: serviceType
             }
           });
         } catch (auditError) {
-          console.error('Failed to create audit log for payment:', auditError);
+          console.error('Failed to create audit log or D2DC record for payment:', auditError);
         }
       }
     }
@@ -714,8 +731,8 @@ export const createFieldVisit = async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: isCollectingPayment 
-        ? `Field visit recorded and ${createdPayments.length} payment(s) collected successfully` 
+      message: isCollectingPayment
+        ? `Field visit recorded and ${createdPayments.length} payment(s) collected successfully`
         : 'Field visit recorded successfully',
       data: {
         visit,
@@ -1121,10 +1138,10 @@ export const getFieldVisitContext = async (req, res, next) => {
     // Extract and return only necessary data (no sensitive user fields)
     // Use task's denormalized data first, fallback to related models
     const owner = task.owner || task.property?.owner || null;
-    const citizenName = owner 
+    const citizenName = owner
       ? `${owner.firstName} ${owner.lastName}`
       : task.citizenName || 'Unknown';
-    
+
     const context = {
       citizen: {
         name: citizenName,
@@ -1227,25 +1244,25 @@ export const getAdminFieldVisitDetails = async (req, res, next) => {
         {
           model: Demand,
           as: 'demand',
-          attributes: ['id', 'demandNumber', 'financialYear', 'baseAmount', 'arrearsAmount', 
-                       'penaltyAmount', 'interestAmount', 'totalAmount', 'paidAmount', 
-                       'balanceAmount', 'overdueDays', 'dueDate', 'status'],
+          attributes: ['id', 'demandNumber', 'financialYear', 'baseAmount', 'arrearsAmount',
+            'penaltyAmount', 'interestAmount', 'totalAmount', 'paidAmount',
+            'balanceAmount', 'overdueDays', 'dueDate', 'status'],
           include: [
             {
               model: FollowUp,
               as: 'followUp',
-              attributes: ['id', 'visitCount', 'escalationLevel', 'escalationStatus', 
-                          'priority', 'lastVisitDate', 'lastVisitType', 'lastCitizenResponse',
-                          'isEnforcementEligible', 'noticeTriggered', 'nextFollowUpDate']
+              attributes: ['id', 'visitCount', 'escalationLevel', 'escalationStatus',
+                'priority', 'lastVisitDate', 'lastVisitType', 'lastCitizenResponse',
+                'isEnforcementEligible', 'noticeTriggered', 'nextFollowUpDate']
             }
           ]
         },
         {
           model: CollectorAttendance,
           as: 'attendance',
-          attributes: ['id', 'loginAt', 'logoutAt', 'loginLatitude', 'loginLongitude', 
-                       'loginAddress', 'ipAddress', 'deviceType', 'browserName', 
-                       'operatingSystem', 'source', 'workingDurationMinutes']
+          attributes: ['id', 'loginAt', 'logoutAt', 'loginLatitude', 'loginLongitude',
+            'loginAddress', 'ipAddress', 'deviceType', 'browserName',
+            'operatingSystem', 'source', 'workingDurationMinutes']
         }
       ]
     });
@@ -1271,8 +1288,8 @@ export const getAdminFieldVisitDetails = async (req, res, next) => {
     const followUp = visit.demand?.followUp || null;
 
     // Check if follow-up was scheduled/updated after this visit
-    const followUpUpdated = followUp && 
-      followUp.lastVisitDate && 
+    const followUpUpdated = followUp &&
+      followUp.lastVisitDate &&
       new Date(followUp.lastVisitDate) >= new Date(visit.visitDate);
 
     // Prepare comprehensive response
@@ -1381,7 +1398,7 @@ export const getAdminFieldVisitDetails = async (req, res, next) => {
 
       // System outcomes
       systemOutcomes: {
-        escalationTriggered: followUp ? 
+        escalationTriggered: followUp ?
           (followUp.escalationLevel > 0 || followUp.escalationStatus !== 'none') : false,
         noticeGenerated: noticesAfterVisit > 0,
         nextFollowUpScheduled: followUp?.nextFollowUpDate ? true : false,

@@ -10,6 +10,7 @@ import ClerkLayout from './components/ClerkLayout';
 import InspectorLayout from './components/InspectorLayout';
 import OfficerLayout from './components/OfficerLayout';
 import RoleBasedRedirect from './components/RoleBasedRedirect';
+import D2DCModule from './pages/admin/d2dc/D2DCModule';
 
 // Auth Pages
 import AdminLogin from './pages/auth/AdminLogin';
@@ -32,6 +33,7 @@ import EditAssessment from './pages/admin/assessments/EditAssessment';
 import Demands from './pages/admin/demands/Demands';
 import DemandDetails from './pages/admin/demands/DemandDetails';
 import GenerateDemands from './pages/admin/demands/GenerateDemands';
+import UnifiedTaxDemand from './pages/admin/demands/UnifiedTaxDemand';
 import Notices from './pages/admin/notices/Notices';
 import NoticeDetails from './pages/admin/notices/NoticeDetails';
 import Payments from './pages/admin/payments/Payments';
@@ -190,6 +192,7 @@ function App() {
             {/* Demands */}
             <Route path="demands" element={<Demands />} />
             <Route path="demands/generate" element={<GenerateDemands />} />
+            <Route path="demands/unified" element={<UnifiedTaxDemand />} />
             <Route path="demands/:id" element={<DemandDetails />} />
 
             {/* Notices */}
@@ -336,6 +339,18 @@ function App() {
             <Route path="decision-history" element={<OfficerDecisionHistory />} />
             <Route path="attendance" element={<OfficerAttendance />} />
           </Route>
+
+          {/* Protected Routes - D2DC Module */}
+          <Route
+            path="/tax-management/d2dc"
+            element={
+              <StaffAuthProvider>
+                <PrivateRoute allowedRoles={['admin', 'collector', 'tax_collector', 'inspector', 'officer']}>
+                  <D2DCModule />
+                </PrivateRoute>
+              </StaffAuthProvider>
+            }
+          />
 
           {/* Protected Routes - Citizen Portal */}
           <Route

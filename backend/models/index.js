@@ -21,6 +21,7 @@ import { DemandItem } from './DemandItem.js';
 import { WaterConnectionRequest } from './WaterConnectionRequest.js';
 import { PropertyApplication } from './PropertyApplication.js';
 import { AdminManagement } from './AdminManagement.js';
+import { D2DCRecord } from './D2DCRecord.js';
 
 // Define Relationships
 
@@ -72,6 +73,8 @@ Payment.belongsTo(Demand, { foreignKey: 'demandId', as: 'demand' });
 Payment.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
 Payment.belongsTo(User, { foreignKey: 'receivedBy', as: 'cashier' });
 Payment.belongsTo(User, { foreignKey: 'collectedBy', as: 'collector' });
+Payment.belongsTo(AdminManagement, { foreignKey: 'receivedBy', as: 'cashierStaff' });
+Payment.belongsTo(AdminManagement, { foreignKey: 'collectedBy', as: 'collectorStaff' });
 
 // Notice Relationships
 Notice.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
@@ -254,6 +257,17 @@ Property.hasOne(PropertyApplication, { foreignKey: 'approvedPropertyId', as: 'pr
 AdminManagement.belongsTo(User, { foreignKey: 'created_by_admin_id', as: 'creator' });
 User.hasMany(AdminManagement, { foreignKey: 'created_by_admin_id', as: 'createdEmployees' });
 
+// D2DCRecord Relationships
+D2DCRecord.belongsTo(User, { foreignKey: 'collectorId', as: 'collector' });
+D2DCRecord.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
+D2DCRecord.belongsTo(Ward, { foreignKey: 'wardId', as: 'ward' });
+D2DCRecord.belongsTo(Demand, { foreignKey: 'demandId', as: 'demand' });
+D2DCRecord.belongsTo(Payment, { foreignKey: 'paymentId', as: 'payment' });
+
+User.hasMany(D2DCRecord, { foreignKey: 'collectorId', as: 'd2dcActivities' });
+Property.hasMany(D2DCRecord, { foreignKey: 'propertyId', as: 'd2dcRecords' });
+Ward.hasMany(D2DCRecord, { foreignKey: 'wardId', as: 'd2dcRecords' });
+
 export {
   User,
   Property,
@@ -277,5 +291,6 @@ export {
   WaterConnectionDocument,
   WaterConnectionRequest,
   PropertyApplication,
-  AdminManagement
+  AdminManagement,
+  D2DCRecord
 };

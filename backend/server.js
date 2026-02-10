@@ -101,6 +101,7 @@ import adminManagementRoutes from "./routes/adminManagement.routes.js";
 import employeeAuthRoutes from "./routes/employeeAuth.routes.js";
 import { startPenaltyCronJob } from "./services/penaltyCron.js";
 import { startTaskGeneratorCronJob } from "./services/taskGeneratorCron.js";
+import d2dcRoutes from "./routes/d2dc.routes.js";
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -137,6 +138,7 @@ app.use("/api/inspector", inspectorRoutes);
 app.use("/api/officer", officerRoutes);
 app.use("/api/admin-management", adminManagementRoutes);
 app.use("/api/employee-auth", employeeAuthRoutes);
+app.use("/api/d2dc", d2dcRoutes);
 
 // Serve uploaded files statically
 const __filename = fileURLToPath(import.meta.url);

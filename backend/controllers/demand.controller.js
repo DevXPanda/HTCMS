@@ -1,4 +1,4 @@
-import { Demand, Assessment, Property, Payment, User, Ward, WaterTaxAssessment, WaterConnection, DemandItem } from '../models/index.js';
+import { Demand, Assessment, Property, Payment, User, Ward, WaterTaxAssessment, WaterConnection, DemandItem, D2DCRecord } from '../models/index.js';
 import { Op, Sequelize } from 'sequelize';
 import { auditLogger } from '../utils/auditLogger.js';
 import { generateUnifiedTaxAssessmentAndDemand, getUnifiedDemandBreakdown, getUnifiedTaxSummary as getUnifiedTaxSummaryService } from '../services/unifiedTaxService.js';
@@ -10,9 +10,9 @@ import { generateUnifiedTaxAssessmentAndDemand, getUnifiedDemandBreakdown, getUn
  */
 export const getAllDemands = async (req, res, next) => {
   try {
-    const { 
-      propertyId, 
-      financialYear, 
+    const {
+      propertyId,
+      financialYear,
       status,
       serviceType, // Filter by service type (HOUSE_TAX or D2DC)
       search,
@@ -23,12 +23,12 @@ export const getAllDemands = async (req, res, next) => {
       collectorId, // Filter by collector's assigned wards
       wardId, // Filter by ward
       dueDate, // Filter by due date
-      page = 1, 
-      limit = 10 
+      page = 1,
+      limit = 10
     } = req.query;
 
     const where = {};
-    
+
     if (propertyId) where.propertyId = propertyId;
     if (financialYear) where.financialYear = financialYear;
     if (status) where.status = status;
@@ -79,7 +79,7 @@ export const getAllDemands = async (req, res, next) => {
         },
         attributes: ['id']
       });
-      
+
       if (collectorWards.length === 0) {
         // If collector has no assigned wards, return empty result
         return res.json({
@@ -95,7 +95,7 @@ export const getAllDemands = async (req, res, next) => {
           }
         });
       }
-      
+
       const wardIds = collectorWards.map(w => w.id);
       where['$property.wardId$'] = { [Op.in]: wardIds };
     }
@@ -105,17 +105,17 @@ export const getAllDemands = async (req, res, next) => {
     const { count, rows } = await Demand.findAndCountAll({
       where,
       include: [
-        { 
-          model: Property, 
+        {
+          model: Property,
           as: 'property',
           include: [
             { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] }
           ]
         },
         { model: Assessment, as: 'assessment', required: false }, // Optional for D2DC and WATER_TAX
-        { 
-          model: WaterTaxAssessment, 
-          as: 'waterTaxAssessment', 
+        {
+          model: WaterTaxAssessment,
+          as: 'waterTaxAssessment',
           required: false,
           include: [
             { model: WaterConnection, as: 'waterConnection', attributes: ['id', 'connectionNumber'] }
@@ -155,14 +155,14 @@ export const getDemandById = async (req, res, next) => {
 
     const demand = await Demand.findByPk(id, {
       include: [
-        { 
-          model: Property, 
+        {
+          model: Property,
           as: 'property',
           include: [
             { model: User, as: 'owner', attributes: { exclude: ['password'] } },
             { model: Ward, as: 'ward' },
-            { 
-              model: WaterConnection, 
+            {
+              model: WaterConnection,
               as: 'waterConnections',
               where: { status: 'ACTIVE' },
               required: false
@@ -171,16 +171,16 @@ export const getDemandById = async (req, res, next) => {
         },
         { model: Assessment, as: 'assessment', required: false }, // Optional for D2DC and WATER_TAX
         { model: WaterTaxAssessment, as: 'waterTaxAssessment', required: false }, // Optional for HOUSE_TAX and D2DC
-        { 
-          model: DemandItem, 
+        {
+          model: DemandItem,
           as: 'items',
           include: [
             { model: WaterConnection, as: 'waterConnection', required: false }
           ],
           order: [['taxType', 'ASC'], ['id', 'ASC']]
         },
-        { 
-          model: Payment, 
+        {
+          model: Payment,
           as: 'payments',
           include: [
             { model: User, as: 'cashier', attributes: ['id', 'firstName', 'lastName'] }
@@ -284,7 +284,7 @@ export const createDemand = async (req, res, next) => {
     } else if (serviceType === 'WATER_TAX') {
       // WATER_TAX requires waterTaxAssessmentId
       const waterTaxAssessmentId = req.body.waterTaxAssessmentId || req.body.water_tax_assessment_id;
-      
+
       if (!waterTaxAssessmentId) {
         return res.status(400).json({
           success: false,
@@ -383,11 +383,11 @@ export const createDemand = async (req, res, next) => {
     }
 
     // Generate demand number
-    const demandNumber = serviceType === 'D2DC' 
+    const demandNumber = serviceType === 'D2DC'
       ? `D2DC-${financialYear}-${Date.now()}`
       : serviceType === 'WATER_TAX'
-      ? `WTD-${financialYear}-${Date.now()}`
-      : `DEM-${financialYear}-${Date.now()}`;
+        ? `WTD-${financialYear}-${Date.now()}`
+        : `DEM-${financialYear}-${Date.now()}`;
 
     // Calculate arrears from previous unpaid demands of the same serviceType
     const previousDemands = await Demand.findAll({
@@ -417,7 +417,7 @@ export const createDemand = async (req, res, next) => {
       const waterTaxAssessment = await WaterTaxAssessment.findByPk(waterTaxAssessmentId, {
         include: [{ model: WaterConnection, as: 'waterConnection' }]
       });
-      
+
       if (!waterTaxAssessment) {
         return res.status(404).json({
           success: false,
@@ -441,7 +441,7 @@ export const createDemand = async (req, res, next) => {
       // D2DC
       calculatedBaseAmount = parseFloat(baseAmount || 0);
     }
-    
+
     const penaltyAmount = 0; // Can be calculated based on overdue logic
     const interestAmount = 0; // Can be calculated based on overdue logic
     const totalAmount = Math.round((calculatedBaseAmount + arrearsAmount + penaltyAmount + interestAmount) * 100) / 100;
@@ -484,15 +484,31 @@ export const createDemand = async (req, res, next) => {
       balanceAmount: balanceAmount,
       paidAmount: 0,
       dueDate: new Date(dueDate),
-      status: 'pending',
-      generatedBy: req.user.id,
       remarks
     });
 
+    // If D2DC demand, create a D2DCRecord for audit
+    if (serviceType === 'D2DC') {
+      try {
+        await D2DCRecord.create({
+          type: 'DEMAND_GENERATION',
+          collectorId: req.user.id,
+          propertyId: property.id,
+          wardId: property.wardId, // Assuming property has wardId
+          demandId: demand.id,
+          amount: demand.totalAmount,
+          remarks: `Demand Created: ${demand.demandNumber}`
+        });
+      } catch (d2dcError) {
+        console.error('Failed to create D2DC Record:', d2dcError);
+        // Don't fail the request, just log error
+      }
+    }
+
     const createdDemand = await Demand.findByPk(demand.id, {
       include: [
-        { 
-          model: Property, 
+        {
+          model: Property,
           as: 'property',
           include: [
             { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] }
@@ -504,15 +520,16 @@ export const createDemand = async (req, res, next) => {
     });
 
     // Log demand creation with serviceType
+    // Use 'Demand' as entityType for all demand types (D2DC is a serviceType, not a separate entity)
     await auditLogger.logCreate(
       req,
       req.user,
-      serviceType === 'D2DC' ? 'D2DC' : 'Demand',
+      'Demand',
       demand.id,
-      { 
-        demandNumber: demand.demandNumber, 
-        propertyId: demand.propertyId, 
-        financialYear: demand.financialYear, 
+      {
+        demandNumber: demand.demandNumber,
+        propertyId: demand.propertyId,
+        financialYear: demand.financialYear,
         totalAmount: demand.totalAmount,
         serviceType: demand.serviceType
       },
@@ -769,8 +786,8 @@ export const generateCombinedDemands = async (req, res, next) => {
         id: { [Op.in]: createdDemands.map(d => d.id) }
       },
       include: [
-        { 
-          model: Property, 
+        {
+          model: Property,
           as: 'property',
           include: [
             { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] }
@@ -876,7 +893,7 @@ export const createD2DCDemand = async (req, res, next) => {
     // CRITICAL: D2DC demands MUST have assessmentId = null
     // D2DC is a municipal service, NOT a tax assessment
     // It is linked directly to property, not assessment
-    
+
     const demandNumber = `D2DC-${month}-${Date.now()}`;
     const demand = await Demand.create({
       demandNumber,
@@ -899,8 +916,8 @@ export const createD2DCDemand = async (req, res, next) => {
 
     const createdDemand = await Demand.findByPk(demand.id, {
       include: [
-        { 
-          model: Property, 
+        {
+          model: Property,
           as: 'property',
           include: [
             { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] }
@@ -910,15 +927,16 @@ export const createD2DCDemand = async (req, res, next) => {
     });
 
     // Log D2DC demand creation
+    // Use 'Demand' as entityType since D2DC is a serviceType of Demand, not a separate entity
     await auditLogger.logCreate(
       req,
       req.user,
-      'D2DC',
+      'Demand',
       demand.id,
-      { 
-        demandNumber: demand.demandNumber, 
-        propertyId: demand.propertyId, 
-        month: month, 
+      {
+        demandNumber: demand.demandNumber,
+        propertyId: demand.propertyId,
+        month: month,
         totalAmount: demand.totalAmount,
         serviceType: 'D2DC'
       },
@@ -1053,10 +1071,10 @@ export const calculatePenalty = async (req, res, next) => {
     // Calculate penalty and interest if overdue
     const today = new Date();
     const dueDate = new Date(demand.dueDate);
-    
+
     if (today > dueDate && demand.balanceAmount > 0) {
       const daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
-      
+
       // Calculate penalty (one-time, on base amount + arrears)
       const penaltyBase = parseFloat(demand.baseAmount || 0) + parseFloat(demand.arrearsAmount || 0);
       // Ensure all values are numbers before calculation
@@ -1064,25 +1082,25 @@ export const calculatePenalty = async (req, res, next) => {
       const arrearsAmount = parseFloat(demand.arrearsAmount || 0);
       const paidAmount = parseFloat(demand.paidAmount || 0);
       const balanceAmount = parseFloat(demand.balanceAmount || 0);
-      
+
       const penalty = Math.round((penaltyBase * (penaltyRate || 0.05) / 100) * 100) / 100;
-      
+
       // Calculate interest (daily, on balance amount)
       const interest = Math.round((balanceAmount * (interestRate || 0.01) / 100) * daysOverdue * 100) / 100;
-      
+
       // Calculate totals using proper numeric arithmetic
       const totalAmount = Math.round((baseAmount + arrearsAmount + penalty + interest) * 100) / 100;
       const newBalanceAmount = Math.round((totalAmount - paidAmount) * 100) / 100;
-      
+
       demand.penaltyAmount = penalty;
       demand.interestAmount = interest;
       demand.totalAmount = totalAmount;
       demand.balanceAmount = newBalanceAmount;
-      
+
       if (demand.status === 'pending' && daysOverdue > 0) {
         demand.status = 'overdue';
       }
-      
+
       await demand.save();
     }
 
@@ -1109,8 +1127,8 @@ export const getDemandsByProperty = async (req, res, next) => {
       where: { propertyId },
       include: [
         { model: Assessment, as: 'assessment', required: false }, // Optional for D2DC
-        { 
-          model: Payment, 
+        {
+          model: Payment,
           as: 'payments',
           include: [
             { model: User, as: 'cashier', attributes: ['id', 'firstName', 'lastName'] }

@@ -17,7 +17,7 @@ router.get('/daily', (req, res, next) => {
   console.log('👤 Tasks API - Authenticated user:', {
     id: req.user?.id,
     role: req.user?.role,
-    userType: req.user?.userType,
+    userType: req.userType || (req.user?.userType),
     employee_id: req.user?.employee_id
   });
   next();

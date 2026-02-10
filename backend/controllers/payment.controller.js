@@ -1,4 +1,4 @@
-import { Payment, Demand, Property, User, Ward, Assessment, FollowUp } from '../models/index.js';
+import { Payment, Demand, Property, User, Ward, Assessment, FollowUp, D2DCRecord } from '../models/index.js';
 import { Op } from 'sequelize';
 import { razorpay } from '../config/razorpay.js';
 import crypto from 'crypto';
@@ -438,6 +438,25 @@ export const createPayment = async (req, res, next) => {
       `Processed payment: ${payment.paymentNumber} - ₹${payment.amount}`,
       { demandId: payment.demandId, propertyId: payment.propertyId }
     );
+
+    // D2DC Logic: Create D2DCRecord if explicitly tagged or if user is a collector
+    // We check req.body.collectionMode (passed from frontend) or req.user.role
+    if (req.body.collectionMode === 'D2DC' || req.user.role === 'collector') {
+      try {
+        await D2DCRecord.create({
+          type: 'PAYMENT_COLLECTION',
+          collectorId: req.user.id,
+          propertyId: demand.propertyId,
+          wardId: demand.property.wardId,
+          paymentId: payment.id,
+          demandId: demandId,
+          amount: payment.amount,
+          remarks: `Payment Collected: ${payment.paymentNumber}`
+        });
+      } catch (d2dcError) {
+        console.error('Failed to create D2DC Record:', d2dcError);
+      }
+    }
 
     // Generate receipt PDF automatically after successful payment
     try {

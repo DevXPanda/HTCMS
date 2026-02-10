@@ -35,6 +35,16 @@ export const StaffAuthProvider = ({ children }) => {
         return;
       }
 
+      // Skip staff auth check for non-staff roles
+      const storedRole = localStorage.getItem('role');
+      const staffRoles = ['clerk', 'inspector', 'officer', 'collector', 'tax_collector'];
+
+      if (storedRole && !staffRoles.includes(storedRole)) {
+        console.log(`ℹ️ StaffAuthContext - Skipping staff auth for role: ${storedRole}`);
+        setLoading(false);
+        return;
+      }
+
       try {
         console.log('🔑 StaffAuthContext - Checking auth with token');
         const response = await staffAuthAPI.getProfile();
@@ -89,7 +99,7 @@ export const StaffAuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       console.log('🔑 StaffAuthContext - Logging out staff user...');
-      
+
       // Call backend logout API to update attendance
       if (user?.role === 'collector') {
         console.log('📝 StaffAuthContext - Calling staff logout for collector attendance...');
@@ -98,7 +108,7 @@ export const StaffAuthProvider = ({ children }) => {
         // For non-collector staff users, still call logout for consistency
         await staffAuthAPI.logout();
       }
-      
+
       console.log('✅ StaffAuthContext - Backend logout successful');
     } catch (error) {
       console.error('❌ StaffAuthContext - Backend logout failed:', error);
