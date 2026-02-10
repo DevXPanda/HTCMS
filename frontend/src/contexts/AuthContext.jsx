@@ -32,7 +32,7 @@ export const AuthProvider = ({ children }) => {
           // Backend returns: { success: true, data: { user } }
           const responseData = response.data;
           const userData = responseData.data?.user || responseData.user || responseData.data;
-          
+
           if (userData && userData.id) {
             // Completely overwrite user state - don't merge with cached data
             setUser(userData);
@@ -68,32 +68,32 @@ export const AuthProvider = ({ children }) => {
   const login = async (emailOrPhone, password) => {
     try {
       const response = await authAPI.login(emailOrPhone, password);
-      
+
       // Backend returns: { token, user: sanitizedUser } or { success: true, data: { user, token } }
       const responseData = response.data;
       const { user, token } = responseData.data || responseData;
-      
+
       if (!user || !token) {
         throw new Error('Invalid response from server');
       }
-      
+
       // Ensure role is present in user object
       if (!user.role) {
         throw new Error('User role not found in response');
       }
-      
+
       // Clear any existing cached data first
       clearAllAuthData();
-      
+
       // Store fresh token and user data
       localStorage.setItem('token', token);
       localStorage.setItem('role', user.role);
       localStorage.setItem('user', JSON.stringify(user));
       setToken(token);
-      
+
       // Completely overwrite user state - don't merge with existing data
       setUser(user);
-      
+
       // Return user immediately for navigation
       return { success: true, user };
     } catch (error) {
@@ -108,30 +108,30 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const response = await authAPI.register(userData);
-      
+
       // Backend returns: { success: true, data: { user, token } }
       const responseData = response.data;
       const { user, token } = responseData.data || responseData;
-      
+
       if (!user || !token) {
         throw new Error('Invalid response from server');
       }
-      
+
       // Ensure role is present in user object
       if (!user.role) {
         throw new Error('User role not found in response');
       }
-      
+
       // Clear any existing cached data first
       clearAllAuthData();
-      
+
       // Store fresh token and user data
       localStorage.setItem('token', token);
       localStorage.setItem('role', user.role);
       localStorage.setItem('user', JSON.stringify(user));
       setToken(token);
       setUser(user);
-      
+
       return { success: true, user };
     } catch (error) {
       return {

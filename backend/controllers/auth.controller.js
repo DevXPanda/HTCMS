@@ -107,7 +107,7 @@ export const login = async (req, res, next) => {
 
     // Validate input - accept either email or phone
     const identifier = email || phone;
-    
+
     if (!identifier || !password) {
       return res.status(400).json({
         success: false,
@@ -321,7 +321,7 @@ export const logout = async (req, res, next) => {
     // Capture attendance for collectors (automatic punch out)
     if (user.role === 'collector') {
       console.log('🔍 Logout - Collector detected:', user.id, 'Role:', user.role, 'UserType:', user.userType);
-      
+
       try {
         // Import CollectorAttendance here to avoid circular dependency
         const { CollectorAttendance } = await import('../models/index.js');
@@ -379,14 +379,14 @@ export const logout = async (req, res, next) => {
           }
         } else {
           console.warn(`Collector ${user.id} logged out but no active attendance session found`);
-          
+
           // Check all attendance records for this collector to debug
           const allRecords = await CollectorAttendance.findAll({
             where: { collectorId: user.id },
             order: [['loginAt', 'DESC']],
             limit: 3
           });
-          
+
           console.log('🔍 Debug - All attendance records for collector:', user.id);
           allRecords.forEach((record, index) => {
             console.log(`   ${index + 1}. ID: ${record.id}, UserType: ${record.usertype}, Login: ${record.loginAt}, Logout: ${record.logoutAt || 'Active'}`);
