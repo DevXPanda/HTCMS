@@ -27,7 +27,11 @@ const Dashboard = () => {
     // D2DC
     d2dcDemands: 0,
     d2dcRevenue: 0,
-    d2dcOutstanding: 0
+    d2dcOutstanding: 0,
+    // Shop Tax
+    shopTaxDemands: 0,
+    shopTaxRevenue: 0,
+    shopTaxOutstanding: 0
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -201,7 +205,7 @@ const Dashboard = () => {
       {/* 4. Snapshot / Water Tax Overview */}
       {/* 4. Module Snapshots */}
       <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Module Snapshots</h2>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
 
         {/* Property Tax Snapshot */}
         <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -292,6 +296,37 @@ const Dashboard = () => {
             <div className="flex justify-between items-center pt-1">
               <span className="text-xs text-gray-500 uppercase font-medium">Outstanding</span>
               <span className="text-lg font-bold text-red-500">₹{(stats.d2dcOutstanding || 0).toLocaleString()}</span>
+            </div>
+          </div>
+        </section>
+
+        {/* Shop Tax Snapshot */}
+        <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-amber-50/30">
+            <h3 className="text-sm font-semibold text-gray-900 uppercase flex items-center">
+              <Store className="w-4 h-4 mr-2 text-amber-600" />
+              Shop Tax
+            </h3>
+            <Link to="/shop-tax" className="text-amber-600 text-xs font-medium hover:text-amber-700 flex items-center">
+              View <TrendingUp className="w-3 h-3 ml-1" />
+            </Link>
+          </div>
+          <div className="p-6 space-y-4">
+            <div className="flex justify-between items-center pb-3 border-b border-dashed border-gray-100">
+              <span className="text-xs text-gray-500 uppercase font-medium">Demands</span>
+              <span className="text-lg font-bold text-gray-900">{(stats.shopTaxDemands || 0).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between items-center pb-3 border-b border-dashed border-gray-100">
+              <span className="text-xs text-gray-500 uppercase font-medium">Active Shops</span>
+              <span className="text-lg font-bold text-gray-700">-</span>
+            </div>
+            <div className="flex justify-between items-center pb-3 border-b border-dashed border-gray-100">
+              <span className="text-xs text-gray-500 uppercase font-medium">Revenue</span>
+              <span className="text-lg font-bold text-amber-600">₹{(stats.shopTaxRevenue || 0).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between items-center pt-1">
+              <span className="text-xs text-gray-500 uppercase font-medium">Outstanding</span>
+              <span className="text-lg font-bold text-red-500">₹{(stats.shopTaxOutstanding || 0).toLocaleString()}</span>
             </div>
           </div>
         </section>

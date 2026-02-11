@@ -167,20 +167,21 @@ const ShopAssessments = () => {
       <div className="card overflow-x-auto">
         <table className="table">
           <thead>
-            <tr>
-              <th>Assessment Number</th>
-              <th>Shop</th>
-              <th>Year</th>
-              <th>Annual Amount</th>
-              <th>Status</th>
-              <th>Assessor</th>
-              <th>Actions</th>
-            </tr>
+              <tr>
+                <th>Assessment Number</th>
+                <th>Shop</th>
+                <th>Assessment Year</th>
+                <th>Financial Year</th>
+                <th>Annual Amount</th>
+                <th>Status</th>
+                <th>Assessor</th>
+                <th>Actions</th>
+              </tr>
           </thead>
           <tbody>
             {assessments.length === 0 ? (
               <tr>
-                <td colSpan="7" className="text-center py-8 text-gray-500">
+                <td colSpan="8" className="text-center py-8 text-gray-500">
                   No shop tax assessments found
                 </td>
               </tr>
@@ -194,6 +195,7 @@ const ShopAssessments = () => {
                       : `Shop #${assessment.shopId}`}
                   </td>
                   <td>{assessment.assessmentYear}</td>
+                  <td>{assessment.financialYear || '—'}</td>
                   <td className="font-semibold">
                     ₹{parseFloat(assessment.annualTaxAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </td>

@@ -1,4 +1,4 @@
-import { Property, Demand, Payment, Assessment, Ward, Notice, WaterTaxAssessment, WaterConnection, WaterConnectionRequest } from '../models/index.js';
+import { Property, Demand, Payment, Assessment, Ward, Notice, WaterTaxAssessment, WaterConnection, WaterConnectionRequest, Shop, ShopTaxAssessment } from '../models/index.js';
 import { Op } from 'sequelize';
 
 /**
@@ -31,11 +31,13 @@ export const getCitizenDashboard = async (req, res, next) => {
     const houseTaxDemands = demands.filter(d => d.serviceType === 'HOUSE_TAX');
     const waterTaxDemands = demands.filter(d => d.serviceType === 'WATER_TAX');
     const d2dcDemands = demands.filter(d => d.serviceType === 'D2DC');
+    const shopTaxDemands = demands.filter(d => d.serviceType === 'SHOP_TAX');
     
     const totalOutstanding = demands.reduce((sum, d) => sum + parseFloat(d.balanceAmount), 0);
     const houseTaxOutstanding = houseTaxDemands.reduce((sum, d) => sum + parseFloat(d.balanceAmount), 0);
     const waterTaxOutstanding = waterTaxDemands.reduce((sum, d) => sum + parseFloat(d.balanceAmount), 0);
     const d2dcOutstanding = d2dcDemands.reduce((sum, d) => sum + parseFloat(d.balanceAmount), 0);
+    const shopTaxOutstanding = shopTaxDemands.reduce((sum, d) => sum + parseFloat(d.balanceAmount), 0);
 
     // Get recent payments
     const recentPayments = await Payment.findAll({
@@ -64,7 +66,13 @@ export const getCitizenDashboard = async (req, res, next) => {
           attributes: ['id', 'propertyNumber', 'address']
         },
         { model: Assessment, as: 'assessment', attributes: ['id', 'assessmentNumber'], required: false },
-        { model: WaterTaxAssessment, as: 'waterTaxAssessment', attributes: ['id', 'assessmentNumber'], required: false }
+        { model: WaterTaxAssessment, as: 'waterTaxAssessment', attributes: ['id', 'assessmentNumber'], required: false },
+        { 
+          model: ShopTaxAssessment, 
+          as: 'shopTaxAssessment', 
+          required: false,
+          include: [{ model: Shop, as: 'shop', attributes: ['id', 'shopNumber', 'shopName'] }]
+        }
       ],
       order: [['serviceType', 'ASC'], ['dueDate', 'ASC']]
     });
@@ -72,6 +80,7 @@ export const getCitizenDashboard = async (req, res, next) => {
     const pendingHouseTaxDemands = pendingDemands.filter(d => d.serviceType === 'HOUSE_TAX');
     const pendingWaterTaxDemands = pendingDemands.filter(d => d.serviceType === 'WATER_TAX');
     const pendingD2dcDemands = pendingDemands.filter(d => d.serviceType === 'D2DC');
+    const pendingShopTaxDemands = pendingDemands.filter(d => d.serviceType === 'SHOP_TAX');
 
     // Get active notices count (not resolved)
     const activeNotices = await Notice.count({
@@ -81,24 +90,35 @@ export const getCitizenDashboard = async (req, res, next) => {
       }
     });
 
+    // Get shops count (linked to user's properties)
+    const shopsCount = await Shop.count({
+      where: {
+        propertyId: { [Op.in]: propertyIds }
+      }
+    });
+
     res.json({
       success: true,
       data: {
         properties: properties.length,
+        shops: shopsCount,
         totalOutstanding,
         houseTaxOutstanding,
         waterTaxOutstanding,
         d2dcOutstanding,
+        shopTaxOutstanding,
         pendingDemands: pendingDemands.length,
         pendingHouseTaxDemands: pendingHouseTaxDemands.length,
         pendingWaterTaxDemands: pendingWaterTaxDemands.length,
         pendingD2dcDemands: pendingD2dcDemands.length,
+        pendingShopTaxDemands: pendingShopTaxDemands.length,
         activeNotices,
         recentPayments,
         pendingDemandsList: pendingDemands,
         pendingHouseTaxDemandsList: pendingHouseTaxDemands,
         pendingWaterTaxDemandsList: pendingWaterTaxDemands,
-        pendingD2dcDemandsList: pendingD2dcDemands
+        pendingD2dcDemandsList: pendingD2dcDemands,
+        pendingShopTaxDemandsList: pendingShopTaxDemands
       }
     });
   } catch (error) {
@@ -162,7 +182,13 @@ export const getCitizenDemands = async (req, res, next) => {
           attributes: ['id', 'propertyNumber', 'address']
         },
         { model: Assessment, as: 'assessment', attributes: ['id', 'assessmentNumber', 'assessmentYear'], required: false },
-        { model: WaterTaxAssessment, as: 'waterTaxAssessment', attributes: ['id', 'assessmentNumber', 'assessmentYear'], required: false }
+        { model: WaterTaxAssessment, as: 'waterTaxAssessment', attributes: ['id', 'assessmentNumber', 'assessmentYear'], required: false },
+        { 
+          model: ShopTaxAssessment, 
+          as: 'shopTaxAssessment', 
+          required: false,
+          include: [{ model: Shop, as: 'shop', attributes: ['id', 'shopNumber', 'shopName'] }]
+        }
       ],
       order: [['serviceType', 'ASC'], ['dueDate', 'ASC']]
     });

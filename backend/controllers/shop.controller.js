@@ -40,12 +40,13 @@ const generateShopNumber = async () => {
  */
 export const getAllShops = async (req, res, next) => {
   try {
-    const { wardId, propertyId, status, search, page = 1, limit = 10 } = req.query;
+    const { wardId, propertyId, status, shopType, search, page = 1, limit = 10 } = req.query;
     const where = {};
 
     if (wardId) where.wardId = wardId;
     if (propertyId) where.propertyId = propertyId;
     if (status) where.status = status;
+    if (shopType) where.shopType = shopType;
     if (search) {
       where[Op.or] = [
         { shopNumber: { [Op.iLike]: `%${search}%` } },

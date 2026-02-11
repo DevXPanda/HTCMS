@@ -41,6 +41,7 @@ const CitizenDemands = () => {
   const houseTaxDemands = demands.filter(d => d.serviceType === 'HOUSE_TAX');
   const waterTaxDemands = demands.filter(d => d.serviceType === 'WATER_TAX');
   const d2dcDemands = demands.filter(d => d.serviceType === 'D2DC');
+  const shopTaxDemands = demands.filter(d => d.serviceType === 'SHOP_TAX');
 
   // Group demands by property and financial year for combined view
   const groupedDemands = demands.reduce((acc, demand) => {
@@ -124,6 +125,16 @@ const CitizenDemands = () => {
           >
             D2DC ({d2dcDemands.length})
           </button>
+          <button
+            onClick={() => handleServiceTypeFilter('SHOP_TAX')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium ${
+              serviceTypeFilter === 'SHOP_TAX'
+                ? 'bg-amber-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Shop Tax ({shopTaxDemands.length})
+          </button>
         </div>
       </div>
 
@@ -155,6 +166,7 @@ const CitizenDemands = () => {
                 const isOverdue = new Date(demand.dueDate) < new Date() && demand.balanceAmount > 0;
                 const isD2DC = demand.serviceType === 'D2DC';
                 const isWaterTax = demand.serviceType === 'WATER_TAX';
+                const isShopTax = demand.serviceType === 'SHOP_TAX';
                 return (
                   <tr key={demand.id} className={isOverdue ? 'bg-red-50' : ''}>
                     <td>
@@ -163,13 +175,24 @@ const CitizenDemands = () => {
                           ? 'bg-green-100 text-green-800 border border-green-300'
                           : isWaterTax
                           ? 'bg-cyan-100 text-cyan-800 border border-cyan-300'
+                          : isShopTax
+                          ? 'bg-amber-100 text-amber-800 border border-amber-300'
                           : 'bg-blue-100 text-blue-800 border border-blue-300'
                       }`}>
-                        {isD2DC ? 'D2DC' : isWaterTax ? 'Water Tax' : 'House Tax'}
+                        {isD2DC ? 'D2DC' : isWaterTax ? 'Water Tax' : isShopTax ? 'Shop Tax' : 'House Tax'}
                       </span>
                     </td>
                     <td className="font-medium">{demand.demandNumber}</td>
-                    <td>{demand.property?.propertyNumber || 'N/A'}</td>
+                    <td>
+                      {isShopTax && demand.shopTaxAssessment?.shop ? (
+                        <div>
+                          <div className="font-medium">{demand.shopTaxAssessment.shop.shopName}</div>
+                          <div className="text-xs text-gray-500">{demand.property?.propertyNumber || 'N/A'}</div>
+                        </div>
+                      ) : (
+                        demand.property?.propertyNumber || 'N/A'
+                      )}
+                    </td>
                     <td>
                       {isD2DC ? (
                         <span className="text-sm">{demand.financialYear}</span>

@@ -80,6 +80,8 @@ import CitizenPayments from './pages/citizen/CitizenPayments';
 import ActivityHistory from './pages/citizen/ActivityHistory';
 import CitizenWaterConnections from './pages/citizen/CitizenWaterConnections';
 import WaterConnectionRequest from './pages/citizen/WaterConnectionRequest';
+import CitizenShops from './pages/citizen/CitizenShops';
+import CitizenShopDetails from './pages/citizen/CitizenShopDetails';
 
 // Collector Pages
 import CollectorDashboard from './pages/collector/CollectorDashboard';
@@ -387,6 +389,8 @@ function App() {
             <Route path="demands/:id" element={<DemandDetails />} />
             <Route path="water-connections" element={<CitizenWaterConnections />} />
             <Route path="water-connection-request" element={<WaterConnectionRequest />} />
+            <Route path="shops" element={<CitizenShops />} />
+            <Route path="shops/:id" element={<CitizenShopDetails />} />
             <Route path="notices" element={<CitizenNotices />} />
             <Route path="notices/:id" element={<CitizenNoticeDetails />} />
             <Route path="payments" element={<CitizenPayments />} />

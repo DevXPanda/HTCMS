@@ -219,7 +219,18 @@ const Demands = () => {
           <thead>
             <tr>
               <th>Demand Number</th>
-              <th>Property</th>
+              {demands.some(d => d.serviceType === 'SHOP_TAX') ? (
+                <>
+                  <th>Shop Number</th>
+                  <th>Shop Name</th>
+                  <th>Assessment Year</th>
+                </>
+              ) : (
+                <th>Property</th>
+              )}
+              {demands.some(d => d.serviceType === 'SHOP_TAX') && (
+                <th className="text-xs text-gray-500">Property (ref)</th>
+              )}
               <th>Financial Year</th>
               <th>Base Amount</th>
               <th>Arrears</th>
@@ -235,21 +246,79 @@ const Demands = () => {
           <tbody>
             {demands.length === 0 ? (
               <tr>
-                <td colSpan="12" className="text-center py-8 text-gray-500">
+                <td colSpan={demands.some(d => d.serviceType === 'SHOP_TAX') ? 14 : 12} className="text-center py-8 text-gray-500">
                   No demands found
                 </td>
               </tr>
             ) : (
               demands.map((demand) => {
                 const overdue = isOverdue(demand.dueDate, demand.balanceAmount);
+                const isShopTax = demand.serviceType === 'SHOP_TAX';
+                const hasShopTaxInList = demands.some(d => d.serviceType === 'SHOP_TAX');
                 return (
                   <tr key={demand.id} className={overdue ? 'bg-red-50' : ''}>
                     <td className="font-medium">{demand.demandNumber}</td>
-                    <td>
-                      <Link to={`/properties/${demand.propertyId}`} className="text-primary-600 hover:underline">
-                        {demand.property?.propertyNumber || 'N/A'}
-                      </Link>
-                    </td>
+                    {hasShopTaxInList ? (
+                      <>
+                        {isShopTax ? (
+                          <>
+                            <td className="font-medium">
+                              {demand.shopTaxAssessment?.shop?.shopNumber || 'N/A'}
+                            </td>
+                            <td>
+                              {demand.shopTaxAssessment?.shop ? (
+                                <Link to={`/shop-tax/shops/${demand.shopTaxAssessment.shop.id}`} className="text-primary-600 hover:underline">
+                                  {demand.shopTaxAssessment.shop.shopName}
+                                </Link>
+                              ) : (
+                                'N/A'
+                              )}
+                            </td>
+                            <td>
+                              {demand.shopTaxAssessment?.assessmentYear || '—'}
+                            </td>
+                            <td className="text-xs text-gray-500">
+                              {demand.property?.propertyNumber ? (
+                                <Link to={`/properties/${demand.propertyId}`} className="text-gray-500 hover:underline">
+                                  {demand.property.propertyNumber}
+                                </Link>
+                              ) : (
+                                '—'
+                              )}
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="text-gray-400">—</td>
+                            <td>
+                              {demand.property?.propertyNumber ? (
+                                <Link to={`/properties/${demand.propertyId}`} className="text-primary-600 hover:underline">
+                                  {demand.property.propertyNumber}
+                                </Link>
+                              ) : (
+                                'N/A'
+                              )}
+                            </td>
+                            <td className="text-gray-400">—</td>
+                            <td className="text-xs text-gray-500">
+                              {demand.property?.propertyNumber ? (
+                                <Link to={`/properties/${demand.propertyId}`} className="text-gray-500 hover:underline">
+                                  {demand.property.propertyNumber}
+                                </Link>
+                              ) : (
+                                '—'
+                              )}
+                            </td>
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      <td>
+                        <Link to={`/properties/${demand.propertyId}`} className="text-primary-600 hover:underline">
+                          {demand.property?.propertyNumber || 'N/A'}
+                        </Link>
+                      </td>
+                    )}
                     <td>{demand.financialYear}</td>
                     <td>₹{parseFloat(demand.baseAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                     <td className={parseFloat(demand.arrearsAmount || 0) > 0 ? 'text-orange-600 font-semibold' : ''}>

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { citizenAPI } from '../../services/api';
 import Loading from '../../components/Loading';
-import { Home, FileText, DollarSign, CreditCard, Bell } from 'lucide-react';
+import { Home, FileText, DollarSign, CreditCard, Bell, Store } from 'lucide-react';
 
 const CitizenDashboard = () => {
   const [dashboard, setDashboard] = useState(null);
@@ -55,6 +55,13 @@ const CitizenDashboard = () => {
       link: '/citizen/demands?serviceType=D2DC'
     },
     {
+      title: 'Pending Shop Tax',
+      value: dashboard?.pendingShopTaxDemands || 0,
+      icon: Store,
+      color: 'bg-amber-500',
+      link: '/citizen/demands?serviceType=SHOP_TAX'
+    },
+    {
       title: 'Active Notices',
       value: dashboard?.activeNotices || 0,
       icon: Bell,
@@ -89,6 +96,20 @@ const CitizenDashboard = () => {
       icon: DollarSign,
       color: 'bg-green-600',
       link: '/citizen/demands?serviceType=D2DC'
+    },
+    {
+      title: 'Shop Tax Outstanding',
+      value: `₹${(dashboard?.shopTaxOutstanding || 0).toLocaleString('en-IN')}`,
+      icon: DollarSign,
+      color: 'bg-amber-600',
+      link: '/citizen/demands?serviceType=SHOP_TAX'
+    },
+    {
+      title: 'My Shops',
+      value: dashboard?.shops || 0,
+      icon: Store,
+      color: 'bg-amber-500',
+      link: '/citizen/shops'
     },
     {
       title: 'Recent Payments',
@@ -135,6 +156,7 @@ const CitizenDashboard = () => {
               {dashboard.pendingDemandsList.slice(0, 5).map((demand) => {
                 const isD2DC = demand.serviceType === 'D2DC';
                 const isWaterTax = demand.serviceType === 'WATER_TAX';
+                const isShopTax = demand.serviceType === 'SHOP_TAX';
                 return (
                   <div key={demand.id} className="border-b pb-3">
                     <div className="flex items-center justify-between mb-1">
@@ -144,9 +166,11 @@ const CitizenDashboard = () => {
                           ? 'bg-green-100 text-green-800 border border-green-300'
                           : isWaterTax
                           ? 'bg-cyan-100 text-cyan-800 border border-cyan-300'
+                          : isShopTax
+                          ? 'bg-amber-100 text-amber-800 border border-amber-300'
                           : 'bg-blue-100 text-blue-800 border border-blue-300'
                       }`}>
-                        {isD2DC ? 'D2DC' : isWaterTax ? 'Water Tax' : 'House Tax'}
+                        {isD2DC ? 'D2DC' : isWaterTax ? 'Water Tax' : isShopTax ? 'Shop Tax' : 'House Tax'}
                       </span>
                     </div>
                     <p className="text-sm text-gray-600">
@@ -171,6 +195,7 @@ const CitizenDashboard = () => {
               {dashboard.recentPayments.map((payment) => {
                 const isD2DC = payment.demand?.serviceType === 'D2DC';
                 const isWaterTax = payment.demand?.serviceType === 'WATER_TAX';
+                const isShopTax = payment.demand?.serviceType === 'SHOP_TAX';
                 return (
                   <div key={payment.id} className="border-b pb-3">
                     <div className="flex items-center justify-between mb-1">
@@ -180,9 +205,11 @@ const CitizenDashboard = () => {
                           ? 'bg-green-100 text-green-800 border border-green-300'
                           : isWaterTax
                           ? 'bg-cyan-100 text-cyan-800 border border-cyan-300'
+                          : isShopTax
+                          ? 'bg-amber-100 text-amber-800 border border-amber-300'
                           : 'bg-blue-100 text-blue-800 border border-blue-300'
                       }`}>
-                        {isD2DC ? 'D2DC' : isWaterTax ? 'Water Tax' : 'House Tax'}
+                        {isD2DC ? 'D2DC' : isWaterTax ? 'Water Tax' : isShopTax ? 'Shop Tax' : 'House Tax'}
                       </span>
                     </div>
                     <p className="text-sm text-green-600">

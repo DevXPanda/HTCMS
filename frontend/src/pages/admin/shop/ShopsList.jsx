@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { shopsAPI } from '../../../services/api';
-import { Store, ArrowLeft, Plus, Edit } from 'lucide-react';
+import { shopsAPI, wardAPI } from '../../../services/api';
+import { Store, ArrowLeft, Plus, Edit, Search, Filter, X } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import Loading from '../../../components/Loading';
 
@@ -9,17 +9,67 @@ const ShopsList = () => {
   const navigate = useNavigate();
   const { isAdmin, isAssessor } = useAuth();
   const [shops, setShops] = useState([]);
+  const [wards, setWards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState(null);
+  const [search, setSearch] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    status: '',
+    wardId: '',
+    shopType: ''
+  });
 
   useEffect(() => {
-    shopsAPI.getAll({ limit: 100 })
-      .then(res => {
-        if (res.data.success) setShops(res.data.data.shops || []);
-      })
-      .catch(err => setError(err.response?.data?.message || 'Failed to load shops'))
-      .finally(() => setLoading(false));
+    fetchWards();
   }, []);
+
+  useEffect(() => {
+    fetchShops();
+  }, [page, search, filters]);
+
+  const fetchWards = async () => {
+    try {
+      const response = await wardAPI.getAll({ isActive: true });
+      setWards(response.data.data.wards || []);
+    } catch (error) {
+      console.error('Failed to fetch wards:', error);
+    }
+  };
+
+  const fetchShops = async () => {
+    try {
+      setLoading(true);
+      const params = {
+        page,
+        limit: 10,
+        ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== '')),
+        ...(search ? { search } : {})
+      };
+      const response = await shopsAPI.getAll(params);
+      if (response.data.success) {
+        setShops(response.data.data.shops || []);
+        setPagination(response.data.data.pagination || null);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to load shops');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+    setPage(1);
+  };
+
+  const clearFilters = () => {
+    setFilters({ status: '', wardId: '', shopType: '' });
+    setSearch('');
+    setPage(1);
+  };
 
   if (loading) return <Loading />;
 
@@ -42,6 +92,95 @@ const ShopsList = () => {
           </Link>
         )}
       </div>
+
+      {/* Search */}
+      <form onSubmit={(e) => { e.preventDefault(); setPage(1); fetchShops(); }} className="mb-6">
+        <div className="flex gap-2">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by shop number, name, or contact..."
+              className="input pl-10"
+            />
+          </div>
+          <button type="submit" className="btn btn-primary">
+            Search
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowFilters(!showFilters)}
+            className="btn btn-secondary flex items-center"
+          >
+            <Filter className="w-4 h-4 mr-2" />
+            Filters
+          </button>
+        </div>
+      </form>
+
+      {/* Filters */}
+      {showFilters && (
+        <div className="card mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">Filters</h3>
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="text-sm text-primary-600 hover:text-primary-700 flex items-center"
+            >
+              <X className="w-4 h-4 mr-1" />
+              Clear All
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="label">Status</label>
+              <select
+                value={filters.status}
+                onChange={(e) => handleFilterChange('status', e.target.value)}
+                className="input"
+              >
+                <option value="">All Status</option>
+                <option value="active">Active</option>
+                <option value="closed">Closed</option>
+                <option value="suspended">Suspended</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">Ward</label>
+              <select
+                value={filters.wardId}
+                onChange={(e) => handleFilterChange('wardId', e.target.value)}
+                className="input"
+              >
+                <option value="">All Wards</option>
+                {wards.map(ward => (
+                  <option key={ward.id} value={ward.id}>
+                    {ward.wardName} ({ward.wardNumber})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">Shop Type</label>
+              <select
+                value={filters.shopType}
+                onChange={(e) => handleFilterChange('shopType', e.target.value)}
+                className="input"
+              >
+                <option value="">All Types</option>
+                <option value="retail">Retail</option>
+                <option value="wholesale">Wholesale</option>
+                <option value="food_stall">Food Stall</option>
+                <option value="service">Service</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
 
       {error && <p className="text-red-600">{error}</p>}
       {!loading && !error && (
@@ -92,6 +231,31 @@ const ShopsList = () => {
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {pagination && pagination.pages > 1 && (
+        <div className="flex justify-center items-center space-x-2 mt-6">
+          <button
+            type="button"
+            onClick={() => setPage(page - 1)}
+            disabled={page === 1}
+            className="btn btn-secondary"
+          >
+            Previous
+          </button>
+          <span className="text-gray-600">
+            Page {pagination.page} of {pagination.pages}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage(page + 1)}
+            disabled={page === pagination.pages}
+            className="btn btn-secondary"
+          >
+            Next
+          </button>
         </div>
       )}
     </div>
