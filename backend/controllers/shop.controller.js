@@ -158,6 +158,10 @@ export const createShop = async (req, res, next) => {
       address,
       contactName,
       contactPhone,
+      tradeLicenseNumber,
+      licenseValidFrom,
+      licenseValidTo,
+      licenseStatus,
       remarks,
       shopNumber: bodyShopNumber
     } = req.body;
@@ -205,6 +209,10 @@ export const createShop = async (req, res, next) => {
       address: address || null,
       contactName: contactName || null,
       contactPhone: contactPhone || null,
+      tradeLicenseNumber: tradeLicenseNumber || null,
+      licenseValidFrom: licenseValidFrom || null,
+      licenseValidTo: licenseValidTo || null,
+      licenseStatus: licenseStatus || null,
       status: 'active',
       isActive: true,
       remarks: remarks || null,
@@ -253,7 +261,7 @@ export const updateShop = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Access denied to this ward' });
     }
 
-    const allowed = ['shopName', 'shopType', 'category', 'area', 'address', 'contactName', 'contactPhone', 'status', 'isActive', 'remarks'];
+    const allowed = ['shopName', 'shopType', 'category', 'area', 'address', 'contactName', 'contactPhone', 'tradeLicenseNumber', 'licenseValidFrom', 'licenseValidTo', 'licenseStatus', 'status', 'isActive', 'remarks'];
     const updates = {};
     allowed.forEach(f => {
       if (req.body[f] !== undefined) updates[f] = req.body[f];

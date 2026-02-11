@@ -71,6 +71,26 @@ export const Shop = sequelize.define('Shop', {
     type: DataTypes.STRING(20),
     allowNull: true
   },
+  tradeLicenseNumber: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    comment: 'Trade license number'
+  },
+  licenseValidFrom: {
+    type: DataTypes.DATEONLY,
+    allowNull: true,
+    comment: 'License valid from date'
+  },
+  licenseValidTo: {
+    type: DataTypes.DATEONLY,
+    allowNull: true,
+    comment: 'License valid to date'
+  },
+  licenseStatus: {
+    type: DataTypes.ENUM('valid', 'expired', 'suspended'),
+    allowNull: true,
+    comment: 'License status: valid, expired, or suspended'
+  },
   status: {
     type: DataTypes.ENUM('active', 'inactive', 'closed'),
     allowNull: false,
@@ -100,6 +120,7 @@ export const Shop = sequelize.define('Shop', {
     { fields: ['propertyId'] },
     { fields: ['wardId'] },
     { fields: ['ownerId'] },
-    { fields: ['status'] }
+    { fields: ['status'] },
+    { fields: ['licenseStatus'] }
   ]
 });

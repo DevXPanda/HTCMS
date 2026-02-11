@@ -130,6 +130,45 @@ const ShopDetails = () => {
                 <dd>{shop.contactPhone}</dd>
               </div>
             )}
+            {(shop.tradeLicenseNumber || shop.licenseValidFrom || shop.licenseValidTo || shop.licenseStatus) && (
+              <>
+                <div className="mt-4 pt-4 border-t">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Trade License</h3>
+                </div>
+                {shop.tradeLicenseNumber && (
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">License Number</dt>
+                    <dd>{shop.tradeLicenseNumber}</dd>
+                  </div>
+                )}
+                {shop.licenseValidFrom && (
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">Valid From</dt>
+                    <dd>{new Date(shop.licenseValidFrom).toLocaleDateString()}</dd>
+                  </div>
+                )}
+                {shop.licenseValidTo && (
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">Valid To</dt>
+                    <dd>{new Date(shop.licenseValidTo).toLocaleDateString()}</dd>
+                  </div>
+                )}
+                {shop.licenseStatus && (
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">License Status</dt>
+                    <dd>
+                      <span className={`badge ${
+                        shop.licenseStatus === 'valid' ? 'badge-success' :
+                        shop.licenseStatus === 'expired' ? 'badge-danger' :
+                        'badge-warning'
+                      } capitalize`}>
+                        {shop.licenseStatus}
+                      </span>
+                    </dd>
+                  </div>
+                )}
+              </>
+            )}
             {shop.property && (
               <div>
                 <dt className="text-sm font-medium text-gray-500">Property</dt>

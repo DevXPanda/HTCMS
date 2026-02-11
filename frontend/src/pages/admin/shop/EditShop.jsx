@@ -55,6 +55,10 @@ const EditShop = () => {
       setValue('contactName', shopData.contactName || '');
       setValue('contactPhone', shopData.contactPhone || '');
       setValue('status', shopData.status);
+      setValue('tradeLicenseNumber', shopData.tradeLicenseNumber || '');
+      setValue('licenseValidFrom', shopData.licenseValidFrom ? shopData.licenseValidFrom.split('T')[0] : '');
+      setValue('licenseValidTo', shopData.licenseValidTo ? shopData.licenseValidTo.split('T')[0] : '');
+      setValue('licenseStatus', shopData.licenseStatus || '');
       setValue('remarks', shopData.remarks || '');
     } catch (error) {
       toast.error('Failed to fetch shop details');
@@ -92,6 +96,10 @@ const EditShop = () => {
         contactName: data.contactName || null,
         contactPhone: data.contactPhone || null,
         status: data.status,
+        tradeLicenseNumber: data.tradeLicenseNumber || null,
+        licenseValidFrom: data.licenseValidFrom || null,
+        licenseValidTo: data.licenseValidTo || null,
+        licenseStatus: data.licenseStatus || null,
         remarks: data.remarks || null
       });
 
@@ -280,6 +288,50 @@ const EditShop = () => {
             {errors.status && (
               <span className="text-red-500 text-sm">{errors.status.message}</span>
             )}
+          </div>
+
+          <div className="md:col-span-2 border-t pt-4 mt-2">
+            <h3 className="text-sm font-semibold text-gray-700 mb-4">Trade License Information</h3>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Trade License Number</label>
+            <input
+              type="text"
+              {...register('tradeLicenseNumber')}
+              className="input w-full"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">License Valid From</label>
+            <input
+              type="date"
+              {...register('licenseValidFrom')}
+              className="input w-full"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">License Valid To</label>
+            <input
+              type="date"
+              {...register('licenseValidTo')}
+              className="input w-full"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">License Status</label>
+            <select
+              {...register('licenseStatus')}
+              className="input w-full"
+            >
+              <option value="">Select Status</option>
+              <option value="valid">Valid</option>
+              <option value="expired">Expired</option>
+              <option value="suspended">Suspended</option>
+            </select>
           </div>
 
           <div className="md:col-span-2">
