@@ -22,6 +22,8 @@ import { WaterConnectionRequest } from './WaterConnectionRequest.js';
 import { PropertyApplication } from './PropertyApplication.js';
 import { AdminManagement } from './AdminManagement.js';
 import { D2DCRecord } from './D2DCRecord.js';
+import { Shop } from './Shop.js';
+import { ShopTaxAssessment } from './ShopTaxAssessment.js';
 
 // Define Relationships
 
@@ -64,6 +66,7 @@ Assessment.hasMany(Demand, { foreignKey: 'assessmentId', as: 'demands' });
 Demand.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
 Demand.belongsTo(Assessment, { foreignKey: 'assessmentId', as: 'assessment' });
 Demand.belongsTo(WaterTaxAssessment, { foreignKey: 'waterTaxAssessmentId', as: 'waterTaxAssessment' });
+Demand.belongsTo(ShopTaxAssessment, { foreignKey: 'shopTaxAssessmentId', as: 'shopTaxAssessment' });
 Demand.belongsTo(User, { foreignKey: 'generatedBy', as: 'generator' });
 Demand.hasMany(Payment, { foreignKey: 'demandId', as: 'payments' });
 Demand.hasMany(DemandItem, { foreignKey: 'demandId', as: 'items' });
@@ -268,6 +271,21 @@ User.hasMany(D2DCRecord, { foreignKey: 'collectorId', as: 'd2dcActivities' });
 Property.hasMany(D2DCRecord, { foreignKey: 'propertyId', as: 'd2dcRecords' });
 Ward.hasMany(D2DCRecord, { foreignKey: 'wardId', as: 'd2dcRecords' });
 
+// Shop and ShopTaxAssessment Relationships
+Shop.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
+Shop.belongsTo(Ward, { foreignKey: 'wardId', as: 'ward' });
+Shop.belongsTo(User, { foreignKey: 'ownerId', as: 'owner' });
+Shop.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
+Property.hasMany(Shop, { foreignKey: 'propertyId', as: 'shops' });
+Ward.hasMany(Shop, { foreignKey: 'wardId', as: 'shops' });
+User.hasMany(Shop, { foreignKey: 'ownerId', as: 'shops' });
+
+ShopTaxAssessment.belongsTo(Shop, { foreignKey: 'shopId', as: 'shop' });
+ShopTaxAssessment.belongsTo(User, { foreignKey: 'assessorId', as: 'assessor' });
+ShopTaxAssessment.belongsTo(User, { foreignKey: 'approvedBy', as: 'approver' });
+Shop.hasMany(ShopTaxAssessment, { foreignKey: 'shopId', as: 'shopTaxAssessments' });
+ShopTaxAssessment.hasMany(Demand, { foreignKey: 'shopTaxAssessmentId', as: 'demands' });
+
 export {
   User,
   Property,
@@ -292,5 +310,7 @@ export {
   WaterConnectionRequest,
   PropertyApplication,
   AdminManagement,
-  D2DCRecord
+  D2DCRecord,
+  Shop,
+  ShopTaxAssessment
 };

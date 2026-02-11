@@ -58,6 +58,15 @@ import WaterTaxAssessmentDetails from './pages/admin/water/WaterTaxAssessmentDet
 import WaterConnectionRequests from './pages/admin/water/WaterConnectionRequests';
 import PropertyTaxModule from './pages/admin/PropertyTaxModule';
 import WaterTaxModule from './pages/admin/WaterTaxModule';
+import ShopTaxModule from './pages/admin/shop/ShopTaxModule';
+import ShopsList from './pages/admin/shop/ShopsList';
+import ShopDetails from './pages/admin/shop/ShopDetails';
+import AddShop from './pages/admin/shop/AddShop';
+import EditShop from './pages/admin/shop/EditShop';
+import ShopAssessments from './pages/admin/shop/ShopAssessments';
+import ShopAssessmentDetails from './pages/admin/shop/ShopAssessmentDetails';
+import AddShopAssessment from './pages/admin/shop/AddShopAssessment';
+import EditShopAssessment from './pages/admin/shop/EditShopAssessment';
 import TaxManagement from './pages/admin/TaxManagement';
 
 // Citizen Pages
@@ -176,6 +185,15 @@ function App() {
             <Route path="tax-management" element={<TaxManagement />} />
             <Route path="property-tax" element={<PropertyTaxModule />} />
             <Route path="water-tax" element={<WaterTaxModule />} />
+            <Route path="shop-tax" element={<ShopTaxModule />} />
+            <Route path="shop-tax/shops" element={<ShopsList />} />
+            <Route path="shop-tax/shops/new" element={<AddShop />} />
+            <Route path="shop-tax/shops/:id" element={<ShopDetails />} />
+            <Route path="shop-tax/shops/:id/edit" element={<EditShop />} />
+            <Route path="shop-tax/assessments" element={<ShopAssessments />} />
+            <Route path="shop-tax/assessments/new" element={<AddShopAssessment />} />
+            <Route path="shop-tax/assessments/:id" element={<ShopAssessmentDetails />} />
+            <Route path="shop-tax/assessments/:id/edit" element={<EditShopAssessment />} />
 
             {/* Properties */}
             <Route path="properties" element={<Properties />} />

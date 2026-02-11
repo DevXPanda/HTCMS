@@ -28,7 +28,7 @@ const TaxManagement = () => {
             name: 'Shop Tax',
             description: 'Generate and manage demands for shops',
             icon: Store,
-            link: '/demands/generate',
+            link: '/shop-tax',
             color: 'bg-yellow-600',
             bgColor: 'bg-yellow-50',
             borderColor: 'border-yellow-100',

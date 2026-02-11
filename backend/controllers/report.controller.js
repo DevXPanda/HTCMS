@@ -182,6 +182,7 @@ export const getDashboardStats = async (req, res, next) => {
     let totalRevenue = 0;
     let houseTaxRevenue = 0;
     let d2dcRevenue = 0;
+    let shopTaxRevenue = 0;
     let waterTaxRevenueFromUnified = 0;
 
     payments.forEach(payment => {
@@ -204,6 +205,8 @@ export const getDashboardStats = async (req, res, next) => {
           houseTaxRevenue += paymentAmount;
         } else if (demand.serviceType === 'D2DC') {
           d2dcRevenue += paymentAmount;
+        } else if (demand.serviceType === 'SHOP_TAX') {
+          shopTaxRevenue += paymentAmount;
         }
       }
     });
@@ -236,6 +239,9 @@ export const getDashboardStats = async (req, res, next) => {
     const d2dcOutstanding = outstandingDemands
       .filter(d => d.serviceType === 'D2DC')
       .reduce((sum, d) => sum + parseFloat(d.balanceAmount || 0), 0);
+    const shopTaxOutstanding = outstandingDemands
+      .filter(d => d.serviceType === 'SHOP_TAX')
+      .reduce((sum, d) => sum + parseFloat(d.balanceAmount || 0), 0);
 
     // Separate demands by serviceType
     const houseTaxDemands = await Demand.count({
@@ -243,6 +249,9 @@ export const getDashboardStats = async (req, res, next) => {
     });
     const d2dcDemands = await Demand.count({
       where: { serviceType: 'D2DC', ...dateFilter }
+    });
+    const shopTaxDemands = await Demand.count({
+      where: { serviceType: 'SHOP_TAX', ...dateFilter }
     });
 
     // Water Tax Metrics
@@ -292,14 +301,17 @@ export const getDashboardStats = async (req, res, next) => {
         totalDemands,
         houseTaxDemands,
         d2dcDemands,
+        shopTaxDemands,
         totalRevenue,
         houseTaxRevenue,
         d2dcRevenue,
+        shopTaxRevenue,
         pendingDemands,
         overdueDemands,
         totalOutstanding,
         houseTaxOutstanding,
         d2dcOutstanding,
+        shopTaxOutstanding,
         // Water Tax Metrics
         totalWaterConnections,
         totalWaterRevenue: totalWaterTaxRevenue, // Includes unified demand water tax portion
@@ -358,10 +370,13 @@ export const getRevenueReport = async (req, res, next) => {
       ]
     };
 
-    if (taxType && taxType !== 'WATER_TAX') {
+    if (taxType && taxType !== 'WATER_TAX' && taxType !== 'SHOP_TAX') {
       // For HOUSE_TAX or D2DC, filter by serviceType in demand
-      // But we still need to check for unified demands
       demandInclude.where = { serviceType: taxType };
+      demandInclude.required = true;
+    }
+    if (taxType === 'SHOP_TAX') {
+      demandInclude.where = { serviceType: 'SHOP_TAX' };
       demandInclude.required = true;
     }
 
@@ -387,6 +402,7 @@ export const getRevenueReport = async (req, res, next) => {
     let houseTaxAmount = 0;
     let d2dcAmount = 0;
     let waterTaxAmount = 0;
+    let shopTaxAmount = 0;
     let waterTaxAmountFromUnified = 0;
 
     payments.forEach(payment => {
@@ -411,6 +427,8 @@ export const getRevenueReport = async (req, res, next) => {
           d2dcAmount += paymentAmount;
         } else if (demand.serviceType === 'WATER_TAX') {
           waterTaxAmount += paymentAmount;
+        } else if (demand.serviceType === 'SHOP_TAX') {
+          shopTaxAmount += paymentAmount;
         }
       }
     });
@@ -449,6 +467,8 @@ export const getRevenueReport = async (req, res, next) => {
         });
       } else if (taxType === 'D2DC') {
         filteredPayments = payments.filter(p => p.demand?.serviceType === 'D2DC');
+      } else if (taxType === 'SHOP_TAX') {
+        filteredPayments = payments.filter(p => p.demand?.serviceType === 'SHOP_TAX');
       } else if (taxType === 'WATER_TAX') {
         // Include WATER_TAX demands, unified demands (which contain water tax), and water payments
         filteredPayments = payments.filter(p => {
@@ -469,7 +489,8 @@ export const getRevenueReport = async (req, res, next) => {
     const byServiceType = {
       HOUSE_TAX: houseTaxAmount,
       D2DC: d2dcAmount,
-      WATER_TAX: totalWaterTaxRevenue
+      WATER_TAX: totalWaterTaxRevenue,
+      SHOP_TAX: shopTaxAmount
     };
 
     // Calculate filtered totals based on taxType
@@ -485,6 +506,7 @@ export const getRevenueReport = async (req, res, next) => {
     let d2dcCount = 0;
     let waterTaxCount = waterPayments.length;
 
+    let shopTaxCount = 0;
     payments.forEach(p => {
       if (!p.demand) return;
       if (isUnifiedDemand(p.demand)) {
@@ -494,12 +516,14 @@ export const getRevenueReport = async (req, res, next) => {
         if (p.demand.serviceType === 'HOUSE_TAX') houseTaxCount++;
         else if (p.demand.serviceType === 'D2DC') d2dcCount++;
         else if (p.demand.serviceType === 'WATER_TAX') waterTaxCount++;
+        else if (p.demand.serviceType === 'SHOP_TAX') shopTaxCount++;
       }
     });
 
     let finalHouseTaxCount = houseTaxCount;
     let finalD2dcCount = d2dcCount;
     let finalWaterTaxCount = waterTaxCount;
+    let finalShopTaxCount = shopTaxCount;
 
     if (taxType) {
       if (taxType === 'HOUSE_TAX') {
@@ -510,6 +534,7 @@ export const getRevenueReport = async (req, res, next) => {
         finalTotalCount = houseTaxCount;
         finalD2dcCount = 0;
         finalWaterTaxCount = 0;
+        finalShopTaxCount = 0;
       } else if (taxType === 'D2DC') {
         finalTotalAmount = d2dcAmount;
         finalHouseTaxAmount = 0;
@@ -518,6 +543,17 @@ export const getRevenueReport = async (req, res, next) => {
         finalTotalCount = d2dcCount;
         finalHouseTaxCount = 0;
         finalWaterTaxCount = 0;
+        finalShopTaxCount = 0;
+      } else if (taxType === 'SHOP_TAX') {
+        finalTotalAmount = shopTaxAmount;
+        finalHouseTaxAmount = 0;
+        finalD2dcAmount = 0;
+        finalWaterTaxAmount = 0;
+        finalTotalCount = shopTaxCount;
+        finalHouseTaxCount = 0;
+        finalD2dcCount = 0;
+        finalWaterTaxCount = 0;
+        finalShopTaxCount = shopTaxCount;
       } else if (taxType === 'WATER_TAX') {
         finalTotalAmount = totalWaterTaxRevenue;
         finalHouseTaxAmount = 0;
@@ -526,6 +562,7 @@ export const getRevenueReport = async (req, res, next) => {
         finalTotalCount = waterTaxCount;
         finalHouseTaxCount = 0;
         finalD2dcCount = 0;
+        finalShopTaxCount = 0;
       }
     }
 
@@ -537,10 +574,12 @@ export const getRevenueReport = async (req, res, next) => {
         houseTaxAmount: finalHouseTaxAmount,
         d2dcAmount: finalD2dcAmount,
         waterTaxAmount: finalWaterTaxAmount,
+        shopTaxAmount: taxType === 'SHOP_TAX' ? finalTotalAmount : shopTaxAmount,
         totalCount: finalTotalCount,
         houseTaxCount: finalHouseTaxCount,
         d2dcCount: finalD2dcCount,
         waterTaxCount: finalWaterTaxCount,
+        shopTaxCount: finalShopTaxCount,
         byPaymentMode,
         byServiceType
       }

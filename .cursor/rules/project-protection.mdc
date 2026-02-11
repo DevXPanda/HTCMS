@@ -1,0 +1,50 @@
+---
+description: MASTER PROJECT PROTECTION RULES (STRICT MODE) - HTCMS
+alwaysApply: true
+---
+
+# MASTER PROJECT PROTECTION RULES (STRICT MODE)
+
+## 1. Scope Control
+- Implement only what is explicitly requested.
+- Do not add enhancements, optimizations, refactoring, or improvements unless clearly instructed.
+- Do not make assumptions beyond the given task.
+
+## 2. Backend Protection
+Do NOT modify existing: Controllers, Routes, Services, Business logic, Middleware. Do NOT restructure folders. Do NOT refactor working backend code. Do NOT modify authentication or authorization logic. Do NOT change role logic or permission structure.
+
+## 3. API Contract Freeze
+Do NOT change: Endpoint names, HTTP methods, Request body structure, Response structure, Status codes. Do NOT rename fields in responses. Do NOT modify enums or constants. Existing API contracts must remain 100% backward compatible.
+
+## 4. Database Safety Rules
+Do NOT: Alter table structure, Rename tables, Delete tables, Modify relationships, Change constraints or indexes. Do NOT create migrations unless explicitly instructed. Never modify existing production data logic.
+
+## 5. UI/UX Freeze Policy
+Do NOT change: Layout structure, Spacing, Colors, Fonts, Component hierarchy, Responsive behavior. Do NOT refactor CSS. Do NOT modify styling system. Do NOT redesign components. UI/UX must remain exactly as is unless explicitly told: "UI changes are allowed."
+
+## 6. Minimal Change Principle
+Add only the minimum required code. Do not rewrite existing working logic. Prefer extension over modification. Never delete working code unless clearly instructed.
+
+## 7. No Silent Improvements
+Without explicit approval, do NOT: Upgrade dependencies, Change config files, Modify environment variables, Improve performance, Clean up code style, Reformat large files, Rename files, Introduce new libraries, Change architecture.
+
+## 8. Confirmation Rule
+If a requested change affects existing system behavior, conflicts with current architecture, requires modifying core logic, or impacts database schema: STOP and ask for clarification before proceeding. Never assume permission.
+
+## 9. Production Safety Mode
+This is a live or production-ready project. Do not break working functionality. Do not risk regression. Maintain full backward compatibility. Protect stability over improvement.
+
+## 10. Strict Compliance
+Follow instructions exactly as written. If something is not explicitly requested → Do NOT implement it. If uncertain → Ask before changing anything.
+
+## 11. Test & Temporary File Control Rule
+- If any test file, debug file, temporary script, or experimental file is created, it must be tested immediately.
+- If it is not required for production, delete it after testing.
+- Do NOT leave unused test files inside the project folder.
+- Do NOT create or keep .md documentation files unless explicitly requested.
+- Do NOT keep sample data files, mock files, or debug logs if they are not part of the final implementation.
+- The project directory must remain clean and production-only.
+- Only production-relevant files are allowed to remain in the repository.
+
+## Additional Safety Clause
+If implementing a feature requires modifying existing backend logic, database schema, or UI structure, pause and request explicit approval before making any changes.

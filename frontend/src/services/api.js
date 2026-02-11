@@ -385,4 +385,27 @@ export const inspectorAPI = {
   getPropertyWaterConnections: (id) => api.get(`/inspector/properties/${id}/water-connections`)
 };
 
+// Shops API (Shop Tax Module)
+export const shopsAPI = {
+  getAll: (params) => api.get('/shops', { params }),
+  getById: (id) => api.get(`/shops/${id}`),
+  getByProperty: (propertyId) => api.get(`/shops/property/${propertyId}`),
+  create: (data) => api.post('/shops', data),
+  update: (id, data) => api.put(`/shops/${id}`, data)
+};
+
+// Shop Tax Assessments API
+export const shopTaxAssessmentsAPI = {
+  getAll: (params) => api.get('/shop-tax-assessments', { params }),
+  getById: (id) => api.get(`/shop-tax-assessments/${id}`),
+  create: (data) => api.post('/shop-tax-assessments', data),
+  update: (id, data) => api.put(`/shop-tax-assessments/${id}`, data),
+  submit: (id) => api.post(`/shop-tax-assessments/${id}/submit`),
+  approve: (id) => api.post(`/shop-tax-assessments/${id}/approve`),
+  reject: (id, data) => api.post(`/shop-tax-assessments/${id}/reject`, data)
+};
+
+// Shop demand generation (idempotent)
+export const generateShopDemand = (data) => api.post('/demands/generate-shop', data);
+
 export default api;

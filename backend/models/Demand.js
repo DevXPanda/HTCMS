@@ -41,11 +41,20 @@ export const Demand = sequelize.define('Demand', {
     },
     comment: 'Water Tax Assessment ID (required for WATER_TAX, null for others)'
   },
+  shopTaxAssessmentId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'ShopTaxAssessments',
+      key: 'id'
+    },
+    comment: 'Shop Tax Assessment ID (required for SHOP_TAX, null for others)'
+  },
   serviceType: {
-    type: DataTypes.ENUM('HOUSE_TAX', 'D2DC', 'WATER_TAX'),
+    type: DataTypes.ENUM('HOUSE_TAX', 'D2DC', 'WATER_TAX', 'SHOP_TAX'),
     allowNull: false,
     defaultValue: 'HOUSE_TAX',
-    comment: 'Service type: HOUSE_TAX, D2DC, or WATER_TAX'
+    comment: 'Service type: HOUSE_TAX, D2DC, WATER_TAX, or SHOP_TAX'
   },
   financialYear: {
     type: DataTypes.STRING(10),
@@ -147,6 +156,7 @@ export const Demand = sequelize.define('Demand', {
         // Explicitly set to null to ensure database constraint compliance
         demand.assessmentId = null;
         demand.waterTaxAssessmentId = null;
+        demand.shopTaxAssessmentId = null;
       } else if (serviceType === 'HOUSE_TAX') {
         // HOUSE_TAX demands MUST have assessmentId
         // HOUSE_TAX is generated from approved tax assessments
@@ -181,6 +191,7 @@ export const Demand = sequelize.define('Demand', {
         // The actual breakdown is stored in demand items
         if (!isUnifiedDemand) {
           demand.waterTaxAssessmentId = null;
+          demand.shopTaxAssessmentId = null;
         }
       } else if (serviceType === 'WATER_TAX') {
         // WATER_TAX demands MUST have waterTaxAssessmentId
@@ -189,6 +200,14 @@ export const Demand = sequelize.define('Demand', {
           throw new Error('WATER_TAX demands require a waterTaxAssessmentId. Please provide a valid water tax assessment.');
         }
         demand.assessmentId = null;
+        demand.shopTaxAssessmentId = null;
+      } else if (serviceType === 'SHOP_TAX') {
+        // SHOP_TAX demands MUST have shopTaxAssessmentId
+        if (!demand.shopTaxAssessmentId) {
+          throw new Error('SHOP_TAX demands require a shopTaxAssessmentId. Please provide a valid shop tax assessment.');
+        }
+        demand.assessmentId = null;
+        demand.waterTaxAssessmentId = null;
       }
     },
     afterFind: (demands) => {

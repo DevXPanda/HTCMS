@@ -24,6 +24,7 @@ const UnifiedTaxDemand = () => {
     const [generateWaterTax, setGenerateWaterTax] = useState(false);
     const [generateD2DC, setGenerateD2DC] = useState(false);
     const [generateUnified, setGenerateUnified] = useState(false);
+    const [includeShopDemands, setIncludeShopDemands] = useState(false);
 
     const {
         register,
@@ -137,29 +138,42 @@ const UnifiedTaxDemand = () => {
             let unifiedData = null;
 
             if (generateUnified) {
-                // Use the specialized Unified API
+                // Use the specialized Unified API with optional Shop/D2DC
                 const currentYear = new Date().getFullYear();
                 const assessmentYear = currentYear;
-                const financialYear = `${currentYear}-${String(currentYear + 1).slice(-2)}`;
+                const financialYear = data.financialYear || `${currentYear}-${String(currentYear + 1).slice(-2)}`;
 
                 try {
-                    const response = await demandAPI.generateUnified({
+                    const unifiedPayload = {
                         propertyId: selectedProperty.id,
                         assessmentYear,
                         financialYear,
                         dueDate: data.dueDate || new Date().toISOString().split('T')[0],
                         remarks: data.remarks || 'Unified Generation',
-                        defaultTaxRate: 1.5
-                    });
+                        defaultTaxRate: 1.5,
+                        includeShopDemands: includeShopDemands,
+                        includeD2DCDemand: generateD2DC,
+                        ...(generateD2DC && data.month ? { d2dcMonth: data.month } : {}),
+                        ...(generateD2DC && data.d2dcBaseAmount ? { d2dcBaseAmount: parseFloat(data.d2dcBaseAmount) || 50 } : {})
+                    };
+
+                    const response = await demandAPI.generateUnified(unifiedPayload);
 
                     if (response.data.success) {
                         unifiedSuccess = true;
                         unifiedData = response.data.data;
-                        toast.success('Unified Assessment & Demand generated!');
+                        let successMsg = 'Unified Assessment & Demand generated!';
+                        if (unifiedData.shopDemands?.length > 0) {
+                            successMsg += ` (${unifiedData.shopDemands.length} shop demand(s))`;
+                        }
+                        if (unifiedData.d2dcDemand) {
+                            successMsg += ' (D2DC demand)';
+                        }
+                        toast.success(successMsg);
                     }
                 } catch (error) {
                     console.error("Unified generation failed", error);
-                    toast.error("Unified generation failed, trying individual...");
+                    toast.error(error.response?.data?.message || "Unified generation failed");
                 }
             }
 
@@ -221,20 +235,9 @@ const UnifiedTaxDemand = () => {
                 }
             }
 
-            // D2DC is always separate or additive? 
-            // The requirement says: "If Property/Water/D2DC are selected -> Call the existing Generate Unified Assessment & Demand API"
-            // Wait, the Unified API might handle D2DC too? 
-            // Checking GenerateDemands.jsx, `generateUnified` seems to focus on Property + Water. 
-            // But let's check the API signature in `demand.controller.js`. 
-            // It imports `generateUnifiedTaxAssessmentAndDemand`. 
-            // I don't have visibility into `unifiedTaxService.js` yet. 
-            // But in `GenerateDemands.jsx`, D2DC is purely separate API call `demandAPI.createD2DC`.
-
-            // So even if "Unified" is selected, we probably need to call D2DC separately unless `generateUnified` does it.
-            // The requirement says: "Generate Property, Water, Shop & D2DC demands in one go".
-            // It implies WE (the frontend) orchestrate it.
-
-            if (generateD2DC) {
+            // D2DC is handled by unified orchestrator if generateUnified is true
+            // Only call D2DC separately if unified mode is NOT selected
+            if (generateD2DC && !generateUnified) {
                 try {
                     const response = await demandAPI.createD2DC({
                         propertyId: selectedProperty.id,
@@ -352,7 +355,7 @@ const UnifiedTaxDemand = () => {
                                         <span className="block text-base font-bold text-primary-900">Generate Full Unified Tax Demand ⚡</span>
                                         <span className="block text-sm text-primary-700 mt-1">
                                             Use this to generate demand using existing approved assessments.
-                                            No duplicate logic is created. Covers Property, Water & D2DC.
+                                            Creates unified demand (Property + Water) with optional Shop and D2DC demands.
                                         </span>
                                     </div>
                                 </label>
@@ -406,6 +409,26 @@ const UnifiedTaxDemand = () => {
                                     <Truck className="w-5 h-5 text-purple-500 mx-3" />
                                     <span className="font-medium text-gray-700">D2DC (Garbage Collection)</span>
                                 </label>
+
+                                {generateUnified && (
+                                    <>
+                                        <label className="flex items-center p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors mt-3 bg-yellow-50">
+                                            <input
+                                                type="checkbox"
+                                                checked={includeShopDemands}
+                                                onChange={(e) => setIncludeShopDemands(e.target.checked)}
+                                                className="w-4 h-4 text-yellow-600 rounded focus:ring-yellow-500"
+                                            />
+                                            <FileText className="w-5 h-5 text-yellow-600 mx-3" />
+                                            <span className="font-medium text-gray-700">Include Shop Demands (optional)</span>
+                                        </label>
+                                        {generateD2DC && (
+                                            <div className="mt-2 ml-7 text-xs text-gray-600">
+                                                D2DC will be included in unified generation
+                                            </div>
+                                        )}
+                                    </>
+                                )}
                             </div>
                         </div>
                     )}
@@ -436,13 +459,27 @@ const UnifiedTaxDemand = () => {
                                 />
                             </div>
 
-                            {generateD2DC && (
+                            {(generateD2DC || (generateUnified && generateD2DC)) && (
                                 <div className="pt-4 border-t border-gray-200 mt-4">
                                     <p className="text-sm font-medium text-purple-700 mb-3">D2DC Specifics</p>
                                     <div className="space-y-3">
                                         <div>
-                                            <label className="block text-xs font-medium text-gray-500 mb-1">Month</label>
-                                            <input type="month" {...register('month')} className="w-full text-sm rounded-lg border-gray-300" />
+                                            <label className="block text-xs font-medium text-gray-500 mb-1">Month (YYYY-MM)</label>
+                                            <input 
+                                                type="text" 
+                                                {...register('month', { 
+                                                    required: generateD2DC || (generateUnified && generateD2DC),
+                                                    pattern: {
+                                                        value: /^\d{4}-\d{2}$/,
+                                                        message: 'Format: YYYY-MM (e.g., 2024-01)'
+                                                    }
+                                                })} 
+                                                placeholder="2024-01"
+                                                className="w-full text-sm rounded-lg border-gray-300" 
+                                            />
+                                            {errors.month && (
+                                                <span className="text-xs text-red-500">{errors.month.message}</span>
+                                            )}
                                         </div>
                                         <div>
                                             <label className="block text-xs font-medium text-gray-500 mb-1">Base Amount (₹)</label>
@@ -476,10 +513,42 @@ const UnifiedTaxDemand = () => {
                                 <h3 className="font-semibold text-gray-900 mb-2">Generation Results</h3>
 
                                 {result.unified && (
-                                    <div className="flex items-center text-sm text-green-700 mb-2">
-                                        <CheckCircle2 className="w-4 h-4 mr-2" />
-                                        Unified Demand: {result.unified.unifiedDemand?.demandNumber || 'Created'}
-                                    </div>
+                                    <>
+                                        <div className="flex items-center text-sm text-green-700 mb-2">
+                                            <CheckCircle2 className="w-4 h-4 mr-2" />
+                                            Unified Demand: {result.unified.unifiedDemand?.demandNumber || 'Created'}
+                                            {result.unified.unifiedDemand?.totalAmount && (
+                                                <span className="ml-2 font-semibold">
+                                                    (₹{parseFloat(result.unified.unifiedDemand.totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })})
+                                                </span>
+                                            )}
+                                        </div>
+                                        {result.unified.shopDemands && result.unified.shopDemands.length > 0 && (
+                                            <div className="ml-6 mb-2">
+                                                <div className="text-xs font-semibold text-yellow-700 mb-1">Shop Demands ({result.unified.shopDemands.length}):</div>
+                                                {result.unified.shopDemands.map((shopDemand, idx) => (
+                                                    <div key={idx} className="flex items-center text-xs text-yellow-600 ml-2 mb-1">
+                                                        <CheckCircle2 className="w-3 h-3 mr-1" />
+                                                        {shopDemand.demandNumber}
+                                                        {shopDemand.totalAmount && (
+                                                            <span className="ml-2">(₹{parseFloat(shopDemand.totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })})</span>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                        {result.unified.d2dcDemand && (
+                                            <div className="flex items-center text-sm text-purple-700 mb-2">
+                                                <CheckCircle2 className="w-4 h-4 mr-2" />
+                                                D2DC Demand: {result.unified.d2dcDemand.demandNumber}
+                                                {result.unified.d2dcDemand.totalAmount && (
+                                                    <span className="ml-2 font-semibold">
+                                                        (₹{parseFloat(result.unified.d2dcDemand.totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })})
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
+                                    </>
                                 )}
 
                                 {result.houseTax && (
@@ -496,7 +565,7 @@ const UnifiedTaxDemand = () => {
                                     </div>
                                 )}
 
-                                {result.d2dc && (
+                                {result.d2dc && !result.unified && (
                                     <div className="flex items-center text-sm text-purple-700 mb-2">
                                         <CheckCircle2 className="w-4 h-4 mr-2" />
                                         D2DC: {result.d2dc.demandNumber}

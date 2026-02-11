@@ -5,6 +5,7 @@ import {
     getDemandById,
     createDemand,
     createD2DCDemand,
+    generateShopDemand,
     generateBulkDemands,
     generateCombinedDemands,
     generateUnifiedDemand,
@@ -41,6 +42,9 @@ router.get('/', (req, res, next) => {
 
 // Generate D2DC demand (Admin only) - Must be before /:id route
 router.post('/d2dc', authorize('admin'), createD2DCDemand);
+
+// Generate shop tax demand (Admin, Assessor, Clerk) - idempotent
+router.post('/generate-shop', authorize('admin', 'assessor', 'clerk'), generateShopDemand);
 
 // Generate bulk demands (Admin only) - Must be before /:id route
 router.post('/generate-bulk', authorize('admin'), generateBulkDemands);

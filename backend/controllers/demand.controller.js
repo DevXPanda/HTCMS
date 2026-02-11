@@ -1,4 +1,4 @@
-import { Demand, Assessment, Property, Payment, User, Ward, WaterTaxAssessment, WaterConnection, DemandItem, D2DCRecord } from '../models/index.js';
+import { Demand, Assessment, Property, Payment, User, Ward, WaterTaxAssessment, WaterConnection, DemandItem, D2DCRecord, Shop, ShopTaxAssessment } from '../models/index.js';
 import { Op, Sequelize } from 'sequelize';
 import { auditLogger } from '../utils/auditLogger.js';
 import { generateUnifiedTaxAssessmentAndDemand, getUnifiedDemandBreakdown, getUnifiedTaxSummary as getUnifiedTaxSummaryService } from '../services/unifiedTaxService.js';
@@ -120,7 +120,13 @@ export const getAllDemands = async (req, res, next) => {
           include: [
             { model: WaterConnection, as: 'waterConnection', attributes: ['id', 'connectionNumber'] }
           ]
-        } // Optional for HOUSE_TAX and D2DC
+        },
+        {
+          model: ShopTaxAssessment,
+          as: 'shopTaxAssessment',
+          required: false,
+          include: [{ model: Shop, as: 'shop', attributes: ['id', 'shopNumber', 'shopName', 'propertyId', 'wardId', 'status'] }]
+        }
       ],
       limit: parseInt(limit),
       offset,
@@ -171,6 +177,12 @@ export const getDemandById = async (req, res, next) => {
         },
         { model: Assessment, as: 'assessment', required: false }, // Optional for D2DC and WATER_TAX
         { model: WaterTaxAssessment, as: 'waterTaxAssessment', required: false }, // Optional for HOUSE_TAX and D2DC
+        {
+          model: ShopTaxAssessment,
+          as: 'shopTaxAssessment',
+          required: false,
+          include: [{ model: Shop, as: 'shop', attributes: ['id', 'shopNumber', 'shopName', 'propertyId', 'wardId', 'status'] }]
+        },
         {
           model: DemandItem,
           as: 'items',
@@ -541,6 +553,182 @@ export const createDemand = async (req, res, next) => {
       success: true,
       message: `${serviceType} demand generated successfully`,
       data: { demand: createdDemand }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   POST /api/demands/generate-shop
+ * @desc    Generate SHOP_TAX demand from approved shop tax assessment (idempotent: returns existing if already generated)
+ * @access  Private (Admin, Assessor, Clerk)
+ */
+export const generateShopDemand = async (req, res, next) => {
+  try {
+    const { shopTaxAssessmentId, financialYear, dueDate, remarks } = req.body;
+
+    if (!shopTaxAssessmentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'shopTaxAssessmentId is required'
+      });
+    }
+    if (!financialYear) {
+      return res.status(400).json({
+        success: false,
+        message: 'financialYear is required (e.g. 2024-25)'
+      });
+    }
+
+    const shopTaxAssessment = await ShopTaxAssessment.findByPk(shopTaxAssessmentId, {
+      include: [{ model: Shop, as: 'shop', include: [{ model: Property, as: 'property' }] }]
+    });
+
+    if (!shopTaxAssessment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Shop tax assessment not found'
+      });
+    }
+    if (shopTaxAssessment.status !== 'approved') {
+      return res.status(400).json({
+        success: false,
+        message: 'Can only generate demand from approved shop tax assessment'
+      });
+    }
+
+    const shop = shopTaxAssessment.shop;
+    if (!shop) {
+      return res.status(400).json({
+        success: false,
+        message: 'Shop not found for this assessment'
+      });
+    }
+
+    // Shop closed validation: do not allow demand generation for closed shops
+    if (shop.status === 'closed') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot generate demand for a closed shop'
+      });
+    }
+
+    const propertyId = shop.propertyId;
+    if (!propertyId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Shop must be linked to a property'
+      });
+    }
+
+    // Idempotency: if demand already exists for this shopTaxAssessmentId + financialYear, return existing
+    const existingDemand = await Demand.findOne({
+      where: {
+        shopTaxAssessmentId,
+        financialYear,
+        serviceType: 'SHOP_TAX'
+      }
+    });
+
+    if (existingDemand) {
+      const existingWithInclude = await Demand.findByPk(existingDemand.id, {
+        include: [
+          { model: Property, as: 'property', include: [{ model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] }] },
+          { model: ShopTaxAssessment, as: 'shopTaxAssessment', required: false, include: [{ model: Shop, as: 'shop' }] }
+        ]
+      });
+      return res.status(200).json({
+        success: true,
+        message: 'Demand already exists for this shop assessment and financial year (idempotent)',
+        data: { demand: existingWithInclude, alreadyExisted: true }
+      });
+    }
+
+    const dueDateResolved = dueDate ? new Date(dueDate) : new Date(`${financialYear.split('-')[1]}-03-31`);
+    const baseAmount = parseFloat(shopTaxAssessment.annualTaxAmount || 0);
+    const arrearsAmount = 0;
+    const penaltyAmount = 0;
+    const interestAmount = 0;
+    const totalAmount = Math.round((baseAmount + arrearsAmount + penaltyAmount + interestAmount) * 100) / 100;
+    const demandNumber = `STD-${financialYear}-${Date.now()}`;
+
+    let demand;
+    try {
+      demand = await Demand.create({
+        demandNumber,
+        propertyId,
+        assessmentId: null,
+        waterTaxAssessmentId: null,
+        shopTaxAssessmentId,
+        serviceType: 'SHOP_TAX',
+        financialYear,
+        baseAmount,
+        arrearsAmount,
+        penaltyAmount,
+        interestAmount,
+        totalAmount,
+        balanceAmount: totalAmount,
+        paidAmount: 0,
+        dueDate: dueDateResolved,
+        status: 'pending',
+        generatedBy: req.user.id,
+        remarks: remarks || null
+      });
+    } catch (createError) {
+      // Unique constraint violation (e.g. DB unique index on shopTaxAssessmentId + financialYear): return existing demand idempotently
+      const isUniqueViolation =
+        createError.name === 'SequelizeUniqueConstraintError' ||
+        (createError.parent && createError.parent.code === '23505');
+      if (isUniqueViolation) {
+        const existing = await Demand.findOne({
+          where: { shopTaxAssessmentId, financialYear, serviceType: 'SHOP_TAX' }
+        });
+        if (existing) {
+          const existingWithInclude = await Demand.findByPk(existing.id, {
+            include: [
+              { model: Property, as: 'property', include: [{ model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] }] },
+              { model: ShopTaxAssessment, as: 'shopTaxAssessment', required: false, include: [{ model: Shop, as: 'shop' }] }
+            ]
+          });
+          return res.status(200).json({
+            success: true,
+            message: 'Demand already exists for this shop assessment and financial year (idempotent)',
+            data: { demand: existingWithInclude, alreadyExisted: true }
+          });
+        }
+      }
+      throw createError;
+    }
+
+    const createdDemand = await Demand.findByPk(demand.id, {
+      include: [
+        { model: Property, as: 'property', include: [{ model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] }] },
+        { model: ShopTaxAssessment, as: 'shopTaxAssessment', required: false, include: [{ model: Shop, as: 'shop' }] }
+      ]
+    });
+
+    await auditLogger.logCreate(
+      req,
+      req.user,
+      'Demand',
+      demand.id,
+      {
+        demandNumber: demand.demandNumber,
+        propertyId: demand.propertyId,
+        shopTaxAssessmentId: demand.shopTaxAssessmentId,
+        financialYear: demand.financialYear,
+        totalAmount: demand.totalAmount,
+        serviceType: 'SHOP_TAX'
+      },
+      `Created SHOP_TAX demand: ${demand.demandNumber}`,
+      { propertyId: demand.propertyId, shopTaxAssessmentId: demand.shopTaxAssessmentId, serviceType: 'SHOP_TAX' }
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Shop tax demand generated successfully',
+      data: { demand: createdDemand, alreadyExisted: false }
     });
   } catch (error) {
     next(error);
@@ -1247,7 +1435,11 @@ export const generateUnifiedDemand = async (req, res, next) => {
       dueDate,
       due_date,
       remarks,
-      defaultTaxRate
+      defaultTaxRate,
+      includeShopDemands,
+      includeD2DCDemand,
+      d2dcMonth,
+      d2dcBaseAmount
     } = req.body;
 
     // Normalize to camelCase
@@ -1278,7 +1470,15 @@ export const generateUnifiedDemand = async (req, res, next) => {
       });
     }
 
-    // Generate unified assessment and demand
+    // Validate D2DC month if D2DC is requested
+    if (includeD2DCDemand && !d2dcMonth) {
+      return res.status(400).json({
+        success: false,
+        message: 'd2dcMonth is required when includeD2DCDemand is true (format: YYYY-MM, e.g., 2024-01)'
+      });
+    }
+
+    // Generate unified assessment and demand (with optional Shop/D2DC)
     const result = await generateUnifiedTaxAssessmentAndDemand({
       propertyId: parseInt(normalizedPropertyId),
       assessmentYear: parseInt(normalizedAssessmentYear),
@@ -1286,11 +1486,19 @@ export const generateUnifiedDemand = async (req, res, next) => {
       assessorId: req.user.id,
       dueDate: normalizedDueDate ? new Date(normalizedDueDate) : null,
       remarks: remarks || null,
-      defaultTaxRate: parseFloat(defaultTaxRate) || 1.5
+      defaultTaxRate: parseFloat(defaultTaxRate) || 1.5,
+      includeShopDemands: includeShopDemands === true || includeShopDemands === 'true',
+      includeD2DCDemand: includeD2DCDemand === true || includeD2DCDemand === 'true',
+      d2dcMonth: d2dcMonth || null,
+      d2dcBaseAmount: parseFloat(d2dcBaseAmount) || 50
     });
 
     // Log the action - Use 'Demand' as entityType since it's a valid enum value
     if (result.unifiedDemand?.id) {
+      const logMessage = `Generated unified tax demand for property ${normalizedPropertyId}` +
+        (result.shopDemands?.length > 0 ? ` + ${result.shopDemands.length} shop demand(s)` : '') +
+        (result.d2dcDemand ? ' + D2DC demand' : '');
+      
       await auditLogger.logCreate(
         req,
         req.user,
@@ -1299,16 +1507,29 @@ export const generateUnifiedDemand = async (req, res, next) => {
         {
           propertyId: normalizedPropertyId,
           assessmentYear: normalizedAssessmentYear,
-          financialYear: normalizedFinancialYear
+          financialYear: normalizedFinancialYear,
+          includeShopDemands: includeShopDemands === true || includeShopDemands === 'true',
+          includeD2DCDemand: includeD2DCDemand === true || includeD2DCDemand === 'true',
+          shopDemandsCount: result.shopDemands?.length || 0,
+          d2dcDemandCreated: !!result.d2dcDemand
         },
-        `Generated unified tax demand for property ${normalizedPropertyId}`,
+        logMessage,
         { propertyId: normalizedPropertyId }
       );
     }
 
+    // Build success message
+    let successMessage = 'Unified tax demand generated successfully';
+    if (result.shopDemands?.length > 0) {
+      successMessage += ` (${result.shopDemands.length} shop demand(s))`;
+    }
+    if (result.d2dcDemand) {
+      successMessage += ' (D2DC demand)';
+    }
+
     res.status(201).json({
       success: true,
-      message: 'Unified tax demand generated successfully',
+      message: successMessage,
       data: result
     });
   } catch (error) {
