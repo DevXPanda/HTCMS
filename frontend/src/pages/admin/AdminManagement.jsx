@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Users, Search, Filter, Edit, Trash2, Eye, RefreshCw, Shield, CheckSquare, Square } from 'lucide-react';
-import axios from 'axios';
+import api from '../../services/api';
 
 const AdminManagement = () => {
   const [employees, setEmployees] = useState([]);
@@ -56,23 +56,20 @@ const AdminManagement = () => {
       if (filterStatus) params.append('status', filterStatus);
       if (searchTerm) params.append('search', searchTerm);
 
-      const response = await axios.get(`/api/admin-management/employees?${params}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
+      const response = await api.get(`/admin-management/employees?${params}`);
+      const data = response?.data;
 
-      console.log('🔍 Debug - API Response:', response.data);
-      console.log('🔍 Debug - Employees Array:', response.data.employees);
-      console.log('🔍 Debug - Employees Length:', response.data.employees?.length);
-
-      if (response.data.employees && response.data.employees.length > 0) {
-        console.log('🔍 Debug - First Employee:', response.data.employees[0]);
-        console.log('🔍 Debug - Employee Roles:', response.data.employees.map(emp => emp.role));
+      if (data && Array.isArray(data.employees)) {
+        setEmployees(data.employees);
+        setTotalPages(data.pagination?.totalPages ?? 1);
+      } else {
+        setEmployees([]);
+        setTotalPages(1);
       }
-
-      setEmployees(response.data.employees);
-      setTotalPages(response.data.pagination.totalPages);
     } catch (error) {
       console.error('Error fetching employees:', error);
+      setEmployees([]);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
@@ -80,32 +77,22 @@ const AdminManagement = () => {
 
   const fetchWards = async () => {
     try {
-      console.log('🏢 Fetching wards...');
-      const token = localStorage.getItem('token');
-      console.log('🔑 Token exists:', !!token);
-
-      const response = await axios.get('/api/admin-management/employees/wards', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      console.log('📋 Fetched wards response:', response.data);
-      console.log('📊 Wards array length:', response.data.length);
-      setWards(response.data);
+      const response = await api.get('/admin-management/employees/wards');
+      const data = response?.data;
+      setWards(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error('❌ Error fetching wards:', error);
-      console.error('❌ Error response:', error.response?.data);
-      console.error('❌ Error status:', error.response?.status);
+      console.error('Error fetching wards:', error);
+      setWards([]);
     }
   };
 
   const fetchStatistics = async () => {
     try {
-      const response = await axios.get('/api/admin-management/employees/statistics', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
-      setStatistics(response.data);
+      const response = await api.get('/admin-management/employees/statistics');
+      setStatistics(response?.data ?? null);
     } catch (error) {
       console.error('Error fetching statistics:', error);
+      setStatistics(null);
     }
   };
 
@@ -115,10 +102,7 @@ const AdminManagement = () => {
     console.log('📝 Form data:', formData);
 
     try {
-      console.log('🚀 Sending API request to /api/admin-management/employees');
-      const response = await axios.post('/api/admin-management/employees', formData, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
+      const response = await api.post('/admin-management/employees', formData);
 
       console.log('✅ API Response:', response.data);
 
@@ -159,9 +143,7 @@ const AdminManagement = () => {
     });
 
     try {
-      const response = await axios.put(`/api/admin-management/employees/${selectedEmployee.id}`, formData, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
+      const response = await api.put(`/admin-management/employees/${selectedEmployee.id}`, formData);
 
       console.log('✅ Frontend - Update successful:', response.data);
 
@@ -201,9 +183,7 @@ const AdminManagement = () => {
     if (!confirm('Are you sure you want to delete this employee?')) return;
 
     try {
-      await axios.delete(`/api/admin-management/employees/${employeeId}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
+      await api.delete(`/admin-management/employees/${employeeId}`);
 
       fetchEmployees();
       fetchStatistics();
@@ -217,9 +197,7 @@ const AdminManagement = () => {
     if (!confirm('Are you sure you want to reset this employee\'s password?')) return;
 
     try {
-      const response = await axios.post(`/api/admin-management/employees/${employeeId}/reset-password`, {}, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
+      const response = await api.post(`/admin-management/employees/${employeeId}/reset-password`, {});
 
       alert(`Password reset successful!\n\nNew Password: ${response.data.new_password}\n\nSave this password securely.`);
       fetchEmployees();
@@ -276,11 +254,12 @@ const AdminManagement = () => {
   };
 
   const handleSelectAll = () => {
+    const list = Array.isArray(employees) ? employees : [];
     if (selectAll) {
       setSelectedEmployees([]);
       setSelectAll(false);
     } else {
-      setSelectedEmployees(employees.map(emp => emp.id));
+      setSelectedEmployees(list.map(emp => emp.id));
       setSelectAll(true);
     }
   };
@@ -291,10 +270,7 @@ const AdminManagement = () => {
     if (!confirm(`Are you sure you want to delete ${selectedEmployees.length} staff member(s)?`)) return;
 
     try {
-      await axios.post('/api/admin-management/employees/bulk-delete',
-        { employeeIds: selectedEmployees },
-        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
-      );
+      await api.post('/admin-management/employees/bulk-delete', { employeeIds: selectedEmployees });
 
       setSelectedEmployees([]);
       setSelectAll(false);
@@ -312,10 +288,7 @@ const AdminManagement = () => {
     if (!confirm(`Are you sure you want to ${status} ${selectedEmployees.length} staff member(s)?`)) return;
 
     try {
-      await axios.post('/api/admin-management/employees/bulk-status-update',
-        { employeeIds: selectedEmployees, status },
-        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
-      );
+      await api.post('/admin-management/employees/bulk-status-update', { employeeIds: selectedEmployees, status });
 
       setSelectedEmployees([]);
       setSelectAll(false);
@@ -525,14 +498,14 @@ const AdminManagement = () => {
                     </div>
                   </td>
                 </tr>
-              ) : employees.length === 0 ? (
+              ) : (Array.isArray(employees) ? employees : []).length === 0 ? (
                 <tr>
                   <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
                     No staff members found
                   </td>
                 </tr>
               ) : (
-                employees.map((employee) => (
+                (Array.isArray(employees) ? employees : []).map((employee) => (
                   <tr key={employee.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <input
@@ -609,11 +582,11 @@ const AdminManagement = () => {
         </div>
 
         {/* Pagination */}
-        {totalPages > 1 && (
+        {(totalPages ?? 1) > 1 && (
           <div className="px-6 py-4 border-t border-gray-200">
             <div className="flex items-center justify-between">
               <div className="text-sm text-gray-700">
-                Page {currentPage} of {totalPages}
+                Page {currentPage} of {totalPages ?? 1}
               </div>
               <div className="flex gap-2">
                 <button
@@ -624,8 +597,8 @@ const AdminManagement = () => {
                   Previous
                 </button>
                 <button
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages ?? 1))}
+                  disabled={currentPage === (totalPages ?? 1)}
                   className="px-3 py-1 border border-gray-300 rounded-md disabled:opacity-50"
                 >
                   Next
