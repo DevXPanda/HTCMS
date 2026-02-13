@@ -4,6 +4,10 @@ import toast from 'react-hot-toast';
 import { Users, Shield, Building } from 'lucide-react';
 import { useStaffAuth } from '../../contexts/StaffAuthContext';
 
+// Get background image path that works in both dev and production
+// Use absolute path for public assets - Vite serves public folder from root
+const backgroundImageUrl = '/background.png';
+
 const StaffLogin = () => {
   const [formData, setFormData] = useState({ login_identifier: '', password: '' });
   const [loading, setLoading] = useState(false);
@@ -77,15 +81,15 @@ const StaffLogin = () => {
   return (
     <div 
       className="min-h-screen flex items-center justify-center px-4 relative"
-      style={{
-        backgroundImage: 'url(/background.png)',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-        backgroundAttachment: 'fixed',
-        minHeight: '100vh',
-        width: '100%'
-      }}
+        style={{
+          backgroundImage: `url(${backgroundImageUrl})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          backgroundAttachment: 'fixed',
+          minHeight: '100vh',
+          width: '100%'
+        }}
     >
       {/* Dark overlay for better text readability */}
       <div 

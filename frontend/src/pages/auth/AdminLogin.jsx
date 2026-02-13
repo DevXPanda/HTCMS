@@ -4,6 +4,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { Shield, Building2, CreditCard } from 'lucide-react';
 
+// Get background image path that works in both dev and production
+// Use absolute path for public assets - Vite serves public folder from root
+const backgroundImageUrl = '/background.png';
+
 const AdminLogin = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
@@ -34,7 +38,7 @@ const AdminLogin = () => {
       <div 
         className="min-h-screen flex items-center justify-center relative"
         style={{
-          backgroundImage: 'url(/background.png)',
+          backgroundImage: `url(${backgroundImageUrl})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
