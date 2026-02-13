@@ -127,6 +127,7 @@ export const demandAPI = {
   create: (data) => api.post('/demands', data),
   createD2DC: (data) => api.post('/demands/d2dc', data),
   generateBulk: (data) => api.post('/demands/generate-bulk', data),
+  generateBulkShop: (data) => api.post('/demands/generate-bulk-shop', data),
   generateCombined: (data) => api.post('/demands/generate-combined', data),
   generateUnified: (data) => api.post('/demands/generate-unified', data),
   calculatePenalty: (id, data) => api.put(`/demands/${id}/calculate-penalty`, data),
@@ -186,7 +187,10 @@ export const citizenAPI = {
   getNoticeById: (id) => api.get(`/citizen/notices/${id}`),
   getWaterConnections: () => api.get('/citizen/water-connections'),
   createWaterConnectionRequest: (data) => api.post('/citizen/water-connection-requests', data),
-  getWaterConnectionRequests: () => api.get('/citizen/water-connection-requests')
+  getWaterConnectionRequests: () => api.get('/citizen/water-connection-requests'),
+  createShopRegistrationRequest: (data) => api.post('/citizen/shop-registration-requests', data),
+  getShopRegistrationRequests: () => api.get('/citizen/shop-registration-requests'),
+  getShopRegistrationRequestById: (id) => api.get(`/citizen/shop-registration-requests/${id}`)
 };
 
 // Notice API
@@ -232,6 +236,9 @@ export const uploadAPI = {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   uploadPaymentProof: (formData) => api.post('/upload/payment-proof', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  uploadShopRegistrationDocument: (formData) => api.post('/upload/shop-registration-document', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   })
 };
@@ -309,6 +316,14 @@ export const waterConnectionRequestAPI = {
   // Legacy endpoints for backward compatibility
   approve: (id, data) => api.post(`/water-connection-requests/${id}/approve`, data),
   reject: (id, data) => api.post(`/water-connection-requests/${id}/reject`, data)
+};
+
+// Shop Registration Request API (Admin/Clerk)
+export const shopRegistrationRequestAPI = {
+  getAll: (params) => api.get('/shop-registration-requests', { params }),
+  getById: (id) => api.get(`/shop-registration-requests/${id}`),
+  approve: (id, data) => api.post(`/shop-registration-requests/${id}/approve`, data),
+  reject: (id, data) => api.post(`/shop-registration-requests/${id}/reject`, data)
 };
 
 // Clerk API

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
+import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
 import { shopTaxAssessmentsAPI } from '../../../services/api';
 import toast from 'react-hot-toast';
 import Loading from '../../../components/Loading';
@@ -9,6 +10,7 @@ import { ArrowLeft } from 'lucide-react';
 const EditShopAssessment = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const basePath = useShopTaxBasePath();
   const [loading, setLoading] = useState(false);
   const [loadingAssessment, setLoadingAssessment] = useState(true);
   const [assessment, setAssessment] = useState(null);
@@ -32,7 +34,7 @@ const EditShopAssessment = () => {
       setAssessment(a);
       if (a.status !== 'draft') {
         toast.error('Only draft assessments can be edited');
-        navigate('/shop-tax/assessments');
+        navigate(`${basePath}/shop-tax/assessments`);
         return;
       }
       reset({
@@ -44,7 +46,7 @@ const EditShopAssessment = () => {
       });
     } catch (error) {
       toast.error('Failed to load assessment');
-      navigate('/shop-tax/assessments');
+      navigate(`${basePath}/shop-tax/assessments`);
     } finally {
       setLoadingAssessment(false);
     }
@@ -62,7 +64,7 @@ const EditShopAssessment = () => {
       };
       await shopTaxAssessmentsAPI.update(id, payload);
       toast.success('Shop tax assessment updated successfully');
-      navigate(`/shop-tax/assessments/${id}`);
+      navigate(`${basePath}/shop-tax/assessments/${id}`);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to update assessment');
     } finally {
@@ -77,7 +79,7 @@ const EditShopAssessment = () => {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
-          <Link to={`/shop-tax/assessments/${id}`} className="mr-4 text-primary-600 hover:text-primary-700">
+          <Link to={`${basePath}/shop-tax/assessments/${id}`} className="mr-4 text-primary-600 hover:text-primary-700">
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <h1 className="text-3xl font-bold text-gray-900">Edit Shop Tax Assessment</h1>
@@ -158,7 +160,7 @@ const EditShopAssessment = () => {
         </div>
 
         <div className="flex gap-2 pt-4 border-t">
-          <Link to={`/shop-tax/assessments/${id}`} className="btn btn-secondary">
+          <Link to={`${basePath}/shop-tax/assessments/${id}`} className="btn btn-secondary">
             Cancel
           </Link>
           <button type="submit" disabled={loading} className="btn btn-primary">

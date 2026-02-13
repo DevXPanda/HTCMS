@@ -5,9 +5,11 @@ import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Edit, CheckCircle, XCircle, Send, Store, FileText } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
 
 const ShopAssessmentDetails = () => {
   const { id } = useParams();
+  const basePath = useShopTaxBasePath();
   const { isAdmin, isAssessor } = useAuth();
   const [assessment, setAssessment] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -111,7 +113,7 @@ const ShopAssessmentDetails = () => {
 
   return (
     <div>
-      <Link to="/shop-tax/assessments" className="flex items-center text-primary-600 mb-4">
+      <Link to={`${basePath}/shop-tax/assessments`} className="flex items-center text-primary-600 mb-4">
         <ArrowLeft className="w-4 h-4 mr-2" />
         Back to Shop Assessments
       </Link>
@@ -119,10 +121,10 @@ const ShopAssessmentDetails = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Shop Tax Assessment Details</h1>
         <div className="flex gap-2">
-          {(isAdmin || isAssessor) && assessment?.status === 'draft' && (
+          {(isAdmin || isAssessor || basePath === '/clerk') && assessment?.status === 'draft' && (
             <>
               <Link
-                to={`/shop-tax/assessments/${id}/edit`}
+                to={`${basePath}/shop-tax/assessments/${id}/edit`}
                 className="btn btn-primary flex items-center"
               >
                 <Edit className="w-4 h-4 mr-2" />
@@ -161,7 +163,7 @@ const ShopAssessmentDetails = () => {
               </button>
             </>
           )}
-          {(isAdmin || isAssessor) && assessment?.status === 'approved' && (
+          {(isAdmin || isAssessor || basePath === '/clerk') && assessment?.status === 'approved' && (
             <button
               type="button"
               onClick={() => setShowGenerateForm((v) => !v)}
@@ -212,7 +214,7 @@ const ShopAssessmentDetails = () => {
 
       {lastGeneratedDemandId && (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-          <Link to={`/demands/${lastGeneratedDemandId}`} className="text-primary-600 hover:underline font-medium flex items-center">
+          <Link to={`${basePath}/demands/${lastGeneratedDemandId}`} className="text-primary-600 hover:underline font-medium flex items-center">
             <FileText className="w-4 h-4 mr-2" />
             View generated demand
           </Link>

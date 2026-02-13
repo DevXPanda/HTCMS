@@ -35,9 +35,16 @@ export const createWaterConnectionRequest = async (req, res, next) => {
         // So we only set createdBy for citizens, not clerks (field is nullable)
         const createdBy = user.role === 'citizen' ? user.id : null;
 
-        // Generate request number
-        const count = await WaterConnectionRequest.count();
-        const requestNumber = `WCR-${Date.now()}-${count + 1}`;
+        // Generate request number using sequence-based approach
+        const year = new Date().getFullYear();
+        const count = await WaterConnectionRequest.count({
+            where: {
+                requestNumber: {
+                    [Op.like]: `WCR-${year}-%`
+                }
+            }
+        });
+        const requestNumber = `WCR-${year}-${String(count + 1).padStart(6, '0')}`;
 
         // Create request
         const request = await WaterConnectionRequest.create({
@@ -104,9 +111,16 @@ export const createAndSubmitWaterConnectionRequest = async (req, res, next) => {
         // Note: createdBy references 'users' table, but Clerk is in 'staff' table
         // So we don't set createdBy for Clerk-created requests (field is nullable)
 
-        // Generate request number
-        const count = await WaterConnectionRequest.count();
-        const requestNumber = `WCR-${Date.now()}-${count + 1}`;
+        // Generate request number using sequence-based approach
+        const year = new Date().getFullYear();
+        const count = await WaterConnectionRequest.count({
+            where: {
+                requestNumber: {
+                    [Op.like]: `WCR-${year}-%`
+                }
+            }
+        });
+        const requestNumber = `WCR-${year}-${String(count + 1).padStart(6, '0')}`;
 
         // Find an inspector for this property's ward
         let inspectorId = null;

@@ -24,6 +24,7 @@ import { AdminManagement } from './AdminManagement.js';
 import { D2DCRecord } from './D2DCRecord.js';
 import { Shop } from './Shop.js';
 import { ShopTaxAssessment } from './ShopTaxAssessment.js';
+import { ShopRegistrationRequest } from './ShopRegistrationRequest.js';
 
 // Define Relationships
 
@@ -286,6 +287,16 @@ ShopTaxAssessment.belongsTo(User, { foreignKey: 'approvedBy', as: 'approver' });
 Shop.hasMany(ShopTaxAssessment, { foreignKey: 'shopId', as: 'shopTaxAssessments' });
 ShopTaxAssessment.hasMany(Demand, { foreignKey: 'shopTaxAssessmentId', as: 'demands' });
 
+// ShopRegistrationRequest Relationships
+ShopRegistrationRequest.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
+ShopRegistrationRequest.belongsTo(User, { foreignKey: 'applicantId', as: 'applicant' });
+ShopRegistrationRequest.belongsTo(User, { foreignKey: 'reviewedBy', as: 'reviewer' });
+ShopRegistrationRequest.belongsTo(Shop, { foreignKey: 'shopId', as: 'shop' });
+Property.hasMany(ShopRegistrationRequest, { foreignKey: 'propertyId', as: 'shopRegistrationRequests' });
+User.hasMany(ShopRegistrationRequest, { foreignKey: 'applicantId', as: 'shopRegistrationRequests' });
+User.hasMany(ShopRegistrationRequest, { foreignKey: 'reviewedBy', as: 'reviewedShopRegistrationRequests' });
+Shop.hasOne(ShopRegistrationRequest, { foreignKey: 'shopId', as: 'registrationRequest' });
+
 export {
   User,
   Property,
@@ -312,5 +323,6 @@ export {
   AdminManagement,
   D2DCRecord,
   Shop,
-  ShopTaxAssessment
+  ShopTaxAssessment,
+  ShopRegistrationRequest
 };

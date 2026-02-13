@@ -7,6 +7,7 @@ import {
     createD2DCDemand,
     generateShopDemand,
     generateBulkDemands,
+    generateBulkShopDemands,
     generateCombinedDemands,
     generateUnifiedDemand,
     calculatePenalty,
@@ -48,6 +49,9 @@ router.post('/generate-shop', authorize('admin', 'assessor', 'clerk'), generateS
 
 // Generate bulk demands (Admin only) - Must be before /:id route
 router.post('/generate-bulk', authorize('admin'), generateBulkDemands);
+
+// Generate bulk shop tax demands (Admin, Assessor, Clerk)
+router.post('/generate-bulk-shop', authorize('admin', 'assessor', 'clerk'), generateBulkShopDemands);
 
 // Generate combined demands (Property Tax + Water Tax) (Admin, Assessor)
 router.post('/generate-combined', authorize('admin', 'assessor'), generateCombinedDemands);

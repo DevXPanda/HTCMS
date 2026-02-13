@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom';
 import { propertyAPI, wardAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { Plus, Search, Eye, Edit, Filter, X } from 'lucide-react';
+import { Plus, Search, Eye, Edit, Filter, X, Download } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { exportToCSV } from '../../../utils/exportCSV';
 
 const Properties = () => {
   const { isAdmin, isAssessor } = useAuth();
@@ -81,6 +82,33 @@ const Properties = () => {
     fetchProperties();
   };
 
+  const handleExport = async () => {
+    try {
+      const params = {
+        page: 1,
+        limit: 5000,
+        search,
+        ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''))
+      };
+      const response = await propertyAPI.getAll(params);
+      const list = response.data.data.properties || [];
+      const rows = list.map(p => ({
+        propertyNumber: p.propertyNumber,
+        address: p.address,
+        ward: p.ward?.wardName,
+        propertyType: p.propertyType,
+        usageType: p.usageType,
+        area: p.area,
+        constructionType: p.constructionType,
+        status: p.status
+      }));
+      exportToCSV(rows, `properties_${new Date().toISOString().slice(0, 10)}`);
+      toast.success('Export downloaded');
+    } catch (err) {
+      toast.error('Export failed');
+    }
+  };
+
   if (loading && !properties.length) return <Loading />;
 
   return (
@@ -100,6 +128,14 @@ const Properties = () => {
           >
             <Filter className="w-4 h-4 mr-2" />
             Filters
+          </button>
+          <button
+            type="button"
+            onClick={handleExport}
+            className="btn btn-secondary flex items-center"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export
           </button>
         </div>
       </div>

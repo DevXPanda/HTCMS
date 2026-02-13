@@ -1,8 +1,9 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
 import { StaffAuthProvider } from './contexts/StaffAuthContext';
 import PrivateRoute from './components/PrivateRoute';
+import { ShopTaxBasePathProvider } from './contexts/ShopTaxBasePathContext';
 import AdminLayout from './components/AdminLayout';
 import CitizenLayout from './components/CitizenLayout';
 import CollectorLayout from './components/CollectorLayout';
@@ -67,6 +68,8 @@ import ShopAssessments from './pages/admin/shop/ShopAssessments';
 import ShopAssessmentDetails from './pages/admin/shop/ShopAssessmentDetails';
 import AddShopAssessment from './pages/admin/shop/AddShopAssessment';
 import EditShopAssessment from './pages/admin/shop/EditShopAssessment';
+import ShopRegistrationRequests from './pages/admin/shop/ShopRegistrationRequests';
+import ShopRegistrationRequestDetails from './pages/admin/shop/ShopRegistrationRequestDetails';
 import TaxManagement from './pages/admin/TaxManagement';
 
 // Citizen Pages
@@ -82,6 +85,8 @@ import CitizenWaterConnections from './pages/citizen/CitizenWaterConnections';
 import WaterConnectionRequest from './pages/citizen/WaterConnectionRequest';
 import CitizenShops from './pages/citizen/CitizenShops';
 import CitizenShopDetails from './pages/citizen/CitizenShopDetails';
+import CitizenShopRegistrationRequests from './pages/citizen/CitizenShopRegistrationRequests';
+import ShopRegistrationRequest from './pages/citizen/ShopRegistrationRequest';
 
 // Collector Pages
 import CollectorDashboard from './pages/collector/CollectorDashboard';
@@ -196,6 +201,9 @@ function App() {
             <Route path="shop-tax/assessments/new" element={<AddShopAssessment />} />
             <Route path="shop-tax/assessments/:id" element={<ShopAssessmentDetails />} />
             <Route path="shop-tax/assessments/:id/edit" element={<EditShopAssessment />} />
+            <Route path="shop-tax/registration-requests" element={<ShopRegistrationRequests />} />
+            <Route path="shop-registration-requests" element={<ShopRegistrationRequests />} />
+            <Route path="shop-registration-requests/:id" element={<ShopRegistrationRequestDetails />} />
 
             {/* Properties */}
             <Route path="properties" element={<Properties />} />
@@ -312,6 +320,22 @@ function App() {
             <Route path="water-connections/:id" element={<ClerkWaterConnectionDetails />} />
             <Route path="existing-water-connections" element={<ClerkExistingWaterConnections />} />
             <Route path="existing-water-connections/:id" element={<ClerkWaterConnectionDetails />} />
+            <Route path="shop-tax" element={<ShopTaxBasePathProvider basePath="/clerk"><Outlet /></ShopTaxBasePathProvider>}>
+              <Route index element={<ShopTaxModule />} />
+              <Route path="shops" element={<ShopsList />} />
+              <Route path="shops/new" element={<AddShop />} />
+              <Route path="shops/:id" element={<ShopDetails />} />
+              <Route path="shops/:id/edit" element={<EditShop />} />
+              <Route path="assessments" element={<ShopAssessments />} />
+              <Route path="assessments/new" element={<AddShopAssessment />} />
+              <Route path="assessments/:id" element={<ShopAssessmentDetails />} />
+              <Route path="assessments/:id/edit" element={<EditShopAssessment />} />
+            </Route>
+            <Route path="demands" element={<ShopTaxBasePathProvider basePath="/clerk"><Demands /></ShopTaxBasePathProvider>} />
+            <Route path="demands/generate" element={<ShopTaxBasePathProvider basePath="/clerk"><GenerateDemands /></ShopTaxBasePathProvider>} />
+            <Route path="demands/:id" element={<ShopTaxBasePathProvider basePath="/clerk"><DemandDetails /></ShopTaxBasePathProvider>} />
+            <Route path="shop-registration-requests" element={<ShopRegistrationRequests />} />
+            <Route path="shop-registration-requests/:id" element={<ShopRegistrationRequestDetails />} />
             <Route path="returned-applications" element={<ReturnedApplications />} />
             <Route path="attendance" element={<ClerkAttendance />} />
             <Route path="activity-history" element={<ClerkActivityHistory />} />
@@ -391,6 +415,9 @@ function App() {
             <Route path="water-connection-request" element={<WaterConnectionRequest />} />
             <Route path="shops" element={<CitizenShops />} />
             <Route path="shops/:id" element={<CitizenShopDetails />} />
+            <Route path="shop-registration-requests" element={<CitizenShopRegistrationRequests />} />
+            <Route path="shop-registration-requests/new" element={<ShopRegistrationRequest />} />
+            <Route path="shop-registration-requests/:id" element={<ShopRegistrationRequest />} />
             <Route path="notices" element={<CitizenNotices />} />
             <Route path="notices/:id" element={<CitizenNoticeDetails />} />
             <Route path="payments" element={<CitizenPayments />} />

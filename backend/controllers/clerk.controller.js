@@ -1,4 +1,4 @@
-import { PropertyApplication, WaterConnectionRequest, AuditLog, User, Property, WaterConnectionDocument } from '../models/index.js';
+import { PropertyApplication, WaterConnectionRequest, AuditLog, User, Property, WaterConnectionDocument, Ward, AdminManagement } from '../models/index.js';
 import { Op } from 'sequelize';
 
 /**
@@ -9,6 +9,49 @@ import { Op } from 'sequelize';
 export const getClerkDashboard = async (req, res, next) => {
     try {
         const user = req.user;
+        
+        // Get clerk's assigned wards
+        let assignedWards = [];
+        let clerkWardIds = user.ward_ids || user.dataValues?.ward_ids;
+        
+        // Fallback: If not in JWT, fetch from database
+        if (!clerkWardIds || (Array.isArray(clerkWardIds) && clerkWardIds.length === 0)) {
+            try {
+                const clerkRecord = await AdminManagement.findByPk(user.id, {
+                    attributes: ['id', 'ward_ids']
+                });
+                if (clerkRecord && clerkRecord.ward_ids) {
+                    clerkWardIds = clerkRecord.ward_ids;
+                } else {
+                    // Also check Ward table for clerkId assignment
+                    const wardsFromDB = await Ward.findAll({
+                        where: { clerkId: user.id, isActive: true },
+                        attributes: ['id', 'wardNumber', 'wardName']
+                    });
+                    if (wardsFromDB.length > 0) {
+                        clerkWardIds = wardsFromDB.map(w => w.id);
+                        assignedWards = wardsFromDB;
+                    }
+                }
+            } catch (dbError) {
+                console.error(`[getClerkDashboard] Error fetching clerk wards:`, dbError.message);
+            }
+        }
+        
+        // Fetch full ward details if we have ward IDs
+        if (clerkWardIds && assignedWards.length === 0) {
+            const wardIdsArray = Array.isArray(clerkWardIds) ? clerkWardIds : [clerkWardIds];
+            assignedWards = await Ward.findAll({
+                where: { 
+                    id: { [Op.in]: wardIdsArray },
+                    isActive: true 
+                },
+                attributes: ['id', 'wardNumber', 'wardName'],
+                order: [['wardNumber', 'ASC']]
+            });
+        }
+        
+        console.log(`[getClerkDashboard] Clerk ${user.id} - assigned wards:`, assignedWards.map(w => ({ id: w.id, name: w.wardName, number: w.wardNumber })));
 
         // Count property applications by status (created by this clerk)
         const propertyApplicationStats = await PropertyApplication.findAll({
@@ -21,12 +64,21 @@ export const getClerkDashboard = async (req, res, next) => {
             raw: true
         });
 
-        // Count water connection requests by status (all requests that clerks can access)
+        // Count water connection requests by status (filtered by clerk's assigned wards)
         const waterApplicationStats = await WaterConnectionRequest.findAll({
             attributes: [
                 'status',
-                [WaterConnectionRequest.sequelize.fn('COUNT', WaterConnectionRequest.sequelize.col('id')), 'count']
+                [WaterConnectionRequest.sequelize.fn('COUNT', WaterConnectionRequest.sequelize.col('WaterConnectionRequest.id')), 'count']
             ],
+            include: [{
+                model: Property,
+                as: 'property',
+                where: clerkWardIds && (Array.isArray(clerkWardIds) ? clerkWardIds.length > 0 : clerkWardIds)
+                    ? { wardId: { [Op.in]: Array.isArray(clerkWardIds) ? clerkWardIds : [clerkWardIds] } }
+                    : {},
+                required: true,
+                attributes: []
+            }],
             group: ['status'],
             raw: true
         });
@@ -47,7 +99,17 @@ export const getClerkDashboard = async (req, res, next) => {
             where: { createdBy: user.id }
         });
 
-        const totalWaterApplications = await WaterConnectionRequest.count({});
+        // Filter water applications by clerk's assigned wards
+        const totalWaterApplications = await WaterConnectionRequest.count({
+            include: [{
+                model: Property,
+                as: 'property',
+                where: clerkWardIds && (Array.isArray(clerkWardIds) ? clerkWardIds.length > 0 : clerkWardIds)
+                    ? { wardId: { [Op.in]: Array.isArray(clerkWardIds) ? clerkWardIds : [clerkWardIds] } }
+                    : {},
+                required: true
+            }]
+        });
 
         // Get returned applications (requiring action)
         const returnedPropertyApplications = await PropertyApplication.count({
@@ -57,10 +119,19 @@ export const getClerkDashboard = async (req, res, next) => {
             }
         });
 
+        // Filter returned water applications by clerk's assigned wards
         const returnedWaterApplications = await WaterConnectionRequest.count({
             where: {
                 status: 'RETURNED'
-            }
+            },
+            include: [{
+                model: Property,
+                as: 'property',
+                where: clerkWardIds && (Array.isArray(clerkWardIds) ? clerkWardIds.length > 0 : clerkWardIds)
+                    ? { wardId: { [Op.in]: Array.isArray(clerkWardIds) ? clerkWardIds : [clerkWardIds] } }
+                    : {},
+                required: true
+            }]
         });
 
         // Get recent activity (audit logs for this clerk)
@@ -78,17 +149,31 @@ export const getClerkDashboard = async (req, res, next) => {
             }
         });
 
+        // Filter pending water approvals by clerk's assigned wards
         const pendingWaterApprovals = await WaterConnectionRequest.count({
             where: {
                 status: {
                     [Op.in]: ['SUBMITTED', 'UNDER_INSPECTION']
                 }
-            }
+            },
+            include: [{
+                model: Property,
+                as: 'property',
+                where: clerkWardIds && (Array.isArray(clerkWardIds) ? clerkWardIds.length > 0 : clerkWardIds)
+                    ? { wardId: { [Op.in]: Array.isArray(clerkWardIds) ? clerkWardIds : [clerkWardIds] } }
+                    : {},
+                required: true
+            }]
         });
 
         res.json({
             success: true,
             data: {
+                assignedWards: assignedWards.map(w => ({
+                    id: w.id,
+                    wardName: w.wardName,
+                    wardNumber: w.wardNumber
+                })),
                 propertyApplications: {
                     total: totalPropertyApplications,
                     byStatus: {

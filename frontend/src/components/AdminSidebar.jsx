@@ -20,7 +20,8 @@ import {
   FileCheck,
   Wallet,
   TrendingUp,
-  Plus
+  Plus,
+  Store
 } from 'lucide-react';
 
 const AdminSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
@@ -28,6 +29,14 @@ const AdminSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
   const location = useLocation();
   const role = localStorage.getItem('role') || user?.role || null;
   const userData = JSON.parse(localStorage.getItem('user') || 'null') || user;
+  const [shopTaxDropdownOpen, setShopTaxDropdownOpen] = useState(false);
+
+  // Auto-open Shop Tax dropdown when on related pages
+  useEffect(() => {
+    if (location.pathname.includes('/shop-tax') || location.pathname.includes('/shop-registration-requests')) {
+      setShopTaxDropdownOpen(true);
+    }
+  }, [location.pathname]);
   const handleLogout = async () => {
     // Call logout function from context to clear auth data
     await logout();
@@ -49,6 +58,15 @@ const AdminSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
     { path: '/users', label: 'Citizen Management', icon: Users },
     { path: '/admin-management', label: 'Staff Management', icon: Users },
     // { path: '/admin-management', label: 'Employee Management', icon: Users },
+    {
+      label: 'Shop Tax',
+      icon: Store,
+      dropdown: true,
+      children: [
+        { path: '/shop-tax', label: 'Shop Tax Module', icon: Store },
+        { path: '/shop-registration-requests', label: 'Registration Requests', icon: FileCheck }
+      ]
+    },
     { path: '/attendance', label: 'Attendance', icon: Clock },
     { path: '/field-monitoring', label: 'Field Monitoring', icon: MapPin },
     { path: '/reports', label: 'Reports', icon: BarChart3 },
@@ -95,6 +113,66 @@ const AdminSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
             {/* Other menu items */}
             {navItems.map((item) => {
               const Icon = item.icon;
+
+              if (item.dropdown) {
+                const isDropdownOpen = shopTaxDropdownOpen;
+                const hasActiveChild = item.children?.some(child =>
+                  location.pathname === child.path || location.pathname.startsWith(child.path + '/')
+                );
+
+                return (
+                  <div key={item.label}>
+                    <button
+                      onClick={() => {
+                        if (item.label === 'Shop Tax') {
+                          setShopTaxDropdownOpen(!shopTaxDropdownOpen);
+                        }
+                      }}
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${hasActiveChild
+                        ? 'bg-primary-50 text-primary-600 font-medium'
+                        : 'text-gray-700 hover:bg-gray-100'
+                        }`}
+                    >
+                      <div className="flex items-center">
+                        <Icon className="w-5 h-5 mr-3" />
+                        {item.label}
+                      </div>
+                      {isDropdownOpen ? (
+                        <ChevronDown className="w-4 h-4" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4" />
+                      )}
+                    </button>
+
+                    {isDropdownOpen && (
+                      <div className="ml-4 mt-1 space-y-1">
+                        {item.children.map((child) => {
+                          const ChildIcon = child.icon;
+                          const isActive = location.pathname === child.path ||
+                            (child.path === '/shop-tax' && location.pathname.startsWith('/shop-tax')) ||
+                            (child.path === '/shop-registration-requests' && location.pathname.includes('/shop-registration-requests'));
+
+                          return (
+                            <Link
+                              key={child.path}
+                              to={child.path}
+                              onClick={() => setSidebarOpen(false)}
+                              className={`flex items-center px-4 py-2 rounded-lg transition-colors ${isActive
+                                ? 'bg-primary-50 text-primary-600 font-medium'
+                                : 'text-gray-600 hover:bg-gray-100'
+                                }`}
+                            >
+                              <ChildIcon className="w-4 h-4 mr-3" />
+                              {child.label}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
               const isActive = location.pathname === item.path;
               return (
                 <Link

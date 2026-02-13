@@ -51,7 +51,7 @@ const AddPayment = () => {
   }, [watchedPaymentType, setValue]);
 
   useEffect(() => {
-    if (watchedDemandId && watchedPaymentType === 'PROPERTY_TAX') {
+    if (watchedDemandId && (watchedPaymentType === 'PROPERTY_TAX' || watchedPaymentType === 'SHOP_TAX')) {
       fetchDemand(watchedDemandId);
     } else {
       setDemand(null);
@@ -122,7 +122,7 @@ const AddPayment = () => {
     try {
       setLoading(true);
 
-      if (data.paymentType === 'PROPERTY_TAX') {
+      if (data.paymentType === 'PROPERTY_TAX' || data.paymentType === 'SHOP_TAX') {
         // Property Tax Payment
         const paymentData = {
           demandId: parseInt(data.demandId),
@@ -221,6 +221,7 @@ const AddPayment = () => {
               }}
             >
               <option value="PROPERTY_TAX">Property Tax</option>
+              <option value="SHOP_TAX">Shop Tax</option>
               <option value="WATER_TAX">Water Tax</option>
             </select>
             {errors.paymentType && (
@@ -230,17 +231,17 @@ const AddPayment = () => {
         </div>
 
         {/* Property Tax - Demand Selection */}
-        {watchedPaymentType === 'PROPERTY_TAX' && (
+        {((watchedPaymentType === 'PROPERTY_TAX') || (watchedPaymentType === 'SHOP_TAX')) && (
           <div>
             <h2 className="text-xl font-semibold mb-4">Demand Information</h2>
             <div>
               <label className="label">
-                Demand Number <span className="text-red-500">*</span>
+                Demand ID <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 {...register('demandId', {
-                  required: watchedPaymentType === 'PROPERTY_TAX' ? 'Demand ID is required' : false,
+                  required: (watchedPaymentType === 'PROPERTY_TAX' || watchedPaymentType === 'SHOP_TAX') ? 'Demand ID is required' : false,
                   valueAsNumber: true
                 })}
                 className="input"
@@ -264,6 +265,10 @@ const AddPayment = () => {
               <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
                 <h3 className="font-semibold mb-2">Demand Details</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600">Type:</span>
+                    <span className="ml-2 font-medium">{demand.serviceType ? demand.serviceType.replace(/_/g, ' ') : '—'}</span>
+                  </div>
                   <div>
                     <span className="text-gray-600">Demand Number:</span>
                     <span className="ml-2 font-medium">{demand.demandNumber}</span>

@@ -4,9 +4,11 @@ import { useForm } from 'react-hook-form';
 import { shopsAPI, propertyAPI, wardAPI, userAPI } from '../../../services/api';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Save } from 'lucide-react';
+import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
 
 const AddShop = () => {
   const navigate = useNavigate();
+  const basePath = useShopTaxBasePath();
   const [loading, setLoading] = useState(false);
   const [properties, setProperties] = useState([]);
   const [wards, setWards] = useState([]);
@@ -82,7 +84,7 @@ const AddShop = () => {
 
       if (response.data.success) {
         toast.success('Shop created successfully');
-        navigate(`/shop-tax/shops/${response.data.data.shop.id}`);
+        navigate(`${basePath}/shop-tax/shops/${response.data.data.shop.id}`);
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to create shop');
@@ -97,7 +99,7 @@ const AddShop = () => {
 
   return (
     <div>
-      <Link to="/shop-tax/shops" className="flex items-center text-primary-600 mb-4">
+      <Link to={`${basePath}/shop-tax/shops`} className="flex items-center text-primary-600 mb-4">
         <ArrowLeft className="w-4 h-4 mr-2" />
         Back to Shops
       </Link>
@@ -316,7 +318,7 @@ const AddShop = () => {
         </div>
 
         <div className="flex justify-end gap-4 mt-6">
-          <Link to="/shop-tax/shops" className="btn btn-secondary">
+          <Link to={`${basePath}/shop-tax/shops`} className="btn btn-secondary">
             Cancel
           </Link>
           <button type="submit" disabled={loading} className="btn btn-primary flex items-center">

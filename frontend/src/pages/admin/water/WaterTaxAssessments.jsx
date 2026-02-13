@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { waterTaxAssessmentAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { Plus, Search, Eye, Filter, X } from 'lucide-react';
+import { Plus, Search, Eye, Filter, X, Download } from 'lucide-react';
+import { exportToCSV } from '../../../utils/exportCSV';
 
 const WaterTaxAssessments = () => {
   const [assessments, setAssessments] = useState([]);
@@ -65,6 +66,26 @@ const WaterTaxAssessments = () => {
     return badges[status] || 'badge-info';
   };
 
+  const handleExport = async () => {
+    try {
+      const params = { page: 1, limit: 5000, search, ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== '')) };
+      const response = await waterTaxAssessmentAPI.getAll(params);
+      const list = response.data.data.assessments || [];
+      const rows = list.map(a => ({
+        assessmentNumber: a.assessmentNumber,
+        connectionNumber: a.waterConnection?.connectionNumber,
+        assessmentYear: a.assessmentYear,
+        assessmentType: a.assessmentType,
+        rate: a.rate,
+        status: a.status
+      }));
+      exportToCSV(rows, `water_tax_assessments_${new Date().toISOString().slice(0, 10)}`);
+      toast.success('Export downloaded');
+    } catch (err) {
+      toast.error('Export failed');
+    }
+  };
+
   if (loading && !assessments.length) return <Loading />;
 
   return (
@@ -82,6 +103,10 @@ const WaterTaxAssessments = () => {
           >
             <Filter className="w-4 h-4 mr-2" />
             Filters
+          </button>
+          <button type="button" onClick={handleExport} className="btn btn-secondary flex items-center">
+            <Download className="w-4 h-4 mr-2" />
+            Export
           </button>
         </div>
       </div>

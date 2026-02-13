@@ -1,4 +1,4 @@
-import { Payment, Demand, DemandItem, Property, Assessment, Ward, User, WaterConnection, WaterBill, WaterPayment, AdminManagement } from '../models/index.js';
+import { Payment, Demand, DemandItem, Property, Assessment, Ward, User, WaterConnection, WaterBill, WaterPayment, AdminManagement, Shop, ShopTaxAssessment } from '../models/index.js';
 import { Op, Sequelize } from 'sequelize';
 import { WATER_PAYMENT_STATUS, getUnpaidBillStatuses } from '../constants/waterTaxStatuses.js';
 
@@ -254,6 +254,11 @@ export const getDashboardStats = async (req, res, next) => {
       where: { serviceType: 'SHOP_TAX', ...dateFilter }
     });
 
+    // Active Shops (for dashboard)
+    const activeShops = await Shop.count({
+      where: { status: 'active' }
+    });
+
     // Water Tax Metrics
     // Total Water Connections
     const totalWaterConnections = await WaterConnection.count({
@@ -302,6 +307,7 @@ export const getDashboardStats = async (req, res, next) => {
         houseTaxDemands,
         d2dcDemands,
         shopTaxDemands,
+        activeShops,
         totalRevenue,
         houseTaxRevenue,
         d2dcRevenue,
@@ -624,12 +630,26 @@ export const getOutstandingReport = async (req, res, next) => {
           model: Property,
           as: 'property',
           where: propertyWhere,
+          required: false,
           include: [
-            { model: Ward, as: 'ward' },
-            { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email', 'phone'] }
+            { model: Ward, as: 'ward', required: false },
+            { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email', 'phone'], required: false }
           ]
         },
-        { model: Assessment, as: 'assessment', required: false }
+        { model: Assessment, as: 'assessment', required: false },
+        {
+          model: ShopTaxAssessment,
+          as: 'shopTaxAssessment',
+          required: false,
+          include: [
+            {
+              model: Shop,
+              as: 'shop',
+              required: false,
+              attributes: ['id', 'shopName', 'shopNumber', 'shopType']
+            }
+          ]
+        }
       ],
       order: [['serviceType', 'ASC'], ['dueDate', 'ASC']]
     });
@@ -637,9 +657,13 @@ export const getOutstandingReport = async (req, res, next) => {
     // Separate by serviceType
     const houseTaxDemands = demands.filter(d => d.serviceType === 'HOUSE_TAX');
     const d2dcDemands = demands.filter(d => d.serviceType === 'D2DC');
+    const shopTaxDemands = demands.filter(d => d.serviceType === 'SHOP_TAX');
+    const waterTaxDemands = demands.filter(d => d.serviceType === 'WATER_TAX');
 
     const houseTaxOutstanding = houseTaxDemands.reduce((sum, d) => sum + parseFloat(d.balanceAmount || 0), 0);
     const d2dcOutstanding = d2dcDemands.reduce((sum, d) => sum + parseFloat(d.balanceAmount || 0), 0);
+    const shopTaxOutstanding = shopTaxDemands.reduce((sum, d) => sum + parseFloat(d.balanceAmount || 0), 0);
+    const waterTaxOutstanding = waterTaxDemands.reduce((sum, d) => sum + parseFloat(d.balanceAmount || 0), 0);
 
     const totalOutstanding = demands.reduce((sum, d) => sum + parseFloat(d.balanceAmount), 0);
 
@@ -649,13 +673,19 @@ export const getOutstandingReport = async (req, res, next) => {
         demands,
         houseTaxDemands,
         d2dcDemands,
+        shopTaxDemands,
+        waterTaxDemands,
         summary: {
           totalOutstanding,
           houseTaxOutstanding,
           d2dcOutstanding,
+          shopTaxOutstanding,
+          waterTaxOutstanding,
           totalCount: demands.length,
           houseTaxCount: houseTaxDemands.length,
-          d2dcCount: d2dcDemands.length
+          d2dcCount: d2dcDemands.length,
+          shopTaxCount: shopTaxDemands.length,
+          waterTaxCount: waterTaxDemands.length
         }
       }
     });

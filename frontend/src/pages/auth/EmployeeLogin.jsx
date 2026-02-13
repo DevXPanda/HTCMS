@@ -67,8 +67,24 @@ const EmployeeLogin = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div 
+      className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative"
+      style={{
+        backgroundImage: 'url(/background.png)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed',
+        minHeight: '100vh',
+        width: '100%'
+      }}
+    >
+      {/* Dark overlay for better text readability */}
+      <div 
+        className="absolute inset-0 bg-black opacity-45"
+        style={{ zIndex: 0 }}
+      />
+      <div className="max-w-md w-full space-y-8 relative" style={{ zIndex: 1 }}>
         <div className="text-center">
           <div className="mx-auto h-16 w-16 bg-blue-600 rounded-full flex items-center justify-center">
             <Users className="h-8 w-8 text-white" />

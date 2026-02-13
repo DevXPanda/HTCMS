@@ -3,11 +3,13 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { demandAPI, propertyAPI, assessmentAPI, waterTaxAssessmentAPI } from '../../../services/api';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Zap, AlertCircle, Trash2, Plus } from 'lucide-react';
+import { ArrowLeft, Zap, AlertCircle, Trash2, Plus, Store } from 'lucide-react';
 import Loading from '../../../components/Loading';
+import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
 
 const GenerateDemands = () => {
   const navigate = useNavigate();
+  const basePath = useShopTaxBasePath();
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState(null);
@@ -22,6 +24,8 @@ const GenerateDemands = () => {
   const [generateCombined, setGenerateCombined] = useState(false);
   const [generateUnified, setGenerateUnified] = useState(false);
   const [generateD2DC, setGenerateD2DC] = useState(false);
+  const [generatingBulkShop, setGeneratingBulkShop] = useState(false);
+  const [resultBulkShop, setResultBulkShop] = useState(null);
 
   const {
     register,
@@ -48,8 +52,9 @@ const GenerateDemands = () => {
 
   useEffect(() => {
     if (selectedProperty) {
-      fetchAssessments(selectedProperty);
-      fetchWaterTaxAssessments(selectedProperty);
+      const propertyId = selectedProperty?.id ?? selectedProperty;
+      fetchAssessments(propertyId);
+      fetchWaterTaxAssessments(propertyId);
     } else {
       setAssessments([]);
       setWaterTaxAssessments([]);
@@ -113,13 +118,39 @@ const GenerateDemands = () => {
         toast.success(`Successfully generated ${response.data.data.created} tax demands!`);
         
         setTimeout(() => {
-          navigate('/demands');
+          navigate(`${basePath}/demands`);
         }, 3000);
       }
     } catch (error) {
       toast.error(error.response?.data?.error || error.response?.data?.message || 'Failed to generate demands');
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const onSubmitBulkShop = async (e) => {
+    e.preventDefault();
+    const fy = watch('financialYear')?.trim();
+    const due = watch('dueDate');
+    if (!fy || !/^\d{4}-\d{2}$/.test(fy)) {
+      toast.error('Financial year is required (e.g. 2024-25)');
+      return;
+    }
+    if (!window.confirm(`Generate shop tax demands for financial year ${fy} for all approved shop assessments?`)) return;
+    try {
+      setGeneratingBulkShop(true);
+      setResultBulkShop(null);
+      const response = await demandAPI.generateBulkShop({ financialYear: fy, dueDate: due || undefined });
+      if (response.data.success) {
+        setResultBulkShop(response.data.data);
+        const d = response.data.data;
+        const msg = `Shop demands: ${d.createdCount ?? d.created ?? 0} created, ${d.skippedCount ?? d.skipped ?? 0} already existed${(d.errorDetails?.length) ? `, ${d.errorDetails.length} errors` : ''}`;
+        (d.errorDetails?.length) ? toast.error(msg) : toast.success(msg);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to generate shop demands');
+    } finally {
+      setGeneratingBulkShop(false);
     }
   };
 
@@ -175,7 +206,7 @@ const GenerateDemands = () => {
           }
           
           setTimeout(() => {
-            navigate('/demands');
+            navigate(`${basePath}/demands`);
           }, 3000);
         }
       } catch (error) {
@@ -225,7 +256,7 @@ const GenerateDemands = () => {
           }
           
           setTimeout(() => {
-            navigate('/demands');
+            navigate(`${basePath}/demands`);
           }, 3000);
         }
       } catch (error) {
@@ -317,7 +348,7 @@ const GenerateDemands = () => {
       
       if (results.houseTax || results.waterTax || results.d2dc) {
         setTimeout(() => {
-          navigate('/demands');
+          navigate(`${basePath}/demands`);
         }, 3000);
       }
     } catch (error) {
@@ -331,7 +362,7 @@ const GenerateDemands = () => {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
-          <Link to="/demands" className="mr-4 text-primary-600 hover:text-primary-700">
+          <Link to={`${basePath}/demands`} className="mr-4 text-primary-600 hover:text-primary-700">
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <h1 className="text-3xl font-bold text-gray-900">Generate Demands</h1>
@@ -434,7 +465,7 @@ const GenerateDemands = () => {
             )}
 
             <div className="flex justify-end space-x-4 pt-4 border-t">
-              <Link to="/demands" className="btn btn-secondary">
+              <Link to={`${basePath}/demands`} className="btn btn-secondary">
                 Cancel
               </Link>
               <button
@@ -447,6 +478,55 @@ const GenerateDemands = () => {
               </button>
             </div>
           </form>
+
+          {/* Bulk Shop Tax Demands */}
+          <div className="mt-8 pt-8 border-t border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2 flex items-center">
+              <Store className="w-5 h-5 mr-2 text-amber-600" />
+              Bulk Shop Tax Demands
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Generate shop tax demands for all approved shop assessments. Existing demands for the same financial year are skipped.
+            </p>
+            <form onSubmit={onSubmitBulkShop} className="space-y-4 max-w-md">
+              <div>
+                <label className="label">Financial Year *</label>
+                <input
+                  type="text"
+                  {...register('financialYear')}
+                  className="input"
+                  placeholder="2024-25"
+                />
+              </div>
+              <div>
+                <label className="label">Due Date (optional)</label>
+                <input type="date" {...register('dueDate')} className="input" />
+              </div>
+              {resultBulkShop && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                  <strong>Result:</strong> {resultBulkShop.createdCount ?? resultBulkShop.created ?? 0} created, {resultBulkShop.skippedCount ?? resultBulkShop.skipped ?? 0} already existed
+                  {(resultBulkShop.errorDetails?.length) > 0 && (
+                    <>
+                      , {resultBulkShop.errorDetails.length} errors
+                      <ul className="mt-2 list-disc list-inside text-amber-900">
+                        {resultBulkShop.errorDetails.map((e, i) => (
+                          <li key={i}>Assessment {e.assessmentId}: {e.errorMessage}</li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                </div>
+              )}
+              <button
+                type="submit"
+                disabled={generatingBulkShop}
+                className="btn btn-secondary flex items-center"
+              >
+                <Store className="w-4 h-4 mr-2" />
+                {generatingBulkShop ? 'Generating...' : 'Generate Shop Demands'}
+              </button>
+            </form>
+          </div>
         </div>
       ) : (
         <div className="card max-w-4xl">
@@ -921,7 +1001,7 @@ const GenerateDemands = () => {
                 )}
 
                 <div className="flex justify-end space-x-4 pt-4 border-t">
-                  <Link to="/demands" className="btn btn-secondary">
+                  <Link to={`${basePath}/demands`} className="btn btn-secondary">
                     Cancel
                   </Link>
                   <button

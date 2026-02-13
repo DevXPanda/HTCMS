@@ -39,8 +39,48 @@ export const distributePaymentAcrossItems = async (demandId, paymentAmount, tran
       throw new Error('Demand not found');
     }
 
+    // Demands without items (SHOP_TAX, D2DC, or single WATER_TAX): apply payment directly to Demand.
+    // SHOP_TAX test scenarios: (1) On-time: full payment before dueDate -> status paid.
+    // (2) Partial: payment < balanceAmount -> status partially_paid.
+    // (3) Overdue with penalty: penaltyCron sets overdue/penaltyAmount; payment reduces balance.
+    // (4) Fully paid after penalty: pay totalAmount (base + penalty + interest) -> status paid.
     if (!demand.items || demand.items.length === 0) {
-      throw new Error('No demand items found for payment distribution');
+      const demandBalance = parseFloat(demand.balanceAmount || 0);
+      if (paymentAmount > demandBalance) {
+        throw new Error(`Payment amount (₹${paymentAmount.toFixed(2)}) exceeds demand balance (₹${demandBalance.toFixed(2)})`);
+      }
+      const currentPaid = parseFloat(demand.paidAmount || 0);
+      const totalAmount = parseFloat(demand.totalAmount || 0);
+      const newPaidAmount = Math.round((currentPaid + paymentAmount) * 100) / 100;
+      const newBalanceAmount = Math.round((totalAmount - newPaidAmount) * 100) / 100;
+      const newStatus = newBalanceAmount <= 0 ? 'paid' : newPaidAmount > 0 ? 'partially_paid' : demand.status;
+
+      await Demand.update(
+        {
+          paidAmount: newPaidAmount,
+          balanceAmount: newBalanceAmount,
+          status: newStatus
+        },
+        { where: { id: demandId }, transaction }
+      );
+
+      return {
+        success: true,
+        demandId,
+        paymentAmount,
+        remainingPayment: 0,
+        demandBalance: newBalanceAmount,
+        distributionResults: [],
+        summary: {
+          totalItems: 0,
+          itemsUpdated: 0,
+          itemsFullyPaid: 0,
+          propertyTaxPaid: 0,
+          waterTaxPaid: 0,
+          directDemandPayment: true,
+          serviceType: demand.serviceType || null
+        }
+      };
     }
 
     // Calculate current item balances
@@ -186,6 +226,23 @@ export const getPaymentDistributionSummary = async (demandId) => {
       throw new Error('Demand not found');
     }
 
+    // Demands without items (SHOP_TAX, D2DC, etc.): return demand-level summary only
+    if (!demand.items || demand.items.length === 0) {
+      return {
+        demandId: demand.id,
+        demandNumber: demand.demandNumber,
+        totalAmount: parseFloat(demand.totalAmount || 0),
+        totalPaid: parseFloat(demand.paidAmount || 0),
+        balanceAmount: parseFloat(demand.balanceAmount || 0),
+        status: demand.status,
+        items: [],
+        breakdown: {},
+        validation: { totalMatches: true, paidMatches: true, balanceMatches: true },
+        isValid: true,
+        noItems: true
+      };
+    }
+
     const summary = {
       demandId: demand.id,
       demandNumber: demand.demandNumber,
@@ -258,6 +315,21 @@ export const validatePaymentDistributionIntegrity = async (demandId) => {
     const summary = await getPaymentDistributionSummary(demandId);
     
     const issues = [];
+    
+    // No-item demands (SHOP_TAX, D2DC): no item-level validation
+    if (summary.noItems) {
+      const balance = parseFloat(summary.balanceAmount || 0);
+      const paid = parseFloat(summary.paidAmount || 0);
+      const total = parseFloat(summary.totalAmount || 0);
+      if (balance < -0.01) issues.push('Demand has negative balance');
+      if (paid > total + 0.01) issues.push('Demand is overpaid');
+      return {
+        demandId,
+        isValid: issues.length === 0,
+        issues,
+        summary
+      };
+    }
     
     if (!summary.isValid) {
       issues.push('Payment distribution totals do not match demand totals');

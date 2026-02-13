@@ -1,5 +1,6 @@
 import { Payment, Demand, Property, User, Ward, Assessment, FollowUp, D2DCRecord } from '../models/index.js';
 import { Op } from 'sequelize';
+import { sequelize } from '../config/database.js';
 import { razorpay } from '../config/razorpay.js';
 import crypto from 'crypto';
 import { updateNoticeOnPayment } from './notice.controller.js';
@@ -219,11 +220,47 @@ export const getPaymentById = async (req, res, next) => {
 };
 
 /**
+ * Generate unique payment number using sequence-based approach
+ */
+const generatePaymentNumber = async (transaction = null) => {
+  const year = new Date().getFullYear();
+  const count = await Payment.count({
+    where: {
+      paymentNumber: {
+        [Op.like]: `PAY-${year}-%`
+      }
+    },
+    transaction
+  });
+  const sequence = String(count + 1).padStart(6, '0');
+  return `PAY-${year}-${sequence}`;
+};
+
+/**
+ * Generate unique receipt number using sequence-based approach
+ */
+const generateReceiptNumber = async (transaction = null) => {
+  const year = new Date().getFullYear();
+  const count = await Payment.count({
+    where: {
+      receiptNumber: {
+        [Op.like]: `RCP-${year}-%`
+      }
+    },
+    transaction
+  });
+  const sequence = String(count + 1).padStart(6, '0');
+  return `RCP-${year}-${sequence}`;
+};
+
+/**
  * @route   POST /api/payments
  * @desc    Create new payment (offline)
  * @access  Private (Cashier, Admin)
  */
 export const createPayment = async (req, res, next) => {
+  const transaction = await sequelize.transaction();
+  
   try {
     const {
       demandId,
@@ -237,7 +274,7 @@ export const createPayment = async (req, res, next) => {
       remarks
     } = req.body;
 
-    // Get demand
+    // Get demand with row-level lock to prevent race conditions
     const demand = await Demand.findByPk(demandId, {
       include: [
         {
@@ -245,20 +282,32 @@ export const createPayment = async (req, res, next) => {
           as: 'property',
           include: [{ model: Ward, as: 'ward' }]
         }
-      ]
+      ],
+      lock: transaction.LOCK.UPDATE,
+      transaction
     });
 
     if (!demand) {
+      await transaction.rollback();
       return res.status(404).json({
         success: false,
         message: 'Tax Demand not found'
       });
     }
 
-    // Verify collector has access to this property's ward
-    if (req.user.role === 'collector') {
-      const hasAccess = await verifyCollectorWardAccess(req.user.id, demand.property.wardId);
-      if (!hasAccess) {
+    // Verify collector has access to this property's ward (using ward_ids from JWT)
+    if (req.user.role === 'collector' || req.user.role === 'tax_collector') {
+      const collectorWardIds = req.user.ward_ids || req.user.dataValues?.ward_ids;
+      if (!collectorWardIds || (Array.isArray(collectorWardIds) && collectorWardIds.length === 0)) {
+        await transaction.rollback();
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: No wards assigned to collector.'
+        });
+      }
+      const wardIdsArray = Array.isArray(collectorWardIds) ? collectorWardIds : [collectorWardIds];
+      if (!wardIdsArray.includes(demand.property.wardId)) {
+        await transaction.rollback();
         return res.status(403).json({
           success: false,
           message: 'Access denied: You are not assigned to this ward'
@@ -284,6 +333,7 @@ export const createPayment = async (req, res, next) => {
     );
 
     if (!validation.isValid) {
+      await transaction.rollback();
       // Log overpayment attempt for security
       await createAuditLog({
         req,
@@ -312,13 +362,11 @@ export const createPayment = async (req, res, next) => {
       });
     }
 
-    // Generate payment number
-    const paymentNumber = `PAY-${Date.now()}`;
+    // Generate payment number and receipt number using sequence-based approach
+    const paymentNumber = await generatePaymentNumber(transaction);
+    const receiptNumber = await generateReceiptNumber(transaction);
 
-    // Generate receipt number
-    const receiptNumber = `RCP-${new Date().getFullYear()}-${Date.now()}`;
-
-    // Create payment
+    // Create payment within transaction
     const payment = await Payment.create({
       paymentNumber,
       demandId,
@@ -334,15 +382,18 @@ export const createPayment = async (req, res, next) => {
       status: 'completed',
       receivedBy: req.user.id,
       remarks
-    });
+    }, { transaction });
 
-    // Distribute payment across demand items (item-level payment tracking)
-    const distributionResult = await distributePaymentAcrossItems(demandId, paymentAmount, null);
+    // Distribute payment across demand items (item-level payment tracking) within transaction
+    const distributionResult = await distributePaymentAcrossItems(demandId, paymentAmount, transaction);
 
     // Refresh demand data after distribution
-    await demand.reload();
+    await demand.reload({ transaction });
 
-    // Log payment distribution for audit
+    // Commit transaction before audit logs (audit logs don't need to be in transaction)
+    await transaction.commit();
+
+    // Log payment distribution for audit (after transaction commit)
     await createAuditLog({
       req,
       user: req.user,
@@ -359,7 +410,7 @@ export const createPayment = async (req, res, next) => {
       }
     });
 
-    // Validate payment distribution integrity
+    // Validate payment distribution integrity (after transaction commit)
     const distributionValidation = await validatePaymentDistributionIntegrity(demandId);
     if (!distributionValidation.isValid) {
       console.error('Payment distribution validation failed:', distributionValidation.issues);
@@ -379,11 +430,12 @@ export const createPayment = async (req, res, next) => {
       });
     }
 
-    // Update notice status if demand is paid
+    // Update notice status if demand is paid (after transaction commit)
     await updateNoticeOnPayment(demandId, req, req.user);
 
-    // Auto-close follow-up if demand is fully paid
-    if (demand.balanceAmount <= 0) {
+    // Auto-close follow-up if demand is fully paid (after transaction commit)
+    const updatedDemand = await Demand.findByPk(demandId);
+    if (updatedDemand && updatedDemand.balanceAmount <= 0) {
       const followUp = await FollowUp.findOne({
         where: { demandId }
       });
@@ -472,6 +524,24 @@ export const createPayment = async (req, res, next) => {
       data: { payment: createdPayment }
     });
   } catch (error) {
+    // Rollback transaction on error
+    await transaction.rollback();
+    
+    // Handle specific error types
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment number or receipt number already exists. Please try again.'
+      });
+    }
+    
+    if (error.name === 'SequelizeDatabaseError' && error.message.includes('lock')) {
+      return res.status(409).json({
+        success: false,
+        message: 'Payment processing conflict. Another payment is being processed for this demand. Please try again.'
+      });
+    }
+    
     next(error);
   }
 };
@@ -700,8 +770,8 @@ export const createOnlinePaymentOrder = async (req, res, next) => {
 
     const order = await razorpay.orders.create(options);
 
-    // Create pending payment record
-    const paymentNumber = `PAY-${Date.now()}`;
+    // Create pending payment record with sequence-based payment number
+    const paymentNumber = await generatePaymentNumber();
     const payment = await Payment.create({
       paymentNumber,
       demandId,
@@ -737,9 +807,12 @@ export const createOnlinePaymentOrder = async (req, res, next) => {
  * @access  Private
  */
 export const verifyOnlinePayment = async (req, res, next) => {
+  const transaction = await sequelize.transaction();
+  
   try {
     // Check if Razorpay is configured
     if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      await transaction.rollback();
       return res.status(503).json({
         success: false,
         message: 'Online payment is not configured. Please contact administrator.'
@@ -748,12 +821,15 @@ export const verifyOnlinePayment = async (req, res, next) => {
 
     const { paymentId, razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
 
-    // Get payment record
+    // Get payment record with lock
     const payment = await Payment.findByPk(paymentId, {
-      include: [{ model: Demand, as: 'demand' }]
+      include: [{ model: Demand, as: 'demand' }],
+      lock: transaction.LOCK.UPDATE,
+      transaction
     });
 
     if (!payment) {
+      await transaction.rollback();
       return res.status(404).json({
         success: false,
         message: 'Payment not found'
@@ -761,6 +837,7 @@ export const verifyOnlinePayment = async (req, res, next) => {
     }
 
     if (payment.status !== 'pending') {
+      await transaction.rollback();
       return res.status(400).json({
         success: false,
         message: `Payment is already ${payment.status}`
@@ -785,7 +862,8 @@ export const verifyOnlinePayment = async (req, res, next) => {
       payment.status = 'failed';
       payment.razorpayPaymentId = razorpayPaymentId;
       payment.razorpaySignature = razorpaySignature;
-      await payment.save();
+      await payment.save({ transaction });
+      await transaction.rollback();
 
       return res.status(400).json({
         success: false,
@@ -801,7 +879,8 @@ export const verifyOnlinePayment = async (req, res, next) => {
         payment.status = 'failed';
         payment.razorpayPaymentId = razorpayPaymentId;
         payment.razorpaySignature = razorpaySignature;
-        await payment.save();
+        await payment.save({ transaction });
+        await transaction.rollback();
 
         return res.status(400).json({
           success: false,
@@ -813,7 +892,8 @@ export const verifyOnlinePayment = async (req, res, next) => {
       payment.status = 'failed';
       payment.razorpayPaymentId = razorpayPaymentId;
       payment.razorpaySignature = razorpaySignature;
-      await payment.save();
+      await payment.save({ transaction });
+      await transaction.rollback();
 
       return res.status(400).json({
         success: false,
@@ -821,26 +901,44 @@ export const verifyOnlinePayment = async (req, res, next) => {
       });
     }
 
+    // Get demand with lock for payment distribution
+    const demand = await Demand.findByPk(payment.demandId, {
+      lock: transaction.LOCK.UPDATE,
+      transaction
+    });
+
+    if (!demand) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'Demand not found'
+      });
+    }
+
     // Payment verified successfully - update payment record
-    const receiptNumber = `RCP-${new Date().getFullYear()}-${Date.now()}`;
+    const receiptNumber = await generateReceiptNumber(transaction);
     payment.status = 'completed';
     payment.razorpayPaymentId = razorpayPaymentId;
     payment.razorpaySignature = razorpaySignature;
     payment.transactionId = razorpayPaymentId;
     payment.receiptNumber = receiptNumber;
-    await payment.save();
+    await payment.save({ transaction });
 
-    // Update demand using item-level payment distribution
-    const distributionResult = await distributePaymentAcrossItems(demand.id, parseFloat(payment.amount || 0), null);
+    // Update demand using item-level payment distribution within transaction
+    const distributionResult = await distributePaymentAcrossItems(demand.id, parseFloat(payment.amount || 0), transaction);
 
     // Refresh demand data after distribution
-    await demand.reload();
+    await demand.reload({ transaction });
 
-    // Update notice status if demand is paid
+    // Commit transaction before audit logs
+    await transaction.commit();
+
+    // Update notice status if demand is paid (after transaction commit)
     await updateNoticeOnPayment(demand.id, req, req.user);
 
-    // Auto-close follow-up if demand is fully paid
-    if (demand.balanceAmount <= 0) {
+    // Auto-close follow-up if demand is fully paid (after transaction commit)
+    const updatedDemand = await Demand.findByPk(demand.id);
+    if (updatedDemand && updatedDemand.balanceAmount <= 0) {
       const followUp = await FollowUp.findOne({
         where: { demandId: demand.id }
       });
@@ -872,7 +970,7 @@ export const verifyOnlinePayment = async (req, res, next) => {
       }
     }
 
-    // Log online payment completion
+    // Log online payment completion (after transaction commit)
     await auditLogger.logPay(
       req,
       req.user,
@@ -912,6 +1010,24 @@ export const verifyOnlinePayment = async (req, res, next) => {
       data: { payment: completedPayment }
     });
   } catch (error) {
+    // Rollback transaction on error
+    await transaction.rollback();
+    
+    // Handle specific error types
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Receipt number already exists. Please try again.'
+      });
+    }
+    
+    if (error.name === 'SequelizeDatabaseError' && error.message.includes('lock')) {
+      return res.status(409).json({
+        success: false,
+        message: 'Payment processing conflict. Another payment is being processed. Please try again.'
+      });
+    }
+    
     console.error('Payment verification error:', error);
     next(error);
   }
@@ -979,6 +1095,8 @@ export const generateReceiptPdf = async (req, res, next) => {
  * @access  Private (Collector, Tax Collector)
  */
 export const createFieldCollectionPayment = async (req, res, next) => {
+  const transaction = await sequelize.transaction();
+  
   try {
     const {
       demandId,
@@ -993,7 +1111,7 @@ export const createFieldCollectionPayment = async (req, res, next) => {
       remarks
     } = req.body;
 
-    // Get demand with property details
+    // Get demand with property details and row-level lock
     const demand = await Demand.findByPk(demandId, {
       include: [
         {
@@ -1003,22 +1121,33 @@ export const createFieldCollectionPayment = async (req, res, next) => {
             { model: Ward, as: 'ward' }
           ]
         }
-      ]
+      ],
+      lock: transaction.LOCK.UPDATE,
+      transaction
     });
 
     if (!demand) {
+      await transaction.rollback();
       return res.status(404).json({
         success: false,
         message: 'Tax Demand not found'
       });
     }
 
-    // Verify collector has access to this property's ward
+    // Verify collector has access to this property's ward (using ward_ids from JWT)
     const user = req.user;
     if (user.role === 'collector' || user.role === 'tax_collector') {
-      // Check if collector is assigned to this ward
-      const hasAccess = await verifyCollectorWardAccess(user.id, demand.property.wardId);
-      if (!hasAccess) {
+      const collectorWardIds = user.ward_ids || user.dataValues?.ward_ids;
+      if (!collectorWardIds || (Array.isArray(collectorWardIds) && collectorWardIds.length === 0)) {
+        await transaction.rollback();
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: No wards assigned to collector.'
+        });
+      }
+      const wardIdsArray = Array.isArray(collectorWardIds) ? collectorWardIds : [collectorWardIds];
+      if (!wardIdsArray.includes(demand.property.wardId)) {
+        await transaction.rollback();
         return res.status(403).json({
           success: false,
           message: 'Access denied: You are not assigned to this ward'
@@ -1038,6 +1167,7 @@ export const createFieldCollectionPayment = async (req, res, next) => {
     );
 
     if (!validation.isValid) {
+      await transaction.rollback();
       // Log overpayment attempt for security
       await createAuditLog({
         req,
@@ -1069,19 +1199,36 @@ export const createFieldCollectionPayment = async (req, res, next) => {
 
     // For offline payments, proof is mandatory
     if (paymentMode !== 'online' && !proofUrl) {
+      await transaction.rollback();
       return res.status(400).json({
         success: false,
         message: 'Payment proof is mandatory for offline payment modes'
       });
     }
 
-    // Generate payment number
-    const paymentNumber = `FC-${Date.now()}`; // FC for Field Collection
+    // Generate payment number and receipt number using sequence-based approach
+    const year = new Date().getFullYear();
+    const fcCount = await Payment.count({
+      where: {
+        paymentNumber: {
+          [Op.like]: `FC-${year}-%`
+        }
+      },
+      transaction
+    });
+    const paymentNumber = `FC-${year}-${String(fcCount + 1).padStart(6, '0')}`;
 
-    // Generate receipt number
-    const receiptNumber = `FCR-${new Date().getFullYear()}-${Date.now()}`; // FCR for Field Collection Receipt
+    const fcrCount = await Payment.count({
+      where: {
+        receiptNumber: {
+          [Op.like]: `FCR-${year}-%`
+        }
+      },
+      transaction
+    });
+    const receiptNumber = `FCR-${year}-${String(fcrCount + 1).padStart(6, '0')}`;
 
-    // Create payment
+    // Create payment within transaction
     const payment = await Payment.create({
       paymentNumber,
       demandId,
@@ -1099,15 +1246,18 @@ export const createFieldCollectionPayment = async (req, res, next) => {
       collectedBy: user.id, // New field for field collections
       proofUrl,
       remarks: remarks || `Field collection by ${user.firstName} ${user.lastName}`
-    });
+    }, { transaction });
 
-    // Distribute payment across demand items (item-level payment tracking)
-    const distributionResult = await distributePaymentAcrossItems(demandId, paymentAmount, null);
+    // Distribute payment across demand items (item-level payment tracking) within transaction
+    const distributionResult = await distributePaymentAcrossItems(demandId, paymentAmount, transaction);
 
     // Refresh demand data after distribution
-    await demand.reload();
+    await demand.reload({ transaction });
 
-    // Log payment distribution for audit
+    // Commit transaction before audit logs
+    await transaction.commit();
+
+    // Log payment distribution for audit (after transaction commit)
     await createAuditLog({
       req,
       user: req.user,
@@ -1125,7 +1275,7 @@ export const createFieldCollectionPayment = async (req, res, next) => {
       }
     });
 
-    // Validate payment distribution integrity
+    // Validate payment distribution integrity (after transaction commit)
     const distributionValidation = await validatePaymentDistributionIntegrity(demandId);
     if (!distributionValidation.isValid) {
       console.error('Payment distribution validation failed:', distributionValidation.issues);
@@ -1140,17 +1290,18 @@ export const createFieldCollectionPayment = async (req, res, next) => {
         metadata: {
           paymentId: payment.id,
           demandId,
-          collectionType: 'online',
+          collectionType: 'field',
           issues: distributionValidation.issues
         }
       });
     }
 
-    // Update notice status if demand is paid
+    // Update notice status if demand is paid (after transaction commit)
     await updateNoticeOnPayment(demandId, req, req.user);
 
-    // Auto-close follow-up if demand is fully paid
-    if (demand.balanceAmount <= 0) {
+    // Auto-close follow-up if demand is fully paid (after transaction commit)
+    const updatedDemand = await Demand.findByPk(demandId);
+    if (updatedDemand && updatedDemand.balanceAmount <= 0) {
       const followUp = await FollowUp.findOne({
         where: { demandId }
       });
@@ -1238,6 +1389,24 @@ export const createFieldCollectionPayment = async (req, res, next) => {
       data: { payment: createdPayment }
     });
   } catch (error) {
+    // Rollback transaction on error
+    await transaction.rollback();
+    
+    // Handle specific error types
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment number or receipt number already exists. Please try again.'
+      });
+    }
+    
+    if (error.name === 'SequelizeDatabaseError' && error.message.includes('lock')) {
+      return res.status(409).json({
+        success: false,
+        message: 'Payment processing conflict. Another payment is being processed for this demand. Please try again.'
+      });
+    }
+    
     next(error);
   }
 };

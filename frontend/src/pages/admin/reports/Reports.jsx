@@ -196,6 +196,7 @@ const Reports = () => {
                     <option value="HOUSE_TAX">Property Tax</option>
                     <option value="WATER_TAX">Water Tax</option>
                     <option value="D2DC">D2DC</option>
+                    <option value="SHOP_TAX">Shop Tax</option>
                   </select>
                 </div>
                 <div>
@@ -256,7 +257,7 @@ const Reports = () => {
               {activeTab === 'revenue' && data && (
                 <div className="space-y-6">
                   {/* Summary Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                     <div className="card bg-green-50">
                       <p className="text-sm text-gray-600 mb-1">Total Revenue</p>
                       <p className="text-3xl font-bold text-green-600">
@@ -284,6 +285,13 @@ const Reports = () => {
                       </p>
                       <p className="text-xs text-gray-500 mt-1">{data.summary?.d2dcCount || 0} payments</p>
                     </div>
+                    <div className="card bg-amber-50">
+                      <p className="text-sm text-gray-600 mb-1">Shop Tax</p>
+                      <p className="text-3xl font-bold text-amber-600">
+                        ₹{parseFloat(data.summary?.shopTaxAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">{data.summary?.shopTaxCount || 0} payments</p>
+                    </div>
                   </div>
 
                   {/* Combined Revenue Breakdown */}
@@ -293,7 +301,8 @@ const Reports = () => {
                       <BarChart data={[
                         { name: 'Property Tax', value: parseFloat(data.summary?.houseTaxAmount || 0) },
                         { name: 'Water Tax', value: parseFloat(data.summary?.waterTaxAmount || 0) },
-                        { name: 'D2DC', value: parseFloat(data.summary?.d2dcAmount || 0) }
+                        { name: 'D2DC', value: parseFloat(data.summary?.d2dcAmount || 0) },
+                        { name: 'Shop Tax', value: parseFloat(data.summary?.shopTaxAmount || 0) }
                       ]}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="name" />
@@ -376,6 +385,38 @@ const Reports = () => {
                     </div>
                   </div>
 
+                  {/* Outstanding Breakdown by Tax Type */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="card bg-blue-50">
+                      <p className="text-sm text-gray-600 mb-1">Property Tax Outstanding</p>
+                      <p className="text-2xl font-bold text-blue-600">
+                        ₹{parseFloat(data.summary?.houseTaxOutstanding || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">{data.summary?.houseTaxCount || 0} demands</p>
+                    </div>
+                    <div className="card bg-cyan-50">
+                      <p className="text-sm text-gray-600 mb-1">Water Tax Outstanding</p>
+                      <p className="text-2xl font-bold text-cyan-600">
+                        ₹{parseFloat(data.summary?.waterTaxOutstanding || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">{data.summary?.waterTaxCount || 0} demands</p>
+                    </div>
+                    <div className="card bg-purple-50">
+                      <p className="text-sm text-gray-600 mb-1">D2DC Outstanding</p>
+                      <p className="text-2xl font-bold text-purple-600">
+                        ₹{parseFloat(data.summary?.d2dcOutstanding || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">{data.summary?.d2dcCount || 0} demands</p>
+                    </div>
+                    <div className="card bg-amber-50">
+                      <p className="text-sm text-gray-600 mb-1">Shop Tax Outstanding</p>
+                      <p className="text-2xl font-bold text-amber-600">
+                        ₹{parseFloat(data.summary?.shopTaxOutstanding || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">{data.summary?.shopTaxCount || 0} demands</p>
+                    </div>
+                  </div>
+
                   {data.demands && data.demands.length > 0 && (
                     <div className="card">
                       <h3 className="text-lg font-semibold mb-4">Outstanding Demands</h3>
@@ -384,7 +425,8 @@ const Reports = () => {
                           <thead>
                             <tr>
                               <th>Demand Number</th>
-                              <th>Property</th>
+                              <th>Service Type</th>
+                              <th>Property/Shop</th>
                               <th>Owner</th>
                               <th>Due Date</th>
                               <th>Outstanding</th>
@@ -395,11 +437,32 @@ const Reports = () => {
                             {data.demands.slice(0, 20).map((demand) => (
                               <tr key={demand.id}>
                                 <td className="font-medium">{demand.demandNumber}</td>
-                                <td>{demand.property?.propertyNumber || 'N/A'}</td>
                                 <td>
-                                  {demand.property?.owner
-                                    ? `${demand.property.owner.firstName} ${demand.property.owner.lastName}`
-                                    : 'N/A'}
+                                  <span className={`badge ${
+                                    demand.serviceType === 'HOUSE_TAX' ? 'badge-info' :
+                                    demand.serviceType === 'WATER_TAX' ? 'badge-primary' :
+                                    demand.serviceType === 'SHOP_TAX' ? 'badge-warning' :
+                                    'badge-secondary'
+                                  }`}>
+                                    {demand.serviceType === 'HOUSE_TAX' ? 'Property' :
+                                     demand.serviceType === 'WATER_TAX' ? 'Water' :
+                                     demand.serviceType === 'SHOP_TAX' ? 'Shop' :
+                                     demand.serviceType}
+                                  </span>
+                                </td>
+                                <td>
+                                  {demand.serviceType === 'SHOP_TAX' && demand.shopTaxAssessment?.shop
+                                    ? `Shop: ${demand.shopTaxAssessment.shop.shopName || demand.shopTaxAssessment.shop.shopNumber || 'N/A'}`
+                                    : demand.property?.propertyNumber || 'N/A'}
+                                </td>
+                                <td>
+                                  {demand.serviceType === 'SHOP_TAX' && demand.shopTaxAssessment?.shop
+                                    ? demand.property?.owner
+                                      ? `${demand.property.owner.firstName} ${demand.property.owner.lastName}`
+                                      : 'N/A'
+                                    : demand.property?.owner
+                                      ? `${demand.property.owner.firstName} ${demand.property.owner.lastName}`
+                                      : 'N/A'}
                                 </td>
                                 <td>{new Date(demand.dueDate).toLocaleDateString()}</td>
                                 <td className="font-semibold text-red-600">

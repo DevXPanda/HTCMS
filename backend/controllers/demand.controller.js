@@ -1,4 +1,4 @@
-import { Demand, Assessment, Property, Payment, User, Ward, WaterTaxAssessment, WaterConnection, DemandItem, D2DCRecord, Shop, ShopTaxAssessment } from '../models/index.js';
+import { Demand, Assessment, Property, Payment, User, Ward, WaterTaxAssessment, WaterConnection, DemandItem, D2DCRecord, Shop, ShopTaxAssessment, AdminManagement } from '../models/index.js';
 import { Op, Sequelize } from 'sequelize';
 import { auditLogger } from '../utils/auditLogger.js';
 import { generateUnifiedTaxAssessmentAndDemand, getUnifiedDemandBreakdown, getUnifiedTaxSummary as getUnifiedTaxSummaryService } from '../services/unifiedTaxService.js';
@@ -28,6 +28,7 @@ export const getAllDemands = async (req, res, next) => {
     } = req.query;
 
     const where = {};
+    const whereConditions = []; // For combining conditions
 
     if (propertyId) where.propertyId = propertyId;
     if (financialYear) where.financialYear = financialYear;
@@ -100,6 +101,95 @@ export const getAllDemands = async (req, res, next) => {
       where['$property.wardId$'] = { [Op.in]: wardIds };
     }
 
+    // For clerks, show only demands from their assigned wards
+    if (req.user.role === 'clerk') {
+      // Get clerk's ward_ids from multiple sources
+      let clerkWardIds = req.user.ward_ids || req.user.dataValues?.ward_ids;
+      
+      // Fallback: If not in JWT, fetch from database
+      if (!clerkWardIds || (Array.isArray(clerkWardIds) && clerkWardIds.length === 0)) {
+        try {
+          const clerkRecord = await AdminManagement.findByPk(req.user.id, {
+            attributes: ['id', 'ward_ids']
+          });
+          if (clerkRecord && clerkRecord.ward_ids) {
+            clerkWardIds = clerkRecord.ward_ids;
+          } else {
+            // Also check Ward table for clerkId assignment
+            const assignedWards = await Ward.findAll({
+              where: { clerkId: req.user.id, isActive: true },
+              attributes: ['id']
+            });
+            if (assignedWards.length > 0) {
+              clerkWardIds = assignedWards.map(w => w.id);
+            }
+          }
+        } catch (dbError) {
+          console.error(`[getAllDemands] Error fetching clerk wards:`, dbError.message);
+        }
+      }
+      
+      // Also check req.wardFilter (set by requireWardAccess middleware)
+      if (req.wardFilter && req.wardFilter.id) {
+        const wardFilterIds = req.wardFilter.id[Op.in] || req.wardFilter.id;
+        const wardFilterArray = Array.isArray(wardFilterIds) ? wardFilterIds : [wardFilterIds];
+        clerkWardIds = clerkWardIds || wardFilterArray;
+        // Use intersection if both exist
+        if (clerkWardIds && Array.isArray(clerkWardIds) && Array.isArray(wardFilterArray)) {
+          clerkWardIds = clerkWardIds.filter(id => wardFilterArray.includes(id));
+        }
+      }
+      
+      if (clerkWardIds && (Array.isArray(clerkWardIds) ? clerkWardIds.length > 0 : clerkWardIds)) {
+        const wardIdsArray = Array.isArray(clerkWardIds) ? clerkWardIds : [clerkWardIds];
+        const wardIdsNum = wardIdsArray.map(id => parseInt(id)).filter(id => !isNaN(id));
+        
+        console.log(`[getAllDemands] Clerk ${req.user.id} filtering demands by wards: [${wardIdsNum.join(', ')}]`);
+        
+        // Build ward filter condition
+        // For SHOP_TAX: filter by shop's wardId
+        // For other types: filter by property's wardId
+        const wardFilter = {
+          [Op.or]: [
+            // Property-based demands (HOUSE_TAX, WATER_TAX, D2DC)
+            { '$property.wardId$': { [Op.in]: wardIdsNum } },
+            // SHOP_TAX demands (ward comes from shop)
+            { '$shopTaxAssessment.shop.wardId$': { [Op.in]: wardIdsNum } }
+          ]
+        };
+        
+        // Add ward filter to whereConditions array
+        whereConditions.push(wardFilter);
+      } else {
+        // Clerk has no assigned wards - return empty result
+        console.log(`[getAllDemands] Clerk ${req.user.id} has no assigned wards, returning empty result`);
+        return res.json({
+          success: true,
+          data: {
+            demands: [],
+            pagination: {
+              total: 0,
+              page: parseInt(page),
+              limit: parseInt(limit),
+              pages: 0
+            }
+          }
+        });
+      }
+    }
+
+    // Combine all where conditions
+    if (whereConditions.length > 0) {
+      if (Object.keys(where).length > 0) {
+        where[Op.and] = [
+          ...(where[Op.and] || []),
+          ...whereConditions
+        ];
+      } else {
+        Object.assign(where, whereConditions[0]);
+      }
+    }
+
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
     const { count, rows } = await Demand.findAndCountAll({
@@ -158,15 +248,20 @@ export const getAllDemands = async (req, res, next) => {
 export const getDemandById = async (req, res, next) => {
   try {
     const { id } = req.params;
+    const userRole = req.user?.role;
+    const userId = req.user?.id;
+
+    console.log(`[getDemandById] Request for demand ${id} by ${userRole} (userId: ${userId})`);
 
     const demand = await Demand.findByPk(id, {
       include: [
         {
           model: Property,
           as: 'property',
+          required: false, // Make property optional to handle edge cases (SHOP_TAX might have property via shop)
           include: [
-            { model: User, as: 'owner', attributes: { exclude: ['password'] } },
-            { model: Ward, as: 'ward' },
+            { model: User, as: 'owner', attributes: { exclude: ['password'] }, required: false },
+            { model: Ward, as: 'ward', required: false },
             {
               model: WaterConnection,
               as: 'waterConnections',
@@ -219,11 +314,126 @@ export const getDemandById = async (req, res, next) => {
       }
     }
 
+    // Check access for clerks - must be from assigned wards
+    if (req.user.role === 'clerk') {
+      // Get ward_ids from multiple possible locations
+      let allowedWardIds = req.user.ward_ids || req.user.dataValues?.ward_ids;
+      
+      console.log(`[getDemandById] Clerk ${req.user.id} - ward_ids from req.user.ward_ids:`, req.user.ward_ids);
+      console.log(`[getDemandById] Clerk ${req.user.id} - ward_ids from req.user.dataValues:`, req.user.dataValues?.ward_ids);
+      
+      // Fallback: If ward_ids not in JWT, fetch from database
+      if (!allowedWardIds || (Array.isArray(allowedWardIds) && allowedWardIds.length === 0)) {
+        console.log(`[getDemandById] Clerk ${req.user.id} - ward_ids not in JWT, fetching from database...`);
+        try {
+          const clerkRecord = await AdminManagement.findByPk(req.user.id, {
+            attributes: ['id', 'ward_ids']
+          });
+          if (clerkRecord && clerkRecord.ward_ids) {
+            allowedWardIds = clerkRecord.ward_ids;
+            console.log(`[getDemandById] Clerk ${req.user.id} - fetched ward_ids from DB:`, allowedWardIds);
+          } else {
+            // Also check Ward table for clerkId assignment
+            const assignedWards = await Ward.findAll({
+              where: { clerkId: req.user.id, isActive: true },
+              attributes: ['id']
+            });
+            if (assignedWards.length > 0) {
+              allowedWardIds = assignedWards.map(w => w.id);
+              console.log(`[getDemandById] Clerk ${req.user.id} - found wards via clerkId:`, allowedWardIds);
+            }
+          }
+        } catch (dbError) {
+          console.error(`[getDemandById] Error fetching clerk wards from DB:`, dbError.message);
+        }
+      }
+      
+      console.log(`[getDemandById] Clerk ${req.user.id} - final allowedWardIds:`, allowedWardIds);
+      
+      if (allowedWardIds && (Array.isArray(allowedWardIds) ? allowedWardIds.length > 0 : allowedWardIds)) {
+        // Normalize to array
+        const wardIdsArray = Array.isArray(allowedWardIds) ? allowedWardIds : [allowedWardIds];
+        
+        // Get ward ID from property or shop
+        let demandWardId = null;
+        
+        // For SHOP_TAX: get from shop's wardId first, then fallback to property
+        if (demand.serviceType === 'SHOP_TAX' && demand.shopTaxAssessment?.shop) {
+          demandWardId = demand.shopTaxAssessment.shop.wardId;
+          console.log(`[getDemandById] SHOP_TAX demand ${id} - shop wardId: ${demandWardId}, shop:`, {
+            id: demand.shopTaxAssessment.shop.id,
+            shopNumber: demand.shopTaxAssessment.shop.shopNumber,
+            wardId: demand.shopTaxAssessment.shop.wardId
+          });
+        }
+        
+        // Fallback to property wardId (for HOUSE_TAX, WATER_TAX, D2DC, or if shop wardId not available)
+        if (!demandWardId && demand.property) {
+          demandWardId = demand.property.wardId;
+          console.log(`[getDemandById] Using property wardId: ${demandWardId}, propertyId: ${demand.property.id}`);
+        }
+        
+        // For WATER_TAX: also check waterTaxAssessment's property
+        if (!demandWardId && demand.waterTaxAssessment?.property) {
+          demandWardId = demand.waterTaxAssessment.property.wardId;
+          console.log(`[getDemandById] Using waterTaxAssessment property wardId: ${demandWardId}`);
+        }
+        
+        // If we can't determine ward, deny access (safer than allowing)
+        if (!demandWardId) {
+          console.error(`[getDemandById] Clerk ${req.user.id} - Cannot determine ward for demand ${id}`);
+          console.error(`  - serviceType: ${demand.serviceType}`);
+          console.error(`  - property exists: ${!!demand.property}, propertyId: ${demand.propertyId}`);
+          console.error(`  - shopTaxAssessment exists: ${!!demand.shopTaxAssessment}`);
+          console.error(`  - shop exists: ${!!demand.shopTaxAssessment?.shop}`);
+          return res.status(403).json({ 
+            success: false, 
+            message: 'Access denied: Unable to verify ward access' 
+          });
+        }
+        
+        // Normalize ward IDs to numbers for comparison (handle null/undefined)
+        const demandWardIdNum = demandWardId ? parseInt(demandWardId) : null;
+        const wardIdsArrayNum = wardIdsArray
+          .map(id => id ? parseInt(id) : null)
+          .filter(id => id !== null && !isNaN(id));
+        
+        console.log(`[getDemandById] Comparing - demand ward: ${demandWardIdNum} (type: ${typeof demandWardIdNum})`);
+        console.log(`[getDemandById] Comparing - clerk wards: [${wardIdsArrayNum.join(', ')}] (types: [${wardIdsArrayNum.map(id => typeof id).join(', ')}])`);
+        
+        // Check if demand's ward is in clerk's assigned wards
+        if (demandWardIdNum === null || isNaN(demandWardIdNum) || !wardIdsArrayNum.includes(demandWardIdNum)) {
+          console.log(`[getDemandById] ❌ Clerk ${req.user.id} denied access to demand ${id}`);
+          console.log(`  - Demand ward: ${demandWardIdNum}`);
+          console.log(`  - Clerk wards: [${wardIdsArrayNum.join(', ')}]`);
+          console.log(`  - Match: ${wardIdsArrayNum.includes(demandWardIdNum)}`);
+          return res.status(403).json({ 
+            success: false, 
+            message: `Access denied: Demand is in ward ${demandWardIdNum}, but you only have access to wards [${wardIdsArrayNum.join(', ')}]` 
+          });
+        }
+        
+        console.log(`[getDemandById] ✅ Ward check passed - demand ward ${demandWardIdNum} is in clerk's wards [${wardIdsArrayNum.join(', ')}]`);
+      } else {
+        // Clerk has no assigned wards - deny access
+        console.error(`[getDemandById] Clerk ${req.user.id} has no assigned wards`);
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Access denied: No wards assigned to clerk. Please contact administrator.' 
+        });
+      }
+    }
+
+    console.log(`[getDemandById] Access granted for demand ${id} to ${userRole} (userId: ${userId})`);
     res.json({
       success: true,
       data: { demand }
     });
   } catch (error) {
+    console.error(`[getDemandById] Error fetching demand ${id}:`, error.message);
+    if (error.original) {
+      console.error(`[getDemandById] Database error:`, error.original.message);
+    }
     next(error);
   }
 };
@@ -1231,6 +1441,134 @@ export const generateBulkDemands = async (req, res, next) => {
         created: createdDemands.length,
         errors: errors.length,
         details: errors
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   POST /api/demands/generate-bulk-shop
+ * @desc    Generate shop tax demands in bulk for all approved shop assessments (financial year)
+ * @access  Private (Admin, Assessor, Clerk)
+ */
+export const generateBulkShopDemands = async (req, res, next) => {
+  try {
+    const { financialYear, dueDate } = req.body;
+
+    if (!financialYear || typeof financialYear !== 'string' || !/^\d{4}-\d{2}$/.test(financialYear.trim())) {
+      return res.status(400).json({
+        success: false,
+        message: 'financialYear is required (e.g. 2024-25)'
+      });
+    }
+
+    const fy = financialYear.trim();
+    const dueDateResolved = dueDate ? new Date(dueDate) : new Date(`${fy.split('-')[1]}-03-31`);
+
+    // Only approved assessments; shop must be active (financial logic unchanged)
+    const assessments = await ShopTaxAssessment.findAll({
+      where: { status: 'approved' },
+      include: [{ model: Shop, as: 'shop', where: { status: 'active' }, required: true }]
+    });
+
+    const created = [];
+    const skipped = [];
+    const errorDetails = [];
+
+    console.log(`[generateBulkShopDemands] FY=${fy}, assessments to process=${assessments.length}`);
+
+    for (const assessment of assessments) {
+      const shop = assessment.shop;
+      const assessmentId = assessment.id;
+      const shopId = shop?.id;
+      const assessmentStatus = assessment.status;
+
+      console.log(`[generateBulkShopDemands] assessmentId=${assessmentId}, status=${assessmentStatus}, shopId=${shopId}, financialYear=${assessment.financialYear || 'null'}`);
+
+      if (!shop || !shop.propertyId) {
+        const msg = 'Shop or property missing';
+        console.error(`[generateBulkShopDemands] assessmentId=${assessmentId} error: ${msg}`);
+        errorDetails.push({ assessmentId, errorMessage: msg });
+        continue;
+      }
+
+      const existingDemand = await Demand.findOne({
+        where: {
+          shopTaxAssessmentId: assessment.id,
+          financialYear: fy,
+          serviceType: 'SHOP_TAX'
+        }
+      });
+
+      if (existingDemand) {
+        console.log(`[generateBulkShopDemands] assessmentId=${assessmentId} skipped (existing demand id=${existingDemand.id})`);
+        skipped.push({ assessmentId, shopId, demandId: existingDemand.id });
+        continue;
+      }
+
+      try {
+        const baseAmount = parseFloat(assessment.annualTaxAmount || 0);
+        const totalAmount = Math.round(baseAmount * 100) / 100;
+        const demandNumber = `STD-${fy}-${Date.now()}-${shop.id}`;
+
+        const demand = await Demand.create({
+          demandNumber,
+          propertyId: shop.propertyId,
+          assessmentId: null,
+          waterTaxAssessmentId: null,
+          shopTaxAssessmentId: assessment.id,
+          serviceType: 'SHOP_TAX',
+          financialYear: fy,
+          baseAmount,
+          arrearsAmount: 0,
+          penaltyAmount: 0,
+          interestAmount: 0,
+          totalAmount,
+          balanceAmount: totalAmount,
+          paidAmount: 0,
+          dueDate: dueDateResolved,
+          status: 'pending',
+          generatedBy: req.user.id,
+          remarks: `Bulk generated for shop ${shop.shopNumber}`
+        });
+        created.push({ demandId: demand.id, shopId, assessmentId });
+        console.log(`[generateBulkShopDemands] assessmentId=${assessmentId} created demandId=${demand.id}`);
+      } catch (err) {
+        const isUnique = err.name === 'SequelizeUniqueConstraintError' || (err.parent && err.parent.code === '23505');
+        if (isUnique) {
+          const existing = await Demand.findOne({
+            where: { shopTaxAssessmentId: assessment.id, financialYear: fy, serviceType: 'SHOP_TAX' }
+          });
+          if (existing) {
+            console.log(`[generateBulkShopDemands] assessmentId=${assessmentId} skipped (duplicate constraint, demand id=${existing.id})`);
+            skipped.push({ assessmentId, shopId, demandId: existing.id });
+          } else {
+            const msg = err.message || 'Duplicate demand';
+            console.error(`[generateBulkShopDemands] assessmentId=${assessmentId} error: ${msg}`);
+            errorDetails.push({ assessmentId, errorMessage: msg });
+          }
+        } else {
+          const msg = err.message || String(err);
+          console.error(`[generateBulkShopDemands] assessmentId=${assessmentId} error: ${msg}`);
+          errorDetails.push({ assessmentId, errorMessage: msg });
+        }
+      }
+    }
+
+    const createdCount = created.length;
+    const skippedCount = skipped.length;
+
+    res.status(201).json({
+      success: true,
+      message: `Shop demands: ${createdCount} created, ${skippedCount} already existed${errorDetails.length ? `, ${errorDetails.length} errors` : ''}`,
+      data: {
+        createdCount,
+        skippedCount,
+        errorDetails,
+        created,
+        skipped: skipped.length ? skipped : undefined
       }
     });
   } catch (error) {

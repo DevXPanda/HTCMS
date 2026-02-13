@@ -46,9 +46,17 @@ const AdminLayout = () => {
                 <Home className="w-5 h-5" />
               </button>
 
-              <span className="text-sm text-gray-600 hidden md:block">
-                Welcome, <span className="font-medium">{userData?.firstName}</span>
-              </span>
+              <div className="hidden md:flex items-center space-x-3 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="h-8 w-8 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 text-sm font-bold">
+                  {userData?.firstName?.charAt(0) || 'A'}
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xs font-semibold text-gray-900">
+                    {userData?.firstName} {userData?.lastName}
+                  </span>
+                  <span className="text-xs text-gray-500">ID: {userData?.id || 'N/A'}</span>
+                </div>
+              </div>
 
               <button
                 onClick={() => setShowProfileModal(true)}
@@ -109,6 +117,10 @@ const AdminLayout = () => {
                 <div className="bg-gray-50 p-3 rounded-md">
                   <p className="text-xs text-gray-500 uppercase">Phone</p>
                   <p className="text-sm font-medium text-gray-900">{userData?.phoneNumber || 'N/A'}</p>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-md">
+                  <p className="text-xs text-gray-500 uppercase">User ID</p>
+                  <p className="text-sm font-medium text-gray-900">{userData?.id || 'N/A'}</p>
                 </div>
               </div>
             </div>

@@ -10,6 +10,11 @@ import {
   getCitizenWaterConnectionRequests
 } from '../controllers/citizen.controller.js';
 import {
+  getAllShopRegistrationRequests,
+  getShopRegistrationRequestById,
+  createShopRegistrationRequest
+} from '../controllers/shopRegistrationRequest.controller.js';
+import {
   getCitizenNotices,
   getCitizenNoticeById
 } from '../controllers/notice.controller.js';
@@ -42,5 +47,10 @@ router.get('/water-connections', getCitizenWaterConnections);
 // Water connection requests
 router.post('/water-connection-requests', createWaterConnectionRequest);
 router.get('/water-connection-requests', getCitizenWaterConnectionRequests);
+
+// Shop registration requests
+router.post('/shop-registration-requests', createShopRegistrationRequest);
+router.get('/shop-registration-requests', getAllShopRegistrationRequests);
+router.get('/shop-registration-requests/:id', getShopRegistrationRequestById);
 
 export default router;

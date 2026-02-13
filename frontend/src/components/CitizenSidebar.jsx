@@ -8,7 +8,9 @@ import {
   Bell,
   History,
   Droplet,
-  PlusCircle
+  PlusCircle,
+  Store,
+  FileCheck
 } from 'lucide-react';
 
 const CitizenSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
@@ -40,6 +42,8 @@ const CitizenSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
     { path: '/citizen/demands', label: 'My Demands', icon: FileText },
     { path: '/citizen/water-connections', label: 'Water Connections', icon: Droplet },
     { path: '/citizen/water-connection-request', label: 'Request Water Connection', icon: PlusCircle },
+    { path: '/citizen/shops', label: 'My Shops', icon: Store },
+    { path: '/citizen/shop-registration-requests', label: 'Shop Registration Requests', icon: FileCheck },
     { path: '/citizen/notices', label: 'My Notices', icon: Bell },
     { path: '/citizen/payments', label: 'Payment History', icon: CreditCard },
     { path: '/citizen/activity-history', label: 'Activity History', icon: History }
@@ -72,7 +76,8 @@ const CitizenSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
           <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = location.pathname === item.path;
+              const isActive = location.pathname === item.path ||
+                (item.path === '/citizen/shop-registration-requests' && location.pathname.includes('/shop-registration-requests'));
               return (
                 <Link
                   key={item.path}

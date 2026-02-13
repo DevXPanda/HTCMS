@@ -31,7 +31,8 @@ const Dashboard = () => {
     // Shop Tax
     shopTaxDemands: 0,
     shopTaxRevenue: 0,
-    shopTaxOutstanding: 0
+    shopTaxOutstanding: 0,
+    activeShops: 0
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -59,6 +60,7 @@ const Dashboard = () => {
     { name: 'Gau Shala', icon: ScrollText, link: '/water/connections', color: 'bg-orange-600' },
     { name: 'Toilet Management', icon: Bath, link: '/demands', color: 'bg-pink-600' },
     { name: 'MRF', icon: ClipboardList, link: '/field-monitoring', color: 'bg-green-600' },
+    { name: 'EO Management', icon: Store, link: '/shop-tax', color: 'bg-yellow-600' },
   ];
 
   // 2. Global Metrics (System Health) - Lighter visual weight
@@ -318,7 +320,7 @@ const Dashboard = () => {
             </div>
             <div className="flex justify-between items-center pb-3 border-b border-dashed border-gray-100">
               <span className="text-xs text-gray-500 uppercase font-medium">Active Shops</span>
-              <span className="text-lg font-bold text-gray-700">-</span>
+              <span className="text-lg font-bold text-gray-700">{(stats.activeShops ?? 0).toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center pb-3 border-b border-dashed border-gray-100">
               <span className="text-xs text-gray-500 uppercase font-medium">Revenue</span>

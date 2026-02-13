@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { shopsAPI, wardAPI } from '../../../services/api';
-import { Store, ArrowLeft, Plus, Edit, Search, Filter, X } from 'lucide-react';
+import { Store, ArrowLeft, Plus, Edit, Search, Filter, X, Download } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
 import Loading from '../../../components/Loading';
+import toast from 'react-hot-toast';
+import { exportToCSV } from '../../../utils/exportCSV';
 
 const ShopsList = () => {
   const navigate = useNavigate();
+  const basePath = useShopTaxBasePath();
   const { isAdmin, isAssessor } = useAuth();
   const [shops, setShops] = useState([]);
   const [wards, setWards] = useState([]);
@@ -71,13 +75,32 @@ const ShopsList = () => {
     setPage(1);
   };
 
+  const handleExport = async () => {
+    try {
+      const params = { page: 1, limit: 5000, ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== '')), ...(search ? { search } : {}) };
+      const response = await shopsAPI.getAll(params);
+      const list = response.data.data.shops || [];
+      const rows = list.map(s => ({
+        shopNumber: s.shopNumber,
+        shopName: s.shopName,
+        shopType: s.shopType,
+        ward: s.ward?.wardName,
+        status: s.status
+      }));
+      exportToCSV(rows, `shops_${new Date().toISOString().slice(0, 10)}`);
+      toast.success('Export downloaded');
+    } catch (err) {
+      toast.error('Export failed');
+    }
+  };
+
   if (loading) return <Loading />;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link to="/shop-tax" className="text-gray-500 hover:text-gray-700">
+          <Link to={`${basePath}/shop-tax`} className="text-gray-500 hover:text-gray-700">
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div>
@@ -85,12 +108,18 @@ const ShopsList = () => {
             <p className="text-gray-600">Register and manage shops for shop tax</p>
           </div>
         </div>
-        {(isAdmin || isAssessor) && (
-          <Link to="/shop-tax/shops/new" className="btn btn-primary flex items-center">
-            <Plus className="w-4 h-4 mr-2" />
-            New Shop
-          </Link>
-        )}
+        <div className="flex gap-2">
+          <button type="button" onClick={handleExport} className="btn btn-secondary flex items-center">
+            <Download className="w-4 h-4 mr-2" />
+            Export
+          </button>
+          {(isAdmin || isAssessor || basePath === '/clerk') && (
+            <Link to={`${basePath}/shop-tax/shops/new`} className="btn btn-primary flex items-center">
+              <Plus className="w-4 h-4 mr-2" />
+              New Shop
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Search */}
@@ -201,7 +230,7 @@ const ShopsList = () => {
                 <tr><td colSpan={6} className="px-6 py-4 text-gray-500 text-center">No shops found</td></tr>
               ) : (
                 shops.map(shop => (
-                  <tr key={shop.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/shop-tax/shops/${shop.id}`)}>
+                  <tr key={shop.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`${basePath}/shop-tax/shops/${shop.id}`)}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{shop.shopNumber}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{shop.shopName}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{shop.shopType?.replace('_', ' ') || '-'}</td>
@@ -216,9 +245,9 @@ const ShopsList = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm" onClick={(e) => e.stopPropagation()}>
-                      {(isAdmin || isAssessor) && (
+                      {(isAdmin || isAssessor || basePath === '/clerk') && (
                         <Link
-                          to={`/shop-tax/shops/${shop.id}/edit`}
+                          to={`${basePath}/shop-tax/shops/${shop.id}/edit`}
                           className="text-primary-600 hover:text-primary-800 flex items-center"
                         >
                           <Edit className="w-4 h-4 mr-1" />

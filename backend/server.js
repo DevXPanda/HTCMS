@@ -95,6 +95,7 @@ import waterConnectionRequestRoutes from "./routes/waterConnectionRequest.routes
 import propertyApplicationRoutes from "./routes/propertyApplication.routes.js";
 import shopRoutes from "./routes/shop.routes.js";
 import shopTaxAssessmentRoutes from "./routes/shopTaxAssessment.routes.js";
+import shopRegistrationRequestRoutes from "./routes/shopRegistrationRequest.routes.js";
 import clerkRoutes from "./routes/clerk.routes.js";
 import taxRoutes from "./routes/tax.routes.js";
 import inspectorRoutes from "./routes/inspector.routes.js";
@@ -136,6 +137,7 @@ app.use("/api/water-connection-requests", waterConnectionRequestRoutes);
 app.use("/api/property-applications", propertyApplicationRoutes);
 app.use("/api/shops", shopRoutes);
 app.use("/api/shop-tax-assessments", shopTaxAssessmentRoutes);
+app.use("/api/shop-registration-requests", shopRegistrationRequestRoutes);
 app.use("/api/clerk", clerkRoutes);
 app.use("/api/tax", taxRoutes);
 app.use("/api/inspector", inspectorRoutes);

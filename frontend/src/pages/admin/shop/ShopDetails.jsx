@@ -5,9 +5,11 @@ import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Edit, Store, FileText, Receipt } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
 
 const ShopDetails = () => {
   const { id } = useParams();
+  const basePath = useShopTaxBasePath();
   const { isAdmin, isAssessor } = useAuth();
   const [shop, setShop] = useState(null);
   const [assessments, setAssessments] = useState([]);
@@ -57,16 +59,16 @@ const ShopDetails = () => {
 
   return (
     <div>
-      <Link to="/shop-tax/shops" className="flex items-center text-primary-600 mb-4">
+      <Link to={`${basePath}/shop-tax/shops`} className="flex items-center text-primary-600 mb-4">
         <ArrowLeft className="w-4 h-4 mr-2" />
         Back to Shops
       </Link>
 
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Shop Details</h1>
-        {(isAdmin || isAssessor) && (
+        {(isAdmin || isAssessor || basePath === '/clerk') && (
           <Link
-            to={`/shop-tax/shops/${id}/edit`}
+            to={`${basePath}/shop-tax/shops/${id}/edit`}
             className="btn btn-primary flex items-center"
           >
             <Edit className="w-4 h-4 mr-2" />
@@ -173,7 +175,7 @@ const ShopDetails = () => {
               <div>
                 <dt className="text-sm font-medium text-gray-500">Property</dt>
                 <dd>
-                  <Link to={`/properties/${shop.propertyId}`} className="text-primary-600 hover:underline">
+                  <Link to={`${basePath}/properties/${shop.propertyId}`} className="text-primary-600 hover:underline">
                     {shop.property.propertyNumber} – {shop.property.address}
                   </Link>
                 </dd>
@@ -258,7 +260,7 @@ const ShopDetails = () => {
                     </td>
                     <td>
                       <Link
-                        to={`/shop-tax/assessments/${assessment.id}`}
+                        to={`${basePath}/shop-tax/assessments/${assessment.id}`}
                         className="text-primary-600 hover:underline"
                       >
                         View
@@ -308,7 +310,7 @@ const ShopDetails = () => {
                     </td>
                     <td>
                       <Link
-                        to={`/demands/${demand.id}`}
+                        to={`${basePath}/demands/${demand.id}`}
                         className="text-primary-600 hover:underline"
                       >
                         View
@@ -325,7 +327,7 @@ const ShopDetails = () => {
       {assessments.length === 0 && demands.length === 0 && (
         <div className="card mt-6 text-center py-8">
           <p className="text-gray-500">No assessments or demands found for this shop.</p>
-          <Link to={`/shop-tax/assessments/new?shopId=${id}`} className="btn btn-primary mt-4 inline-flex items-center">
+          <Link to={`${basePath}/shop-tax/assessments/new?shopId=${id}`} className="btn btn-primary mt-4 inline-flex items-center">
             <FileText className="w-4 h-4 mr-2" />
             Create Assessment
           </Link>

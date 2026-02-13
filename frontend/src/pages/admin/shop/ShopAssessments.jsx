@@ -3,10 +3,13 @@ import { Link } from 'react-router-dom';
 import { shopTaxAssessmentsAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { Plus, Eye, Edit, Filter, X, CheckCircle, XCircle, Send, ArrowLeft } from 'lucide-react';
+import { Plus, Eye, Edit, Filter, X, CheckCircle, XCircle, Send, ArrowLeft, Download } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
+import { exportToCSV } from '../../../utils/exportCSV';
 
 const ShopAssessments = () => {
+  const basePath = useShopTaxBasePath();
   const { isAdmin, isAssessor } = useAuth();
   const [assessments, setAssessments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -93,20 +96,40 @@ const ShopAssessments = () => {
     return badges[status] || 'badge-info';
   };
 
+  const handleExport = async () => {
+    try {
+      const params = { page: 1, limit: 5000, ...Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== '')) };
+      const response = await shopTaxAssessmentsAPI.getAll(params);
+      const list = response.data.data.assessments || [];
+      const rows = list.map(a => ({
+        assessmentNumber: a.assessmentNumber,
+        shop: a.shop ? `${a.shop.shopNumber} - ${a.shop.shopName}` : a.shopId,
+        assessmentYear: a.assessmentYear,
+        financialYear: a.financialYear,
+        annualTaxAmount: a.annualTaxAmount,
+        status: a.status
+      }));
+      exportToCSV(rows, `shop_assessments_${new Date().toISOString().slice(0, 10)}`);
+      toast.success('Export downloaded');
+    } catch (err) {
+      toast.error('Export failed');
+    }
+  };
+
   if (loading && !assessments.length) return <Loading />;
 
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-2">
-          <Link to="/shop-tax" className="text-primary-600 hover:text-primary-700">
+          <Link to={`${basePath}/shop-tax`} className="text-primary-600 hover:text-primary-700">
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <h1 className="text-3xl font-bold text-gray-900">Shop Tax Assessments</h1>
         </div>
         <div className="flex gap-2">
-          {(isAdmin || isAssessor) && (
-            <Link to="/shop-tax/assessments/new" className="btn btn-primary flex items-center">
+          {(isAdmin || isAssessor || basePath === '/clerk') && (
+            <Link to={`${basePath}/shop-tax/assessments/new`} className="btn btn-primary flex items-center">
               <Plus className="w-4 h-4 mr-2" />
               New Shop Assessment
             </Link>
@@ -118,6 +141,10 @@ const ShopAssessments = () => {
           >
             <Filter className="w-4 h-4 mr-2" />
             Filters
+          </button>
+          <button type="button" onClick={handleExport} className="btn btn-secondary flex items-center">
+            <Download className="w-4 h-4 mr-2" />
+            Export
           </button>
         </div>
       </div>
@@ -212,7 +239,7 @@ const ShopAssessments = () => {
                   <td>
                     <div className="flex items-center space-x-2">
                       <Link
-                        to={`/shop-tax/assessments/${assessment.id}`}
+                        to={`${basePath}/shop-tax/assessments/${assessment.id}`}
                         className="text-primary-600 hover:text-primary-700"
                         title="View"
                       >
@@ -221,7 +248,7 @@ const ShopAssessments = () => {
                       {(isAdmin || isAssessor) && assessment.status === 'draft' && (
                         <>
                           <Link
-                            to={`/shop-tax/assessments/${assessment.id}/edit`}
+                            to={`${basePath}/shop-tax/assessments/${assessment.id}/edit`}
                             className="text-green-600 hover:text-green-700"
                             title="Edit"
                           >

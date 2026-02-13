@@ -13,7 +13,9 @@ import {
     ChevronRight,
     Building,
     Home,
-    Calendar
+    Calendar,
+    Store,
+    FileCheck
 } from 'lucide-react';
 
 const ClerkSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
@@ -25,6 +27,7 @@ const ClerkSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
     const userData = user || null;
     const [waterDropdownOpen, setWaterDropdownOpen] = useState(false);
     const [propertiesDropdownOpen, setPropertiesDropdownOpen] = useState(false);
+    const [shopTaxDropdownOpen, setShopTaxDropdownOpen] = useState(false);
 
     // Auto-open dropdowns when on related pages
     useEffect(() => {
@@ -33,6 +36,9 @@ const ClerkSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
         }
         if (location.pathname.includes('/property-applications') || location.pathname.includes('/property-connections')) {
             setPropertiesDropdownOpen(true);
+        }
+        if (location.pathname.includes('/shop-tax') || location.pathname.includes('/shop-registration-requests')) {
+            setShopTaxDropdownOpen(true);
         }
     }, [location.pathname]);
 
@@ -71,6 +77,15 @@ const ClerkSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
                 { path: '/clerk/existing-water-connections', label: 'Existing Water Connections', icon: Building }
             ]
         },
+        {
+            label: 'Shop Tax',
+            icon: Store,
+            dropdown: true,
+            children: [
+                { path: '/clerk/shop-tax', label: 'Shop Tax Module', icon: Store },
+                { path: '/clerk/shop-registration-requests', label: 'Registration Requests', icon: FileCheck }
+            ]
+        },
         { path: '/clerk/returned-applications', label: 'Returned Applications', icon: AlertCircle },
         { path: '/clerk/attendance', label: 'My Attendance', icon: Calendar },
         // { path: '/clerk/activity-history', label: 'Activity History', icon: History }
@@ -104,9 +119,15 @@ const ClerkSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
                             const Icon = item.icon;
 
                             if (item.dropdown) {
-                                const isDropdownOpen = item.label === 'Water Applications' ? waterDropdownOpen : propertiesDropdownOpen;
+                                const isDropdownOpen = item.label === 'Water Applications'
+                                    ? waterDropdownOpen
+                                    : item.label === 'Property'
+                                        ? propertiesDropdownOpen
+                                        : item.label === 'Shop Tax'
+                                            ? shopTaxDropdownOpen
+                                            : false;
                                 const hasActiveChild = item.children?.some(child =>
-                                    location.pathname === child.path
+                                    location.pathname === child.path || location.pathname.startsWith(child.path + '/')
                                 );
 
                                 return (
@@ -117,6 +138,8 @@ const ClerkSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
                                                     setWaterDropdownOpen(!waterDropdownOpen);
                                                 } else if (item.label === 'Property') {
                                                     setPropertiesDropdownOpen(!propertiesDropdownOpen);
+                                                } else if (item.label === 'Shop Tax') {
+                                                    setShopTaxDropdownOpen(!shopTaxDropdownOpen);
                                                 }
                                             }}
                                             className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${hasActiveChild
@@ -139,7 +162,9 @@ const ClerkSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
                                             <div className="ml-4 mt-1 space-y-1">
                                                 {item.children.map((child) => {
                                                     const ChildIcon = child.icon;
-                                                    const isActive = location.pathname === child.path;
+                                                    const isActive = location.pathname === child.path ||
+                                                        (child.path === '/clerk/shop-tax' && location.pathname.startsWith('/clerk/shop-tax')) ||
+                                                        (child.path === '/clerk/shop-registration-requests' && location.pathname.includes('/shop-registration-requests'));
 
                                                     return (
                                                         <Link

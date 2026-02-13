@@ -4,14 +4,14 @@ import { demandAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { ArrowLeft, CreditCard, Calculator, Droplet, Home, FileText } from 'lucide-react';
+import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
 
 const DemandDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  // Detect if accessed from citizen routes
   const isCitizenRoute = location.pathname.startsWith('/citizen');
-  const basePath = isCitizenRoute ? '/citizen' : '';
+  const basePath = useShopTaxBasePath() || (isCitizenRoute ? '/citizen' : '');
   const [demand, setDemand] = useState(null);
   const [loading, setLoading] = useState(true);
   const [breakdown, setBreakdown] = useState(null);
@@ -30,9 +30,21 @@ const DemandDetails = () => {
   const fetchDemand = async () => {
     try {
       const response = await demandAPI.getById(id);
-      setDemand(response.data.data.demand);
+      if (response.data.success && response.data.data.demand) {
+        setDemand(response.data.data.demand);
+      } else {
+        console.error('Invalid response format:', response.data);
+        toast.error(response.data.message || 'Failed to fetch tax demand details');
+      }
     } catch (error) {
-      toast.error('Failed to fetch tax demand details');
+      console.error('Error fetching demand:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to fetch tax demand details';
+      toast.error(errorMessage);
+      if (error.response?.status === 403) {
+        console.error('Access denied - ward check failed or no access');
+      } else if (error.response?.status === 404) {
+        console.error('Demand not found in database');
+      }
     } finally {
       setLoading(false);
     }

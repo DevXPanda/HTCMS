@@ -73,7 +73,7 @@ const validateEnumValue = (value, validValues, fieldName) => {
 /**
  * Valid entity types (must match AuditLog model)
  */
-const VALID_ENTITY_TYPES = ['User', 'Property', 'Assessment', 'Demand', 'Payment', 'Ward', 'Notice', 'Attendance', 'FieldVisit', 'FollowUp', 'CollectorTask', 'PropertyApplication', 'WaterConnectionRequest', 'D2DC'];
+const VALID_ENTITY_TYPES = ['User', 'Property', 'Assessment', 'Demand', 'Payment', 'Ward', 'Notice', 'Attendance', 'FieldVisit', 'FollowUp', 'CollectorTask', 'PropertyApplication', 'WaterConnectionRequest', 'D2DC', 'ShopRegistrationRequest'];
 
 /**
  * Valid action types (must match AuditLog model)
@@ -193,6 +193,10 @@ const generateDescription = (actionType, entityType, entityId, user) => {
  * Convenience functions for common actions
  */
 export const auditLogger = {
+  /**
+   * Generic audit log creation method
+   */
+  createAuditLog: createAuditLog,
   /**
    * Log CREATE action
    */

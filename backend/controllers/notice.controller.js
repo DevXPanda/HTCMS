@@ -1,4 +1,4 @@
-import { Notice, Demand, Property, User, Payment } from '../models/index.js';
+import { Notice, Demand, Property, User, Payment, ShopTaxAssessment, Shop } from '../models/index.js';
 import { Op, Sequelize } from 'sequelize';
 import { auditLogger, createAuditLog } from '../utils/auditLogger.js';
 import { generateNoticePdfHelper } from '../utils/pdfHelpers.js';
@@ -115,14 +115,30 @@ export const generateNotice = async (req, res, next) => {
       });
     }
 
-    // Get demand with property and owner
+    // Get demand with property and owner (include shop info for SHOP_TAX)
     const demand = await Demand.findByPk(demandId, {
       include: [
         {
           model: Property,
           as: 'property',
+          required: false, // SHOP_TAX demands have propertyId but property might not be directly accessible
           include: [
-            { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email', 'phone'] }
+            { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email', 'phone'], required: false }
+          ]
+        },
+        {
+          model: ShopTaxAssessment,
+          as: 'shopTaxAssessment',
+          required: false,
+          include: [
+            {
+              model: Shop,
+              as: 'shop',
+              required: false,
+              include: [
+                { model: Property, as: 'property', required: false, include: [{ model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email', 'phone'], required: false }] }
+              ]
+            }
           ]
         }
       ]
@@ -135,11 +151,19 @@ export const generateNotice = async (req, res, next) => {
       });
     }
 
-    // Validate ownership
+    // For SHOP_TAX: get property/owner from shop if not directly available
+    if (demand.serviceType === 'SHOP_TAX' && demand.shopTaxAssessment?.shop?.property) {
+      demand.property = demand.shopTaxAssessment.shop.property;
+      if (demand.shopTaxAssessment.shop.property.owner) {
+        demand.property.owner = demand.shopTaxAssessment.shop.property.owner;
+      }
+    }
+
+    // Validate ownership - property and owner must exist
     if (!demand.property || !demand.property.owner) {
       return res.status(400).json({
         success: false,
-        message: 'Property or owner information not found'
+        message: 'Property or owner information not found. Cannot generate notice without owner details.'
       });
     }
 

@@ -8,7 +8,10 @@ import {
   TrendingUp,
   Eye,
   AlertTriangle,
-  ArrowRight
+  ArrowRight,
+  History,
+  Calendar,
+  RefreshCw
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useStaffAuth } from '../../contexts/StaffAuthContext';
@@ -170,13 +173,56 @@ const OfficerDashboard = () => {
     );
   }
 
+  // Quick Actions - All sidebar navigation items
+  const quickActions = [
+    { name: 'Property Applications', icon: FileText, link: '/officer/property-applications', color: 'bg-blue-600' },
+    { name: 'Water Requests', icon: Droplets, link: '/officer/water-requests', color: 'bg-cyan-600' },
+    { name: 'Decision History', icon: History, link: '/officer/decision-history', color: 'bg-purple-600' },
+    { name: 'My Attendance', icon: Calendar, link: '/officer/attendance', color: 'bg-orange-600' },
+  ];
+
   return (
-    <div>
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Officer Dashboard</h1>
+    <div className="space-y-8 max-w-7xl mx-auto">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Officer Dashboard</h1>
+          <p className="text-gray-500 text-sm">Escalation Management & Decisions</p>
+        </div>
+        <button
+          onClick={fetchDashboardData}
+          className="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors shadow-sm flex items-center"
+        >
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Refresh Data
+        </button>
+      </div>
+
+      {/* Quick Actions Section */}
+      <section>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+          <TrendingUp className="w-5 h-5 mr-2 text-primary-600" />
+          Quick Actions
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {quickActions.map((action, index) => (
+            <Link
+              key={index}
+              to={action.link}
+              className="flex flex-col items-center justify-center p-5 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-primary-100 transition-all group"
+            >
+              <div className={`p-3 rounded-full ${action.color} text-white mb-3 shadow-sm group-hover:scale-110 transition-transform`}>
+                <action.icon className="h-6 w-6" />
+              </div>
+              <span className="text-sm font-medium text-gray-700 group-hover:text-primary-700 text-center">{action.name}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       {/* Ward Assignment Info */}
       {wardInfo && wardInfo.count > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <div className="bg-white rounded-lg border border-gray-100 p-6 mb-6 bg-blue-50 border-blue-200">
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <AlertTriangle className="h-5 w-5 text-blue-400" />
@@ -206,7 +252,7 @@ const OfficerDashboard = () => {
             <Link
               key={index}
               to={stat.link}
-              className="card hover:shadow-lg transition-shadow cursor-pointer"
+              className="bg-white rounded-lg border border-gray-100 p-6 hover:shadow-lg transition-shadow cursor-pointer"
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -224,7 +270,7 @@ const OfficerDashboard = () => {
 
       {/* Property Escalation Status Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="card">
+        <div className="bg-white rounded-lg border border-gray-100 p-6">
           <h2 className="text-xl font-semibold mb-4 flex items-center">
             <FileText className="w-5 h-5 mr-2" />
             Property Escalation Status
@@ -262,7 +308,7 @@ const OfficerDashboard = () => {
         </div>
 
         {/* Water Escalation Status Breakdown */}
-        <div className="card">
+        <div className="bg-white rounded-lg border border-gray-100 p-6">
           <h2 className="text-xl font-semibold mb-4 flex items-center">
             <Droplets className="w-5 h-5 mr-2" />
             Water Escalation Status
@@ -301,7 +347,7 @@ const OfficerDashboard = () => {
       </div>
 
       {/* Pending Escalations Table */}
-      <div className="card mb-8">
+      <div className="bg-white rounded-lg border border-gray-100 p-6 mb-8">
         <h2 className="text-xl font-semibold mb-4">Pending Escalations</h2>
         {escalatedData.property.length > 0 || escalatedData.water.length > 0 ? (
           <div className="overflow-x-auto">
@@ -406,7 +452,7 @@ const OfficerDashboard = () => {
       </div>
 
       {/* Recent Decisions */}
-      <div className="card">
+      <div className="bg-white rounded-lg border border-gray-100 p-6">
         <h2 className="text-xl font-semibold mb-4">Recent Decisions</h2>
         {recentDecisions.propertyDecisions.length > 0 || recentDecisions.waterDecisions.length > 0 ? (
           <div className="space-y-3">

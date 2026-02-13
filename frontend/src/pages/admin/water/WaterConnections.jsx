@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom';
 import { waterConnectionAPI, propertyAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { Plus, Search, Eye, X } from 'lucide-react';
+import { Plus, Search, Eye, X, Download } from 'lucide-react';
 import AddWaterConnectionModal from './AddWaterConnectionModal';
+import { exportToCSV } from '../../../utils/exportCSV';
 
 const WaterConnections = () => {
   const [connections, setConnections] = useState([]);
@@ -85,19 +86,47 @@ const WaterConnections = () => {
     return statusClasses[status] || 'badge-info';
   };
 
+  const handleExport = async () => {
+    try {
+      const params = { page: 1, limit: 5000, search };
+      if (selectedPropertyId) params.propertyId = selectedPropertyId;
+      const response = await waterConnectionAPI.getAll(params);
+      const list = response.data.data.waterConnections || [];
+      const rows = list.map(c => ({
+        connectionNumber: c.connectionNumber,
+        propertyNumber: c.property?.propertyNumber,
+        connectionType: c.connectionType,
+        status: c.status
+      }));
+      exportToCSV(rows, `water_connections_${new Date().toISOString().slice(0, 10)}`);
+      toast.success('Export downloaded');
+    } catch (err) {
+      toast.error('Export failed');
+    }
+  };
+
   if (loading && !connections.length) return <Loading />;
 
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Water Connections</h1>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="btn btn-primary flex items-center"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Water Connection
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleExport}
+            className="btn btn-secondary flex items-center"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="btn btn-primary flex items-center"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Water Connection
+          </button>
+        </div>
       </div>
 
       {/* Property Selector and Search */}

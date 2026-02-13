@@ -3,10 +3,13 @@ import { Link } from 'react-router-dom';
 import { demandAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { Plus, Eye, Search, Filter, X, Zap, Calculator } from 'lucide-react';
+import { Plus, Eye, Search, Filter, X, Zap, Calculator, Download } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
+import { exportToCSV } from '../../../utils/exportCSV';
 
 const Demands = () => {
+  const basePath = useShopTaxBasePath();
   const { isAdmin, isAssessor } = useAuth();
   const [demands, setDemands] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -86,6 +89,29 @@ const Demands = () => {
     return badges[status] || 'badge-info';
   };
 
+  const handleExport = async () => {
+    try {
+      const params = { page: 1, limit: 5000, search, ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== '')) };
+      const response = await demandAPI.getAll(params);
+      const list = response.data.data.demands || [];
+      const rows = list.map(d => ({
+        demandNumber: d.demandNumber,
+        serviceType: d.serviceType,
+        propertyNumber: d.property?.propertyNumber,
+        shopName: d.shopTaxAssessment?.shop?.shopName,
+        financialYear: d.financialYear,
+        totalAmount: d.totalAmount,
+        balanceAmount: d.balanceAmount,
+        status: d.status,
+        dueDate: d.dueDate
+      }));
+      exportToCSV(rows, `demands_${new Date().toISOString().slice(0, 10)}`);
+      toast.success('Export downloaded');
+    } catch (err) {
+      toast.error('Export failed');
+    }
+  };
+
   if (loading && !demands.length) return <Loading />;
 
   const isOverdue = (dueDate, balanceAmount) => {
@@ -101,7 +127,7 @@ const Demands = () => {
         <h1 className="text-3xl font-bold text-gray-900">Tax Demands</h1>
         <div className="flex gap-2">
           {isAdmin && (
-            <Link to="/demands/generate" className="btn btn-primary flex items-center">
+            <Link to={`${basePath}/demands/generate`} className="btn btn-primary flex items-center">
               <Zap className="w-4 h-4 mr-2" />
               Generate Tax Demands
             </Link>
@@ -112,6 +138,10 @@ const Demands = () => {
           >
             <Filter className="w-4 h-4 mr-2" />
             Filters
+          </button>
+          <button type="button" onClick={handleExport} className="btn btn-secondary flex items-center">
+            <Download className="w-4 h-4 mr-2" />
+            Export
           </button>
         </div>
       </div>
@@ -254,7 +284,22 @@ const Demands = () => {
               demands.map((demand) => {
                 const overdue = isOverdue(demand.dueDate, demand.balanceAmount);
                 const isShopTax = demand.serviceType === 'SHOP_TAX';
+                const isWaterTax = demand.serviceType === 'WATER_TAX';
+                const isD2DC = demand.serviceType === 'D2DC';
                 const hasShopTaxInList = demands.some(d => d.serviceType === 'SHOP_TAX');
+                const refContent = isShopTax
+                  ? null
+                  : isWaterTax
+                    ? (demand.waterTaxAssessment?.waterConnection?.connectionNumber
+                        ? `Water - ${demand.waterTaxAssessment.waterConnection.connectionNumber}`
+                        : demand.waterTaxAssessment?.assessmentNumber || 'N/A')
+                    : isD2DC
+                      ? `D2DC - ${demand.financialYear || '—'}`
+                      : (demand.property?.propertyNumber ? (
+                          <Link to={`/properties/${demand.propertyId}`} className="text-primary-600 hover:underline">
+                            {demand.property.propertyNumber}
+                          </Link>
+                        ) : 'N/A');
                 return (
                   <tr key={demand.id} className={overdue ? 'bg-red-50' : ''}>
                     <td className="font-medium">{demand.demandNumber}</td>
@@ -291,13 +336,7 @@ const Demands = () => {
                           <>
                             <td className="text-gray-400">—</td>
                             <td>
-                              {demand.property?.propertyNumber ? (
-                                <Link to={`/properties/${demand.propertyId}`} className="text-primary-600 hover:underline">
-                                  {demand.property.propertyNumber}
-                                </Link>
-                              ) : (
-                                'N/A'
-                              )}
+                              {typeof refContent === 'string' ? <span className="text-gray-700">{refContent}</span> : refContent}
                             </td>
                             <td className="text-gray-400">—</td>
                             <td className="text-xs text-gray-500">
@@ -314,9 +353,17 @@ const Demands = () => {
                       </>
                     ) : (
                       <td>
-                        <Link to={`/properties/${demand.propertyId}`} className="text-primary-600 hover:underline">
-                          {demand.property?.propertyNumber || 'N/A'}
-                        </Link>
+                        {isWaterTax ? (
+                          demand.waterTaxAssessment?.waterConnection?.connectionNumber
+                            ? `Water - ${demand.waterTaxAssessment.waterConnection.connectionNumber}`
+                            : demand.waterTaxAssessment?.assessmentNumber || 'N/A'
+                        ) : isD2DC ? (
+                          `D2DC - ${demand.financialYear || '—'}`
+                        ) : (
+                          <Link to={`/properties/${demand.propertyId}`} className="text-primary-600 hover:underline">
+                            {demand.property?.propertyNumber || 'N/A'}
+                          </Link>
+                        )}
                       </td>
                     )}
                     <td>{demand.financialYear}</td>
@@ -354,7 +401,7 @@ const Demands = () => {
                     <td>
                       <div className="flex items-center space-x-2">
                         <Link
-                          to={`/demands/${demand.id}`}
+                          to={`${basePath}/demands/${demand.id}`}
                           className="text-primary-600 hover:text-primary-700"
                           title="View"
                         >

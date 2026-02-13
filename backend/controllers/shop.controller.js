@@ -268,6 +268,14 @@ export const updateShop = async (req, res, next) => {
       if (req.body[f] !== undefined) updates[f] = req.body[f];
     });
 
+    // Prevent clerk from closing shops (admin only)
+    if (req.user.role === 'clerk' && updates.status === 'closed') {
+      return res.status(403).json({
+        success: false,
+        message: 'Clerks cannot close shops. Only administrators can close shops.'
+      });
+    }
+
     await shop.update(updates);
     const updated = await Shop.findByPk(shop.id, {
       include: [

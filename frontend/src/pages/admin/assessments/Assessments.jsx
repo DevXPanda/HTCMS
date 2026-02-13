@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom';
 import { assessmentAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { Plus, Search, Eye, Edit, Filter, X, CheckCircle, XCircle, Send } from 'lucide-react';
+import { Plus, Search, Eye, Edit, Filter, X, CheckCircle, XCircle, Send, Download } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { exportToCSV } from '../../../utils/exportCSV';
 
 const Assessments = () => {
   const { isAdmin, isAssessor } = useAuth();
@@ -102,6 +103,25 @@ const Assessments = () => {
     return badges[status] || 'badge-info';
   };
 
+  const handleExport = async () => {
+    try {
+      const params = { page: 1, limit: 5000, search, ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== '')) };
+      const response = await assessmentAPI.getAll(params);
+      const list = response.data.data.assessments || [];
+      const rows = list.map(a => ({
+        assessmentNumber: a.assessmentNumber,
+        propertyNumber: a.property?.propertyNumber,
+        assessmentYear: a.assessmentYear,
+        annualTaxAmount: a.annualTaxAmount,
+        status: a.status
+      }));
+      exportToCSV(rows, `property_assessments_${new Date().toISOString().slice(0, 10)}`);
+      toast.success('Export downloaded');
+    } catch (err) {
+      toast.error('Export failed');
+    }
+  };
+
   if (loading && !assessments.length) return <Loading />;
 
   return (
@@ -121,6 +141,10 @@ const Assessments = () => {
           >
             <Filter className="w-4 h-4 mr-2" />
             Filters
+          </button>
+          <button type="button" onClick={handleExport} className="btn btn-secondary flex items-center">
+            <Download className="w-4 h-4 mr-2" />
+            Export
           </button>
         </div>
       </div>

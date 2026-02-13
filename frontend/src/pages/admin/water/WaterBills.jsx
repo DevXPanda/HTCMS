@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom';
 import { waterBillAPI, propertyAPI, waterConnectionAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { Plus, Search, Filter, X, Eye } from 'lucide-react';
+import { Plus, Search, Filter, X, Eye, Download } from 'lucide-react';
 import GenerateBillModal from './GenerateBillModal';
+import { exportToCSV } from '../../../utils/exportCSV';
 
 const WaterBills = () => {
   const [bills, setBills] = useState([]);
@@ -167,6 +168,27 @@ const WaterBills = () => {
     return `${monthNames[parseInt(month) - 1]} ${year}`;
   };
 
+  const handleExport = async () => {
+    try {
+      const params = { page: 1, limit: 5000 };
+      if (filters.status) params.status = filters.status;
+      const response = await waterBillAPI.getAll(params);
+      const list = response.data.data.waterBills || [];
+      const rows = list.map(b => ({
+        billNumber: b.billNumber,
+        connectionNumber: b.waterConnection?.connectionNumber,
+        billingPeriod: b.billingPeriod,
+        totalAmount: b.totalAmount,
+        balanceAmount: b.balanceAmount,
+        status: b.status
+      }));
+      exportToCSV(rows, `water_bills_${new Date().toISOString().slice(0, 10)}`);
+      toast.success('Export downloaded');
+    } catch (err) {
+      toast.error('Export failed');
+    }
+  };
+
   if (loading && !bills.length) return <Loading />;
 
   return (
@@ -187,6 +209,10 @@ const WaterBills = () => {
           >
             <Filter className="w-4 h-4 mr-2" />
             Filters
+          </button>
+          <button type="button" onClick={handleExport} className="btn btn-secondary flex items-center">
+            <Download className="w-4 h-4 mr-2" />
+            Export
           </button>
         </div>
       </div>

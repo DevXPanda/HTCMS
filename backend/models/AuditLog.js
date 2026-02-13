@@ -25,7 +25,7 @@ export const AuditLog = sequelize.define('AuditLog', {
     comment: 'Type of action performed'
   },
   entityType: {
-    type: DataTypes.ENUM('User', 'Property', 'Assessment', 'Demand', 'Payment', 'Ward', 'Notice', 'Attendance', 'FieldVisit', 'FollowUp', 'CollectorTask', 'PropertyApplication', 'WaterConnectionRequest', 'D2DC'),
+    type: DataTypes.ENUM('User', 'Property', 'Assessment', 'Demand', 'Payment', 'Ward', 'Notice', 'Attendance', 'FieldVisit', 'FollowUp', 'CollectorTask', 'PropertyApplication', 'WaterConnectionRequest', 'D2DC', 'ShopRegistrationRequest'),
     allowNull: false,
     comment: 'Type of entity affected'
   },

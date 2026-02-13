@@ -5,10 +5,14 @@ import { shopsAPI, propertyAPI, wardAPI, userAPI } from '../../../services/api';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Save } from 'lucide-react';
 import Loading from '../../../components/Loading';
+import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const EditShop = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const basePath = useShopTaxBasePath();
+  const { isAdmin } = useAuth();
   const [loading, setLoading] = useState(false);
   const [shop, setShop] = useState(null);
   const [properties, setProperties] = useState([]);
@@ -105,7 +109,7 @@ const EditShop = () => {
 
       if (response.data.success) {
         toast.success('Shop updated successfully');
-        navigate(`/shop-tax/shops/${id}`);
+        navigate(`${basePath}/shop-tax/shops/${id}`);
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to update shop');
@@ -120,7 +124,7 @@ const EditShop = () => {
 
   return (
     <div>
-      <Link to={`/shop-tax/shops/${id}`} className="flex items-center text-primary-600 mb-4">
+      <Link to={`${basePath}/shop-tax/shops/${id}`} className="flex items-center text-primary-600 mb-4">
         <ArrowLeft className="w-4 h-4 mr-2" />
         Back to Shop Details
       </Link>
@@ -283,7 +287,7 @@ const EditShop = () => {
             >
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
-              <option value="closed">Closed</option>
+              {isAdmin && <option value="closed">Closed</option>}
             </select>
             {errors.status && (
               <span className="text-red-500 text-sm">{errors.status.message}</span>
@@ -345,7 +349,7 @@ const EditShop = () => {
         </div>
 
         <div className="flex justify-end gap-4 mt-6">
-          <Link to={`/shop-tax/shops/${id}`} className="btn btn-secondary">
+          <Link to={`${basePath}/shop-tax/shops/${id}`} className="btn btn-secondary">
             Cancel
           </Link>
           <button type="submit" disabled={loading} className="btn btn-primary flex items-center">

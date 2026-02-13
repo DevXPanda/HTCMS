@@ -3,16 +3,14 @@ import { clerkAPI } from '../../services/api';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
-import { FileText, Droplet, AlertCircle, CheckCircle, Clock, XCircle, Eye, AlertTriangle, ArrowRight, RefreshCw, Send } from 'lucide-react';
+import { FileText, Droplet, AlertCircle, CheckCircle, Clock, XCircle, Eye, AlertTriangle, ArrowRight, RefreshCw, Send, Building, Store, FileCheck, Calendar, TrendingUp } from 'lucide-react';
 
 const ClerkDashboard = () => {
     const [dashboard, setDashboard] = useState(null);
-    const [wards, setWards] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         fetchDashboard();
-        fetchWards();
     }, []);
 
     const fetchDashboard = async () => {
@@ -22,18 +20,6 @@ const ClerkDashboard = () => {
         } catch (error) {
             console.error('Error fetching dashboard:', error);
             toast.error('Failed to load dashboard');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchWards = async () => {
-        try {
-            const response = await clerkAPI.getWards();
-            setWards(response.data.data.wards || []);
-        } catch (error) {
-            console.error('Error fetching wards:', error);
-            // Don't show toast for ward fetch error to avoid noise
         } finally {
             setLoading(false);
         }
@@ -72,16 +58,63 @@ const ClerkDashboard = () => {
         }
     ];
 
-    // Assigned Ward Info Card
-    const assignedWard = wards.length > 0 ? wards[0] : null;
+    // Assigned Ward Info Card - get from dashboard response
+    const assignedWards = dashboard?.assignedWards || [];
+    const assignedWard = assignedWards.length > 0 ? assignedWards[0] : null;
+
+    // Quick Actions - All sidebar navigation items
+    const quickActions = [
+        { name: 'Property Connections', icon: Building, link: '/clerk/property-connections', color: 'bg-blue-600' },
+        { name: 'Water Applications', icon: Droplet, link: '/clerk/water-applications', color: 'bg-cyan-600' },
+        { name: 'Existing Water Connections', icon: Building, link: '/clerk/existing-water-connections', color: 'bg-indigo-600' },
+        { name: 'Shop Tax Module', icon: Store, link: '/clerk/shop-tax', color: 'bg-amber-600' },
+        { name: 'Shop Registration Requests', icon: FileCheck, link: '/clerk/shop-registration-requests', color: 'bg-yellow-600' },
+        { name: 'Returned Applications', icon: AlertCircle, link: '/clerk/returned-applications', color: 'bg-orange-600' },
+        { name: 'My Attendance', icon: Calendar, link: '/clerk/attendance', color: 'bg-purple-600' },
+    ];
 
     return (
-        <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-6">Clerk Dashboard</h1>
+        <div className="space-y-8 max-w-7xl mx-auto">
+            {/* Page Header */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Clerk Dashboard</h1>
+                    <p className="text-gray-500 text-sm">Ward Management & Applications</p>
+                </div>
+                <button
+                    onClick={fetchDashboard}
+                    className="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors shadow-sm flex items-center"
+                >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Refresh Data
+                </button>
+            </div>
+
+            {/* Quick Actions Section */}
+            <section>
+                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <TrendingUp className="w-5 h-5 mr-2 text-primary-600" />
+                    Quick Actions
+                </h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {quickActions.map((action, index) => (
+                        <Link
+                            key={index}
+                            to={action.link}
+                            className="flex flex-col items-center justify-center p-5 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-primary-100 transition-all group"
+                        >
+                            <div className={`p-3 rounded-full ${action.color} text-white mb-3 shadow-sm group-hover:scale-110 transition-transform`}>
+                                <action.icon className="h-6 w-6" />
+                            </div>
+                            <span className="text-sm font-medium text-gray-700 group-hover:text-primary-700 text-center">{action.name}</span>
+                        </Link>
+                    ))}
+                </div>
+            </section>
 
             {/* Assigned Ward Info */}
             {assignedWard ? (
-                <div className="card mb-6 bg-blue-50 border-blue-200">
+                <div className="bg-white rounded-lg border border-gray-100 p-6 mb-6 bg-blue-50 border-blue-200">
                     <div className="flex items-center">
                         <div className="bg-blue-500 p-3 rounded-full mr-4">
                             <CheckCircle className="w-6 h-6 text-white" />
@@ -89,13 +122,16 @@ const ClerkDashboard = () => {
                         <div>
                             <h2 className="text-lg font-semibold text-blue-900">Assigned Ward</h2>
                             <p className="text-blue-700">
-                                {assignedWard.wardName} ({assignedWard.wardNumber})
+                                {assignedWard.wardName || 'Unnamed Ward'}
+                                {assignedWard.wardNumber && assignedWard.wardNumber !== '0' && (
+                                    <span> ({assignedWard.wardNumber})</span>
+                                )}
                             </p>
                         </div>
                     </div>
                 </div>
             ) : (
-                <div className="card mb-6 bg-orange-50 border-orange-200">
+                <div className="bg-white rounded-lg border border-gray-100 p-6 mb-6 bg-orange-50 border-orange-200">
                     <div className="flex items-center">
                         <div className="bg-orange-500 p-3 rounded-full mr-4">
                             <AlertCircle className="w-6 h-6 text-white" />
@@ -111,7 +147,7 @@ const ClerkDashboard = () => {
             )}
 
             {/* Today's Tasks / Action Required */}
-            <div className="card mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
+            <div className="bg-white rounded-lg border border-gray-100 p-6 mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="text-xl font-semibold text-amber-900 flex items-center">
                         <Clock className="w-5 h-5 mr-2" />
@@ -167,7 +203,7 @@ const ClerkDashboard = () => {
             {/* Returned / Attention Needed Highlight */}
             {(dashboard?.totalReturned || 0) > 0 && (
                 <Link to="/clerk/returned-applications" className="block mb-6">
-                    <div className="card bg-gradient-to-r from-red-50 to-pink-50 border-red-200 hover:shadow-lg transition-shadow cursor-pointer">
+                    <div className="bg-white rounded-lg border border-gray-100 p-6 bg-gradient-to-r from-red-50 to-pink-50 border-red-200 hover:shadow-lg transition-shadow cursor-pointer">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center">
                                 <div className="bg-red-500 p-3 rounded-full mr-4">
@@ -194,7 +230,7 @@ const ClerkDashboard = () => {
                         <Link
                             key={index}
                             to={stat.link}
-                            className="card hover:shadow-lg transition-shadow cursor-pointer"
+                            className="bg-white rounded-lg border border-gray-100 p-6 hover:shadow-lg transition-shadow cursor-pointer"
                         >
                             <div className="flex items-center justify-between">
                                 <div>
@@ -212,7 +248,7 @@ const ClerkDashboard = () => {
 
             {/* Property Applications Breakdown */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                <div className="card">
+                <div className="bg-white rounded-lg border border-gray-100 p-6">
                     <h2 className="text-xl font-semibold mb-4 flex items-center">
                         <FileText className="w-5 h-5 mr-2" />
                         Property Applications Status
@@ -264,7 +300,7 @@ const ClerkDashboard = () => {
                 </div>
 
                 {/* Water Applications Breakdown */}
-                <div className="card">
+                <div className="bg-white rounded-lg border border-gray-100 p-6">
                     <h2 className="text-xl font-semibold mb-4 flex items-center">
                         <Droplet className="w-5 h-5 mr-2" />
                         Water Applications Status
@@ -317,7 +353,7 @@ const ClerkDashboard = () => {
             </div>
 
             {/* Quick Navigation Shortcuts */}
-            <div className="card mb-6">
+            <div className="bg-white rounded-lg border border-gray-100 p-6 mb-6">
                 <h2 className="text-xl font-semibold mb-4 flex items-center">
                     <ArrowRight className="w-5 h-5 mr-2" />
                     Quick Navigation
@@ -357,7 +393,7 @@ const ClerkDashboard = () => {
             </div>
 
             {/* Recent Activity (Ward-Scoped) */}
-            <div className="card">
+            <div className="bg-white rounded-lg border border-gray-100 p-6">
                 <h2 className="text-xl font-semibold mb-4 flex items-center">
                     <Clock className="w-5 h-5 mr-2" />
                     Recent Activity
@@ -396,11 +432,11 @@ const ClerkDashboard = () => {
                 )}
             </div>
 
-            {/* Quick Actions */}
+            {/* Additional Quick Actions */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
                 <Link
                     to="/clerk/property-applications/new"
-                    className="card hover:shadow-lg transition-shadow bg-gradient-to-r from-blue-50 to-indigo-50"
+                    className="bg-white rounded-lg border border-gray-100 p-6 hover:shadow-lg transition-shadow bg-gradient-to-r from-blue-50 to-indigo-50"
                 >
                     <div className="flex items-center">
                         <div className="bg-blue-500 p-3 rounded-full mr-4">
@@ -415,7 +451,7 @@ const ClerkDashboard = () => {
 
                 <Link
                     to="/clerk/water-applications/new"
-                    className="card hover:shadow-lg transition-shadow bg-gradient-to-r from-cyan-50 to-blue-50"
+                    className="bg-white rounded-lg border border-gray-100 p-6 hover:shadow-lg transition-shadow bg-gradient-to-r from-cyan-50 to-blue-50"
                 >
                     <div className="flex items-center">
                         <div className="bg-cyan-500 p-3 rounded-full mr-4">

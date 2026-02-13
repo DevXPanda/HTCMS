@@ -188,11 +188,8 @@ export const createEmployee = async (req, res) => {
     let assignedWardIds = ward_ids || [];
     if (role === 'clerk') {
       assignedWardIds = [ward_ids[0]];
-      // Remove this clerk from any other wards
-      await Ward.update({ clerkId: null }, { where: { clerkId: { [AdminManagement.sequelize.Sequelize.Op.eq]: null } } });
-      // Assign clerkId to the selected ward
-      await Ward.update({ clerkId: null }, { where: { clerkId: employee_id } }); // Remove from previous assignments
-      await Ward.update({ clerkId: null }, { where: { clerkId: { [AdminManagement.sequelize.Sequelize.Op.eq]: null } } });
+      // Clear any existing clerk assignment from the selected ward
+      await Ward.update({ clerkId: null }, { where: { id: assignedWardIds[0] } });
     }
     // Create employee
     const employee = await AdminManagement.create({
@@ -208,6 +205,7 @@ export const createEmployee = async (req, res) => {
       created_by_admin_id: req.user.id,
       password_changed: true // Admin-set password is final, no forced change required
     });
+    // For clerk, assign the employee's ID (integer) to the ward's clerkId
     if (role === 'clerk') {
       await Ward.update({ clerkId: employee.id }, { where: { id: assignedWardIds[0] } });
     }

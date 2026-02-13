@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { wardAPI } from '../../services/api';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
-import { MapPin, Home, FileText, DollarSign, AlertCircle, TrendingUp } from 'lucide-react';
+import { MapPin, Home, FileText, DollarSign, AlertCircle, TrendingUp, CheckSquare, CreditCard, Clock, RefreshCw } from 'lucide-react';
 import { useStaffAuth } from '../../contexts/StaffAuthContext';
 
 const CollectorDashboard = () => {
@@ -75,15 +75,60 @@ const CollectorDashboard = () => {
     }
   ];
 
+  // Quick Actions - All sidebar navigation items
+  const quickActions = [
+    { name: "Today's Tasks", icon: CheckSquare, link: '/collector/tasks', color: 'bg-blue-600' },
+    { name: 'Assigned Wards', icon: MapPin, link: '/collector/wards', color: 'bg-green-600' },
+    { name: 'Property List', icon: Home, link: '/collector/properties', color: 'bg-indigo-600' },
+    { name: 'Tax Summary', icon: FileText, link: '/collector/tax-summary', color: 'bg-purple-600' },
+    { name: 'Collections', icon: CreditCard, link: '/collector/collections', color: 'bg-emerald-600' },
+    { name: 'My Attendance', icon: Clock, link: '/collector/attendance', color: 'bg-orange-600' },
+  ];
+
   return (
-    <div>
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Collector Dashboard</h1>
+    <div className="space-y-8 max-w-7xl mx-auto">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Collector Dashboard</h1>
+          <p className="text-gray-500 text-sm">Tax Collection & Management</p>
+        </div>
+        <button
+          onClick={fetchDashboard}
+          className="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors shadow-sm flex items-center"
+        >
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Refresh Data
+        </button>
+      </div>
+
+      {/* Quick Actions Section */}
+      <section>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+          <TrendingUp className="w-5 h-5 mr-2 text-primary-600" />
+          Quick Actions
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {quickActions.map((action, index) => (
+            <Link
+              key={index}
+              to={action.link}
+              className="flex flex-col items-center justify-center p-5 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-primary-100 transition-all group"
+            >
+              <div className={`p-3 rounded-full ${action.color} text-white mb-3 shadow-sm group-hover:scale-110 transition-transform`}>
+                <action.icon className="h-6 w-6" />
+              </div>
+              <span className="text-sm font-medium text-gray-700 group-hover:text-primary-700 text-center">{action.name}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {statCards.map((stat, index) => {
           const Icon = stat.icon;
           return (
-            <div key={index} className="card hover:shadow-lg transition-shadow">
+            <div key={index} className="bg-white rounded-lg border border-gray-100 p-6 hover:shadow-lg transition-shadow">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">{stat.title}</p>
@@ -99,7 +144,7 @@ const CollectorDashboard = () => {
       </div>
 
       {/* Property-wise Unified Demands - Primary View */}
-      <div className="card lg:col-span-2 mb-6">
+      <div className="bg-white rounded-lg border border-gray-100 p-6 lg:col-span-2 mb-6">
         <h2 className="text-xl font-semibold mb-4">Property-wise Collection Summary</h2>
         {dashboard?.propertyWiseDemands && dashboard.propertyWiseDemands.length > 0 ? (
           <div className="overflow-x-auto">
@@ -186,7 +231,7 @@ const CollectorDashboard = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Pending Demands */}
-        <div className="card">
+        <div className="bg-white rounded-lg border border-gray-100 p-6">
           <h2 className="text-xl font-semibold mb-4">Pending Demands</h2>
           {dashboard?.pendingDemands && dashboard.pendingDemands.length > 0 ? (
             <div className="space-y-3 max-h-96 overflow-y-auto">
@@ -223,7 +268,7 @@ const CollectorDashboard = () => {
         </div>
 
         {/* Overdue Demands */}
-        <div className="card">
+        <div className="bg-white rounded-lg border border-gray-100 p-6">
           <h2 className="text-xl font-semibold mb-4 text-red-600">Overdue Demands</h2>
           {dashboard?.overdueDemands && dashboard.overdueDemands.length > 0 ? (
             <div className="space-y-3 max-h-96 overflow-y-auto">
@@ -260,7 +305,7 @@ const CollectorDashboard = () => {
         </div>
 
         {/* Recent Payments */}
-        <div className="card lg:col-span-2">
+        <div className="bg-white rounded-lg border border-gray-100 p-6 lg:col-span-2">
           <h2 className="text-xl font-semibold mb-4">Recent Collections</h2>
           {dashboard?.recentPayments && dashboard.recentPayments.length > 0 ? (
             <div className="overflow-x-auto">

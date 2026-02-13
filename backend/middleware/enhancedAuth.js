@@ -45,8 +45,8 @@ export const authenticate = async (req, res, next) => {
         // Add role field for compatibility with existing authorization middleware
         user.dataValues.role = user.role;
 
-        // Copy ward_ids from JWT token to user object for clerks and inspectors
-        if ((user.role === 'clerk' || user.role === 'inspector') && decoded.ward_ids) {
+        // Copy ward_ids from JWT token to user object for clerks, inspectors, assessors, and collectors
+        if ((user.role === 'clerk' || user.role === 'inspector' || user.role === 'assessor' || user.role === 'collector') && decoded.ward_ids) {
           user.dataValues.ward_ids = decoded.ward_ids;
         }
       } else {
@@ -57,6 +57,10 @@ export const authenticate = async (req, res, next) => {
 
         if (user) {
           userType = 'user';
+          // Copy ward_ids from JWT token for assessors (from users table)
+          if (user.role === 'assessor' && decoded.ward_ids) {
+            user.dataValues.ward_ids = decoded.ward_ids;
+          }
         }
       }
     } else {
@@ -67,6 +71,10 @@ export const authenticate = async (req, res, next) => {
 
       if (user) {
         userType = 'user';
+        // Copy ward_ids from JWT token for assessors (from users table)
+        if (user.role === 'assessor' && decoded.ward_ids) {
+          user.dataValues.ward_ids = decoded.ward_ids;
+        }
       } else {
         // Fallback to admin_management table if not found in users
         user = await AdminManagement.findByPk(decoded.userId, {
@@ -78,8 +86,8 @@ export const authenticate = async (req, res, next) => {
           // Add role field for compatibility with existing authorization middleware
           user.dataValues.role = user.role;
 
-          // Copy ward_ids from JWT token to user object for clerks and inspectors
-          if ((user.role === 'clerk' || user.role === 'inspector') && decoded.ward_ids) {
+          // Copy ward_ids from JWT token to user object for clerks, inspectors, assessors, and collectors
+          if ((user.role === 'clerk' || user.role === 'inspector' || user.role === 'assessor' || user.role === 'collector') && decoded.ward_ids) {
             user.dataValues.ward_ids = decoded.ward_ids;
           }
         }
@@ -183,8 +191,48 @@ export const requireWardAccess = (req, res, next) => {
       return next();
     }
 
-    // Collector can access ALL wards
+    // Assessor can access ONLY assigned wards (ward-filtered like clerk)
+    if (req.userType === 'user' && req.user.role === 'assessor') {
+      // Check if assessor has ward_ids from JWT token (similar to clerk/inspector)
+      // ward_ids can be in req.user.ward_ids or req.user.dataValues.ward_ids
+      const assessorWardIds = req.user.ward_ids || req.user.dataValues?.ward_ids;
+      if (!assessorWardIds || (Array.isArray(assessorWardIds) && assessorWardIds.length === 0)) {
+        return res.status(403).json({
+          message: 'Access denied. No wards assigned to assessor.'
+        });
+      }
+      // Add ward filter to request for use in controllers
+      req.wardFilter = {
+        id: {
+          [Op.in]: Array.isArray(assessorWardIds) ? assessorWardIds : [assessorWardIds]
+        }
+      };
+      return next();
+    }
+
+    // Cashier should NOT have shop/assessment access via requireWardAccess
+    // Cashier access is handled by authorize() on specific routes (payments only)
+    if (req.userType === 'user' && req.user.role === 'cashier') {
+      return res.status(403).json({
+        message: 'Access denied. Cashier role does not have access to this resource.'
+      });
+    }
+
+    // Collector can access ONLY assigned wards (ward-filtered like clerk and assessor)
     if (req.userType === 'admin_management' && req.user.role === 'collector') {
+      // Check if collector has ward_ids from JWT token
+      const collectorWardIds = req.user.ward_ids || req.user.dataValues?.ward_ids;
+      if (!collectorWardIds || (Array.isArray(collectorWardIds) && collectorWardIds.length === 0)) {
+        return res.status(403).json({
+          message: 'Access denied. No wards assigned to collector.'
+        });
+      }
+      // Add ward filter to request for use in controllers
+      req.wardFilter = {
+        id: {
+          [Op.in]: Array.isArray(collectorWardIds) ? collectorWardIds : [collectorWardIds]
+        }
+      };
       return next();
     }
 
@@ -259,9 +307,12 @@ export const validateWardAccess = (user, userType, wardId) => {
     return true;
   }
 
-  // Collector can access ALL wards
+  // Collector can access ONLY assigned wards
   if (userType === 'admin_management' && user.role === 'collector') {
-    return true;
+    if (!user.ward_ids || user.ward_ids.length === 0) {
+      return false;
+    }
+    return user.ward_ids.includes(wardId);
   }
 
   // Officer can access ALL wards

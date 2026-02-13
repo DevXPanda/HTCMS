@@ -15,7 +15,7 @@ const AdminLogin = () => {
     if (!authLoading && isAuthenticated) {
       const role = localStorage.getItem('role');
       const isAdminRole = role === 'admin' || role === 'assessor' || role === 'cashier';
-      
+
       if (isAdminRole) {
         navigate('/dashboard', { replace: true });
       } else if (role) {
@@ -31,8 +31,23 @@ const AdminLogin = () => {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      <div 
+        className="min-h-screen flex items-center justify-center relative"
+        style={{
+          backgroundImage: 'url(/background.png)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          backgroundAttachment: 'fixed',
+          minHeight: '100vh',
+          width: '100%'
+        }}
+      >
+        <div 
+          className="absolute inset-0 bg-black opacity-45"
+          style={{ zIndex: 0 }}
+        />
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 relative" style={{ zIndex: 1 }}></div>
       </div>
     );
   }
@@ -59,10 +74,10 @@ const AdminLogin = () => {
       if (result.success && result.user) {
         const loggedInUser = result.user;
         const role = loggedInUser.role; // Get exact role from backend response
-        
+
         // Validate that user has admin role - exact matching
         const isAdminRole = role === 'admin' || role === 'assessor' || role === 'cashier';
-        
+
         if (!isAdminRole) {
           toast.error('Access denied. This login is only for admin, assessor, or cashier.');
           // Clear auth data through AuthContext by using a dummy login call
@@ -70,9 +85,9 @@ const AdminLogin = () => {
           setLoading(false);
           return;
         }
-        
+
         toast.success('Login successful!');
-        
+
         // Redirect based on exact role
         if (role === 'admin' || role === 'assessor' || role === 'cashier') {
           navigate('/dashboard', { replace: true });
@@ -92,8 +107,24 @@ const AdminLogin = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 px-4">
-      <div className="max-w-md w-full">
+    <div 
+      className="min-h-screen flex items-center justify-center px-4 relative"
+      style={{
+        backgroundImage: 'url(/background.png)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed',
+        minHeight: '100vh',
+        width: '100%'
+      }}
+    >
+      {/* Dark overlay for better text readability */}
+      <div 
+        className="absolute inset-0 bg-black opacity-45"
+        style={{ zIndex: 0 }}
+      />
+      <div className="max-w-md w-full relative" style={{ zIndex: 1 }}>
         <div className="bg-white rounded-lg shadow-xl p-8">
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">

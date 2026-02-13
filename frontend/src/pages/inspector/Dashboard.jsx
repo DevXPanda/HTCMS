@@ -13,7 +13,9 @@ import {
   AlertCircle,
   Home,
   Building,
-  MapPin
+  MapPin,
+  Calendar,
+  RefreshCw
 } from 'lucide-react';
 import { useStaffAuth } from '../../contexts/StaffAuthContext';
 import { inspectorAPI } from '../../services/api';
@@ -156,27 +158,6 @@ const InspectorDashboard = () => {
     }
   ];
 
-  const quickActions = [
-    {
-      name: 'Property Inspections',
-      icon: FileText,
-      link: '/inspector/property-applications',
-      color: 'bg-blue-500'
-    },
-    {
-      name: 'Water Inspections',
-      icon: Droplet,
-      link: '/inspector/water-connections',
-      color: 'bg-cyan-500'
-    },
-    {
-      name: 'Recent Inspections',
-      icon: Clock,
-      link: '/inspector/recent-inspections',
-      color: 'bg-purple-500'
-    }
-  ];
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -222,25 +203,57 @@ const InspectorDashboard = () => {
     );
   }
 
+  // Quick Actions - All sidebar navigation items
+  const quickActions = [
+    { name: 'Property Inspections', icon: FileText, link: '/inspector/property-applications', color: 'bg-blue-600' },
+    { name: 'Water Inspections', icon: Droplet, link: '/inspector/water-connections', color: 'bg-cyan-600' },
+    { name: 'All Recent Inspections', icon: Eye, link: '/inspector/recent-inspections', color: 'bg-purple-600' },
+    { name: 'All Ward Properties', icon: Building, link: '/inspector/properties', color: 'bg-indigo-600' },
+    { name: 'My Attendance', icon: Calendar, link: '/inspector/attendance', color: 'bg-orange-600' },
+  ];
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 max-w-7xl mx-auto">
       {/* Page Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Inspector Dashboard</h1>
-          <p className="text-gray-600 mt-1">Welcome to Inspection Portal</p>
+          <h1 className="text-2xl font-bold text-gray-900">Inspector Dashboard</h1>
+          <p className="text-gray-500 text-sm">Inspection Portal & Management</p>
         </div>
         <button
           onClick={fetchDashboardData}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          className="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors shadow-sm flex items-center"
         >
-          Refresh
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Refresh Data
         </button>
       </div>
 
+      {/* Quick Actions Section */}
+      <section>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+          <TrendingUp className="w-5 h-5 mr-2 text-primary-600" />
+          Quick Actions
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {quickActions.map((action, index) => (
+            <Link
+              key={index}
+              to={action.link}
+              className="flex flex-col items-center justify-center p-5 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-primary-100 transition-all group"
+            >
+              <div className={`p-3 rounded-full ${action.color} text-white mb-3 shadow-sm group-hover:scale-110 transition-transform`}>
+                <action.icon className="h-6 w-6" />
+              </div>
+              <span className="text-sm font-medium text-gray-700 group-hover:text-primary-700 text-center">{action.name}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
       {/* Assigned Ward Information */}
       {wardInfo && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="bg-white rounded-lg border border-gray-100 p-6 bg-blue-50 border-blue-200">
           <div className="flex items-center">
             <MapPin className="h-5 w-5 text-blue-600 mr-3" />
             <div>
@@ -287,8 +300,8 @@ const InspectorDashboard = () => {
         ))}
       </div>
 
-      {/* Quick Actions */}
-      <div className="bg-white rounded-lg shadow p-6">
+      {/* Additional Quick Actions */}
+      <div className="bg-white rounded-lg border border-gray-100 p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {quickActions.map((action, index) => (
@@ -324,7 +337,7 @@ const InspectorDashboard = () => {
       </div>
 
       {/* Recent Inspections */}
-      <div className="bg-white rounded-lg shadow">
+      <div className="bg-white rounded-lg border border-gray-100 shadow">
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Recent Inspections</h2>
         </div>

@@ -165,3 +165,45 @@ export const uploadPaymentProof = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * @route   POST /api/upload/shop-registration-document
+ * @desc    Upload document for shop registration request (Citizen)
+ * @access  Private (Citizen, Admin, Clerk)
+ */
+export const uploadShopRegistrationDocument = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+    }
+
+    // Generate URL for the uploaded file
+    const fileUrl = `/uploads/${req.file.filename}`;
+    const fullUrl = `${req.protocol}://${req.get('host')}${fileUrl}`;
+
+    res.json({
+      success: true,
+      message: 'Document uploaded successfully',
+      data: {
+        url: fullUrl,
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      }
+    });
+  } catch (error) {
+    // Delete uploaded file on error
+    if (req.file && req.file.path) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (unlinkError) {
+        console.error('Error deleting file:', unlinkError);
+      }
+    }
+    next(error);
+  }
+};

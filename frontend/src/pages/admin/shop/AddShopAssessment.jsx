@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
+import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
 import { shopTaxAssessmentsAPI, shopsAPI } from '../../../services/api';
 import toast from 'react-hot-toast';
 import { ArrowLeft } from 'lucide-react';
 
 const AddShopAssessment = () => {
   const navigate = useNavigate();
+  const basePath = useShopTaxBasePath();
   const [loading, setLoading] = useState(false);
   const [shops, setShops] = useState([]);
   const [loadingShops, setLoadingShops] = useState(true);
@@ -50,7 +52,7 @@ const AddShopAssessment = () => {
       const response = await shopTaxAssessmentsAPI.create(payload);
       if (response.data.success) {
         toast.success('Shop tax assessment created successfully');
-        navigate('/shop-tax/assessments');
+        navigate(`${basePath}/shop-tax/assessments`);
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to create assessment');
@@ -71,7 +73,7 @@ const AddShopAssessment = () => {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
-          <Link to="/shop-tax/assessments" className="mr-4 text-primary-600 hover:text-primary-700">
+          <Link to={`${basePath}/shop-tax/assessments`} className="mr-4 text-primary-600 hover:text-primary-700">
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <h1 className="text-3xl font-bold text-gray-900">Create Shop Tax Assessment</h1>
@@ -182,7 +184,7 @@ const AddShopAssessment = () => {
           <button type="submit" disabled={loading} className="btn btn-primary">
             {loading ? 'Creating...' : 'Create Assessment'}
           </button>
-          <Link to="/shop-tax/assessments" className="btn btn-secondary">
+          <Link to={`${basePath}/shop-tax/assessments`} className="btn btn-secondary">
             Cancel
           </Link>
         </div>
