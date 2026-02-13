@@ -7,7 +7,7 @@
     ],
     "headers": [
         {
-            "source": "/(.*\\.(png|jpg|jpeg|gif|svg|ico|webp|css|js|woff|woff2|ttf|eot|json|xml|txt|pdf|map))",
+            "source": "/background.png",
             "headers": [
                 {
                     "key": "Cache-Control",

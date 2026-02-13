@@ -113,15 +113,15 @@ const AdminLogin = () => {
   return (
     <div 
       className="min-h-screen flex items-center justify-center px-4 relative"
-      style={{
-        backgroundImage: 'url(/background.png)',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-        backgroundAttachment: 'fixed',
-        minHeight: '100vh',
-        width: '100%'
-      }}
+        style={{
+          backgroundImage: `url(${backgroundImageUrl})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          backgroundAttachment: 'fixed',
+          minHeight: '100vh',
+          width: '100%'
+        }}
     >
       {/* Dark overlay for better text readability */}
       <div 
