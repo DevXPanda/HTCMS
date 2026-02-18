@@ -77,6 +77,14 @@ import EditShopAssessment from './pages/admin/shop/EditShopAssessment';
 import ShopRegistrationRequests from './pages/admin/shop/ShopRegistrationRequests';
 import ShopRegistrationRequestDetails from './pages/admin/shop/ShopRegistrationRequestDetails';
 import TaxManagement from './pages/admin/TaxManagement';
+import ToiletManagementModule from './pages/admin/toilet/ToiletManagementModule';
+import ToiletFacilities from './pages/admin/toilet/ToiletFacilities';
+import ToiletDetails from './pages/admin/toilet/ToiletDetails';
+import AddToilet from './pages/admin/toilet/AddToilet';
+import ToiletInspections from './pages/admin/toilet/ToiletInspections';
+import ToiletComplaints from './pages/admin/toilet/ToiletComplaints';
+import ToiletMaintenance from './pages/admin/toilet/ToiletMaintenance';
+import ToiletReports from './pages/admin/toilet/ToiletReports';
 
 // Citizen Pages
 import CitizenDashboard from './pages/citizen/CitizenDashboard';
@@ -213,6 +221,23 @@ function App() {
             <Route path="shop-tax/registration-requests" element={<ShopRegistrationRequests />} />
             <Route path="shop-registration-requests" element={<ShopRegistrationRequests />} />
             <Route path="shop-registration-requests/:id" element={<ShopRegistrationRequestDetails />} />
+
+            {/* Toilet Management Module */}
+            <Route path="toilet-management" element={<ToiletManagementModule />} />
+            <Route path="toilet-management/facilities" element={<ToiletFacilities />} />
+            <Route path="toilet-management/facilities/new" element={<AddToilet />} />
+            <Route path="toilet-management/facilities/:id" element={<ToiletDetails />} />
+            <Route path="toilet-management/facilities/:id/edit" element={<AddToilet />} />
+            <Route path="toilet-management/inspections" element={<ToiletInspections />} />
+            <Route path="toilet-management/inspections/new" element={<div className="p-6"><h1 className="text-2xl font-bold">Schedule Inspection</h1><p className="text-gray-600 mt-2">Inspection scheduling page - Coming soon</p></div>} />
+            <Route path="toilet-management/inspections/:id" element={<div className="p-6"><h1 className="text-2xl font-bold">Inspection Details</h1><p className="text-gray-600 mt-2">Inspection details page - Coming soon</p></div>} />
+            <Route path="toilet-management/complaints" element={<ToiletComplaints />} />
+            <Route path="toilet-management/complaints/:id" element={<div className="p-6"><h1 className="text-2xl font-bold">Complaint Details</h1><p className="text-gray-600 mt-2">Complaint details page - Coming soon</p></div>} />
+            <Route path="toilet-management/maintenance" element={<ToiletMaintenance />} />
+            <Route path="toilet-management/maintenance/new" element={<div className="p-6"><h1 className="text-2xl font-bold">Schedule Maintenance</h1><p className="text-gray-600 mt-2">Maintenance scheduling page - Coming soon</p></div>} />
+            <Route path="toilet-management/maintenance/:id" element={<div className="p-6"><h1 className="text-2xl font-bold">Maintenance Details</h1><p className="text-gray-600 mt-2">Maintenance details page - Coming soon</p></div>} />
+            <Route path="toilet-management/staff" element={<div className="p-6"><h1 className="text-2xl font-bold">Staff Assignment</h1><p className="text-gray-600 mt-2">Staff assignment page - Coming soon</p></div>} />
+            <Route path="toilet-management/reports" element={<ToiletReports />} />
 
             {/* Properties */}
             <Route path="properties" element={<Properties />} />

@@ -141,7 +141,7 @@ const Dashboard = () => {
   const quickActions = [
     { name: 'Tax Management', icon: FileText, link: '/tax-management', color: 'bg-blue-600' },
     { name: 'Gau Shala', icon: ScrollText, link: '/water/connections', color: 'bg-orange-600' },
-    { name: 'Toilet Management', icon: Bath, link: '/demands', color: 'bg-pink-600' },
+    { name: 'Toilet Management', icon: Bath, link: '/toilet-management', color: 'bg-pink-600' },
     { name: 'MRF', icon: ClipboardList, link: '/field-monitoring', color: 'bg-green-600' },
     { name: 'EO Management', icon: Store, link: '/field-worker-monitoring', color: 'bg-yellow-600' },
   ];
