@@ -192,6 +192,10 @@ const WardDetails = () => {
           <h2 className="text-xl font-semibold mb-4">Ward Information</h2>
           <dl className="space-y-3">
             <div>
+              <dt className="text-sm font-medium text-gray-500">ULB</dt>
+              <dd className="font-semibold">{ward.ulb ? ward.ulb.name : 'N/A'}</dd>
+            </div>
+            <div>
               <dt className="text-sm font-medium text-gray-500">Ward Number</dt>
               <dd className="text-lg font-semibold">{ward.wardNumber}</dd>
             </div>

@@ -69,6 +69,8 @@ const AdminSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
     },
     { path: '/attendance', label: 'Attendance', icon: Clock },
     { path: '/field-monitoring', label: 'Field Monitoring', icon: MapPin },
+    { path: '/field-worker-monitoring', label: 'Field Worker Monitoring', icon: LayoutDashboard },
+    { path: '/admin-field-worker-monitoring', label: 'Admin Field Monitoring', icon: Users },
     { path: '/reports', label: 'Reports', icon: BarChart3 },
     { path: '/audit-logs', label: 'Audit Logs', icon: Shield }
   ];

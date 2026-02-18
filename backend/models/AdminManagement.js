@@ -18,7 +18,7 @@ export const AdminManagement = sequelize.define('AdminManagement', {
     unique: true
   },
   role: {
-    type: DataTypes.ENUM('clerk', 'inspector', 'officer', 'collector'),
+    type: DataTypes.ENUM('CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'ADMIN'),
     allowNull: false
   },
   phone_number: {
@@ -48,6 +48,15 @@ export const AdminManagement = sequelize.define('AdminManagement', {
     allowNull: true,
     defaultValue: []
   },
+  assigned_ulb: { type: DataTypes.STRING(255), allowNull: true },
+  ulb_id: { type: DataTypes.UUID, allowNull: true, references: { model: 'ulbs', key: 'id' } },
+  ward_id: { type: DataTypes.INTEGER, allowNull: true, references: { model: 'wards', key: 'id' } },
+  eo_id: { type: DataTypes.INTEGER, allowNull: true, references: { model: 'admin_management', key: 'id' } },
+  contractor_id: { type: DataTypes.INTEGER, allowNull: true, references: { model: 'admin_management', key: 'id' } },
+  worker_type: { type: DataTypes.STRING(20), allowNull: true },
+  supervisor_id: { type: DataTypes.INTEGER, allowNull: true, references: { model: 'admin_management', key: 'id' } },
+  company_name: { type: DataTypes.STRING(255), allowNull: true },
+  contact_details: { type: DataTypes.TEXT, allowNull: true },
   status: {
     type: DataTypes.ENUM('active', 'inactive'),
     allowNull: false,
@@ -104,14 +113,22 @@ AdminManagement.prototype.getDisplayName = function () {
 
 // Static method to generate employee ID
 AdminManagement.generateEmployeeId = async (role, attempt = 1) => {
+  // Normalize role to uppercase for prefix lookup
+  const normalizedRole = role ? role.toUpperCase().replace(/-/g, '_') : role;
+  
   const prefixes = {
-    clerk: 'CLK',
-    inspector: 'INSP',
-    officer: 'OFF',
-    collector: 'COL'
+    CLERK: 'CLK',
+    INSPECTOR: 'INSP',
+    OFFICER: 'OFF',
+    COLLECTOR: 'COL',
+    EO: 'EO',
+    SUPERVISOR: 'SUP',
+    FIELD_WORKER: 'FW',
+    CONTRACTOR: 'CON',
+    ADMIN: 'ADM'
   };
 
-  const prefix = prefixes[role.toLowerCase()];
+  const prefix = prefixes[normalizedRole];
   if (!prefix) {
     throw new Error(`Invalid role: ${role}`);
   }
@@ -122,10 +139,10 @@ AdminManagement.generateEmployeeId = async (role, attempt = 1) => {
   }
 
   try {
-    // Get the count of existing employees with the same role
+    // Get the count of existing employees with the same role (normalize for comparison)
     const count = await AdminManagement.count({
       where: {
-        role: role.toLowerCase()
+        role: normalizedRole
       }
     });
 

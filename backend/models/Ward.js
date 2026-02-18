@@ -62,6 +62,11 @@ export const Ward = sequelize.define('Ward', {
   isActive: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
+  },
+  boundary_coordinates: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    comment: 'JSON array of [lat,lng] forming closed polygon for geo-fence'
   }
 }, {
   tableName: 'wards',

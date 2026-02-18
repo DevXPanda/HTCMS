@@ -6,12 +6,27 @@ import { parseDeviceInfo } from '../utils/deviceParser.js';
 
 /**
  * Generate JWT Token
+ * Includes role, ulb_id, ward_id, eo_id for proper filtering
  */
-const generateToken = (userId) => {
+const generateToken = (user) => {
   if (!process.env.JWT_SECRET) {
     throw new Error('JWT_SECRET is not configured. Please set it in your .env file.');
   }
-  return jwt.sign({ userId }, process.env.JWT_SECRET, {
+  
+  const tokenPayload = {
+    userId: user.id,
+    role: user.role || 'citizen' // Always include role
+  };
+  
+  // Include ULB and related fields if they exist
+  if (user.ulb_id) tokenPayload.ulb_id = user.ulb_id;
+  if (user.ward_id) tokenPayload.ward_id = user.ward_id;
+  if (user.eo_id) tokenPayload.eo_id = user.eo_id;
+  if (user.ward_ids && Array.isArray(user.ward_ids) && user.ward_ids.length > 0) {
+    tokenPayload.ward_ids = user.ward_ids;
+  }
+  
+  return jwt.sign(tokenPayload, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRE || '7d'
   });
 };
@@ -69,8 +84,8 @@ export const register = async (req, res, next) => {
       role: normalizedRole || undefined // Let model default handle if not provided
     });
 
-    // Generate token
-    const token = generateToken(user.id);
+    // Generate token with user data for filtering
+    const token = generateToken(user);
 
     // Sanitized user object with role field
     const sanitizedUser = {
@@ -124,10 +139,10 @@ export const login = async (req, res, next) => {
       ? { email: identifier }
       : { phone: identifier };
 
-    // Find user by email or phone - explicitly include role in attributes
+    // Find user by email or phone - include all fields needed for JWT token
     const user = await User.findOne({
       where: whereClause,
-      attributes: ['id', 'username', 'email', 'password', 'firstName', 'lastName', 'phone', 'role', 'isActive', 'lastLogin']
+      attributes: ['id', 'username', 'email', 'password', 'firstName', 'lastName', 'phone', 'role', 'isActive', 'lastLogin', 'ulb_id', 'ward_id', 'eo_id']
     });
 
     if (!user) {
@@ -158,8 +173,8 @@ export const login = async (req, res, next) => {
     // Update last login
     await user.update({ lastLogin: new Date() });
 
-    // Generate token
-    const token = generateToken(user.id);
+    // Generate token with user data for filtering
+    const token = generateToken(user);
 
     // Log login action
     await auditLogger.logLogin(req, user);

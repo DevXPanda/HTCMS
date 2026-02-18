@@ -215,7 +215,11 @@ export const auditLogAPI = {
 export const attendanceAPI = {
   getAll: (params) => api.get('/attendance', { params }),
   getById: (id) => api.get(`/attendance/${id}`),
-  getStats: (params) => api.get('/attendance/stats/summary', { params })
+  getStats: (params) => api.get('/attendance/stats/summary', { params }),
+  markWorkerAttendance: (formData) => api.post('/attendance/mark', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  markAllWorkersPresent: (data) => api.post('/attendance/mark-all', data)
 };
 
 // Field Visit API
@@ -257,6 +261,33 @@ export const fieldMonitoringAPI = {
   getFollowUps: (params) => api.get('/field-monitoring/follow-ups', { params }),
   getWards: () => api.get('/wards')
 };
+
+// Field Worker Monitoring API (Admin - EO list & EO dashboard; EO - own dashboard; Supervisor - own dashboard)
+export const fieldWorkerMonitoringAPI = {
+  getEoList: (params) => api.get('/field-worker-monitoring/eos', { params }),
+  getEoDashboard: (eoId, params) => api.get(`/field-worker-monitoring/eos/${eoId}/dashboard`, { params }),
+  getEoDashboardForSelf: () => api.get('/field-worker-monitoring/eo-dashboard'),
+  getPayrollPreview: (params) => api.get('/field-worker-monitoring/payroll-preview', { params }),
+  getSupervisorDashboardForSelf: () => api.get('/field-worker-monitoring/supervisor-dashboard'),
+  getAdminDashboard: (params) => api.get('/field-worker-monitoring/admin-dashboard', { params })
+};
+
+// Worker Task API (Supervisor - task assignment and management)
+export const workerTaskAPI = {
+  createTask: (data) => api.post('/worker-tasks', data),
+  getTasks: (params) => api.get('/worker-tasks', { params }),
+  updateTask: (taskId, data) => api.put(`/worker-tasks/${taskId}`, data),
+  uploadWorkProof: (taskId, formData) => api.put(`/worker-tasks/${taskId}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+};
+
+// Worker API (ADMIN, EO - worker account creation)
+export const workerAPI = {
+  createWorker: (data) => api.post('/workers', data),
+  getAllWorkers: (params) => api.get('/workers', { params })
+};
+
 
 // Water Connection API
 export const waterConnectionAPI = {

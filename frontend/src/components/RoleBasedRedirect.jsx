@@ -36,18 +36,25 @@ const RoleBasedRedirect = () => {
   const isInspectorRole = (role) => role === 'inspector';
   const isOfficerRole = (role) => role === 'officer';
 
+  // Normalize role to uppercase for comparison
+  const normalizedRole = role ? role.toUpperCase().replace(/-/g, '_') : role;
+
   // Redirect based on role - exact role matching
-  if (role === 'citizen') {
+  if (normalizedRole === 'CITIZEN') {
     return <Navigate to="/citizen/dashboard" replace />;
-  } else if (role === 'clerk') {
+  } else if (normalizedRole === 'CLERK') {
     return <Navigate to="/clerk/dashboard" replace />;
-  } else if (role === 'collector' || role === 'tax_collector') {
+  } else if (normalizedRole === 'COLLECTOR' || normalizedRole === 'TAX_COLLECTOR') {
     return <Navigate to="/collector/dashboard" replace />;
-  } else if (role === 'inspector') {
+  } else if (normalizedRole === 'INSPECTOR') {
     return <Navigate to="/inspector/dashboard" replace />;
-  } else if (role === 'officer') {
+  } else if (normalizedRole === 'OFFICER') {
     return <Navigate to="/officer/dashboard" replace />;
-  } else if (role === 'admin' || role === 'assessor' || role === 'cashier') {
+  } else if (normalizedRole === 'EO') {
+    return <Navigate to="/eo/dashboard" replace />;
+  } else if (normalizedRole === 'SUPERVISOR') {
+    return <Navigate to="/supervisor/dashboard" replace />;
+  } else if (normalizedRole === 'ADMIN' || normalizedRole === 'ASSESSOR' || normalizedRole === 'CASHIER') {
     return <Navigate to="/dashboard" replace />;
   }
 

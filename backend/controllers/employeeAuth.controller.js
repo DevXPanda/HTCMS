@@ -12,8 +12,10 @@ export const employeeLogout = async (req, res) => {
   try {
     const employee = req.user;
 
-    // Capture attendance for all staff roles (automatic punch out)
-    if (employee.role === 'collector' || employee.role === 'clerk' || employee.role === 'inspector' || employee.role === 'officer') {
+    // Normalize role to uppercase for comparison
+    const normalizedRole = employee.role ? employee.role.toUpperCase().replace(/-/g, '_') : employee.role;
+    const rolesWithAttendance = ['COLLECTOR', 'CLERK', 'INSPECTOR', 'OFFICER', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR'];
+    if (rolesWithAttendance.includes(normalizedRole)) {
       try {
         // Find active attendance session (no logout)
         const activeAttendance = await CollectorAttendance.findOne({
@@ -111,8 +113,11 @@ export const employeeLogin = async (req, res) => {
       last_login: new Date()
     });
 
-    // Create attendance record for all staff roles on login (clerk, inspector, officer, collector)
-    if (employee.role === 'collector' || employee.role === 'clerk' || employee.role === 'inspector' || employee.role === 'officer') {
+    // Create attendance record for all staff roles on login (including EO, Supervisor, Field Worker, Contractor)
+    // Normalize role to uppercase for comparison
+    const normalizedRole = employee.role ? employee.role.toUpperCase().replace(/-/g, '_') : employee.role;
+    const rolesWithAttendance = ['COLLECTOR', 'CLERK', 'INSPECTOR', 'OFFICER', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR'];
+    if (rolesWithAttendance.includes(normalizedRole)) {
       try {
         // Parse device information using the real device parser
         const deviceInfo = parseDeviceInfo(req);
@@ -155,22 +160,26 @@ export const employeeLogin = async (req, res) => {
       }
     }
 
-    // Generate JWT token
-    const token = jwt.sign(
-      {
-        userId: employee.id,
-        staff_id: employee.id, // Explicit staff_id field as requested
-        employee_id: employee.employee_id, // Include employee_id for reference
-        role: employee.role,
-        userType: 'admin_management',
-        ward_ids: employee.ward_ids // Include assigned wards (clerk: always one)
-        // JWT automatically adds iat (issued at) timestamp for uniqueness
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    // JWT: role and ward mapping (hierarchy: ADMIN → EO → SUPERVISOR → FIELD_WORKER)
+    // Always include role, ulb_id, ward_id, eo_id in JWT for proper filtering
+    const tokenPayload = {
+      userId: employee.id,
+      staff_id: employee.id,
+      employee_id: employee.employee_id,
+      role: employee.role, // Always include role
+      userType: 'admin_management',
+      ward_ids: employee.ward_ids || []
+    };
+    
+    // Always include these fields if they exist (for filtering)
+    if (employee.ulb_id) tokenPayload.ulb_id = employee.ulb_id;
+    if (employee.ward_id) tokenPayload.ward_id = employee.ward_id;
+    if (employee.eo_id) tokenPayload.eo_id = employee.eo_id;
+    if (employee.supervisor_id) tokenPayload.supervisor_id = employee.supervisor_id;
+    if (employee.contractor_id) tokenPayload.contractor_id = employee.contractor_id;
 
-    // Prepare response
+    const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: '24h' });
+
     const employeeData = {
       id: employee.id,
       employee_id: employee.employee_id,
@@ -178,7 +187,12 @@ export const employeeLogin = async (req, res) => {
       role: employee.role,
       email: employee.email,
       phone_number: employee.phone_number,
-      ward_ids: employee.ward_ids,
+      ward_ids: employee.ward_ids || [],
+      ward_id: employee.ward_id || null,
+      eo_id: employee.eo_id || null,
+      supervisor_id: employee.supervisor_id || null,
+      contractor_id: employee.contractor_id || null,
+      ulb_id: employee.ulb_id || null,
       status: employee.status,
       last_login: employee.last_login,
       password_changed: employee.password_changed
@@ -374,20 +388,23 @@ export const refreshEmployeeToken = async (req, res) => {
       });
     }
 
-    // Generate new token
-    const token = jwt.sign(
-      {
-        userId: employee.id,
-        staff_id: employee.id, // Explicit staff_id field as requested
-        employee_id: employee.employee_id, // Include employee_id for reference
-        role: employee.role,
-        userType: 'admin_management',
-        ward_ids: employee.ward_ids // Include assigned wards (clerk: always one)
-        // JWT automatically adds iat (issued at) timestamp for uniqueness
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    const tokenPayload = {
+      userId: employee.id,
+      staff_id: employee.id,
+      employee_id: employee.employee_id,
+      role: employee.role, // Always include role
+      userType: 'admin_management',
+      ward_ids: employee.ward_ids || []
+    };
+    
+    // Always include these fields if they exist (for filtering)
+    if (employee.ulb_id) tokenPayload.ulb_id = employee.ulb_id;
+    if (employee.ward_id) tokenPayload.ward_id = employee.ward_id;
+    if (employee.eo_id) tokenPayload.eo_id = employee.eo_id;
+    if (employee.supervisor_id) tokenPayload.supervisor_id = employee.supervisor_id;
+    if (employee.contractor_id) tokenPayload.contractor_id = employee.contractor_id;
+    
+    const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: '24h' });
 
     res.json({
       message: 'Token refreshed successfully',

@@ -45,9 +45,32 @@ export const authenticate = async (req, res, next) => {
         // Add role field for compatibility with existing authorization middleware
         user.dataValues.role = user.role;
 
-        // Copy ward_ids from JWT token to user object for clerks, inspectors, assessors, and collectors
-        if ((user.role === 'clerk' || user.role === 'inspector' || user.role === 'assessor' || user.role === 'collector') && decoded.ward_ids) {
+        // Copy all relevant fields from JWT token to user object
+        // Prefer JWT values, but fallback to database values if not in JWT
+        if (decoded.ward_ids) {
           user.dataValues.ward_ids = decoded.ward_ids;
+        } else if (user.ward_ids) {
+          user.dataValues.ward_ids = user.ward_ids;
+        }
+        if (decoded.ulb_id) {
+          user.dataValues.ulb_id = decoded.ulb_id;
+        } else if (user.ulb_id) {
+          user.dataValues.ulb_id = user.ulb_id;
+        }
+        if (decoded.ward_id) {
+          user.dataValues.ward_id = decoded.ward_id;
+        } else if (user.ward_id) {
+          user.dataValues.ward_id = user.ward_id;
+        }
+        if (decoded.eo_id) {
+          user.dataValues.eo_id = decoded.eo_id;
+        } else if (user.eo_id) {
+          user.dataValues.eo_id = user.eo_id;
+        }
+        if (decoded.supervisor_id) {
+          user.dataValues.supervisor_id = decoded.supervisor_id;
+        } else if (user.supervisor_id) {
+          user.dataValues.supervisor_id = user.supervisor_id;
         }
       } else {
         // Fallback to regular users table if not found in admin_management
@@ -57,9 +80,18 @@ export const authenticate = async (req, res, next) => {
 
         if (user) {
           userType = 'user';
-          // Copy ward_ids from JWT token for assessors (from users table)
-          if (user.role === 'assessor' && decoded.ward_ids) {
+          // Copy all relevant fields from JWT token
+          if (decoded.ward_ids) {
             user.dataValues.ward_ids = decoded.ward_ids;
+          }
+          if (decoded.ulb_id) {
+            user.dataValues.ulb_id = decoded.ulb_id;
+          }
+          if (decoded.ward_id) {
+            user.dataValues.ward_id = decoded.ward_id;
+          }
+          if (decoded.eo_id) {
+            user.dataValues.eo_id = decoded.eo_id;
           }
         }
       }
@@ -71,9 +103,27 @@ export const authenticate = async (req, res, next) => {
 
       if (user) {
         userType = 'user';
-        // Copy ward_ids from JWT token for assessors (from users table)
-        if (user.role === 'assessor' && decoded.ward_ids) {
+        // Copy all relevant fields from JWT token
+        // Prefer JWT values, but fallback to database values if not in JWT
+        if (decoded.ward_ids) {
           user.dataValues.ward_ids = decoded.ward_ids;
+        } else if (user.ward_ids) {
+          user.dataValues.ward_ids = user.ward_ids;
+        }
+        if (decoded.ulb_id) {
+          user.dataValues.ulb_id = decoded.ulb_id;
+        } else if (user.ulb_id) {
+          user.dataValues.ulb_id = user.ulb_id;
+        }
+        if (decoded.ward_id) {
+          user.dataValues.ward_id = decoded.ward_id;
+        } else if (user.ward_id) {
+          user.dataValues.ward_id = user.ward_id;
+        }
+        if (decoded.eo_id) {
+          user.dataValues.eo_id = decoded.eo_id;
+        } else if (user.eo_id) {
+          user.dataValues.eo_id = user.eo_id;
         }
       } else {
         // Fallback to admin_management table if not found in users
@@ -86,10 +136,33 @@ export const authenticate = async (req, res, next) => {
           // Add role field for compatibility with existing authorization middleware
           user.dataValues.role = user.role;
 
-          // Copy ward_ids from JWT token to user object for clerks, inspectors, assessors, and collectors
-          if ((user.role === 'clerk' || user.role === 'inspector' || user.role === 'assessor' || user.role === 'collector') && decoded.ward_ids) {
-            user.dataValues.ward_ids = decoded.ward_ids;
-          }
+        // Copy all relevant fields from JWT token to user object
+        // Prefer JWT values, but fallback to database values if not in JWT
+        if (decoded.ward_ids) {
+          user.dataValues.ward_ids = decoded.ward_ids;
+        } else if (user.ward_ids) {
+          user.dataValues.ward_ids = user.ward_ids;
+        }
+        if (decoded.ulb_id) {
+          user.dataValues.ulb_id = decoded.ulb_id;
+        } else if (user.ulb_id) {
+          user.dataValues.ulb_id = user.ulb_id;
+        }
+        if (decoded.ward_id) {
+          user.dataValues.ward_id = decoded.ward_id;
+        } else if (user.ward_id) {
+          user.dataValues.ward_id = user.ward_id;
+        }
+        if (decoded.eo_id) {
+          user.dataValues.eo_id = decoded.eo_id;
+        } else if (user.eo_id) {
+          user.dataValues.eo_id = user.eo_id;
+        }
+        if (decoded.supervisor_id) {
+          user.dataValues.supervisor_id = decoded.supervisor_id;
+        } else if (user.supervisor_id) {
+          user.dataValues.supervisor_id = user.supervisor_id;
+        }
         }
       }
     }
@@ -99,6 +172,18 @@ export const authenticate = async (req, res, next) => {
         message: 'Invalid token: User not found or account deleted',
         error: 'USER_NOT_FOUND'
       });
+    }
+
+    // Ensure ulb_id, ward_id, eo_id are available on req.user for filtering
+    // These may come from JWT token (already copied above) or from database
+    if (!user.dataValues.ulb_id && user.ulb_id) {
+      user.dataValues.ulb_id = user.ulb_id;
+    }
+    if (!user.dataValues.ward_id && user.ward_id) {
+      user.dataValues.ward_id = user.ward_id;
+    }
+    if (!user.dataValues.eo_id && user.eo_id) {
+      user.dataValues.eo_id = user.eo_id;
     }
 
     // Attach user and user type to request

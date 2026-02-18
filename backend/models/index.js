@@ -25,6 +25,12 @@ import { D2DCRecord } from './D2DCRecord.js';
 import { Shop } from './Shop.js';
 import { ShopTaxAssessment } from './ShopTaxAssessment.js';
 import { ShopRegistrationRequest } from './ShopRegistrationRequest.js';
+import { Worker } from './Worker.js';
+import { WorkerAttendance } from './WorkerAttendance.js';
+import { WorkerPayroll } from './WorkerPayroll.js';
+import { WorkerTask } from './WorkerTask.js';
+import { Alert } from './Alert.js';
+import { ULB } from './ULB.js';
 
 // Define Relationships
 
@@ -260,6 +266,13 @@ Property.hasOne(PropertyApplication, { foreignKey: 'approvedPropertyId', as: 'pr
 // AdminManagement Relationships
 AdminManagement.belongsTo(User, { foreignKey: 'created_by_admin_id', as: 'creator' });
 User.hasMany(AdminManagement, { foreignKey: 'created_by_admin_id', as: 'createdEmployees' });
+AdminManagement.belongsTo(Ward, { foreignKey: 'ward_id', as: 'ward' });
+AdminManagement.belongsTo(AdminManagement, { foreignKey: 'eo_id', as: 'eo' });
+AdminManagement.belongsTo(AdminManagement, { foreignKey: 'supervisor_id', as: 'supervisor' });
+AdminManagement.belongsTo(AdminManagement, { foreignKey: 'contractor_id', as: 'contractor' });
+AdminManagement.hasMany(AdminManagement, { foreignKey: 'eo_id', as: 'subordinates' });
+AdminManagement.hasMany(AdminManagement, { foreignKey: 'supervisor_id', as: 'fieldWorkers' });
+AdminManagement.hasMany(AdminManagement, { foreignKey: 'contractor_id', as: 'contractWorkers' });
 
 // D2DCRecord Relationships
 D2DCRecord.belongsTo(User, { foreignKey: 'collectorId', as: 'collector' });
@@ -297,6 +310,54 @@ User.hasMany(ShopRegistrationRequest, { foreignKey: 'applicantId', as: 'shopRegi
 User.hasMany(ShopRegistrationRequest, { foreignKey: 'reviewedBy', as: 'reviewedShopRegistrationRequests' });
 Shop.hasOne(ShopRegistrationRequest, { foreignKey: 'shopId', as: 'registrationRequest' });
 
+// Worker and WorkerAttendance (Field Worker Management)
+Worker.belongsTo(Ward, { foreignKey: 'ward_id', as: 'ward' });
+Worker.belongsTo(AdminManagement, { foreignKey: 'supervisor_id', as: 'supervisor' });
+Worker.belongsTo(AdminManagement, { foreignKey: 'eo_id', as: 'eo' });
+Worker.belongsTo(AdminManagement, { foreignKey: 'contractor_id', as: 'contractor' });
+Ward.hasMany(Worker, { foreignKey: 'ward_id', as: 'workers' });
+AdminManagement.hasMany(Worker, { foreignKey: 'eo_id', as: 'workersUnderEo' });
+AdminManagement.hasMany(Worker, { foreignKey: 'supervisor_id', as: 'workersUnderSupervisor' });
+AdminManagement.hasMany(Worker, { foreignKey: 'contractor_id', as: 'workersUnderContractor' });
+
+WorkerAttendance.belongsTo(Worker, { foreignKey: 'worker_id', as: 'worker' });
+WorkerAttendance.belongsTo(Ward, { foreignKey: 'ward_id', as: 'ward' });
+WorkerAttendance.belongsTo(AdminManagement, { foreignKey: 'supervisor_id', as: 'supervisor' });
+WorkerAttendance.belongsTo(AdminManagement, { foreignKey: 'eo_id', as: 'eo' });
+Worker.hasMany(WorkerAttendance, { foreignKey: 'worker_id', as: 'attendances' });
+
+WorkerPayroll.belongsTo(Worker, { foreignKey: 'worker_id', as: 'worker' });
+WorkerPayroll.belongsTo(AdminManagement, { foreignKey: 'eo_verified_by', as: 'eoVerifiedBy' });
+WorkerPayroll.belongsTo(AdminManagement, { foreignKey: 'admin_approved_by', as: 'adminApprovedBy' });
+Worker.hasMany(WorkerPayroll, { foreignKey: 'worker_id', as: 'payrolls' });
+AdminManagement.hasMany(WorkerPayroll, { foreignKey: 'eo_verified_by', as: 'payrollsVerifiedByEo' });
+AdminManagement.hasMany(WorkerPayroll, { foreignKey: 'admin_approved_by', as: 'payrollsApprovedByAdmin' });
+
+WorkerTask.belongsTo(Worker, { foreignKey: 'worker_id', as: 'worker' });
+WorkerTask.belongsTo(AdminManagement, { foreignKey: 'supervisor_id', as: 'supervisor' });
+WorkerTask.belongsTo(Ward, { foreignKey: 'ward_id', as: 'ward' });
+WorkerTask.belongsTo(ULB, { foreignKey: 'ulb_id', as: 'ulb' });
+Worker.hasMany(WorkerTask, { foreignKey: 'worker_id', as: 'tasks' });
+AdminManagement.hasMany(WorkerTask, { foreignKey: 'supervisor_id', as: 'assignedTasks' });
+Ward.hasMany(WorkerTask, { foreignKey: 'ward_id', as: 'tasks' });
+ULB.hasMany(WorkerTask, { foreignKey: 'ulb_id', as: 'tasks' });
+
+Alert.belongsTo(AdminManagement, { foreignKey: 'eo_id', as: 'eo' });
+Alert.belongsTo(Ward, { foreignKey: 'ward_id', as: 'ward' });
+AdminManagement.hasMany(Alert, { foreignKey: 'eo_id', as: 'alertsUnderEo' });
+
+// ULB Relationships
+ULB.hasMany(User, { foreignKey: 'ulb_id', as: 'users' });
+ULB.hasMany(Ward, { foreignKey: 'ulb_id', as: 'wards' });
+ULB.hasMany(Worker, { foreignKey: 'ulb_id', as: 'workers' });
+ULB.hasMany(WorkerAttendance, { foreignKey: 'ulb_id', as: 'workerAttendances' });
+ULB.hasMany(AdminManagement, { foreignKey: 'ulb_id', as: 'staff' });
+User.belongsTo(ULB, { foreignKey: 'ulb_id', as: 'ulb' });
+Ward.belongsTo(ULB, { foreignKey: 'ulb_id', as: 'ulb' });
+Worker.belongsTo(ULB, { foreignKey: 'ulb_id', as: 'ulb' });
+WorkerAttendance.belongsTo(ULB, { foreignKey: 'ulb_id', as: 'ulb' });
+AdminManagement.belongsTo(ULB, { foreignKey: 'ulb_id', as: 'ulb' });
+
 export {
   User,
   Property,
@@ -324,5 +385,11 @@ export {
   D2DCRecord,
   Shop,
   ShopTaxAssessment,
-  ShopRegistrationRequest
+  ShopRegistrationRequest,
+  Worker,
+  WorkerAttendance,
+  WorkerPayroll,
+  WorkerTask,
+  Alert,
+  ULB
 };

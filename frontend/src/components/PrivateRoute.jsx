@@ -16,7 +16,9 @@ const PrivateRoute = ({ children, allowedRoles }) => {
   const isStaffRoute = location.pathname.startsWith('/collector') ||
     location.pathname.startsWith('/clerk') ||
     location.pathname.startsWith('/inspector') ||
-    location.pathname.startsWith('/officer');
+    location.pathname.startsWith('/officer') ||
+    location.pathname.startsWith('/eo') ||
+    location.pathname.startsWith('/supervisor');
   const isAuthenticated = isStaffRoute && staffAuth ? staffAuth.isAuthenticated : isUserAuthenticated;
   const loading = isStaffRoute && staffAuth ? staffAuth.loading : userLoading;
 
@@ -44,7 +46,7 @@ const PrivateRoute = ({ children, allowedRoles }) => {
       return <Navigate to="/staff/login" replace />;
     } else if (pathname.startsWith('/inspector')) {
       return <Navigate to="/inspector/login" replace />;
-    } else if (pathname.startsWith('/clerk') || pathname.startsWith('/officer')) {
+    } else if (pathname.startsWith('/clerk') || pathname.startsWith('/officer') || pathname.startsWith('/eo') || pathname.startsWith('/supervisor')) {
       return <Navigate to="/staff/login" replace />;
     } else {
       return <Navigate to="/citizen/login" replace />;
@@ -63,7 +65,7 @@ const PrivateRoute = ({ children, allowedRoles }) => {
       return <Navigate to="/staff/login" replace />;
     } else if (pathname.startsWith('/inspector')) {
       return <Navigate to="/inspector/login" replace />;
-    } else if (pathname.startsWith('/clerk') || pathname.startsWith('/officer')) {
+    } else if (pathname.startsWith('/clerk') || pathname.startsWith('/officer') || pathname.startsWith('/eo') || pathname.startsWith('/supervisor')) {
       return <Navigate to="/staff/login" replace />;
     } else {
       return <Navigate to="/citizen/login" replace />;
@@ -72,11 +74,19 @@ const PrivateRoute = ({ children, allowedRoles }) => {
 
   // Check if role is in allowedRoles array
   if (allowedRoles && Array.isArray(allowedRoles)) {
-    // Normalize role for comparison (handle both 'collector' and 'tax_collector')
-    const normalizedRole = role === 'tax_collector' ? 'collector' : role;
-    const normalizedAllowedRoles = allowedRoles.map(r => r === 'tax_collector' ? 'collector' : r);
+    // Normalize role to uppercase for comparison
+    const normalizedRole = role ? role.toUpperCase().replace(/-/g, '_') : role;
+    // Normalize allowed roles to uppercase and handle special cases
+    const normalizedAllowedRoles = allowedRoles.map(r => {
+      const normalized = r.toUpperCase().replace(/-/g, '_');
+      // Handle tax_collector -> COLLECTOR mapping
+      return normalized === 'TAX_COLLECTOR' ? 'COLLECTOR' : normalized;
+    });
     
-    if (!normalizedAllowedRoles.includes(normalizedRole)) {
+    // Handle special case: tax_collector -> COLLECTOR
+    const finalRole = normalizedRole === 'TAX_COLLECTOR' ? 'COLLECTOR' : normalizedRole;
+    
+    if (!normalizedAllowedRoles.includes(finalRole)) {
       // User doesn't have required role - redirect to unauthorized or their dashboard
       return <Navigate to="/unauthorized" replace />;
     }

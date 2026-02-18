@@ -117,6 +117,13 @@ const Wards = () => {
               </div>
 
               <div className="space-y-2 mb-4">
+                {ward.ulb && (
+                  <div className="flex items-center text-sm">
+                    <MapPin className="w-4 h-4 mr-2 text-gray-400" />
+                    <span className="text-gray-600">ULB:</span>
+                    <span className="ml-2 font-medium">{ward.ulb.name}</span>
+                  </div>
+                )}
                 <div className="flex items-center text-sm">
                   <Users className="w-4 h-4 mr-2 text-gray-400" />
                   <span className="text-gray-600">Collector:</span>

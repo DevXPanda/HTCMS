@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { wardAPI, userAPI } from '../../../services/api';
+import api from '../../../services/api';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Save } from 'lucide-react';
 
@@ -10,6 +11,8 @@ const AddWard = () => {
   const [loading, setLoading] = useState(false);
   const [collectors, setCollectors] = useState([]);
   const [loadingCollectors, setLoadingCollectors] = useState(true);
+  const [ulbs, setUlbs] = useState([]);
+  const [loadingUlbs, setLoadingUlbs] = useState(true);
 
   const {
     register,
@@ -19,6 +22,7 @@ const AddWard = () => {
 
   useEffect(() => {
     fetchCollectors();
+    fetchULBs();
   }, []);
 
   const fetchCollectors = async () => {
@@ -33,6 +37,18 @@ const AddWard = () => {
     }
   };
 
+  const fetchULBs = async () => {
+    try {
+      setLoadingUlbs(true);
+      const response = await api.get('/admin-management/ulbs');
+      setUlbs(response.data || []);
+    } catch (error) {
+      toast.error('Failed to load ULBs');
+    } finally {
+      setLoadingUlbs(false);
+    }
+  };
+
   const onSubmit = async (data) => {
     try {
       setLoading(true);
@@ -40,7 +56,8 @@ const AddWard = () => {
         wardNumber: data.wardNumber,
         wardName: data.wardName,
         description: data.description || null,
-        collectorId: data.collectorId ? parseInt(data.collectorId) : null
+        collectorId: data.collectorId ? parseInt(data.collectorId) : null,
+        ulb_id: data.ulb_id
       });
 
       if (response.data.success) {
@@ -54,7 +71,7 @@ const AddWard = () => {
     }
   };
 
-  if (loadingCollectors) {
+  if (loadingCollectors || loadingUlbs) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
@@ -74,6 +91,33 @@ const AddWard = () => {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="card space-y-6 max-w-2xl">
+        <div>
+          <label className="label">
+            ULB <span className="text-red-500">*</span>
+          </label>
+          <select
+            {...register('ulb_id', { required: 'ULB is required' })}
+            className="input"
+            disabled={loadingUlbs}
+          >
+            <option value="">Select ULB</option>
+            {loadingUlbs ? (
+              <option disabled>Loading ULBs...</option>
+            ) : ulbs.length === 0 ? (
+              <option disabled>No ULBs available</option>
+            ) : (
+              ulbs.map(ulb => (
+                <option key={ulb.id} value={ulb.id}>
+                  {ulb.name}
+                </option>
+              ))
+            )}
+          </select>
+          {errors.ulb_id && (
+            <p className="text-red-500 text-sm mt-1">{errors.ulb_id.message}</p>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="label">

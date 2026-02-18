@@ -87,13 +87,13 @@ export const getFieldDashboard = async (req, res, next) => {
     // Get all field staff (collectors, inspectors, clerks, officers)
     const fieldStaff = await AdminManagement.findAll({
       where: {
-        role: ['collector', 'inspector', 'clerk', 'officer']
+        role: ['COLLECTOR', 'INSPECTOR', 'CLERK', 'OFFICER']
       }
     });
 
     const collectorStats = await Promise.all(
       fieldStaff
-        .filter(staff => staff.role === 'collector')
+        .filter(staff => staff.role === 'COLLECTOR')
         .map(async (staff) => {
           const collectorVisitWhere = {
             ...visitWhere,

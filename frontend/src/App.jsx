@@ -10,6 +10,8 @@ import CollectorLayout from './components/CollectorLayout';
 import ClerkLayout from './components/ClerkLayout';
 import InspectorLayout from './components/InspectorLayout';
 import OfficerLayout from './components/OfficerLayout';
+import EoLayout from './components/EoLayout';
+import SupervisorLayout from './components/SupervisorLayout';
 import RoleBasedRedirect from './components/RoleBasedRedirect';
 import D2DCModule from './pages/admin/d2dc/D2DCModule';
 
@@ -50,6 +52,10 @@ import Reports from './pages/admin/reports/Reports';
 import AuditLogs from './pages/admin/auditLogs/AuditLogs';
 import Attendance from './pages/admin/attendance/Attendance';
 import FieldMonitoring from './pages/admin/fieldMonitoring/FieldMonitoring';
+import FieldWorkerMonitoring from './pages/admin/FieldWorkerMonitoring';
+import FieldWorkerEoDashboard from './pages/admin/FieldWorkerEoDashboard';
+import AdminFieldWorkerMonitoring from './pages/admin/AdminFieldWorkerMonitoring';
+import EOManagement from './pages/admin/EOManagement';
 import WaterConnections from './pages/admin/water/WaterConnections';
 import WaterConnectionDetails from './pages/admin/water/WaterConnectionDetails';
 import WaterBills from './pages/admin/water/WaterBills';
@@ -131,6 +137,9 @@ import InspectorPropertyDetails from './pages/inspector/PropertyDetails';
 import InspectorAttendance from './pages/inspector/Attendance';
 
 // Officer Pages
+import EoDashboard from './pages/eo/EoDashboard';
+import WorkerManagement from './pages/eo/WorkerManagement';
+import SupervisorDashboard from './pages/supervisor/SupervisorDashboard';
 import OfficerDashboard from './pages/officer/OfficerDashboard';
 import OfficerPropertyApplications from './pages/officer/PropertyApplications';
 import OfficerWaterRequests from './pages/officer/WaterRequests';
@@ -256,6 +265,14 @@ function App() {
             {/* Field Monitoring */}
             <Route path="field-monitoring" element={<FieldMonitoring />} />
 
+            {/* Field Worker Monitoring (EO list + EO dashboard) */}
+            <Route path="field-worker-monitoring" element={<FieldWorkerMonitoring />} />
+            <Route path="field-worker-monitoring/eos/:eoId/dashboard" element={<FieldWorkerEoDashboard />} />
+            {/* EO Management (EO list with ULB filter) */}
+            <Route path="eo-management" element={<EOManagement />} />
+            {/* Admin Field Worker Monitoring (Full ULB level monitoring) */}
+            <Route path="admin-field-worker-monitoring" element={<AdminFieldWorkerMonitoring />} />
+
             {/* Water Tax Module */}
             <Route path="water/connections" element={<WaterConnections />} />
             <Route path="water/connections/:id" element={<WaterConnectionDetails />} />
@@ -362,6 +379,37 @@ function App() {
             <Route path="properties" element={<InspectorProperties />} />
             <Route path="properties/:id" element={<InspectorPropertyDetails />} />
             <Route path="attendance" element={<InspectorAttendance />} />
+          </Route>
+
+          {/* Protected Routes - EO Portal */}
+          <Route
+            path="/eo"
+            element={
+              <StaffAuthProvider>
+                <PrivateRoute allowedRoles={['eo', 'EO']}>
+                  <EoLayout />
+                </PrivateRoute>
+              </StaffAuthProvider>
+            }
+          >
+            <Route index element={<Navigate to="/eo/dashboard" replace />} />
+            <Route path="dashboard" element={<EoDashboard />} />
+            <Route path="workers" element={<WorkerManagement />} />
+          </Route>
+
+          {/* Protected Routes - Supervisor Portal */}
+          <Route
+            path="/supervisor"
+            element={
+              <StaffAuthProvider>
+                <PrivateRoute allowedRoles={['supervisor', 'SUPERVISOR']}>
+                  <SupervisorLayout />
+                </PrivateRoute>
+              </StaffAuthProvider>
+            }
+          >
+            <Route index element={<Navigate to="/supervisor/dashboard" replace />} />
+            <Route path="dashboard" element={<SupervisorDashboard />} />
           </Route>
 
           {/* Protected Routes - Officer Portal */}

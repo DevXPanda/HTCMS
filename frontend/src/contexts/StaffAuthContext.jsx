@@ -37,9 +37,11 @@ export const StaffAuthProvider = ({ children }) => {
 
       // Skip staff auth check for non-staff roles
       const storedRole = localStorage.getItem('role');
-      const staffRoles = ['clerk', 'inspector', 'officer', 'collector', 'tax_collector'];
+      // Normalize role to uppercase for comparison
+      const normalizedStoredRole = storedRole ? storedRole.toUpperCase().replace(/-/g, '_') : storedRole;
+      const staffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'TAX_COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR'];
 
-      if (storedRole && !staffRoles.includes(storedRole)) {
+      if (normalizedStoredRole && !staffRoles.includes(normalizedStoredRole)) {
         console.log(`ℹ️ StaffAuthContext - Skipping staff auth for role: ${storedRole}`);
         setLoading(false);
         return;
@@ -100,8 +102,11 @@ export const StaffAuthProvider = ({ children }) => {
     try {
       console.log('🔑 StaffAuthContext - Logging out staff user...');
 
+      // Normalize role to uppercase for comparison
+      const normalizedRole = user?.role ? user.role.toUpperCase().replace(/-/g, '_') : user?.role;
+      
       // Call backend logout API to update attendance
-      if (user?.role === 'collector') {
+      if (normalizedRole === 'COLLECTOR') {
         console.log('📝 StaffAuthContext - Calling staff logout for collector attendance...');
         await staffAuthAPI.logout();
       } else {

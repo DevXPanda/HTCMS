@@ -20,18 +20,27 @@ const StaffLogin = () => {
     const role = localStorage.getItem('role');
     
     if (token && role) {
+      // Normalize role to uppercase for comparison
+      const normalizedRole = role.toUpperCase().replace(/-/g, '_');
+      
       // Redirect staff users to their respective dashboards
-      if (role === 'clerk') {
+      if (normalizedRole === 'CLERK') {
         navigate('/clerk/dashboard', { replace: true });
-      } else if (role === 'inspector') {
+      } else if (normalizedRole === 'INSPECTOR') {
         navigate('/inspector/dashboard', { replace: true });
-      } else if (role === 'officer') {
+      } else if (normalizedRole === 'OFFICER') {
         navigate('/officer/dashboard', { replace: true });
-      } else if (role === 'collector') {
+      } else if (normalizedRole === 'COLLECTOR') {
         navigate('/collector/dashboard', { replace: true });
-      } else if (role === 'admin' || role === 'assessor' || role === 'cashier') {
+      } else if (normalizedRole === 'EO') {
+        navigate('/eo/dashboard', { replace: true });
+      } else if (normalizedRole === 'SUPERVISOR') {
+        navigate('/supervisor/dashboard', { replace: true });
+      } else if (normalizedRole === 'FIELD_WORKER') {
+        navigate('/field-worker/dashboard', { replace: true });
+      } else if (normalizedRole === 'ADMIN' || normalizedRole === 'ASSESSOR' || normalizedRole === 'CASHIER') {
         navigate('/dashboard', { replace: true });
-      } else if (role === 'citizen') {
+      } else if (normalizedRole === 'CITIZEN') {
         // Citizen trying to access staff login - redirect to citizen login
         navigate('/citizen/login', { replace: true });
       }
@@ -56,17 +65,28 @@ const StaffLogin = () => {
       }
 
       const { role } = result.user;
+      
+      // Normalize role to uppercase for comparison
+      const normalizedRole = role ? role.toUpperCase().replace(/-/g, '_') : role;
 
       toast.success('Login successful!');
 
-      if (role === 'clerk') {
+      if (normalizedRole === 'CLERK') {
         navigate('/clerk/dashboard', { replace: true });
-      } else if (role === 'inspector') {
+      } else if (normalizedRole === 'INSPECTOR') {
         navigate('/inspector/dashboard', { replace: true });
-      } else if (role === 'officer') {
+      } else if (normalizedRole === 'OFFICER') {
         navigate('/officer/dashboard', { replace: true });
-      } else if (role === 'collector') {
+      } else if (normalizedRole === 'COLLECTOR') {
         navigate('/collector/dashboard', { replace: true });
+      } else if (normalizedRole === 'EO') {
+        navigate('/eo/dashboard', { replace: true });
+      } else if (normalizedRole === 'SUPERVISOR') {
+        navigate('/supervisor/dashboard', { replace: true });
+      } else if (normalizedRole === 'FIELD_WORKER') {
+        navigate('/field-worker/dashboard', { replace: true });
+      } else if (normalizedRole === 'CONTRACTOR') {
+        navigate('/contractor/dashboard', { replace: true });
       } else {
         toast.error('Invalid role for staff portal');
         setLoading(false);
@@ -164,7 +184,7 @@ const StaffLogin = () => {
           <div className="mt-6 text-center">
             <div className="flex items-center justify-center gap-2 text-sm text-gray-600 mb-3">
               <Users className="w-4 h-4" />
-              <span>Staff Roles: Clerk, Inspector, Officer, Collector</span>
+              <span>Staff Roles: Clerk, Inspector, Officer, Collector, EO</span>
             </div>
           </div>
 

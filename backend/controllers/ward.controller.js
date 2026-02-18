@@ -1,8 +1,9 @@
-import { Ward, User, Property, Demand, DemandItem, Payment } from '../models/index.js';
+import { Ward, User, Property, Demand, DemandItem, Payment, ULB } from '../models/index.js';
 import { AdminManagement } from '../models/AdminManagement.js';
 import { Op } from 'sequelize';
 import { auditLogger } from '../utils/auditLogger.js';
 import { wardAccessControl, specificWardAccess } from '../middleware/wardAccess.js';
+import { injectUlbFilter } from '../middleware/ulbFilter.js';
 
 /**
  * @route   GET /api/wards
@@ -19,6 +20,11 @@ export const getAllWards = async (req, res, next) => {
     if (req.wardFilter) {
       Object.assign(where, req.wardFilter);
     }
+    
+    // Apply ULB filter using reusable helper (for non-admin users)
+    // This ensures all queries are filtered by ulb_id
+    const ulbFilteredWhere = injectUlbFilter(where, req);
+    Object.assign(where, ulbFilteredWhere);
 
     // Support filtering by specific IDs (for inspector dashboard)
     if (ids) {
@@ -43,6 +49,12 @@ export const getAllWards = async (req, res, next) => {
           model: AdminManagement,
           as: 'collector',
           attributes: ['id', 'full_name', 'email', 'phone_number']
+        },
+        {
+          model: ULB,
+          as: 'ulb',
+          attributes: ['id', 'name', 'state', 'district'],
+          required: false
         }
       ],
       order: [['wardNumber', 'ASC']]
@@ -89,6 +101,11 @@ export const getWardById = async (req, res, next) => {
           attributes: ['id', 'full_name', 'email', 'phone_number']
         },
         {
+          model: ULB,
+          as: 'ulb',
+          attributes: ['id', 'name', 'state', 'district']
+        },
+        {
           model: Property,
           as: 'properties',
           include: [
@@ -121,7 +138,24 @@ export const getWardById = async (req, res, next) => {
  */
 export const createWard = async (req, res, next) => {
   try {
-    const { wardNumber, wardName, description, collectorId } = req.body;
+    const { wardNumber, wardName, description, collectorId, ulb_id } = req.body;
+
+    // Validate ULB is provided
+    if (!ulb_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'ULB is required'
+      });
+    }
+
+    // Validate ULB exists
+    const ulb = await ULB.findByPk(ulb_id);
+    if (!ulb) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid ULB ID'
+      });
+    }
 
     // Check if ward number already exists
     const existingWard = await Ward.findOne({
@@ -150,7 +184,8 @@ export const createWard = async (req, res, next) => {
       wardNumber,
       wardName,
       description,
-      collectorId
+      collectorId,
+      ulb_id
     });
 
     const createdWard = await Ward.findByPk(ward.id, {
@@ -159,6 +194,11 @@ export const createWard = async (req, res, next) => {
           model: AdminManagement,
           as: 'collector',
           attributes: ['id', 'full_name', 'email', 'phone_number']
+        },
+        {
+          model: ULB,
+          as: 'ulb',
+          attributes: ['id', 'name', 'state', 'district']
         }
       ]
     });
@@ -169,7 +209,7 @@ export const createWard = async (req, res, next) => {
       req.user,
       'Ward',
       ward.id,
-      { wardNumber: ward.wardNumber, wardName: ward.wardName, collectorId: ward.collectorId },
+      { wardNumber: ward.wardNumber, wardName: ward.wardName, collectorId: ward.collectorId, ulb_id: ward.ulb_id },
       `Created ward: ${ward.wardNumber} - ${ward.wardName}`
     );
 
@@ -191,7 +231,7 @@ export const createWard = async (req, res, next) => {
 export const updateWard = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { wardName, description, collectorId } = req.body;
+    const { wardName, description, collectorId, ulb_id } = req.body;
 
     const ward = await Ward.findByPk(id);
     if (!ward) {
@@ -201,10 +241,22 @@ export const updateWard = async (req, res, next) => {
       });
     }
 
+    // Validate ULB if provided
+    if (ulb_id) {
+      const ulb = await ULB.findByPk(ulb_id);
+      if (!ulb) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid ULB ID'
+        });
+      }
+    }
+
     // Capture previous data for audit log
     const previousData = {
       wardName: ward.wardName,
-      collectorId: ward.collectorId
+      collectorId: ward.collectorId,
+      ulb_id: ward.ulb_id
     };
 
     // Validate collector if provided
@@ -225,13 +277,17 @@ export const updateWard = async (req, res, next) => {
     if (collectorId !== undefined) {
       ward.collectorId = collectorId;
     }
+    if (ulb_id !== undefined) {
+      ward.ulb_id = ulb_id;
+    }
 
     await ward.save();
 
     // Log based on what changed
     const newData = {
       wardName: ward.wardName,
-      collectorId: ward.collectorId
+      collectorId: ward.collectorId,
+      ulb_id: ward.ulb_id
     };
 
     if (isCollectorAssignment) {

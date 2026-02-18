@@ -3,10 +3,11 @@ import {
   Building2, Users, FileText, DollarSign, TrendingUp,
   AlertCircle, CheckCircle, Clock, Truck, Bath, MapPin,
   Shield, BarChart3, Droplet, UserCog, ClipboardList,
-  Store, ScrollText
+  Store, ScrollText, Filter, Percent, AlertTriangle
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
+import { fieldWorkerMonitoringAPI } from '../../services/api';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -36,10 +37,28 @@ const Dashboard = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Field Worker Monitoring Analytics
+  const [fieldWorkerStats, setFieldWorkerStats] = useState({
+    total_workers: 0,
+    present_today: 0,
+    attendance_percentage: 0,
+    payroll_summary: { total_amount: 0, workers_count: 0 },
+    contractor_compliance: 0,
+    geo_violations: 0
+  });
+  const [ulbs, setUlbs] = useState([]);
+  const [selectedUlbId, setSelectedUlbId] = useState('');
+  const [loadingFieldWorkers, setLoadingFieldWorkers] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
+    fetchULBs();
   }, []);
+
+  useEffect(() => {
+    fetchFieldWorkerAnalytics();
+  }, [selectedUlbId]);
 
   const fetchDashboardData = async () => {
     try {
@@ -54,13 +73,77 @@ const Dashboard = () => {
     }
   };
 
+  const fetchULBs = async () => {
+    try {
+      const response = await api.get('/admin-management/ulbs');
+      if (response.data) {
+        setUlbs(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch ULBs:', error);
+    }
+  };
+
+  const fetchFieldWorkerAnalytics = async () => {
+    try {
+      setLoadingFieldWorkers(true);
+      const params = {};
+      if (selectedUlbId) {
+        params.ulb_id = selectedUlbId;
+      }
+      
+      const response = await fieldWorkerMonitoringAPI.getAdminDashboard(params);
+      if (response?.data?.success && response.data.data) {
+        const data = response.data.data;
+        const attendanceSummary = data.attendance_summary || {};
+        const totalWorkers = attendanceSummary.total_workers || 0;
+        const presentToday = attendanceSummary.present_today || 0;
+        const attendancePct = totalWorkers > 0 
+          ? Math.round((presentToday / totalWorkers) * 100) 
+          : 0;
+
+        // Calculate payroll summary
+        const payrollPreview = data.payroll_preview || [];
+        const payrollTotal = payrollPreview.reduce((sum, item) => sum + (item.total_amount || 0), 0);
+
+        // Calculate contractor compliance
+        const contractorPerformance = data.contractor_performance || [];
+        const avgCompliance = contractorPerformance.length > 0
+          ? Math.round(
+              contractorPerformance.reduce((sum, item) => sum + (item.compliance_pct || 0), 0) /
+              contractorPerformance.length
+            )
+          : 100;
+
+        // Geo violations count
+        const geoViolations = data.geo_violations?.length || 0;
+
+        setFieldWorkerStats({
+          total_workers: totalWorkers,
+          present_today: presentToday,
+          attendance_percentage: attendancePct,
+          payroll_summary: {
+            total_amount: payrollTotal,
+            workers_count: payrollPreview.length
+          },
+          contractor_compliance: avgCompliance,
+          geo_violations: geoViolations
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch field worker analytics:', error);
+    } finally {
+      setLoadingFieldWorkers(false);
+    }
+  };
+
   // 1. Primary Navigation: Quick Actions (Tax + Utility)
   const quickActions = [
     { name: 'Tax Management', icon: FileText, link: '/tax-management', color: 'bg-blue-600' },
     { name: 'Gau Shala', icon: ScrollText, link: '/water/connections', color: 'bg-orange-600' },
     { name: 'Toilet Management', icon: Bath, link: '/demands', color: 'bg-pink-600' },
     { name: 'MRF', icon: ClipboardList, link: '/field-monitoring', color: 'bg-green-600' },
-    { name: 'EO Management', icon: Store, link: '/shop-tax', color: 'bg-yellow-600' },
+    { name: 'EO Management', icon: Store, link: '/field-worker-monitoring', color: 'bg-yellow-600' },
   ];
 
   // 2. Global Metrics (System Health) - Lighter visual weight
@@ -79,6 +162,7 @@ const Dashboard = () => {
     { name: 'Staff Management', icon: UserCog, link: '/admin-management' },
     { name: 'Attendance', icon: Clock, link: '/attendance' },
     { name: 'Field Monitoring', icon: ClipboardList, link: '/field-monitoring' },
+    { name: 'Field Worker Monitoring', icon: Users, link: '/admin-field-worker-monitoring' },
     { name: 'Reports', icon: BarChart3, link: '/reports' },
     { name: 'Audit Logs', icon: Shield, link: '/audit-logs' }
   ];
@@ -135,12 +219,127 @@ const Dashboard = () => {
           <p className="text-gray-500 text-sm">System Overview & Management</p>
         </div>
         <button
-          onClick={fetchDashboardData}
+          onClick={() => {
+            fetchDashboardData();
+            fetchFieldWorkerAnalytics();
+          }}
           className="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
         >
           Refresh Data
         </button>
       </div>
+
+      {/* ULB Filter */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Filter className="w-5 h-5 text-gray-500" />
+            <label className="text-sm font-medium text-gray-700">Filter by ULB:</label>
+          </div>
+          <select
+            value={selectedUlbId}
+            onChange={(e) => setSelectedUlbId(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+          >
+            <option value="">All ULBs (Aggregated)</option>
+            {ulbs.map(ulb => (
+              <option key={ulb.id} value={ulb.id}>
+                {ulb.name}
+              </option>
+            ))}
+          </select>
+          {selectedUlbId && (
+            <button
+              onClick={() => setSelectedUlbId('')}
+              className="text-sm text-primary-600 hover:text-primary-700"
+            >
+              Clear Filter
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Field Worker Monitoring Analytics */}
+      <section>
+        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center">
+          <Users className="w-4 h-4 mr-2" />
+          Field Worker Monitoring Analytics
+          {selectedUlbId && (
+            <span className="ml-2 text-xs text-gray-400">
+              ({ulbs.find(u => u.id === selectedUlbId)?.name || 'Selected ULB'})
+            </span>
+          )}
+        </h2>
+        {loadingFieldWorkers ? (
+          <div className="flex items-center justify-center h-32">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="bg-white rounded-lg border border-gray-100 p-4 flex flex-col justify-between hover:bg-gray-50 transition-colors">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-medium text-gray-500 uppercase">Total Workers</p>
+                <Users className="h-4 w-4 text-gray-400" />
+              </div>
+              <p className="text-xl font-bold text-gray-900">{fieldWorkerStats.total_workers}</p>
+            </div>
+            <div className="bg-white rounded-lg border border-gray-100 p-4 flex flex-col justify-between hover:bg-gray-50 transition-colors">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-medium text-gray-500 uppercase">Attendance %</p>
+                <Percent className="h-4 w-4 text-gray-400" />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-gray-900">{fieldWorkerStats.attendance_percentage}%</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {fieldWorkerStats.present_today} / {fieldWorkerStats.total_workers} present
+                </p>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg border border-gray-100 p-4 flex flex-col justify-between hover:bg-gray-50 transition-colors">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-medium text-gray-500 uppercase">Payroll Summary</p>
+                <DollarSign className="h-4 w-4 text-gray-400" />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-gray-900">
+                  ₹{fieldWorkerStats.payroll_summary.total_amount.toLocaleString()}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {fieldWorkerStats.payroll_summary.workers_count} workers
+                </p>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg border border-gray-100 p-4 flex flex-col justify-between hover:bg-gray-50 transition-colors">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-medium text-gray-500 uppercase">Contractor Compliance</p>
+                <CheckCircle className="h-4 w-4 text-gray-400" />
+              </div>
+              <div>
+                <p className={`text-xl font-bold ${
+                  fieldWorkerStats.contractor_compliance >= 90 
+                    ? 'text-green-600' 
+                    : fieldWorkerStats.contractor_compliance >= 70 
+                    ? 'text-yellow-600' 
+                    : 'text-red-600'
+                }`}>
+                  {fieldWorkerStats.contractor_compliance}%
+                </p>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg border border-gray-100 p-4 flex flex-col justify-between hover:bg-gray-50 transition-colors">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-medium text-gray-500 uppercase">Geo Violations</p>
+                <AlertTriangle className="h-4 w-4 text-red-400" />
+              </div>
+              <p className={`text-xl font-bold ${
+                fieldWorkerStats.geo_violations > 0 ? 'text-red-600' : 'text-gray-900'
+              }`}>
+                {fieldWorkerStats.geo_violations}
+              </p>
+            </div>
+          </div>
+        )}
+      </section>
 
       {/* 1. Primary Navigation - Quick Actions */}
       <section>

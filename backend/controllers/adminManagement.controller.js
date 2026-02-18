@@ -1,4 +1,4 @@
-import { AdminManagement, User, Ward } from '../models/index.js';
+import { AdminManagement, User, Ward, ULB } from '../models/index.js';
 import { validationResult } from 'express-validator';
 
 /**
@@ -9,18 +9,19 @@ export const getAllEmployees = async (req, res) => {
     const { role, status, search, page = 1, limit = 10 } = req.query;
     const offset = (page - 1) * limit;
 
-    // Build where clause - Only show staff roles
-    const staffRoles = ['clerk', 'inspector', 'officer', 'collector'];
+    // Build where clause - Only show staff roles (including field worker hierarchy)
+    // Normalize role to uppercase for comparison
+    const normalizedRole = role ? role.toUpperCase().replace(/-/g, '_') : role;
+    const staffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR'];
     const whereClause = {
       role: {
         [AdminManagement.sequelize.Sequelize.Op.in]: staffRoles
       }
     };
 
-    if (role) {
-      // Only allow filtering by staff roles
-      if (staffRoles.includes(role)) {
-        whereClause.role = role;
+    if (normalizedRole) {
+      if (staffRoles.includes(normalizedRole)) {
+        whereClause.role = normalizedRole;
       } else {
         return res.status(400).json({ message: 'Invalid staff role specified' });
       }
@@ -61,13 +62,16 @@ export const getAllEmployees = async (req, res) => {
       wardMap[ward.id] = `${ward.wardNumber} - ${ward.wardName}`;
     });
 
-    // Format response with ward names
     const formattedEmployees = employees.rows.map(employee => {
       const empData = employee.get({ plain: true });
+      let ward_names = empData.ward_ids ? empData.ward_ids.map(wardId => wardMap[wardId] || `Ward ${wardId}`) : [];
+      if (ward_names.length === 0 && empData.ward_id && wardMap[empData.ward_id]) {
+        ward_names = [wardMap[empData.ward_id]];
+      }
       return {
         ...empData,
-        ward_names: empData.ward_ids ? empData.ward_ids.map(wardId => wardMap[wardId] || `Ward ${wardId}`) : [],
-        password: undefined // Don't send password in response
+        ward_names,
+        password: undefined
       };
     });
 
@@ -87,6 +91,66 @@ export const getAllEmployees = async (req, res) => {
 };
 
 /**
+ * Get employees by ULB (for EO access)
+ * Allows EO to fetch supervisors and contractors within their ULB
+ */
+export const getEmployeesByUlb = async (req, res) => {
+  try {
+    const { role, ulb_id } = req.query;
+    const userUlbId = req.user?.ulb_id;
+
+    // Validate ULB access - EO can only access their own ULB
+    if (!userUlbId) {
+      return res.status(403).json({ message: 'ULB ID not found in user token' });
+    }
+
+    // If ulb_id is provided in query, validate it matches user's ULB
+    if (ulb_id && ulb_id !== userUlbId) {
+      return res.status(403).json({ message: 'Access denied: Cannot access other ULB data' });
+    }
+
+    // Normalize role to uppercase
+    const normalizedRole = role ? role.toUpperCase().replace(/-/g, '_') : role;
+    
+    // Only allow fetching SUPERVISOR and CONTRACTOR roles for EO
+    const allowedRoles = ['SUPERVISOR', 'CONTRACTOR'];
+    if (normalizedRole && !allowedRoles.includes(normalizedRole)) {
+      return res.status(400).json({ 
+        message: `Invalid role. Only ${allowedRoles.join(' or ')} can be fetched by EO` 
+      });
+    }
+
+    const whereClause = {
+      ulb_id: userUlbId,
+      status: 'active' // Only return active employees
+    };
+
+    if (normalizedRole) {
+      whereClause.role = normalizedRole;
+    } else {
+      // If no role specified, return both SUPERVISOR and CONTRACTOR
+      whereClause.role = {
+        [AdminManagement.sequelize.Sequelize.Op.in]: allowedRoles
+      };
+    }
+
+    const employees = await AdminManagement.findAll({
+      where: whereClause,
+      attributes: ['id', 'employee_id', 'full_name', 'role', 'ward_id', 'ulb_id', 'phone_number', 'email'],
+      order: [['full_name', 'ASC']]
+    });
+
+    res.json({
+      success: true,
+      employees: employees.map(emp => emp.get({ plain: true }))
+    });
+  } catch (error) {
+    console.error('Error fetching employees by ULB:', error);
+    res.status(500).json({ message: 'Error fetching employees', error: error.message });
+  }
+};
+
+/**
  * Get employee by ID
  */
 export const getEmployeeById = async (req, res) => {
@@ -95,11 +159,11 @@ export const getEmployeeById = async (req, res) => {
 
     const employee = await AdminManagement.findByPk(id, {
       include: [
-        {
-          model: User,
-          as: 'creator',
-          attributes: ['id', 'firstName', 'lastName', 'email']
-        }
+        { model: User, as: 'creator', attributes: ['id', 'firstName', 'lastName', 'email'] },
+        { model: Ward, as: 'ward', attributes: ['id', 'wardNumber', 'wardName'], required: false },
+        { model: AdminManagement, as: 'eo', attributes: ['id', 'employee_id', 'full_name'], required: false },
+        { model: AdminManagement, as: 'supervisor', attributes: ['id', 'employee_id', 'full_name'], required: false },
+        { model: AdminManagement, as: 'contractor', attributes: ['id', 'employee_id', 'full_name', 'company_name'], required: false }
       ]
     });
 
@@ -107,18 +171,14 @@ export const getEmployeeById = async (req, res) => {
       return res.status(404).json({ message: 'Employee not found' });
     }
 
-    // Get wards information
     const wards = await Ward.findAll({
       attributes: ['id', 'wardNumber', 'wardName'],
-      where: {
-        id: employee.ward_ids || []
-      }
+      where: { id: employee.ward_ids || [] }
     });
 
     const employeeData = employee.get({ plain: true });
     employeeData.ward_names = wards.map(ward => `${ward.wardNumber} - ${ward.wardName}`);
-    employeeData.password = undefined; // Don't send password
-
+    employeeData.password = undefined;
     res.json(employeeData);
   } catch (error) {
     console.error('Error fetching employee:', error);
@@ -142,12 +202,24 @@ export const createEmployee = async (req, res) => {
 
     const {
       full_name,
-      role,
+      role: rawRole,
       phone_number,
       email,
       ward_ids,
-      status = 'active'
+      status = 'active',
+      assigned_ulb,
+      ulb_id,
+      ward_id,
+      eo_id,
+      contractor_id,
+      worker_type,
+      supervisor_id,
+      company_name,
+      contact_details
     } = req.body;
+    
+    // Normalize role to uppercase to match database CHECK constraint
+    const role = rawRole ? rawRole.toUpperCase().replace(/-/g, '_') : rawRole;
 
     // Check if email, phone, or username already exists
     const existingEmployee = await AdminManagement.findOne({
@@ -170,29 +242,73 @@ export const createEmployee = async (req, res) => {
     const password = AdminManagement.generatePassword();
     const username = employee_id; // Username same as employee_id
 
-    // Validate ward IDs
-    if (ward_ids && ward_ids.length > 0) {
+    // Determine ulb_id based on role and provided data
+    let finalUlbId = ulb_id;
+    
+    // For supervisor/field_worker, get ulb_id from ward if not provided
+    if ((role === 'SUPERVISOR' || role === 'FIELD_WORKER') && ward_id && !finalUlbId) {
+      const ward = await Ward.findByPk(ward_id, { attributes: ['id', 'ulb_id'] });
+      if (ward && ward.ulb_id) {
+        finalUlbId = ward.ulb_id;
+      }
+    }
+    
+    // For EO, ulb_id is mandatory (already validated in middleware)
+    // Validate that wards belong to the selected ULB
+    if (ward_ids && ward_ids.length > 0 && finalUlbId && role === 'EO') {
       const wards = await Ward.findAll({
         where: { id: ward_ids },
-        attributes: ['id']
+        attributes: ['id', 'ulb_id']
       });
-
+      
       if (wards.length !== ward_ids.length) {
         return res.status(400).json({
           message: 'One or more ward IDs are invalid'
+        });
+      }
+      
+      // Check that all wards belong to the selected ULB
+      const invalidWards = wards.filter(w => w.ulb_id !== finalUlbId);
+      if (invalidWards.length > 0) {
+        return res.status(400).json({
+          message: `Selected wards do not belong to the selected ULB`
+        });
+      }
+    }
+    
+    // Validate ward_id belongs to ULB if both are provided
+    if (ward_id && finalUlbId) {
+      const ward = await Ward.findByPk(ward_id, { attributes: ['id', 'ulb_id'] });
+      if (ward && ward.ulb_id !== finalUlbId) {
+        return res.status(400).json({
+          message: 'Selected ward does not belong to the selected ULB'
+        });
+      }
+    }
+    
+    // Validate EO belongs to ULB if both are provided
+    if (eo_id && finalUlbId) {
+      const eo = await AdminManagement.findByPk(eo_id, { attributes: ['id', 'ulb_id', 'role'] });
+      const normalizedEoRole = eo?.role ? eo.role.toUpperCase().replace(/-/g, '_') : eo?.role;
+      if (!eo || normalizedEoRole !== 'EO') {
+        return res.status(400).json({ message: 'Invalid EO ID' });
+      }
+      if (eo.ulb_id !== finalUlbId) {
+        return res.status(400).json({
+          message: 'Selected EO does not belong to the selected ULB'
         });
       }
     }
 
     // For clerk, assign only one ward and update Ward.clerkId
     let assignedWardIds = ward_ids || [];
-    if (role === 'clerk') {
-      assignedWardIds = [ward_ids[0]];
-      // Clear any existing clerk assignment from the selected ward
-      await Ward.update({ clerkId: null }, { where: { id: assignedWardIds[0] } });
+    if (role === 'CLERK') {
+      assignedWardIds = Array.isArray(ward_ids) && ward_ids.length > 0 ? [ward_ids[0]] : [];
+      if (assignedWardIds.length > 0) {
+        await Ward.update({ clerkId: null }, { where: { id: assignedWardIds[0] } });
+      }
     }
-    // Create employee
-    const employee = await AdminManagement.create({
+    const createPayload = {
       full_name,
       employee_id,
       role,
@@ -203,10 +319,21 @@ export const createEmployee = async (req, res) => {
       ward_ids: assignedWardIds,
       status,
       created_by_admin_id: req.user.id,
-      password_changed: true // Admin-set password is final, no forced change required
-    });
-    // For clerk, assign the employee's ID (integer) to the ward's clerkId
-    if (role === 'clerk') {
+      password_changed: true
+    };
+    // Don't set assigned_ulb anymore - use ulb_id instead
+    if (finalUlbId !== undefined && finalUlbId !== null) {
+      createPayload.ulb_id = finalUlbId;
+    }
+    if (ward_id !== undefined) createPayload.ward_id = ward_id ? parseInt(ward_id) : null;
+    if (eo_id !== undefined) createPayload.eo_id = eo_id ? parseInt(eo_id) : null;
+    if (contractor_id !== undefined) createPayload.contractor_id = contractor_id ? parseInt(contractor_id) : null;
+    if (worker_type !== undefined) createPayload.worker_type = worker_type || null;
+    if (supervisor_id !== undefined) createPayload.supervisor_id = supervisor_id ? parseInt(supervisor_id) : null;
+    if (company_name !== undefined) createPayload.company_name = company_name || null;
+    if (contact_details !== undefined) createPayload.contact_details = contact_details || null;
+    const employee = await AdminManagement.create(createPayload);
+    if (role === 'CLERK' && assignedWardIds.length > 0) {
       await Ward.update({ clerkId: employee.id }, { where: { id: assignedWardIds[0] } });
     }
 
@@ -253,9 +380,9 @@ export const updateEmployee = async (req, res) => {
       return res.status(404).json({ message: 'Employee not found' });
     }
 
-    // Ensure this is a staff role (additional safety check)
-    const staffRoles = ['clerk', 'inspector', 'officer', 'collector'];
-    if (!staffRoles.includes(employee.role)) {
+    const normalizedStaffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR'];
+    const normalizedEmployeeRole = employee.role ? employee.role.toUpperCase().replace(/-/g, '_') : employee.role;
+    if (!normalizedStaffRoles.includes(normalizedEmployeeRole)) {
       return res.status(400).json({
         message: 'Cannot edit non-staff roles through Staff Management. Use Citizen Management for citizen accounts.'
       });
@@ -263,13 +390,25 @@ export const updateEmployee = async (req, res) => {
 
     const {
       full_name,
-      role,
+      role: rawRole,
       phone_number,
       email,
       ward_ids,
       status,
-      password
+      password,
+      assigned_ulb,
+      ulb_id,
+      ward_id,
+      eo_id,
+      contractor_id,
+      worker_type,
+      supervisor_id,
+      company_name,
+      contact_details
     } = req.body;
+    
+    // Normalize role to uppercase to match database CHECK constraint
+    const role = rawRole ? rawRole.toUpperCase().replace(/-/g, '_') : rawRole;
 
     console.log('🔍 Debug - Update employee request data:', {
       full_name,
@@ -282,10 +421,9 @@ export const updateEmployee = async (req, res) => {
       passwordLength: password ? password.length : 0
     });
 
-    // Validate new role if provided
-    if (role && !staffRoles.includes(role)) {
+    if (role && !normalizedStaffRoles.includes(role)) {
       return res.status(400).json({
-        message: 'Invalid role. Only staff roles (clerk, inspector, officer, collector) are allowed.'
+        message: 'Invalid role. Only staff roles (CLERK, INSPECTOR, OFFICER, COLLECTOR, EO, SUPERVISOR, FIELD_WORKER, CONTRACTOR) are allowed.'
       });
     }
 
@@ -308,11 +446,37 @@ export const updateEmployee = async (req, res) => {
       }
     }
 
-    // Validate ward IDs
+    // Determine ulb_id based on role
+    let finalUlbId = ulb_id;
+    const currentRole = role || normalizedEmployeeRole;
+    
+    // For SUPERVISOR and FIELD_WORKER, auto-select ULB from ward
+    if ((currentRole === 'SUPERVISOR' || currentRole === 'FIELD_WORKER') && ward_id) {
+      const ward = await Ward.findByPk(ward_id, { attributes: ['id', 'ulb_id'] });
+      if (!ward) {
+        return res.status(400).json({ message: 'Invalid ward ID' });
+      }
+      if (!ward.ulb_id) {
+        return res.status(400).json({ message: 'Ward does not belong to any ULB' });
+      }
+      finalUlbId = ward.ulb_id;
+    }
+    
+    // For EO, ulb_id is mandatory
+    if (currentRole === 'EO' && !finalUlbId && !employee.ulb_id) {
+      return res.status(400).json({ message: 'ULB is required for EO role' });
+    }
+    
+    // Use existing ulb_id if not provided
+    if (!finalUlbId && employee.ulb_id) {
+      finalUlbId = employee.ulb_id;
+    }
+    
+    // Validate ward IDs and check they belong to selected ULB
     if (ward_ids && ward_ids.length > 0) {
       const wards = await Ward.findAll({
         where: { id: ward_ids },
-        attributes: ['id']
+        attributes: ['id', 'ulb_id']
       });
 
       if (wards.length !== ward_ids.length) {
@@ -320,18 +484,51 @@ export const updateEmployee = async (req, res) => {
           message: 'One or more ward IDs are invalid'
         });
       }
+      
+      // If ULB is specified, validate all wards belong to it
+      if (finalUlbId && currentRole === 'EO') {
+        const invalidWards = wards.filter(w => w.ulb_id !== finalUlbId);
+        if (invalidWards.length > 0) {
+          return res.status(400).json({
+            message: 'All selected wards must belong to the selected ULB'
+          });
+        }
+      }
+    }
+    
+    // Validate ward_id belongs to ULB (for supervisor/field_worker)
+    if (ward_id && finalUlbId) {
+      const ward = await Ward.findByPk(ward_id, { attributes: ['id', 'ulb_id'] });
+      if (ward && ward.ulb_id !== finalUlbId) {
+        return res.status(400).json({
+          message: 'Selected ward does not belong to the selected ULB'
+        });
+      }
+    }
+    
+    // Validate EO belongs to selected ULB
+    if (eo_id && finalUlbId) {
+      const eo = await AdminManagement.findByPk(eo_id, { attributes: ['id', 'ulb_id', 'role'] });
+      const normalizedEoRole = eo?.role ? eo.role.toUpperCase().replace(/-/g, '_') : eo?.role;
+      if (!eo || normalizedEoRole !== 'EO') {
+        return res.status(400).json({ message: 'Invalid EO ID' });
+      }
+      if (eo.ulb_id !== finalUlbId) {
+        return res.status(400).json({
+          message: 'Selected EO does not belong to the selected ULB'
+        });
+      }
     }
 
     // For clerk, assign only one ward and update Ward.clerkId
     let assignedWardIds = ward_ids || [];
-    if ((role || employee.role) === 'clerk' && assignedWardIds.length > 0) {
+    if (currentRole === 'CLERK' && assignedWardIds.length > 0) {
       assignedWardIds = [ward_ids[0]];
       // Remove this clerk from any previously assigned wards
       await Ward.update({ clerkId: null }, { where: { clerkId: employee.id } });
       // Assign clerkId to the selected ward
       await Ward.update({ clerkId: employee.id }, { where: { id: assignedWardIds[0] } });
     }
-    // Update employee
     const updateData = {
       full_name,
       role,
@@ -340,13 +537,19 @@ export const updateEmployee = async (req, res) => {
       ward_ids: assignedWardIds,
       status
     };
-
-    // Only update password if provided
+    if (assigned_ulb !== undefined) updateData.assigned_ulb = assigned_ulb || null;
+    if (finalUlbId !== undefined) updateData.ulb_id = finalUlbId || null;
+    if (ward_id !== undefined) updateData.ward_id = ward_id ? parseInt(ward_id) : null;
+    if (eo_id !== undefined) updateData.eo_id = eo_id ? parseInt(eo_id) : null;
+    if (contractor_id !== undefined) updateData.contractor_id = contractor_id ? parseInt(contractor_id) : null;
+    if (worker_type !== undefined) updateData.worker_type = worker_type || null;
+    if (supervisor_id !== undefined) updateData.supervisor_id = supervisor_id ? parseInt(supervisor_id) : null;
+    if (company_name !== undefined) updateData.company_name = company_name || null;
+    if (contact_details !== undefined) updateData.contact_details = contact_details || null;
     if (password && password.trim() !== '') {
       updateData.password = password;
-      updateData.password_changed = true; // Admin-set password is final, no forced change required
+      updateData.password_changed = true;
     }
-
     await employee.update(updateData);
 
     // Log the update
@@ -390,9 +593,10 @@ export const deleteEmployee = async (req, res) => {
       return res.status(404).json({ message: 'Employee not found' });
     }
 
-    // Ensure this is a staff role (additional safety check)
-    const staffRoles = ['clerk', 'inspector', 'officer', 'collector'];
-    if (!staffRoles.includes(employee.role)) {
+    // Normalize role to uppercase for comparison
+    const normalizedEmployeeRole = employee.role ? employee.role.toUpperCase().replace(/-/g, '_') : employee.role;
+    const staffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR'];
+    if (!staffRoles.includes(normalizedEmployeeRole)) {
       return res.status(400).json({
         message: 'Cannot delete non-staff roles through Staff Management. Use Citizen Management for citizen accounts.'
       });
@@ -419,8 +623,16 @@ export const deleteEmployee = async (req, res) => {
  */
 export const getAvailableWards = async (req, res) => {
   try {
+    const { ulb_id } = req.query;
+    const whereClause = {};
+    
+    if (ulb_id) {
+      whereClause.ulb_id = ulb_id;
+    }
+    
     const wards = await Ward.findAll({
-      attributes: ['id', 'wardNumber', 'wardName'],
+      where: whereClause,
+      attributes: ['id', 'wardNumber', 'wardName', 'ulb_id'],
       order: [['wardNumber', 'ASC']]
     });
 
@@ -428,6 +640,24 @@ export const getAvailableWards = async (req, res) => {
   } catch (error) {
     console.error('Error fetching wards:', error);
     res.status(500).json({ message: 'Error fetching wards', error: error.message });
+  }
+};
+
+/**
+ * Get all ULBs
+ */
+export const getAllULBs = async (req, res) => {
+  try {
+    const ulbs = await ULB.findAll({
+      where: { status: 'ACTIVE' },
+      attributes: ['id', 'name', 'state', 'district'],
+      order: [['name', 'ASC']]
+    });
+
+    res.json(ulbs);
+  } catch (error) {
+    console.error('Error fetching ULBs:', error);
+    res.status(500).json({ message: 'Error fetching ULBs', error: error.message });
   }
 };
 
@@ -472,8 +702,7 @@ export const resetEmployeePassword = async (req, res) => {
  */
 export const getEmployeeStatistics = async (req, res) => {
   try {
-    // Only count staff roles
-    const staffRoles = ['clerk', 'inspector', 'officer', 'collector'];
+    const staffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR'];
 
     const stats = await AdminManagement.findAll({
       attributes: [

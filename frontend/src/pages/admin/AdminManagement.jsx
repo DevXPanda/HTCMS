@@ -5,6 +5,8 @@ import api from '../../services/api';
 const AdminManagement = () => {
   const [employees, setEmployees] = useState([]);
   const [wards, setWards] = useState([]);
+  const [allWards, setAllWards] = useState([]); // Store all wards for filtering
+  const [ulbs, setUlbs] = useState([]);
   const [statistics, setStatistics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -27,16 +29,45 @@ const AdminManagement = () => {
     email: '',
     ward_ids: [],
     status: 'active',
-    password: ''
+    password: '',
+    assigned_ulb: '',
+    ulb_id: '',
+    ward_id: '',
+    eo_id: '',
+    supervisor_id: '',
+    contractor_id: '',
+    worker_type: '',
+    company_name: '',
+    contact_details: ''
   });
+
+  // Role-based dropdown options (EO, Supervisor, Contractor lists)
+  const [eosList, setEosList] = useState([]);
+  const [supervisorsList, setSupervisorsList] = useState([]);
+  const [contractorsList, setContractorsList] = useState([]);
 
   const [generatedCredentials, setGeneratedCredentials] = useState(null);
 
   useEffect(() => {
     fetchEmployees();
     fetchWards();
+    fetchULBs();
     fetchStatistics();
   }, [currentPage, filterRole, filterStatus, searchTerm]);
+
+  useEffect(() => {
+    if (showAddModal || showEditModal) {
+      fetchEos(formData.ulb_id);
+      fetchSupervisors(formData.ward_id);
+      fetchContractors();
+      // Fetch wards filtered by ULB
+      if (formData.ulb_id) {
+        fetchWards(formData.ulb_id);
+      } else {
+        fetchWards();
+      }
+    }
+  }, [showAddModal, showEditModal, formData.ulb_id, formData.ward_id]);
 
   useEffect(() => {
     // Clear selections when filters change
@@ -75,14 +106,94 @@ const AdminManagement = () => {
     }
   };
 
-  const fetchWards = async () => {
+  const fetchWards = async (ulbId = null) => {
     try {
-      const response = await api.get('/admin-management/employees/wards');
+      const url = ulbId 
+        ? `/admin-management/employees/wards?ulb_id=${ulbId}`
+        : '/admin-management/employees/wards';
+      const response = await api.get(url);
       const data = response?.data;
-      setWards(Array.isArray(data) ? data : []);
+      // Handle both array response and object with data property
+      let wardsList = [];
+      if (Array.isArray(data)) {
+        wardsList = data;
+      } else if (data && Array.isArray(data.data)) {
+        wardsList = data.data;
+      } else if (data && Array.isArray(data.wards)) {
+        wardsList = data.wards;
+      }
+      
+      setAllWards(wardsList);
+      // Filter wards based on selected ULB if in form
+      if (ulbId && formData.ulb_id === ulbId) {
+        setWards(wardsList.filter(w => w.ulb_id === ulbId));
+      } else if (!ulbId) {
+        setWards(wardsList);
+      }
     } catch (error) {
       console.error('Error fetching wards:', error);
       setWards([]);
+      setAllWards([]);
+    }
+  };
+
+  const fetchULBs = async () => {
+    try {
+      const response = await api.get('/admin-management/ulbs');
+      const data = response?.data;
+      // Handle both array response and object with data property
+      let ulbsList = [];
+      if (Array.isArray(data)) {
+        ulbsList = data;
+      } else if (data && Array.isArray(data.data)) {
+        ulbsList = data.data;
+      } else if (data && Array.isArray(data.ulbs)) {
+        ulbsList = data.ulbs;
+      }
+      setUlbs(ulbsList);
+    } catch (error) {
+      console.error('Error fetching ULBs:', error);
+      setUlbs([]);
+    }
+  };
+
+  const fetchEos = async (ulbId = null) => {
+    try {
+      const url = ulbId
+        ? `/admin-management/employees?role=EO&limit=200&ulb_id=${ulbId}`
+        : '/admin-management/employees?role=EO&limit=200';
+      const res = await api.get(url);
+      const employees = res?.data?.employees ?? [];
+      // Filter by ULB if provided
+      if (ulbId) {
+        setEosList(employees.filter(eo => eo.ulb_id === ulbId));
+      } else {
+        setEosList(employees);
+      }
+    } catch {
+      setEosList([]);
+    }
+  };
+  const fetchSupervisors = async (wardId = null) => {
+    try {
+      const res = await api.get('/admin-management/employees?role=SUPERVISOR&limit=200');
+      const employees = res?.data?.employees ?? [];
+      // Filter supervisors by ward if provided
+      if (wardId) {
+        setSupervisorsList(employees.filter(s => s.ward_id === parseInt(wardId)));
+      } else {
+        setSupervisorsList(employees);
+      }
+    } catch {
+      setSupervisorsList([]);
+    }
+  };
+  const fetchContractors = async () => {
+    try {
+      const res = await api.get('/admin-management/employees?role=CONTRACTOR&limit=200');
+      setContractorsList(res?.data?.employees ?? []);
+    } catch {
+      setContractorsList([]);
     }
   };
 
@@ -100,9 +211,62 @@ const AdminManagement = () => {
     e.preventDefault();
     console.log('🔵 Add Employee button clicked!');
     console.log('📝 Form data:', formData);
+    console.log('📝 Form ward_ids:', formData.ward_ids, 'Type:', typeof formData.ward_ids, 'IsArray:', Array.isArray(formData.ward_ids));
 
     try {
-      const response = await api.post('/admin-management/employees', formData);
+      // Prepare payload with only required fields - ensure IDs are sent, not names
+      // Convert role to uppercase to match database CHECK constraint
+      const normalizedRole = formData.role ? formData.role.toUpperCase().replace(/-/g, '_') : formData.role;
+      
+      const payload = {
+        full_name: formData.full_name,
+        email: formData.email,
+        phone_number: formData.phone_number,
+        role: normalizedRole,
+        status: formData.status,
+        password: formData.password || undefined
+      };
+
+      // Add ulb_id (UUID) if present - DO NOT send assigned_ulb (name)
+      if (formData.ulb_id) {
+        payload.ulb_id = formData.ulb_id;
+      }
+
+      // Add ward_ids as array of integers (not names)
+      if (formData.ward_ids && Array.isArray(formData.ward_ids) && formData.ward_ids.length > 0) {
+        payload.ward_ids = formData.ward_ids.map(id => typeof id === 'string' ? parseInt(id) : id).filter(id => !isNaN(id) && id > 0);
+        console.log('📋 Final ward_ids being sent:', payload.ward_ids);
+      } else {
+        console.warn('⚠️ No ward_ids found in formData:', formData.ward_ids);
+      }
+
+      // Add role-specific fields
+      if (formData.ward_id) {
+        payload.ward_id = typeof formData.ward_id === 'string' ? parseInt(formData.ward_id) : formData.ward_id;
+      }
+      if (formData.eo_id) {
+        payload.eo_id = typeof formData.eo_id === 'string' ? parseInt(formData.eo_id) : formData.eo_id;
+      }
+      if (formData.supervisor_id) {
+        payload.supervisor_id = typeof formData.supervisor_id === 'string' ? parseInt(formData.supervisor_id) : formData.supervisor_id;
+      }
+      if (formData.contractor_id) {
+        payload.contractor_id = typeof formData.contractor_id === 'string' ? parseInt(formData.contractor_id) : formData.contractor_id;
+      }
+      if (formData.worker_type) {
+        payload.worker_type = formData.worker_type;
+      }
+      if (formData.company_name) {
+        payload.company_name = formData.company_name;
+      }
+      if (formData.contact_details) {
+        payload.contact_details = formData.contact_details;
+      }
+
+      console.log('📤 Sending payload:', payload);
+      console.log('📤 Payload ward_ids:', payload.ward_ids, 'Type:', typeof payload.ward_ids, 'IsArray:', Array.isArray(payload.ward_ids));
+
+      const response = await api.post('/admin-management/employees', payload);
 
       console.log('✅ API Response:', response.data);
 
@@ -111,7 +275,6 @@ const AdminManagement = () => {
       fetchEmployees();
       fetchStatistics();
 
-      // Reset form
       setFormData({
         full_name: '',
         role: '',
@@ -119,7 +282,16 @@ const AdminManagement = () => {
         email: '',
         ward_ids: [],
         status: 'active',
-        password: ''
+        password: '',
+        assigned_ulb: '',
+        ulb_id: '',
+        ward_id: '',
+        eo_id: '',
+        supervisor_id: '',
+        contractor_id: '',
+        worker_type: '',
+        company_name: '',
+        contact_details: ''
       });
 
       // Notify Wards page about ward assignment change
@@ -143,7 +315,59 @@ const AdminManagement = () => {
     });
 
     try {
-      const response = await api.put(`/admin-management/employees/${selectedEmployee.id}`, formData);
+      // Prepare payload with only required fields - ensure IDs are sent, not names
+      // Convert role to uppercase to match database CHECK constraint
+      const normalizedRole = formData.role ? formData.role.toUpperCase().replace(/-/g, '_') : formData.role;
+      
+      const payload = {
+        full_name: formData.full_name,
+        email: formData.email,
+        phone_number: formData.phone_number,
+        role: normalizedRole,
+        status: formData.status
+      };
+
+      // Add password only if provided
+      if (formData.password && formData.password.trim() !== '') {
+        payload.password = formData.password;
+      }
+
+      // Add ulb_id (UUID) if present - DO NOT send assigned_ulb (name)
+      if (formData.ulb_id) {
+        payload.ulb_id = formData.ulb_id;
+      }
+
+      // Add ward_ids as array of integers (not names)
+      if (formData.ward_ids && Array.isArray(formData.ward_ids) && formData.ward_ids.length > 0) {
+        payload.ward_ids = formData.ward_ids.map(id => typeof id === 'string' ? parseInt(id) : id);
+      }
+
+      // Add role-specific fields
+      if (formData.ward_id) {
+        payload.ward_id = typeof formData.ward_id === 'string' ? parseInt(formData.ward_id) : formData.ward_id;
+      }
+      if (formData.eo_id) {
+        payload.eo_id = typeof formData.eo_id === 'string' ? parseInt(formData.eo_id) : formData.eo_id;
+      }
+      if (formData.supervisor_id) {
+        payload.supervisor_id = typeof formData.supervisor_id === 'string' ? parseInt(formData.supervisor_id) : formData.supervisor_id;
+      }
+      if (formData.contractor_id) {
+        payload.contractor_id = typeof formData.contractor_id === 'string' ? parseInt(formData.contractor_id) : formData.contractor_id;
+      }
+      if (formData.worker_type) {
+        payload.worker_type = formData.worker_type;
+      }
+      if (formData.company_name) {
+        payload.company_name = formData.company_name;
+      }
+      if (formData.contact_details) {
+        payload.contact_details = formData.contact_details;
+      }
+
+      console.log('📤 Sending payload:', payload);
+
+      const response = await api.put(`/admin-management/employees/${selectedEmployee.id}`, payload);
 
       console.log('✅ Frontend - Update successful:', response.data);
 
@@ -207,17 +431,39 @@ const AdminManagement = () => {
     }
   };
 
-  const openEditModal = (employee) => {
+  const openEditModal = async (employee) => {
     setSelectedEmployee(employee);
-    setFormData({
+    // Normalize role to uppercase for form
+    const normalizedRole = employee.role ? employee.role.toUpperCase().replace(/-/g, '_') : employee.role;
+    const formDataUpdate = {
       full_name: employee.full_name,
-      role: employee.role,
+      role: normalizedRole,
       phone_number: employee.phone_number,
       email: employee.email,
       ward_ids: employee.ward_ids || [],
       status: employee.status,
-      password: ''
-    });
+      password: '',
+      assigned_ulb: employee.assigned_ulb || '',
+      ulb_id: employee.ulb_id || '',
+      ward_id: employee.ward_id || '',
+      eo_id: employee.eo_id || '',
+      supervisor_id: employee.supervisor_id || '',
+      contractor_id: employee.contractor_id || '',
+      worker_type: employee.worker_type || '',
+      company_name: employee.company_name || '',
+      contact_details: employee.contact_details || ''
+    };
+    setFormData(formDataUpdate);
+    
+    // Fetch filtered data based on employee's ULB
+    if (formDataUpdate.ulb_id) {
+      await fetchWards(formDataUpdate.ulb_id);
+      await fetchEos(formDataUpdate.ulb_id);
+    }
+    if (formDataUpdate.ward_id) {
+      await fetchSupervisors(formDataUpdate.ward_id);
+    }
+    
     setShowEditModal(true);
   };
 
@@ -226,17 +472,35 @@ const AdminManagement = () => {
     setShowViewModal(true);
   };
 
-  const getRoleBadgeColor = (role) => {
-    // Only handle staff roles - all others get default gray
-    const staffColors = {
-      clerk: 'bg-blue-100 text-blue-800',
-      inspector: 'bg-yellow-100 text-yellow-800',
-      officer: 'bg-purple-100 text-purple-800',
-      collector: 'bg-green-100 text-green-800'
+  const getRoleLabel = (role) => {
+    const normalizedRole = role ? role.toUpperCase().replace(/-/g, '_') : role;
+    const labels = { 
+      EO: 'EO', 
+      SUPERVISOR: 'Supervisor', 
+      FIELD_WORKER: 'Field Worker', 
+      CONTRACTOR: 'Contractor',
+      CLERK: 'Clerk',
+      INSPECTOR: 'Inspector',
+      OFFICER: 'Officer',
+      COLLECTOR: 'Collector',
+      ADMIN: 'Admin'
     };
-
-    // Return staff color if it's a valid staff role, otherwise gray
-    return staffColors[role] || 'bg-gray-100 text-gray-800';
+    return labels[normalizedRole] || (role ? role.charAt(0).toUpperCase() + role.slice(1) : '');
+  };
+  const getRoleBadgeColor = (role) => {
+    const normalizedRole = role ? role.toUpperCase().replace(/-/g, '_') : role;
+    const staffColors = {
+      CLERK: 'bg-blue-100 text-blue-800',
+      INSPECTOR: 'bg-yellow-100 text-yellow-800',
+      OFFICER: 'bg-purple-100 text-purple-800',
+      COLLECTOR: 'bg-green-100 text-green-800',
+      EO: 'bg-indigo-100 text-indigo-800',
+      SUPERVISOR: 'bg-teal-100 text-teal-800',
+      FIELD_WORKER: 'bg-amber-100 text-amber-800',
+      CONTRACTOR: 'bg-slate-100 text-slate-800',
+      ADMIN: 'bg-red-100 text-red-800'
+    };
+    return staffColors[normalizedRole] || 'bg-gray-100 text-gray-800';
   };
 
   const getStatusBadgeColor = (status) => {
@@ -379,10 +643,14 @@ const AdminManagement = () => {
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All Roles</option>
-            <option value="clerk">Clerk</option>
-            <option value="inspector">Inspector</option>
-            <option value="officer">Officer</option>
-            <option value="collector">Collector</option>
+            <option value="CLERK">Clerk</option>
+            <option value="INSPECTOR">Inspector</option>
+            <option value="OFFICER">Officer</option>
+            <option value="COLLECTOR">Collector</option>
+            <option value="EO">EO</option>
+            <option value="SUPERVISOR">Supervisor</option>
+            <option value="FIELD_WORKER">Field Worker</option>
+            <option value="CONTRACTOR">Contractor</option>
           </select>
           <select
             value={filterStatus}
@@ -523,7 +791,7 @@ const AdminManagement = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleBadgeColor(employee.role)}`}>
-                        {employee.role.charAt(0).toUpperCase() + employee.role.slice(1)}
+                        {getRoleLabel(employee.role)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -626,19 +894,76 @@ const AdminManagement = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
+                {/* ULB Dropdown - Mandatory except ADMIN */}
+                {formData.role && formData.role.toUpperCase() !== 'ADMIN' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      ULB {formData.role.toUpperCase() === 'EO' && <span className="text-red-500">*</span>}
+                    </label>
+                    <select
+                      required={formData.role.toUpperCase() === 'EO'}
+                      value={formData.ulb_id || ''}
+                      onChange={(e) => {
+                        const newUlbId = e.target.value; // This is the UUID from ulb.id
+                        setFormData({ 
+                          ...formData, 
+                          ulb_id: newUlbId, // Store UUID, not name
+                          assigned_ulb: '', // Clear name field
+                          ward_ids: [],
+                          ward_id: '',
+                          eo_id: ''
+                        });
+                        // Reload wards filtered by ULB
+                        if (newUlbId) {
+                          fetchWards(newUlbId);
+                          fetchEos(newUlbId);
+                        } else {
+                          fetchWards();
+                          fetchEos();
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select ULB</option>
+                      {ulbs.map(ulb => (
+                        <option key={ulb.id} value={ulb.id}>{ulb.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
                   <select
                     required
                     value={formData.role}
-                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                    onChange={(e) => {
+                      const newRole = e.target.value;
+                      setFormData({ 
+                        ...formData, 
+                        role: newRole, 
+                        ward_ids: [], 
+                        ward_id: '', 
+                        eo_id: '', 
+                        supervisor_id: '', 
+                        contractor_id: '', 
+                        assigned_ulb: '', 
+                        ulb_id: '',
+                        worker_type: '', 
+                        company_name: '', 
+                        contact_details: '' 
+                      });
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Select Role</option>
-                    <option value="clerk">Clerk</option>
-                    <option value="inspector">Inspector</option>
-                    <option value="officer">Officer</option>
-                    <option value="collector">Collector</option>
+                    <option value="CLERK">Clerk</option>
+                    <option value="INSPECTOR">Inspector</option>
+                    <option value="OFFICER">Officer</option>
+                    <option value="COLLECTOR">Collector</option>
+                    <option value="EO">EO</option>
+                    <option value="SUPERVISOR">Supervisor</option>
+                    <option value="FIELD_WORKER">Field Worker</option>
+                    <option value="CONTRACTOR">Contractor</option>
                   </select>
                 </div>
                 <div>
@@ -661,33 +986,234 @@ const AdminManagement = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Ward Assignment</label>
-                  <select
-                    required
-                    value={formData.ward_ids && formData.ward_ids.length > 0 ? formData.ward_ids[0] : ''}
-                    onChange={(e) => setFormData({ ...formData, ward_ids: e.target.value ? [parseInt(e.target.value)] : [] })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select Ward</option>
-                    {wards.length === 0 ? (
-                      <option value="" disabled>
-                        No wards available. Please add wards first.
-                      </option>
-                    ) : (
-                      wards.map(ward => (
-                        <option key={ward.id} value={ward.id}>
-                          {ward.wardNumber} - {ward.wardName}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                  {wards.length === 0 && (
-                    <p className="text-xs text-red-500 mt-1">
-                      No wards found. Please create wards in the Wards section first.
-                    </p>
-                  )}
-                </div>
+
+                {/* EO: Multi-select wards (ULB already selected above) */}
+                {formData.role && formData.role.toUpperCase() === 'EO' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Wards <span className="text-red-500">*</span></label>
+                      <select
+                        multiple
+                        required
+                        value={formData.ward_ids || []}
+                        onChange={(e) => {
+                          // Extract all selected ward IDs (integers) from selected options
+                          const selectedWardIds = Array.from(e.target.selectedOptions, option => {
+                            const wardId = parseInt(option.value);
+                            return isNaN(wardId) ? null : wardId;
+                          }).filter(id => id !== null);
+                          
+                          console.log('🔵 Ward selection changed:', {
+                            selectedOptions: Array.from(e.target.selectedOptions).map(o => ({ value: o.value, text: o.text })),
+                            selectedWardIds,
+                            previousWardIds: formData.ward_ids
+                          });
+                          
+                          setFormData({ ...formData, ward_ids: selectedWardIds });
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={!formData.ulb_id}
+                        size={Math.min(wards.filter(w => !formData.ulb_id || w.ulb_id === formData.ulb_id).length, 6)}
+                      >
+                        {wards
+                          .filter(w => !formData.ulb_id || w.ulb_id === formData.ulb_id)
+                          .filter((ward, index, self) => 
+                            ward && ward.id && index === self.findIndex(w => w.id === ward.id)
+                          )
+                          .map(ward => (
+                            <option key={ward.id} value={ward.id}>{ward.wardNumber} - {ward.wardName}</option>
+                          ))}
+                      </select>
+                    <p className="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple wards</p>
+                    {!formData.ulb_id && <p className="text-xs text-red-500 mt-1">Please select ULB first</p>}
+                  </div>
+                )}
+
+                {/* SUPERVISOR: Ward + EO (ULB auto-selected from ward) */}
+                {formData.role && formData.role.toUpperCase() === 'SUPERVISOR' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Ward <span className="text-red-500">*</span></label>
+                      <select
+                        required
+                        value={formData.ward_id}
+                        onChange={async (e) => {
+                          const wardId = e.target.value ? parseInt(e.target.value) : '';
+                          const selectedWard = allWards.find(w => w.id === wardId);
+                          const wardUlbId = selectedWard?.ulb_id;
+                          
+                          setFormData({ 
+                            ...formData, 
+                            ward_id: wardId,
+                            ulb_id: wardUlbId || formData.ulb_id,
+                            eo_id: '' // Reset EO when ward changes
+                          });
+                          
+                          // Reload EOs filtered by ULB
+                          if (wardUlbId) {
+                            await fetchEos(wardUlbId);
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Select Ward</option>
+                        {allWards
+                          .filter((ward, index, self) => 
+                            ward && ward.id && index === self.findIndex(w => w.id === ward.id)
+                          )
+                          .map(ward => (
+                            <option key={ward.id} value={ward.id}>
+                              {ward.wardNumber} - {ward.wardName}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">EO <span className="text-red-500">*</span></label>
+                      <select
+                        required
+                        value={formData.eo_id}
+                        onChange={(e) => setFormData({ ...formData, eo_id: e.target.value ? parseInt(e.target.value) : '' })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={!formData.ulb_id}
+                      >
+                        <option value="">Select EO</option>
+                        {eosList.filter(eo => !formData.ulb_id || eo.ulb_id === formData.ulb_id).map(eo => (
+                          <option key={eo.id} value={eo.id}>{eo.employee_id} - {eo.full_name}</option>
+                        ))}
+                      </select>
+                      {!formData.ulb_id && <p className="text-xs text-red-500 mt-1">Please select ward first</p>}
+                    </div>
+                  </>
+                )}
+
+                {/* FIELD_WORKER: Worker Type, Ward, Supervisor, Contractor (optional) - ULB auto-selected from ward */}
+                {formData.role && formData.role.toUpperCase() === 'FIELD_WORKER' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Worker Type <span className="text-red-500">*</span></label>
+                      <select
+                        required
+                        value={formData.worker_type}
+                        onChange={(e) => setFormData({ ...formData, worker_type: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Select Type</option>
+                        <option value="ULB">ULB</option>
+                        <option value="CONTRACTUAL">CONTRACTUAL</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Ward <span className="text-red-500">*</span></label>
+                      <select
+                        required
+                        value={formData.ward_id}
+                        onChange={async (e) => {
+                          const wardId = e.target.value ? parseInt(e.target.value) : '';
+                          const selectedWard = allWards.find(w => w.id === wardId);
+                          const wardUlbId = selectedWard?.ulb_id;
+                          
+                          setFormData({ 
+                            ...formData, 
+                            ward_id: wardId,
+                            ulb_id: wardUlbId || formData.ulb_id,
+                            supervisor_id: '' // Reset supervisor when ward changes
+                          });
+                          
+                          // Reload supervisors filtered by ward
+                          if (wardId) {
+                            await fetchSupervisors(wardId);
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Select Ward</option>
+                        {allWards
+                          .filter((ward, index, self) => 
+                            ward && ward.id && index === self.findIndex(w => w.id === ward.id)
+                          )
+                          .map(ward => (
+                            <option key={ward.id} value={ward.id}>
+                              {ward.wardNumber} - {ward.wardName}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Supervisor <span className="text-red-500">*</span></label>
+                      <select
+                        required
+                        value={formData.supervisor_id}
+                        onChange={(e) => setFormData({ ...formData, supervisor_id: e.target.value ? parseInt(e.target.value) : '' })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={!formData.ward_id}
+                      >
+                        <option value="">Select Supervisor</option>
+                        {supervisorsList.filter(s => !formData.ward_id || s.ward_id === formData.ward_id).map(s => (
+                          <option key={s.id} value={s.id}>{s.employee_id} - {s.full_name}</option>
+                        ))}
+                      </select>
+                      {!formData.ward_id && <p className="text-xs text-red-500 mt-1">Please select ward first</p>}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Contractor (optional)</label>
+                      <select
+                        value={formData.contractor_id}
+                        onChange={(e) => setFormData({ ...formData, contractor_id: e.target.value ? parseInt(e.target.value) : '' })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">None</option>
+                        {contractorsList.map(c => (
+                          <option key={c.id} value={c.id}>{c.company_name || c.employee_id} - {c.full_name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                {/* CONTRACTOR: Company name, Contact details */}
+                {formData.role && formData.role.toUpperCase() === 'CONTRACTOR' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Company Name <span className="text-red-500">*</span></label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.company_name}
+                        onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Contact Details <span className="text-red-500">*</span></label>
+                      <textarea
+                        required
+                        value={formData.contact_details}
+                        onChange={(e) => setFormData({ ...formData, contact_details: e.target.value })}
+                        rows={3}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* Clerk, Inspector, Officer, Collector: single ward */}
+                {formData.role && ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR'].includes(formData.role.toUpperCase()) && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Ward Assignment</label>
+                    <select
+                      required={formData.role && formData.role.toUpperCase() === 'CLERK'}
+                      value={formData.ward_ids && formData.ward_ids.length > 0 ? formData.ward_ids[0] : ''}
+                      onChange={(e) => setFormData({ ...formData, ward_ids: e.target.value ? [parseInt(e.target.value)] : [] })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select Ward</option>
+                      {wards.map(ward => (
+                        <option key={ward.id} value={ward.id}>{ward.wardNumber} - {ward.wardName}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                   <select
@@ -776,19 +1302,71 @@ const AdminManagement = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
+                {/* ULB Dropdown - Mandatory except ADMIN */}
+                {formData.role && formData.role.toUpperCase() !== 'ADMIN' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      ULB {formData.role.toUpperCase() === 'EO' && <span className="text-red-500">*</span>}
+                    </label>
+                    <select
+                      required={formData.role.toUpperCase() === 'EO'}
+                      value={formData.ulb_id || ''}
+                      onChange={(e) => {
+                        const newUlbId = e.target.value; // This is the UUID from ulb.id
+                        setFormData({ 
+                          ...formData, 
+                          ulb_id: newUlbId, // Store UUID, not name
+                          assigned_ulb: '', // Clear name field
+                          ward_ids: [],
+                          ward_id: '',
+                          eo_id: ''
+                        });
+                        // Reload wards filtered by ULB
+                        if (newUlbId) {
+                          fetchWards(newUlbId);
+                          fetchEos(newUlbId);
+                        } else {
+                          fetchWards();
+                          fetchEos();
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select ULB</option>
+                      {ulbs.map(ulb => (
+                        <option key={ulb.id} value={ulb.id}>{ulb.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
                   <select
                     required
                     value={formData.role}
-                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                    onChange={(e) => {
+                      const newRole = e.target.value;
+                      setFormData({ 
+                        ...formData, 
+                        role: newRole,
+                        ward_ids: [],
+                        ward_id: '',
+                        eo_id: '',
+                        supervisor_id: '',
+                        ulb_id: (newRole && (newRole.toUpperCase() === 'SUPERVISOR' || newRole.toUpperCase() === 'FIELD_WORKER')) ? formData.ulb_id : ''
+                      });
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Select Role</option>
-                    <option value="clerk">Clerk</option>
-                    <option value="inspector">Inspector</option>
-                    <option value="officer">Officer</option>
-                    <option value="collector">Collector</option>
+                    <option value="CLERK">Clerk</option>
+                    <option value="INSPECTOR">Inspector</option>
+                    <option value="OFFICER">Officer</option>
+                    <option value="COLLECTOR">Collector</option>
+                    <option value="EO">EO</option>
+                    <option value="SUPERVISOR">Supervisor</option>
+                    <option value="FIELD_WORKER">Field Worker</option>
+                    <option value="CONTRACTOR">Contractor</option>
                   </select>
                 </div>
                 <div>
@@ -811,33 +1389,209 @@ const AdminManagement = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Ward Assignment</label>
-                  <select
-                    required
-                    value={formData.ward_ids && formData.ward_ids.length > 0 ? formData.ward_ids[0] : ''}
-                    onChange={(e) => setFormData({ ...formData, ward_ids: e.target.value ? [parseInt(e.target.value)] : [] })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select Ward</option>
-                    {wards.length === 0 ? (
-                      <option value="" disabled>
-                        No wards available. Please add wards first.
-                      </option>
-                    ) : (
-                      wards.map(ward => (
-                        <option key={ward.id} value={ward.id}>
-                          {ward.wardNumber} - {ward.wardName}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                  {wards.length === 0 && (
-                    <p className="text-xs text-red-500 mt-1">
-                      No wards found. Please create wards in the Wards section first.
-                    </p>
-                  )}
-                </div>
+                {formData.role && formData.role.toUpperCase() === 'EO' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Wards</label>
+                    <select
+                      multiple
+                      value={formData.ward_ids || []}
+                      onChange={(e) => {
+                        // Extract all selected ward IDs (integers) from selected options
+                        const selectedWardIds = Array.from(e.target.selectedOptions, option => {
+                          const wardId = parseInt(option.value);
+                          return isNaN(wardId) ? null : wardId;
+                        }).filter(id => id !== null);
+                        
+                        console.log('🔵 Ward selection changed (edit):', {
+                          selectedOptions: Array.from(e.target.selectedOptions).map(o => ({ value: o.value, text: o.text })),
+                          selectedWardIds,
+                          previousWardIds: formData.ward_ids
+                        });
+                        
+                        setFormData({ ...formData, ward_ids: selectedWardIds });
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={!formData.ulb_id}
+                      size={Math.min(wards.filter(w => !formData.ulb_id || w.ulb_id === formData.ulb_id).length, 6)}
+                    >
+                      {wards
+                        .filter(w => !formData.ulb_id || w.ulb_id === formData.ulb_id)
+                        .filter((ward, index, self) => 
+                          ward && ward.id && index === self.findIndex(w => w.id === ward.id)
+                        )
+                        .map(ward => (
+                          <option key={ward.id} value={ward.id}>{ward.wardNumber} - {ward.wardName}</option>
+                        ))}
+                    </select>
+                    {!formData.ulb_id && <p className="text-xs text-red-500 mt-1">Please select ULB first</p>}
+                  </div>
+                )}
+                {formData.role && formData.role.toUpperCase() === 'SUPERVISOR' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Ward</label>
+                      <select
+                        value={formData.ward_id}
+                        onChange={async (e) => {
+                          const wardId = e.target.value ? parseInt(e.target.value) : '';
+                          const selectedWard = allWards.find(w => w.id === wardId);
+                          const wardUlbId = selectedWard?.ulb_id;
+                          
+                          setFormData({ 
+                            ...formData, 
+                            ward_id: wardId,
+                            ulb_id: wardUlbId || formData.ulb_id,
+                            eo_id: ''
+                          });
+                          
+                          if (wardUlbId) {
+                            await fetchEos(wardUlbId);
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Select Ward</option>
+                        {allWards.map(ward => (
+                          <option key={ward.id} value={ward.id}>{ward.wardNumber} - {ward.wardName}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">EO</label>
+                      <select
+                        value={formData.eo_id}
+                        onChange={(e) => setFormData({ ...formData, eo_id: e.target.value ? parseInt(e.target.value) : '' })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={!formData.ulb_id}
+                      >
+                        <option value="">Select EO</option>
+                        {eosList.filter(eo => !formData.ulb_id || eo.ulb_id === formData.ulb_id).map(eo => (
+                          <option key={eo.id} value={eo.id}>{eo.employee_id} - {eo.full_name}</option>
+                        ))}
+                      </select>
+                      {!formData.ulb_id && <p className="text-xs text-red-500 mt-1">Please select ward first</p>}
+                    </div>
+                  </>
+                )}
+                {formData.role && formData.role.toUpperCase() === 'FIELD_WORKER' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Worker Type</label>
+                      <select
+                        value={formData.worker_type}
+                        onChange={(e) => setFormData({ ...formData, worker_type: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Select Type</option>
+                        <option value="ULB">ULB</option>
+                        <option value="CONTRACTUAL">CONTRACTUAL</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Ward</label>
+                      <select
+                        value={formData.ward_id}
+                        onChange={async (e) => {
+                          const wardId = e.target.value ? parseInt(e.target.value) : '';
+                          const selectedWard = allWards.find(w => w.id === wardId);
+                          const wardUlbId = selectedWard?.ulb_id;
+                          
+                          setFormData({ 
+                            ...formData, 
+                            ward_id: wardId,
+                            ulb_id: wardUlbId || formData.ulb_id,
+                            supervisor_id: ''
+                          });
+                          
+                          if (wardId) {
+                            await fetchSupervisors(wardId);
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Select Ward</option>
+                        {allWards
+                          .filter((ward, index, self) => 
+                            ward && ward.id && index === self.findIndex(w => w.id === ward.id)
+                          )
+                          .map(ward => (
+                            <option key={ward.id} value={ward.id}>
+                              {ward.wardNumber} - {ward.wardName}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Supervisor</label>
+                      <select
+                        value={formData.supervisor_id}
+                        onChange={(e) => setFormData({ ...formData, supervisor_id: e.target.value ? parseInt(e.target.value) : '' })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={!formData.ward_id}
+                      >
+                        <option value="">Select Supervisor</option>
+                        {supervisorsList.filter(s => !formData.ward_id || s.ward_id === formData.ward_id).map(s => (
+                          <option key={s.id} value={s.id}>{s.employee_id} - {s.full_name}</option>
+                        ))}
+                      </select>
+                      {!formData.ward_id && <p className="text-xs text-red-500 mt-1">Please select ward first</p>}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Contractor (optional)</label>
+                      <select
+                        value={formData.contractor_id}
+                        onChange={(e) => setFormData({ ...formData, contractor_id: e.target.value ? parseInt(e.target.value) : '' })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">None</option>
+                        {contractorsList.map(c => (
+                          <option key={c.id} value={c.id}>{c.company_name || c.employee_id} - {c.full_name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )}
+                {formData.role && formData.role.toUpperCase() === 'CONTRACTOR' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+                      <input
+                        type="text"
+                        value={formData.company_name}
+                        onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Contact Details</label>
+                      <textarea
+                        value={formData.contact_details}
+                        onChange={(e) => setFormData({ ...formData, contact_details: e.target.value })}
+                        rows={3}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </>
+                )}
+                {formData.role && ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR'].includes(formData.role.toUpperCase()) && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Ward Assignment</label>
+                    <select
+                      value={formData.ward_ids && formData.ward_ids.length > 0 ? formData.ward_ids[0] : ''}
+                      onChange={(e) => setFormData({ ...formData, ward_ids: e.target.value ? [parseInt(e.target.value)] : [] })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select Ward</option>
+                      {wards
+                        .filter((ward, index, self) => 
+                          ward && ward.id && index === self.findIndex(w => w.id === ward.id)
+                        )
+                        .map(ward => (
+                          <option key={ward.id} value={ward.id}>{ward.wardNumber} - {ward.wardName}</option>
+                        ))}
+                    </select>
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                   <select
@@ -911,7 +1665,7 @@ const AdminManagement = () => {
               <div>
                 <label className="text-sm font-medium text-gray-700">Role</label>
                 <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${getRoleBadgeColor(selectedEmployee.role)}`}>
-                  {selectedEmployee.role.charAt(0).toUpperCase() + selectedEmployee.role.slice(1)}
+                  {getRoleLabel(selectedEmployee.role)}
                 </span>
               </div>
               <div>
@@ -927,9 +1681,59 @@ const AdminManagement = () => {
                 <p className="text-gray-900">
                   {selectedEmployee.ward_names && selectedEmployee.ward_names.length > 0
                     ? selectedEmployee.ward_names.join(', ')
-                    : 'No wards assigned'}
+                    : selectedEmployee.ward ? `${selectedEmployee.ward.wardNumber} - ${selectedEmployee.ward.wardName}` : 'No wards assigned'}
                 </p>
               </div>
+              {selectedEmployee.role && selectedEmployee.role.toUpperCase() === 'EO' && selectedEmployee.assigned_ulb && (
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Assigned ULB</label>
+                  <p className="text-gray-900">{selectedEmployee.assigned_ulb}</p>
+                </div>
+              )}
+              {selectedEmployee.role && selectedEmployee.role.toUpperCase() === 'SUPERVISOR' && selectedEmployee.eo && (
+                <div>
+                  <label className="text-sm font-medium text-gray-700">EO</label>
+                  <p className="text-gray-900">{selectedEmployee.eo.full_name} ({selectedEmployee.eo.employee_id})</p>
+                </div>
+              )}
+              {selectedEmployee.role && selectedEmployee.role.toUpperCase() === 'FIELD_WORKER' && (
+                <>
+                  {selectedEmployee.worker_type && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Worker Type</label>
+                      <p className="text-gray-900">{selectedEmployee.worker_type}</p>
+                    </div>
+                  )}
+                  {selectedEmployee.supervisor && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Supervisor</label>
+                      <p className="text-gray-900">{selectedEmployee.supervisor.full_name} ({selectedEmployee.supervisor.employee_id})</p>
+                    </div>
+                  )}
+                  {selectedEmployee.contractor && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Contractor</label>
+                      <p className="text-gray-900">{selectedEmployee.contractor.full_name} {selectedEmployee.contractor.company_name && `- ${selectedEmployee.contractor.company_name}`}</p>
+                    </div>
+                  )}
+                </>
+              )}
+              {selectedEmployee.role && selectedEmployee.role.toUpperCase() === 'CONTRACTOR' && (
+                <>
+                  {selectedEmployee.company_name && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Company Name</label>
+                      <p className="text-gray-900">{selectedEmployee.company_name}</p>
+                    </div>
+                  )}
+                  {selectedEmployee.contact_details && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Contact Details</label>
+                      <p className="text-gray-900 whitespace-pre-wrap">{selectedEmployee.contact_details}</p>
+                    </div>
+                  )}
+                </>
+              )}
               <div>
                 <label className="text-sm font-medium text-gray-700">Status</label>
                 <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeColor(selectedEmployee.status)}`}>

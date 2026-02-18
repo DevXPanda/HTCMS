@@ -22,8 +22,11 @@ export const AuthProvider = ({ children }) => {
       if (token) {
         try {
           const storedRole = localStorage.getItem('role');
-          const staffRoles = ['clerk', 'inspector', 'officer', 'collector'];
-          if (storedRole && staffRoles.includes(storedRole)) {
+          // Normalize role to uppercase for comparison
+          const normalizedRole = storedRole ? storedRole.toUpperCase().replace(/-/g, '_') : storedRole;
+          const staffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR'];
+          if (normalizedRole && staffRoles.includes(normalizedRole)) {
+            // Staff users use StaffAuthContext, skip AuthContext check
             setLoading(false);
             return;
           }
