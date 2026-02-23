@@ -35,7 +35,7 @@ const AdminLayout = () => {
                   <ArrowLeft className="w-5 h-5" />
                 </button>
               )}
-              <h1 className="text-xl font-bold text-primary-600">Bizwoke Management System</h1>
+              <h1 className="text-xl font-bold text-primary-600">ULB System</h1>
             </div>
             <div className="flex items-center space-x-4">
               <button
