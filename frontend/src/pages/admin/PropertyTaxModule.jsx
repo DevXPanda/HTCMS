@@ -22,7 +22,7 @@ const PropertyTaxModule = () => {
             title: 'Demands',
             description: 'Track tax demands and collections',
             icon: Receipt,
-            link: '/demands',
+            link: '/demands?module=PROPERTY',
             color: 'bg-yellow-500'
         },
         {

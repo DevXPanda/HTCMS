@@ -12,7 +12,14 @@ export const Property = sequelize.define('Property', {
   propertyNumber: {
     type: DataTypes.STRING(50),
     allowNull: false,
-    unique: true
+    comment: 'Admin-entered reference (e.g. 94) or same as unique_code when not provided'
+  },
+  uniqueCode: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+    unique: true,
+    field: 'unique_code',
+    comment: 'System-generated unique ID (e.g. PR0230055); always set on create'
   },
   ownerId: {
     type: DataTypes.INTEGER,

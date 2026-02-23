@@ -2,6 +2,7 @@ import { PropertyApplication, WaterConnectionRequest, Property, WaterConnection,
 import { sequelize } from '../config/database.js';
 import { body, validationResult } from 'express-validator';
 import { Op } from 'sequelize';
+import { getNextPropertyNumberInWard, generatePropertyUniqueId } from '../services/uniqueIdService.js';
 
 // Get dashboard statistics for inspector
 export const getDashboardStats = async (req, res) => {
@@ -421,9 +422,12 @@ export const processPropertyInspection = async (req, res) => {
         updateData.status = 'APPROVED';
         updateData.inspectionRemarks = inspectorRemarks || 'Application approved by inspector';
 
-        // Create actual property record
+        // Create actual property record (unique ID = PREFIX + WARD(3) + PROPERTY_NUMBER(4))
+        const nextNum = await getNextPropertyNumberInWard(application.wardId);
+        const uniqueCode = generatePropertyUniqueId(application.wardId, application.propertyType, nextNum);
         const newProperty = await Property.create({
-          propertyNumber: `PROP-${Date.now()}`,
+          propertyNumber: uniqueCode,
+          uniqueCode,
           wardId: application.wardId,
           ownerId: application.applicantId,
           ownerName: application.ownerName,

@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { wardAPI } from '../../services/api';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
-import { MapPin, Home, FileText, DollarSign, AlertCircle, TrendingUp, CheckSquare, CreditCard, Clock, RefreshCw } from 'lucide-react';
+import { MapPin, Home, FileText, DollarSign, AlertCircle, TrendingUp, CheckSquare, CreditCard, Clock, RefreshCw, Download, Shield } from 'lucide-react';
+import { penaltyWaiverAPI } from '../../services/api';
 import { useStaffAuth } from '../../contexts/StaffAuthContext';
 
 const CollectorDashboard = () => {
@@ -301,6 +302,120 @@ const CollectorDashboard = () => {
             </div>
           ) : (
             <p className="text-gray-500">No overdue demands</p>
+          )}
+        </div>
+
+        {/* Discounted Demands */}
+        <div className="bg-white rounded-lg border border-gray-100 p-6 lg:col-span-2">
+          <h2 className="text-xl font-semibold mb-4">Discounted Demands</h2>
+          {dashboard?.discountedDemands && dashboard.discountedDemands.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Citizen</th>
+                    <th>Module</th>
+                    <th>Demand No</th>
+                    <th>Original</th>
+                    <th>Discount</th>
+                    <th>Final</th>
+                    <th>Approved By</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dashboard.discountedDemands.map((row) => (
+                    <tr key={`${row.demandId}-${row.date}`}>
+                      <td>{row.citizen}</td>
+                      <td className="capitalize">{row.module?.replace('_', ' ')}</td>
+                      <td>
+                        <Link to={`/collector/demands/${row.demandId}`} className="text-primary-600 hover:underline">
+                          {row.demandNumber}
+                        </Link>
+                      </td>
+                      <td>₹{parseFloat(row.originalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                      <td>₹{parseFloat(row.discountAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                      <td>₹{parseFloat(row.finalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                      <td>{row.approvedBy ?? '—'}</td>
+                      <td>{row.date ? new Date(row.date).toLocaleDateString() : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-gray-500">No discounted demands</p>
+          )}
+        </div>
+
+        {/* Penalty Waived Demands */}
+        <div className="bg-white rounded-lg border border-gray-100 p-6 lg:col-span-2">
+          <h2 className="text-xl font-semibold mb-4 flex items-center">
+            <Shield className="w-5 h-5 mr-2 text-red-600" />
+            Penalty Waived Demands
+          </h2>
+          {dashboard?.penaltyWaivedDemands && dashboard.penaltyWaivedDemands.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Citizen</th>
+                    <th>Module</th>
+                    <th>Demand</th>
+                    <th>Penalty</th>
+                    <th>Waived</th>
+                    <th>Final</th>
+                    <th>Approved By</th>
+                    <th>Date</th>
+                    <th>Letter</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dashboard.penaltyWaivedDemands.map((row) => (
+                    <tr key={`pw-${row.id}-${row.demandId}`}>
+                      <td>{row.citizen}</td>
+                      <td className="capitalize">{row.module?.replace('_', ' ')}</td>
+                      <td>
+                        <Link to={`/collector/demands/${row.demandId}`} className="text-primary-600 hover:underline">
+                          {row.demandNumber}
+                        </Link>
+                      </td>
+                      <td>₹{parseFloat(row.penalty || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                      <td>₹{parseFloat(row.waived || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                      <td>₹{parseFloat(row.finalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                      <td>{row.approvedBy ?? '—'}</td>
+                      <td>{row.date ? new Date(row.date).toLocaleDateString() : '—'}</td>
+                      <td>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const res = await penaltyWaiverAPI.getPdf(row.id);
+                              const blob = new Blob([res.data], { type: 'application/pdf' });
+                              const url = window.URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = `penalty-waiver-${row.id}.pdf`;
+                              a.click();
+                              window.URL.revokeObjectURL(url);
+                              toast.success('Download started');
+                            } catch (err) {
+                              toast.error(err.response?.data?.message || 'Download failed');
+                            }
+                          }}
+                          className="text-primary-600 hover:underline flex items-center gap-1 text-sm"
+                        >
+                          <Download className="w-4 h-4" />
+                          PDF
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-gray-500">No penalty waived demands</p>
           )}
         </div>
 

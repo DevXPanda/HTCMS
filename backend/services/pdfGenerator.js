@@ -1,10 +1,11 @@
 import PDFDocument from 'pdfkit';
-import { 
-  generatePdfFilename, 
-  getReceiptPdfPath, 
+import {
+  generatePdfFilename,
+  getReceiptPdfPath,
   getNoticePdfPath,
-  savePdfFile 
+  savePdfFile
 } from '../utils/pdfStorage.js';
+import { getDemandOriginalAmount, getDemandPenaltyAmount, calculateFinalAmount } from '../utils/financialCalculations.js';
 
 /**
  * PDF Generation Service
@@ -435,6 +436,336 @@ export const generateNoticePdf = async (notice, demand, property, owner, ward, g
       doc.end();
     } catch (error) {
       reject(error);
+    }
+  });
+};
+
+/**
+ * Generate Demand Notice PDF (buffer only, no file save)
+ * Used for GET /api/demands/:id/pdf?type=notice
+ */
+export const generateDemandNoticePdfBuffer = (demand, options = {}) => {
+  const { property = null, owner = null, ward = null, entityLabel = 'N/A', ulbName = 'Municipal Corporation' } = options;
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ size: 'A4', margins: { top: 50, bottom: 50, left: 50, right: 50 } });
+      const chunks = [];
+      doc.on('data', chunk => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+
+      const moduleLabel = { HOUSE_TAX: 'Property', D2DC: 'D2DC', WATER_TAX: 'Water', SHOP_TAX: 'Shop' }[demand.serviceType] || demand.serviceType;
+      const originalAmount = getDemandOriginalAmount(demand);
+      const discountAmount = (demand.taxDiscounts && demand.taxDiscounts.length)
+        ? Number((demand.taxDiscounts.reduce((s, d) => s + parseFloat(d.discountAmount || 0), 0)).toFixed(2))
+        : 0;
+      const { finalAmount } = calculateFinalAmount(demand, {
+        discountAmount,
+        waiverAmount: parseFloat(demand.penaltyWaived || 0)
+      });
+
+      doc.fontSize(20).font('Helvetica-Bold').text(ulbName.toUpperCase(), { align: 'center' });
+      doc.moveDown(0.5);
+      doc.fontSize(16).font('Helvetica').text('House Tax Collection & Management System', { align: 'center' });
+      doc.moveDown(1);
+      doc.fontSize(18).font('Helvetica-Bold').text('DEMAND NOTICE', { align: 'center' });
+      doc.moveDown(1.5);
+
+      let rowY = doc.y;
+      doc.fontSize(11).font('Helvetica-Bold').text('Demand Number:', 60, rowY);
+      doc.font('Helvetica').text(demand.demandNumber || 'N/A', 200, rowY);
+      doc.font('Helvetica-Bold').text('Module Type:', 350, rowY);
+      doc.font('Helvetica').text(moduleLabel, 450, rowY);
+      rowY += 22;
+      doc.font('Helvetica-Bold').text('Financial Year:', 60, rowY);
+      doc.font('Helvetica').text(demand.financialYear || 'N/A', 200, rowY);
+      doc.font('Helvetica-Bold').text('Due Date:', 350, rowY);
+      doc.font('Helvetica').text(demand.dueDate ? new Date(demand.dueDate).toLocaleDateString('en-IN') : 'N/A', 450, rowY);
+      rowY += 22;
+      doc.font('Helvetica-Bold').text('Status:', 60, rowY);
+      doc.font('Helvetica').text((demand.status || 'N/A').replace(/_/g, ' '), 200, rowY);
+      doc.y = rowY + 12;
+      doc.moveDown(1);
+
+      if (owner) {
+        doc.fontSize(12).font('Helvetica-Bold').text('Citizen Name:', 60, doc.y);
+        doc.font('Helvetica').text(`${owner.firstName || ''} ${owner.lastName || ''}`.trim() || 'N/A', 200, doc.y);
+        doc.moveDown(0.5);
+      }
+      doc.font('Helvetica-Bold').text('Property/Shop/Connection ID:', 60, doc.y);
+      doc.font('Helvetica').text(entityLabel, 200, doc.y);
+      doc.moveDown(1);
+
+      const boxY = doc.y;
+      doc.rect(50, boxY, 495, discountAmount > 0 ? 140 : 100).stroke();
+      let boxRowY = boxY + 15;
+      doc.fontSize(12).font('Helvetica-Bold').text('Original Amount:', 60, boxRowY);
+      doc.font('Helvetica').text(`₹${originalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 400, boxRowY, { align: 'right' });
+      if (discountAmount > 0) {
+        boxRowY += 25;
+        doc.font('Helvetica-Bold').text('Discount:', 60, boxRowY);
+        doc.font('Helvetica').text(`₹${discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 400, boxRowY, { align: 'right' });
+      }
+      boxRowY += 25;
+      doc.lineWidth(1);
+      doc.moveTo(60, boxRowY).lineTo(540, boxRowY).stroke();
+      boxRowY += 15;
+      doc.fontSize(12).font('Helvetica-Bold').text('Final Payable Amount:', 60, boxRowY);
+      doc.font('Helvetica').text(`₹${finalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 400, boxRowY, { align: 'right' });
+      doc.y = boxY + (discountAmount > 0 ? 140 : 100) + 10;
+      doc.moveDown(1.5);
+
+      doc.fontSize(9).font('Helvetica-Oblique').text('This is a system-generated demand notice.', { align: 'center' });
+      doc.fontSize(8).font('Helvetica').text(`Generated on: ${new Date().toLocaleString('en-IN')}`, { align: 'center' });
+      doc.end();
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
+/**
+ * Generate Demand Summary Receipt PDF (buffer only)
+ * Used for GET /api/demands/:id/pdf?type=receipt
+ */
+export const generateDemandSummaryReceiptPdfBuffer = (demand, options = {}) => {
+  const { property = null, owner = null, ward = null, entityLabel = 'N/A', ulbName = 'Municipal Corporation' } = options;
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ size: 'A4', margins: { top: 50, bottom: 50, left: 50, right: 50 } });
+      const chunks = [];
+      doc.on('data', chunk => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+
+      const moduleLabel = { HOUSE_TAX: 'Property', D2DC: 'D2DC', WATER_TAX: 'Water', SHOP_TAX: 'Shop' }[demand.serviceType] || demand.serviceType;
+      const originalAmount = getDemandOriginalAmount(demand);
+      const discountAmount = (demand.taxDiscounts && demand.taxDiscounts.length)
+        ? Number((demand.taxDiscounts.reduce((s, d) => s + parseFloat(d.discountAmount || 0), 0)).toFixed(2))
+        : 0;
+      const { finalAmount } = calculateFinalAmount(demand, {
+        discountAmount,
+        waiverAmount: parseFloat(demand.penaltyWaived || 0)
+      });
+      const paid = parseFloat(demand.paidAmount || 0);
+
+      doc.fontSize(20).font('Helvetica-Bold').text(ulbName.toUpperCase(), { align: 'center' });
+      doc.moveDown(0.5);
+      doc.fontSize(16).font('Helvetica').text('House Tax Collection & Management System', { align: 'center' });
+      doc.moveDown(1);
+      doc.fontSize(18).font('Helvetica-Bold').text('DEMAND SUMMARY RECEIPT', { align: 'center' });
+      doc.moveDown(1.5);
+
+      let rowY = doc.y;
+      doc.fontSize(11).font('Helvetica-Bold').text('Demand Number:', 60, rowY);
+      doc.font('Helvetica').text(demand.demandNumber || 'N/A', 200, rowY);
+      doc.font('Helvetica-Bold').text('Module:', 350, rowY);
+      doc.font('Helvetica').text(moduleLabel, 450, rowY);
+      rowY += 22;
+      if (owner) {
+        doc.font('Helvetica-Bold').text('Citizen Name:', 60, rowY);
+        doc.font('Helvetica').text(`${owner.firstName || ''} ${owner.lastName || ''}`.trim() || 'N/A', 200, rowY);
+        rowY += 22;
+      }
+      doc.font('Helvetica-Bold').text('Property/Shop/Connection ID:', 60, rowY);
+      doc.font('Helvetica').text(entityLabel, 200, rowY);
+      doc.font('Helvetica-Bold').text('Due Date:', 350, rowY);
+      doc.font('Helvetica').text(demand.dueDate ? new Date(demand.dueDate).toLocaleDateString('en-IN') : 'N/A', 450, rowY);
+      doc.y = rowY + 22;
+      doc.moveDown(1);
+
+      const boxY = doc.y;
+      doc.rect(50, boxY, 495, 160).stroke();
+      let boxRowY = boxY + 15;
+      doc.fontSize(11).font('Helvetica-Bold').text('Original Amount:', 60, boxRowY);
+      doc.font('Helvetica').text(`₹${originalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 400, boxRowY, { align: 'right' });
+      if (discountAmount > 0) {
+        boxRowY += 25;
+        doc.font('Helvetica-Bold').text('Discount:', 60, boxRowY);
+        doc.font('Helvetica').text(`₹${discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 400, boxRowY, { align: 'right' });
+      }
+      boxRowY += 25;
+      doc.font('Helvetica-Bold').text('Paid Amount:', 60, boxRowY);
+      doc.font('Helvetica').text(`₹${paid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 400, boxRowY, { align: 'right' });
+      boxRowY += 25;
+      doc.moveTo(60, boxRowY).lineTo(540, boxRowY).stroke();
+      boxRowY += 15;
+      doc.fontSize(12).font('Helvetica-Bold').text('Balance / Final Payable:', 60, boxRowY);
+      doc.font('Helvetica').text(`₹${finalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 400, boxRowY, { align: 'right' });
+      doc.y = boxY + 160 + 10;
+      doc.moveDown(1.5);
+
+      doc.fontSize(9).font('Helvetica-Oblique').text('This is a system-generated summary. For payment receipt use the payment receipt.', { align: 'center' });
+      doc.fontSize(8).font('Helvetica').text(`Generated on: ${new Date().toLocaleString('en-IN')}`, { align: 'center' });
+      doc.end();
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
+/**
+ * Generate Discount Approval Letter PDF (buffer only)
+ * Used for GET /api/discounts/:id/pdf
+ */
+export const generateDiscountApprovalPdfBuffer = (discount, options = {}) => {
+  const { demand = null, owner = null, entityLabel = 'N/A', approvedByName = 'N/A', ulbName = 'Municipal Corporation' } = options;
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ size: 'A4', margins: { top: 50, bottom: 50, left: 50, right: 50 } });
+      const chunks = [];
+      doc.on('data', chunk => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+
+      const moduleLabel = (discount.moduleType || 'N/A').toString();
+      const originalAmount = demand ? getDemandOriginalAmount(demand) : 0;
+      const discountAmt = Number((parseFloat(discount.discountAmount || 0)).toFixed(2));
+      const discountTypeLabel = (discount.discountType === 'PERCENTAGE' ? '%' : 'Fixed');
+      const finalAmount = demand
+        ? calculateFinalAmount(demand, { discountAmount: discountAmt, waiverAmount: parseFloat(demand.penaltyWaived || 0) }).finalAmount
+        : Number((originalAmount - discountAmt).toFixed(2));
+
+      doc.fontSize(20).font('Helvetica-Bold').text(ulbName.toUpperCase(), { align: 'center' });
+      doc.moveDown(0.5);
+      doc.fontSize(16).font('Helvetica').text('House Tax Collection & Management System', { align: 'center' });
+      doc.moveDown(1);
+      doc.fontSize(18).font('Helvetica-Bold').text('DISCOUNT APPROVAL LETTER', { align: 'center' });
+      doc.moveDown(1.5);
+
+      let rowY = doc.y;
+      const rowH = 22;
+      doc.fontSize(11).font('Helvetica-Bold').text('Discount ID:', 60, rowY);
+      doc.font('Helvetica').text(String(discount.id), 200, rowY);
+      doc.font('Helvetica-Bold').text('Module Type:', 350, rowY);
+      doc.font('Helvetica').text(moduleLabel, 450, rowY);
+      rowY += rowH;
+      doc.font('Helvetica-Bold').text('Demand No:', 60, rowY);
+      doc.font('Helvetica').text(demand ? (demand.demandNumber || 'N/A') : 'N/A', 200, rowY);
+      rowY += rowH;
+      if (owner) {
+        doc.font('Helvetica-Bold').text('Citizen Name:', 60, rowY);
+        doc.font('Helvetica').text(`${owner.firstName || ''} ${owner.lastName || ''}`.trim() || 'N/A', 200, rowY);
+        rowY += rowH;
+      }
+      doc.font('Helvetica-Bold').text('Original Amount:', 60, rowY);
+      doc.font('Helvetica').text(`₹${originalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 200, rowY);
+      doc.font('Helvetica-Bold').text('Discount Type:', 350, rowY);
+      doc.font('Helvetica').text(discountTypeLabel, 450, rowY);
+      rowY += rowH;
+      doc.font('Helvetica-Bold').text('Discount Amount:', 60, rowY);
+      doc.font('Helvetica').text(`₹${discountAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 200, rowY);
+      rowY += rowH;
+      doc.font('Helvetica-Bold').text('Final Amount:', 60, rowY);
+      doc.font('Helvetica').text(`₹${finalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 200, rowY);
+      rowY += rowH;
+      doc.font('Helvetica-Bold').text('Reason:', 60, rowY);
+      doc.font('Helvetica').text((discount.reason || 'N/A').substring(0, 200), 200, rowY, { width: 340 });
+      rowY += rowH;
+      doc.font('Helvetica-Bold').text('Approved By:', 60, rowY);
+      doc.font('Helvetica').text(approvedByName, 200, rowY);
+      doc.font('Helvetica-Bold').text('Date:', 350, rowY);
+      doc.font('Helvetica').text(discount.createdAt ? new Date(discount.createdAt).toLocaleDateString('en-IN') : 'N/A', 450, rowY);
+      rowY += rowH;
+      if (discount.documentUrl) {
+        doc.font('Helvetica-Bold').text('Attached Application:', 60, rowY);
+        doc.font('Helvetica').text('Reference document attached', 200, rowY);
+        rowY += rowH;
+      }
+      doc.y = rowY + 10;
+      doc.moveDown(1.5);
+
+      doc.fontSize(9).font('Helvetica-Oblique').text('This is an official discount approval letter. Official seal/footer.', { align: 'center' });
+      doc.fontSize(8).font('Helvetica').text(`Generated on: ${new Date().toLocaleString('en-IN')}`, { align: 'center' });
+      doc.end();
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
+/**
+ * Generate Penalty Waiver letter PDF buffer (for download)
+ */
+export const generatePenaltyWaiverLetterPdfBuffer = (waiver, options = {}) => {
+  const { demand = null, owner = null, entityLabel = 'N/A', approvedByName = 'N/A', ulbName = 'Municipal Corporation' } = options;
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ size: 'A4', margins: { top: 50, bottom: 50, left: 50, right: 50 } });
+      const chunks = [];
+      doc.on('data', chunk => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+
+      const moduleLabel = (waiver.moduleType || 'N/A').toString();
+      const penaltyAmount = demand ? getDemandPenaltyAmount(demand) : 0;
+      const waiverAmt = Number((parseFloat(waiver.waiverAmount || 0)).toFixed(2));
+      const waiverTypeLabel = (waiver.waiverType === 'PERCENTAGE' ? '%' : 'Fixed');
+      const remainingPenalty = Number((penaltyAmount - waiverAmt).toFixed(2));
+      const discountForFinal = demand && demand.taxDiscounts && demand.taxDiscounts.length
+        ? Number((demand.taxDiscounts.reduce((s, d) => s + parseFloat(d.discountAmount || 0), 0)).toFixed(2))
+        : 0;
+      const finalAmount = demand
+        ? calculateFinalAmount(demand, { discountAmount: discountForFinal, waiverAmount: waiverAmt }).finalAmount
+        : 0;
+
+      doc.fontSize(20).font('Helvetica-Bold').text(ulbName.toUpperCase(), { align: 'center' });
+      doc.moveDown(0.5);
+      doc.fontSize(16).font('Helvetica').text('House Tax Collection & Management System', { align: 'center' });
+      doc.moveDown(1);
+      doc.fontSize(18).font('Helvetica-Bold').text('PENALTY WAIVER APPROVAL LETTER', { align: 'center' });
+      doc.moveDown(1.5);
+
+      let rowY = doc.y;
+      const rowH = 22;
+      doc.fontSize(11).font('Helvetica-Bold').text('Waiver ID:', 60, rowY);
+      doc.font('Helvetica').text(String(waiver.id), 200, rowY);
+      doc.font('Helvetica-Bold').text('Module Type:', 350, rowY);
+      doc.font('Helvetica').text(moduleLabel, 450, rowY);
+      rowY += rowH;
+      doc.font('Helvetica-Bold').text('Demand No:', 60, rowY);
+      doc.font('Helvetica').text(demand ? (demand.demandNumber || 'N/A') : 'N/A', 200, rowY);
+      rowY += rowH;
+      if (owner) {
+        doc.font('Helvetica-Bold').text('Citizen Name:', 60, rowY);
+        doc.font('Helvetica').text(`${owner.firstName || ''} ${owner.lastName || ''}`.trim() || 'N/A', 200, rowY);
+        rowY += rowH;
+      }
+      doc.font('Helvetica-Bold').text('Original Penalty:', 60, rowY);
+      doc.font('Helvetica').text(`₹${penaltyAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 200, rowY);
+      doc.font('Helvetica-Bold').text('Waiver Type:', 350, rowY);
+      doc.font('Helvetica').text(waiverTypeLabel, 450, rowY);
+      rowY += rowH;
+      doc.font('Helvetica-Bold').text('Waiver Amount:', 60, rowY);
+      doc.font('Helvetica').text(`₹${waiverAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 200, rowY);
+      rowY += rowH;
+      doc.font('Helvetica-Bold').text('Remaining Penalty:', 60, rowY);
+      doc.font('Helvetica').text(`₹${remainingPenalty.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 200, rowY);
+      rowY += rowH;
+      doc.font('Helvetica-Bold').text('Final Payable:', 60, rowY);
+      doc.font('Helvetica').text(`₹${finalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 200, rowY);
+      rowY += rowH;
+      doc.font('Helvetica-Bold').text('Reason:', 60, rowY);
+      doc.font('Helvetica').text((waiver.reason || 'N/A').substring(0, 200), 200, rowY, { width: 340 });
+      rowY += rowH;
+      doc.font('Helvetica-Bold').text('Approved By:', 60, rowY);
+      doc.font('Helvetica').text(approvedByName, 200, rowY);
+      doc.font('Helvetica-Bold').text('Date:', 350, rowY);
+      doc.font('Helvetica').text(waiver.createdAt ? new Date(waiver.createdAt).toLocaleDateString('en-IN') : 'N/A', 450, rowY);
+      rowY += rowH;
+      if (waiver.documentUrl) {
+        doc.font('Helvetica-Bold').text('Attached Application:', 60, rowY);
+        doc.font('Helvetica').text('Reference document attached', 200, rowY);
+        rowY += rowH;
+      }
+      doc.y = rowY + 10;
+      doc.moveDown(1.5);
+
+      doc.fontSize(9).font('Helvetica-Oblique').text('This is an official penalty waiver approval letter. Official seal/footer.', { align: 'center' });
+      doc.fontSize(8).font('Helvetica').text(`Generated on: ${new Date().toLocaleString('en-IN')}`, { align: 'center' });
+      doc.end();
+    } catch (e) {
+      reject(e);
     }
   });
 };

@@ -23,7 +23,7 @@ export const getDailyTasks = async (req, res, next) => {
       employee_id: user?.employee_id
     });
 
-    if (user.role !== 'collector') {
+    if ((user.role || '').toString().toLowerCase() !== 'collector') {
       console.log('Task Controller - Access denied for role:', user.role);
       await transaction.rollback();
       return res.status(403).json({
@@ -136,7 +136,7 @@ export const getDailyTasks = async (req, res, next) => {
         {
           model: Demand,
           as: 'demand',
-          attributes: ['id', 'demandNumber', 'balanceAmount', 'overdueDays', 'dueDate', 'status', 'serviceType']
+          attributes: ['id', 'demandNumber', 'finalAmount', 'paidAmount', 'balanceAmount', 'overdueDays', 'dueDate', 'status', 'serviceType']
         },
         {
           model: Property,
@@ -321,7 +321,7 @@ export const completeTask = async (req, res, next) => {
     const { id } = req.params;
     const user = req.user;
 
-    if (user.role !== 'collector') {
+    if ((user.role || '').toString().toLowerCase() !== 'collector') {
       return res.status(403).json({
         success: false,
         message: 'Only collectors can complete tasks'

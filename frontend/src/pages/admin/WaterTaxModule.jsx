@@ -26,6 +26,13 @@ const WaterTaxModule = () => {
             color: 'bg-yellow-500'
         },
         {
+            title: 'Demands',
+            description: 'View and manage water tax demands',
+            icon: Receipt,
+            link: '/demands?module=WATER',
+            color: 'bg-amber-500'
+        },
+        {
             title: 'Connection Requests',
             description: 'Manage new connection applications',
             icon: ClipboardList,

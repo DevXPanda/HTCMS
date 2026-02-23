@@ -3,7 +3,8 @@ import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { demandAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { ArrowLeft, CreditCard, Calculator, Droplet, Home, FileText } from 'lucide-react';
+import { ArrowLeft, CreditCard, Calculator, Droplet, Home, FileText, Download, Loader2 } from 'lucide-react';
+import { calculateFinalAmount } from '../../../utils/financialCalculations';
 import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
 
 const DemandDetails = () => {
@@ -16,6 +17,9 @@ const DemandDetails = () => {
   const [loading, setLoading] = useState(true);
   const [breakdown, setBreakdown] = useState(null);
   const [loadingBreakdown, setLoadingBreakdown] = useState(false);
+  const [pdfLoadingNotice, setPdfLoadingNotice] = useState(false);
+  const [pdfLoadingReceipt, setPdfLoadingReceipt] = useState(false);
+  const [showDiscountDetails, setShowDiscountDetails] = useState(false);
 
   useEffect(() => {
     fetchDemand();
@@ -64,6 +68,26 @@ const DemandDetails = () => {
     }
   };
 
+  const downloadDemandPdf = async (type) => {
+    const setLoading = type === 'receipt' ? setPdfLoadingReceipt : setPdfLoadingNotice;
+    setLoading(true);
+    try {
+      const res = await demandAPI.getPdf(id, type);
+      const blob = res.data;
+      const name = type === 'receipt' ? `demand-summary-${demand?.demandNumber || id}.pdf` : `demand-notice-${demand?.demandNumber || id}.pdf`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to download PDF');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) return <Loading />;
   if (!demand) return <div>Tax Demand not found</div>;
 
@@ -76,15 +100,35 @@ const DemandDetails = () => {
 
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Tax Demand Details</h1>
-        {demand.balanceAmount > 0 && (
-          <Link
-            to={`${basePath}/payments/online/${id}`}
-            className="btn btn-primary flex items-center"
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => downloadDemandPdf('notice')}
+            disabled={pdfLoadingNotice}
+            className="btn btn-secondary flex items-center"
           >
-            <CreditCard className="w-4 h-4 mr-2" />
-            Pay Online
-          </Link>
-        )}
+            {pdfLoadingNotice ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+            Download Demand Notice (PDF)
+          </button>
+          <button
+            type="button"
+            onClick={() => downloadDemandPdf('receipt')}
+            disabled={pdfLoadingReceipt}
+            className="btn btn-secondary flex items-center"
+          >
+            {pdfLoadingReceipt ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+            Download Summary Receipt
+          </button>
+          {demand.balanceAmount > 0 && (
+            <Link
+              to={`${basePath}/payments/online/${id}`}
+              className="btn btn-primary flex items-center"
+            >
+              <CreditCard className="w-4 h-4 mr-2" />
+              Pay Online
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -224,6 +268,49 @@ const DemandDetails = () => {
             <p className="text-gray-500">No payments recorded</p>
           )}
         </div>
+
+        {demand.taxDiscounts && demand.taxDiscounts.length > 0 && (() => {
+          const discount = demand.taxDiscounts[0];
+          const finalPayable = demand.finalAmount ?? calculateFinalAmount(demand, { discountAmount: parseFloat(discount.discountAmount || 0), waiverAmount: parseFloat(demand.penaltyWaived || 0) }).finalAmount;
+          return (
+            <div className="card lg:col-span-2">
+              <div className="flex justify-between items-start flex-wrap gap-2">
+                <h2 className="text-xl font-semibold mb-4 flex items-center">
+                  <FileText className="w-5 h-5 mr-2 text-slate-600" />
+                  Discount Applied
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setShowDiscountDetails(true)}
+                  className="btn btn-secondary text-sm"
+                >
+                  View details
+                </button>
+              </div>
+              <dl className="space-y-2">
+                <div><dt className="text-sm text-gray-500">Discount Amount</dt><dd className="font-semibold">₹{parseFloat(discount.discountAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</dd></div>
+                <div><dt className="text-sm text-gray-500">Final Payable</dt><dd className="font-semibold">₹{parseFloat(finalPayable || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</dd></div>
+              </dl>
+              {showDiscountDetails && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setShowDiscountDetails(false)}>
+                  <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Discount Details</h3>
+                    <dl className="space-y-2 text-sm">
+                      <div><dt className="text-gray-500">Demand No</dt><dd className="font-medium">{demand.demandNumber || '—'}</dd></div>
+                      <div><dt className="text-gray-500">Type</dt><dd className="font-medium">{discount.discountType === 'PERCENTAGE' ? `${discount.discountValue}%` : 'Fixed'}</dd></div>
+                      <div><dt className="text-gray-500">Amount</dt><dd className="font-medium">₹{parseFloat(discount.discountAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</dd></div>
+                      <div><dt className="text-gray-500">Reason</dt><dd className="text-gray-700">{discount.reason || '—'}</dd></div>
+                      {discount.documentUrl && (
+                        <div><dt className="text-gray-500">Document</dt><dd><a href={discount.documentUrl} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">View PDF</a></dd></div>
+                      )}
+                    </dl>
+                    <div className="mt-6 flex justify-end"><button type="button" onClick={() => setShowDiscountDetails(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Close</button></div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {demand.property && (
           <div className="card lg:col-span-2">

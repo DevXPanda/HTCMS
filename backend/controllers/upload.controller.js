@@ -81,6 +81,49 @@ export const uploadPropertyPhoto = async (req, res, next) => {
 };
 
 /**
+ * @route   POST /api/upload/penalty-waiver-document
+ * @desc    Upload PDF document for penalty waiver application (Admin only)
+ * @access  Private (Admin)
+ */
+export const uploadPenaltyWaiverDocument = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+    }
+    const allowedMimes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedMimes.includes(req.file.mimetype)) {
+      if (req.file.path) {
+        try { fs.unlinkSync(req.file.path); } catch (e) { /* ignore */ }
+      }
+      return res.status(400).json({
+        success: false,
+        message: 'Only PDF and image files (JPEG, PNG, WebP, GIF) are allowed for penalty waiver document'
+      });
+    }
+
+    const fileUrl = `/uploads/${req.file.filename}`;
+    const fullUrl = `${req.protocol}://${req.get('host')}${fileUrl}`;
+
+    res.json({
+      success: true,
+      message: 'Document uploaded successfully',
+      data: {
+        url: fullUrl,
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * @route   POST /api/upload/field-visit-photo
  * @desc    Upload field visit proof photo (Collector)
  * @access  Private (Collector)
@@ -204,6 +247,49 @@ export const uploadShopRegistrationDocument = async (req, res, next) => {
         console.error('Error deleting file:', unlinkError);
       }
     }
+    next(error);
+  }
+};
+
+/**
+ * @route   POST /api/upload/discount-document
+ * @desc    Upload PDF document for discount application (Admin only)
+ * @access  Private (Admin)
+ */
+export const uploadDiscountDocument = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+    }
+    const allowedMimes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedMimes.includes(req.file.mimetype)) {
+      if (req.file.path) {
+        try { fs.unlinkSync(req.file.path); } catch (e) { /* ignore */ }
+      }
+      return res.status(400).json({
+        success: false,
+        message: 'Only PDF and image files (JPEG, PNG, WebP, GIF) are allowed for discount application document'
+      });
+    }
+
+    const fileUrl = `/uploads/${req.file.filename}`;
+    const fullUrl = `${req.protocol}://${req.get('host')}${fileUrl}`;
+
+    res.json({
+      success: true,
+      message: 'Document uploaded successfully',
+      data: {
+        url: fullUrl,
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      }
+    });
+  } catch (error) {
     next(error);
   }
 };

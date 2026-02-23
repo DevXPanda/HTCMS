@@ -1,20 +1,7 @@
 import { ShopRegistrationRequest, Property, User, Shop, Ward } from '../models/index.js';
 import { Op } from 'sequelize';
 import { auditLogger } from '../utils/auditLogger.js';
-
-/**
- * Generate unique shop number
- */
-const generateShopNumber = async () => {
-  const year = new Date().getFullYear();
-  const count = await Shop.count({
-    where: {
-      shopNumber: { [Op.like]: `SH-${year}-%` }
-    }
-  });
-  const sequence = String(count + 1).padStart(5, '0');
-  return `SH-${year}-${sequence}`;
-};
+import { generateShopId } from '../services/uniqueIdService.js';
 
 /**
  * Generate unique request number
@@ -476,8 +463,8 @@ export const approveShopRegistrationRequest = async (req, res, next) => {
       });
     }
 
-    // Generate shop number
-    const shopNumber = await generateShopNumber();
+    const wardId = request.property.wardId;
+    const shopNumber = await generateShopId(wardId);
 
     // Handle createdBy FK constraint
     // createdBy references 'users' table, but clerk/admin might be from 'admin_management' table

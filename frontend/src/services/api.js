@@ -124,6 +124,7 @@ export const assessmentAPI = {
 export const demandAPI = {
   getAll: (params) => api.get('/demands', { params }),
   getById: (id) => api.get(`/demands/${id}`),
+  getPdf: (id, type = 'notice') => api.get(`/demands/${id}/pdf`, { params: { type }, responseType: 'blob' }),
   create: (data) => api.post('/demands', data),
   createD2DC: (data) => api.post('/demands/d2dc', data),
   generateBulk: (data) => api.post('/demands/generate-bulk', data),
@@ -132,8 +133,27 @@ export const demandAPI = {
   generateUnified: (data) => api.post('/demands/generate-unified', data),
   calculatePenalty: (id, data) => api.put(`/demands/${id}/calculate-penalty`, data),
   getByProperty: (propertyId) => api.get(`/demands/property/${propertyId}`),
+  getByModuleEntity: (module, entityId, params = {}) => api.get(`/demands/by-entity/${module}/${entityId}`, { params }),
   getStatistics: (params) => api.get('/demands/statistics/summary', { params }),
   getBreakdown: (id) => api.get(`/demands/${id}/breakdown`)
+};
+
+// Discount API (Admin only)
+export const discountAPI = {
+  getSummary: () => api.get('/discounts/summary'),
+  getHistory: (params) => api.get('/discounts/history', { params: params || {} }),
+  getPdf: (id) => api.get(`/discounts/${id}/pdf`, { responseType: 'blob' }),
+  create: (data) => api.post('/discounts', data),
+  uploadDocument: (formData) => api.post('/upload/discount-document', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+};
+
+// Penalty Waiver API (Admin only; Collector/Citizen view + PDF)
+export const penaltyWaiverAPI = {
+  getSummary: () => api.get('/penalty-waivers/summary'),
+  getHistory: (params) => api.get('/penalty-waivers/history', { params: params || {} }),
+  create: (data) => api.post('/penalty-waivers', data),
+  getPdf: (id) => api.get(`/penalty-waivers/${id}/pdf`, { responseType: 'blob' }),
+  uploadDocument: (formData) => api.post('/upload/penalty-waiver-document', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
 };
 
 // Tax API (Unified Tax Summary)
@@ -145,6 +165,7 @@ export const taxAPI = {
 export const paymentAPI = {
   getAll: (params) => api.get('/payments', { params }),
   getById: (id) => api.get(`/payments/${id}`),
+  getPdf: (id) => api.get(`/payments/${id}/pdf`, { responseType: 'blob' }),
   create: (data) => api.post('/payments', data),
   createFieldCollection: (data) => api.post('/payments/field-collection', data),
   getReceipt: (receiptNumber) => api.get(`/payments/receipt/${receiptNumber}`),

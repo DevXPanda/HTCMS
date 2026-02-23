@@ -1,6 +1,7 @@
-import { Demand, Assessment, Property, Payment, User, Ward, WaterTaxAssessment, WaterConnection, DemandItem, D2DCRecord, Shop, ShopTaxAssessment, AdminManagement } from '../models/index.js';
+import { Demand, Assessment, Property, Payment, User, Ward, WaterTaxAssessment, WaterConnection, DemandItem, D2DCRecord, Shop, ShopTaxAssessment, AdminManagement, TaxDiscount } from '../models/index.js';
 import { Op, Sequelize } from 'sequelize';
-import { auditLogger } from '../utils/auditLogger.js';
+import { auditLogger, createAuditLog } from '../utils/auditLogger.js';
+import { generateDemandNoticePdfBuffer, generateDemandSummaryReceiptPdfBuffer } from '../services/pdfGenerator.js';
 import { generateUnifiedTaxAssessmentAndDemand, getUnifiedDemandBreakdown, getUnifiedTaxSummary as getUnifiedTaxSummaryService } from '../services/unifiedTaxService.js';
 
 /**
@@ -15,6 +16,7 @@ export const getAllDemands = async (req, res, next) => {
       financialYear,
       status,
       serviceType, // Filter by service type (HOUSE_TAX or D2DC)
+      module: moduleParam, // Module-wise filter: PROPERTY, WATER, SHOP, D2DC (maps to serviceType)
       search,
       minAmount,
       maxAmount,
@@ -33,7 +35,12 @@ export const getAllDemands = async (req, res, next) => {
     if (propertyId) where.propertyId = propertyId;
     if (financialYear) where.financialYear = financialYear;
     if (status) where.status = status;
-    if (serviceType) where.serviceType = serviceType; // Filter by service type
+    // Module-wise filter: when provided, filter by mapped serviceType; when not provided, return all
+    const moduleToServiceType = { PROPERTY: 'HOUSE_TAX', WATER: 'WATER_TAX', SHOP: 'SHOP_TAX', D2DC: 'D2DC' };
+    if (moduleParam && typeof moduleParam === 'string') {
+      const mapped = moduleToServiceType[moduleParam.toUpperCase().trim()];
+      if (mapped) where.serviceType = mapped;
+    } else if (serviceType) where.serviceType = serviceType; // Filter by service type (backward compat)
     if (wardId) where.wardId = wardId;
     if (dueDate) where.dueDate = dueDate;
 
@@ -292,6 +299,12 @@ export const getDemandById = async (req, res, next) => {
           include: [
             { model: User, as: 'cashier', attributes: ['id', 'firstName', 'lastName'] }
           ]
+        },
+        {
+          model: TaxDiscount,
+          as: 'taxDiscounts',
+          required: false,
+          where: { status: 'ACTIVE' }
         }
       ]
     });
@@ -434,6 +447,120 @@ export const getDemandById = async (req, res, next) => {
     if (error.original) {
       console.error(`[getDemandById] Database error:`, error.original.message);
     }
+    next(error);
+  }
+};
+
+const demandPdfIncludes = [
+  {
+    model: Property,
+    as: 'property',
+    required: false,
+    include: [
+      { model: User, as: 'owner', attributes: { exclude: ['password'] }, required: false },
+      { model: Ward, as: 'ward', required: false }
+    ]
+  },
+  { model: WaterTaxAssessment, as: 'waterTaxAssessment', required: false, include: [{ model: Property, as: 'property', required: false, include: [{ model: User, as: 'owner', attributes: { exclude: ['password'] }, required: false }] }] },
+  { model: ShopTaxAssessment, as: 'shopTaxAssessment', required: false, include: [{ model: Shop, as: 'shop', attributes: ['id', 'shopNumber', 'shopName', 'propertyId', 'wardId'] }] },
+  { model: TaxDiscount, as: 'taxDiscounts', required: false, where: { status: 'ACTIVE' } }
+];
+
+function getDemandOwnerAndEntityLabel(demand) {
+  let owner = null;
+  let entityLabel = 'N/A';
+  if (demand.serviceType === 'WATER_TAX' && demand.waterTaxAssessment?.property?.owner) {
+    owner = demand.waterTaxAssessment.property.owner;
+    const conn = demand.waterTaxAssessment.waterConnectionId;
+    entityLabel = conn ? `Connection ${conn}` : (demand.waterTaxAssessment.connectionNumber || 'N/A');
+  } else if (demand.property) {
+    owner = demand.property.owner;
+    if (demand.serviceType === 'SHOP_TAX' && demand.shopTaxAssessment?.shop) {
+      entityLabel = demand.shopTaxAssessment.shop.shopNumber || 'N/A';
+    } else {
+      entityLabel = demand.property.propertyNumber || 'N/A';
+    }
+  }
+  return { owner, entityLabel };
+}
+
+/**
+ * @route   GET /api/demands/:id/pdf
+ * @desc    Download demand notice or summary receipt PDF
+ * @access  Private (role-based: citizen own, clerk/collector ward, admin all)
+ */
+export const getDemandPdf = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const type = (req.query.type || 'notice').toLowerCase();
+    const isReceipt = type === 'receipt';
+
+    const demand = await Demand.findByPk(id, { include: demandPdfIncludes });
+    if (!demand) {
+      return res.status(404).json({ success: false, message: 'Tax Demand not found' });
+    }
+
+    if (req.user.role === 'citizen') {
+      const property = await Property.findByPk(demand.propertyId);
+      if (!property || property.ownerId !== req.user.id) {
+        return res.status(403).json({ success: false, message: 'Access denied' });
+      }
+    }
+
+    if (req.user.role === 'clerk' || req.user.role === 'collector' || req.user.role === 'tax_collector') {
+      let allowedWardIds = req.user.ward_ids || req.user.dataValues?.ward_ids;
+      if ((!allowedWardIds || (Array.isArray(allowedWardIds) && allowedWardIds.length === 0)) && req.user.role !== 'clerk') {
+        const collectorWards = await Ward.findAll({
+          where: { collectorId: req.user.staff_id || req.user.id, isActive: true },
+          attributes: ['id']
+        });
+        allowedWardIds = collectorWards.map(w => w.id);
+      }
+      if (req.user.role === 'clerk' && (!allowedWardIds || (Array.isArray(allowedWardIds) && allowedWardIds.length === 0))) {
+        const clerkRecord = await AdminManagement.findByPk(req.user.id, { attributes: ['ward_ids'] });
+        if (clerkRecord?.ward_ids) allowedWardIds = clerkRecord.ward_ids;
+        else {
+          const assigned = await Ward.findAll({ where: { clerkId: req.user.id, isActive: true }, attributes: ['id'] });
+          allowedWardIds = assigned.map(w => w.id);
+        }
+      }
+      const wardIdsArray = Array.isArray(allowedWardIds) ? allowedWardIds : (allowedWardIds ? [allowedWardIds] : []);
+      let demandWardId = null;
+      if (demand.serviceType === 'SHOP_TAX' && demand.shopTaxAssessment?.shop) demandWardId = demand.shopTaxAssessment.shop.wardId;
+      if (!demandWardId && demand.property) demandWardId = demand.property.wardId;
+      if (!demandWardId && demand.waterTaxAssessment?.property) demandWardId = demand.waterTaxAssessment.property.wardId;
+      if (demandWardId != null && wardIdsArray.length > 0) {
+        const num = parseInt(demandWardId, 10);
+        const allowed = wardIdsArray.map(id => parseInt(id, 10)).filter(i => !isNaN(i));
+        if (!allowed.includes(num)) {
+          return res.status(403).json({ success: false, message: 'Access denied' });
+        }
+      }
+    }
+
+    const { owner, entityLabel } = getDemandOwnerAndEntityLabel(demand);
+    const opts = { property: demand.property, owner, ward: demand.property?.ward, entityLabel };
+
+    const buffer = isReceipt
+      ? await generateDemandSummaryReceiptPdfBuffer(demand, opts)
+      : await generateDemandNoticePdfBuffer(demand, opts);
+
+    await createAuditLog({
+      req,
+      user: req.user,
+      actionType: 'NOTICE_PDF_DOWNLOADED',
+      entityType: 'Demand',
+      entityId: demand.id,
+      description: `Downloaded demand ${isReceipt ? 'summary receipt' : 'notice'} PDF for ${demand.demandNumber}`,
+      metadata: { demandId: demand.id, type: isReceipt ? 'receipt' : 'notice' }
+    });
+
+    const filename = isReceipt ? `demand-summary-${demand.demandNumber || id}.pdf` : `demand-notice-${demand.demandNumber || id}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename.replace(/"/g, '')}"`);
+    res.send(buffer);
+  } catch (error) {
+    console.error('[getDemandPdf] Error:', error.message);
     next(error);
   }
 };
@@ -1634,6 +1761,109 @@ export const calculatePenalty = async (req, res, next) => {
       success: true,
       message: 'Penalty and interest calculated',
       data: { demand }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   GET /api/demands/by-entity/:module/:entityId
+ * @desc    Get active demands for discount/penalty-waiver workflow by module and entity.
+ *          Query param forPenaltyWaiver=1: only demands with (penalty_amount + interest_amount) > 0
+ *          and status IN (pending, partially_paid, overdue).
+ * @access  Private (Admin)
+ */
+export const getDemandsByModuleAndEntity = async (req, res, next) => {
+  try {
+    const { module: moduleParam, entityId } = req.params;
+    const forPenaltyWaiver = req.query.forPenaltyWaiver === '1' || req.query.forPenaltyWaiver === 'true';
+    const moduleType = (moduleParam || '').toUpperCase();
+    const entityIdNum = parseInt(entityId, 10);
+    if (!entityIdNum || isNaN(entityIdNum)) {
+      return res.status(400).json({ success: false, message: 'Invalid entity ID' });
+    }
+    const validModules = ['PROPERTY', 'WATER', 'SHOP', 'D2DC'];
+    if (!validModules.includes(moduleType)) {
+      return res.status(400).json({ success: false, message: 'Invalid module. Use PROPERTY, WATER, SHOP, or D2DC.' });
+    }
+
+    const where = {
+      balanceAmount: { [Op.gt]: 0 }
+    };
+
+    if (forPenaltyWaiver) {
+      where.status = { [Op.in]: ['pending', 'partially_paid', 'overdue'] };
+      where[Op.and] = [
+        Sequelize.literal('(COALESCE("penaltyAmount", 0) + COALESCE("interestAmount", 0)) > 0')
+      ];
+    } else {
+      where.status = { [Op.in]: ['pending', 'partially_paid'] };
+    }
+
+    if (moduleType === 'PROPERTY') {
+      where.propertyId = entityIdNum;
+      where.serviceType = 'HOUSE_TAX';
+    } else if (moduleType === 'D2DC') {
+      where.propertyId = entityIdNum;
+      where.serviceType = 'D2DC';
+    } else if (moduleType === 'WATER') {
+      const waterAssessments = await WaterTaxAssessment.findAll({
+        where: { waterConnectionId: entityIdNum },
+        attributes: ['id']
+      });
+      const assessmentIds = waterAssessments.map(a => a.id);
+      if (assessmentIds.length === 0) {
+        if (forPenaltyWaiver) {
+          console.log('[getDemandsByModuleAndEntity] Penalty waiver: no water assessments for entity', entityIdNum, '- returning []');
+        }
+        return res.json({ success: true, data: { demands: [] } });
+      }
+      where.waterTaxAssessmentId = { [Op.in]: assessmentIds };
+      where.serviceType = 'WATER_TAX';
+    } else if (moduleType === 'SHOP') {
+      const shopAssessments = await ShopTaxAssessment.findAll({
+        where: { shopId: entityIdNum },
+        attributes: ['id']
+      });
+      const assessmentIds = shopAssessments.map(a => a.id);
+      if (assessmentIds.length === 0) {
+        if (forPenaltyWaiver) {
+          console.log('[getDemandsByModuleAndEntity] Penalty waiver: no shop assessments for entity', entityIdNum, '- returning []');
+        }
+        return res.json({ success: true, data: { demands: [] } });
+      }
+      where.shopTaxAssessmentId = { [Op.in]: assessmentIds };
+      where.serviceType = 'SHOP_TAX';
+    }
+
+    const demands = await Demand.findAll({
+      where,
+      attributes: ['id', 'demandNumber', 'totalAmount', 'paidAmount', 'balanceAmount', 'penaltyAmount', 'interestAmount', 'penaltyWaived', 'finalAmount', 'status', 'financialYear', 'dueDate', 'serviceType'],
+      order: [['financialYear', 'DESC'], ['createdAt', 'DESC']]
+    });
+
+    if (forPenaltyWaiver) {
+      console.log('[getDemandsByModuleAndEntity] Penalty waiver fetch:', {
+        module: moduleType,
+        entityId: entityIdNum,
+        forPenaltyWaiver: true,
+        count: demands.length,
+        demands: demands.map(d => ({
+          id: d.id,
+          demandNumber: d.demandNumber,
+          status: d.status,
+          penaltyAmount: d.penaltyAmount,
+          interestAmount: d.interestAmount,
+          totalAmount: d.totalAmount,
+          balanceAmount: d.balanceAmount
+        }))
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: { demands }
     });
   } catch (error) {
     next(error);

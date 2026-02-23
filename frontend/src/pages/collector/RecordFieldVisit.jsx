@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { fieldVisitAPI, uploadAPI } from '../../services/api';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
-import { ArrowLeft, MapPin, User, DollarSign, Calendar, FileText, AlertCircle, CheckCircle, Upload, X, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, MapPin, User, DollarSign, Calendar, FileText, AlertCircle, CheckCircle, Upload, X, Image as ImageIcon, RefreshCw } from 'lucide-react';
 
 const RecordFieldVisit = () => {
   const navigate = useNavigate();
@@ -68,6 +68,8 @@ const RecordFieldVisit = () => {
       setDemand({
         id: contextData.demand.id,
         demandNumber: contextData.demand.demandNumber,
+        finalAmount: contextData.demand.finalAmount,
+        paidAmount: contextData.demand.paidAmount,
         balanceAmount: contextData.demand.balanceAmount,
         overdueDays: contextData.demand.overdueDays,
         dueDate: contextData.demand.dueDate,
@@ -336,6 +338,13 @@ const RecordFieldVisit = () => {
     }
   };
 
+  // Format balance from API (balance_amount column) - never show NaN or blank
+  const formatBalance = (value) => {
+    const num = parseFloat(value);
+    if (num !== num || (value !== 0 && !value)) return '0.00';
+    return num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
   if (loading && !demand) return <Loading />;
 
   const getVisitTypeDescription = (type) => {
@@ -360,17 +369,28 @@ const RecordFieldVisit = () => {
 
   return (
     <div>
-      <div className="flex items-center mb-6">
-        <button
-          onClick={() => navigate('/collector/tasks')}
-          className="mr-4 text-gray-600 hover:text-gray-900"
-        >
-          <ArrowLeft className="w-6 h-6" />
-        </button>
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Record Field Visit</h1>
-          <p className="text-gray-600 mt-1">Record your field visit with complete details</p>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center">
+          <button
+            onClick={() => navigate('/collector/tasks')}
+            className="mr-4 text-gray-600 hover:text-gray-900"
+          >
+            <ArrowLeft className="w-6 h-6" />
+          </button>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Record Field Visit</h1>
+            <p className="text-gray-600 mt-1">Record your field visit with complete details</p>
+          </div>
         </div>
+        <button
+          type="button"
+          onClick={() => fetchContext()}
+          disabled={loading}
+          className="btn btn-secondary flex items-center gap-2"
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          Refresh balance
+        </button>
       </div>
 
       {/* Property & Demand Info */}
@@ -394,12 +414,12 @@ const RecordFieldVisit = () => {
                 <p className="text-sm text-gray-600">{property.address}</p>
               </div>
             </div>
-            <div className="flex items-center">
-              <DollarSign className="w-5 h-5 mr-2 text-gray-400" />
-              <div>
-                <p className="text-xs text-gray-500">Amount Due</p>
-                <p className="font-medium text-red-600">
-                  ₹{parseFloat(demand.balanceAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            <div className="flex items-center min-w-0">
+              <DollarSign className="w-5 h-5 mr-2 text-gray-400 flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-gray-500">Remaining Balance</p>
+                <p className="font-medium text-red-600 break-words">
+                  ₹{formatBalance(demand.balanceAmount)}
                 </p>
                 <p className="text-sm text-gray-600">{demand.overdueDays} days overdue</p>
               </div>
@@ -527,7 +547,7 @@ const RecordFieldVisit = () => {
                   step="0.01"
                   max={demand?.balanceAmount || 0}
                   className={`input flex-1 ${errors.paymentAmount ? 'border-red-500' : ''}`}
-                  placeholder={`Max: ₹${parseFloat(demand?.balanceAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
+                  placeholder={`Max: ₹${formatBalance(demand?.balanceAmount)}`}
                   required
                 />
                 <button
@@ -546,7 +566,7 @@ const RecordFieldVisit = () => {
               </div>
               {demand && (
                 <p className="text-xs text-gray-600 mt-1">
-                  Balance Due: ₹{parseFloat(demand.balanceAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  Remaining Balance: ₹{formatBalance(demand.balanceAmount)}
                 </p>
               )}
               {errors.paymentAmount && <p className="text-sm text-red-500 mt-1">{errors.paymentAmount}</p>}

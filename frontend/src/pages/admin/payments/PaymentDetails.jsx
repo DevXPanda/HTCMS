@@ -3,7 +3,7 @@ import { useParams, Link, useLocation } from 'react-router-dom';
 import { paymentAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Download, Printer } from 'lucide-react';
+import { ArrowLeft, Download, Printer, Loader2 } from 'lucide-react';
 
 const PaymentDetails = () => {
   const { id } = useParams();
@@ -13,6 +13,7 @@ const PaymentDetails = () => {
   const basePath = isCitizenRoute ? '/citizen' : '';
   const [payment, setPayment] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   useEffect(() => {
     fetchPayment();
@@ -29,6 +30,25 @@ const PaymentDetails = () => {
     }
   };
 
+  const downloadPaymentReceipt = async () => {
+    setPdfLoading(true);
+    try {
+      const res = await paymentAPI.getPdf(id);
+      const blob = res.data;
+      const name = `receipt_${payment?.receiptNumber || payment?.paymentNumber || id}.pdf`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to download receipt');
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
   if (loading) return <Loading />;
   if (!payment) return <div>Payment not found</div>;
 
@@ -42,6 +62,15 @@ const PaymentDetails = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Payment Receipt</h1>
         <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={downloadPaymentReceipt}
+            disabled={pdfLoading}
+            className="btn btn-secondary flex items-center"
+          >
+            {pdfLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+            Download Payment Receipt
+          </button>
           <button
             onClick={() => window.print()}
             className="btn btn-secondary flex items-center"

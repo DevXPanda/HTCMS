@@ -1,8 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, Droplet, Store, Truck, ArrowLeft, Zap } from 'lucide-react';
+import { Building2, Droplet, Store, Truck, ArrowLeft, Zap, Percent, ShieldAlert } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 const TaxManagement = () => {
+    const { user } = useAuth();
+    const isAdmin = user?.role === 'admin';
+
     const taxModules = [
         {
             name: 'Property Tax',
@@ -44,6 +48,25 @@ const TaxManagement = () => {
             borderColor: 'border-purple-100',
             textColor: 'text-purple-700'
         },
+        ...(isAdmin ? [{
+            name: 'Discount Management',
+            description: 'Manual tax concessions with document verification',
+            icon: Percent,
+            link: '/tax/discount-management',
+            color: 'bg-slate-600',
+            bgColor: 'bg-slate-50',
+            borderColor: 'border-slate-100',
+            textColor: 'text-slate-700'
+        }, {
+            name: 'Penalty Waiver',
+            description: 'Manual penalty or late fee relief management',
+            icon: ShieldAlert,
+            link: '/tax/penalty-waiver',
+            color: 'bg-red-600',
+            bgColor: 'bg-red-50',
+            borderColor: 'border-red-100',
+            textColor: 'text-red-700'
+        }] : []),
         {
             name: 'Unified Tax Demand',
             description: 'Generate Property, Water & D2DC demands in one go',

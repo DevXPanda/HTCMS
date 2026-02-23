@@ -6,7 +6,7 @@ import api from '../../../services/api';
 
 const ShopTaxModule = () => {
   const basePath = useShopTaxBasePath();
-  const demandsLink = basePath ? `${basePath}/demands?serviceType=SHOP_TAX` : '/demands?serviceType=SHOP_TAX';
+  const demandsLink = basePath ? `${basePath}/demands?module=SHOP` : '/demands?module=SHOP';
   const registrationRequestsLink = basePath ? `${basePath}/shop-registration-requests` : '/shop-tax/registration-requests';
   const [stats, setStats] = useState({
     activeShops: 0,

@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticate, authorize } from '../middleware/enhancedAuth.js';
-import { upload, uploadPropertyPhoto, uploadFieldVisitPhoto, uploadPaymentProof, uploadShopRegistrationDocument } from '../controllers/upload.controller.js';
+import { upload, uploadPropertyPhoto, uploadFieldVisitPhoto, uploadPaymentProof, uploadShopRegistrationDocument, uploadDiscountDocument, uploadPenaltyWaiverDocument } from '../controllers/upload.controller.js';
 
 const router = express.Router();
 
@@ -18,5 +18,11 @@ router.post('/payment-proof', authorize('collector', 'tax_collector'), upload.si
 
 // Upload shop registration document (Citizen, Admin, Clerk)
 router.post('/shop-registration-document', authorize('citizen', 'admin', 'clerk'), upload.single('file'), uploadShopRegistrationDocument);
+
+// Upload discount application document - PDF only (Admin)
+router.post('/discount-document', authorize('admin'), upload.single('document'), uploadDiscountDocument);
+
+// Upload penalty waiver application document - PDF only (Admin)
+router.post('/penalty-waiver-document', authorize('admin'), upload.single('document'), uploadPenaltyWaiverDocument);
 
 export default router;

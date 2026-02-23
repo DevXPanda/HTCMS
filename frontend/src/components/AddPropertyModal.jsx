@@ -87,9 +87,12 @@ const AddPropertyModal = ({ onClose, onSuccess }) => {
       // Set photos to empty array (can be enhanced later)
       data.photos = [];
 
-      // Note: ownerId will be auto-matched by phone or use logged-in user
-      // The backend handles this automatically
+      // Send propertyNumber only when admin entered one (e.g. PR0010054); backend auto-generates when blank
+      if (data.propertyNumber !== undefined && String(data.propertyNumber).trim() === '') {
+        delete data.propertyNumber;
+      }
 
+      // Note: ownerId will be auto-matched by phone or use logged-in user
       const response = await propertyAPI.create(data);
 
       if (response.data.success) {
@@ -139,18 +142,14 @@ const AddPropertyModal = ({ onClose, onSuccess }) => {
             <h3 className="text-lg font-semibold mb-4">Basic Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="label">
-                  Property Number <span className="text-red-500">*</span>
-                </label>
+                <label className="label">Property Number</label>
                 <input
                   type="text"
-                  {...register('propertyNumber', { required: 'Property number is required' })}
+                  {...register('propertyNumber')}
                   className="input"
-                  placeholder="PROP-001"
+                  placeholder="Optional – leave blank to auto-generate (e.g. PR0010001)"
                 />
-                {errors.propertyNumber && (
-                  <p className="text-red-500 text-sm mt-1">{errors.propertyNumber.message}</p>
-                )}
+                <p className="text-xs text-gray-500 mt-1">Optional. A unique code (e.g. PR0230055) is always assigned on save.</p>
               </div>
 
               <div>

@@ -158,18 +158,14 @@ const AddProperty = () => {
           <h2 className="text-xl font-semibold mb-4">Basic Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="label">
-                Property Number <span className="text-red-500">*</span>
-              </label>
+              <label className="label">Property Number</label>
               <input
                 type="text"
-                {...register('propertyNumber', { required: 'Property number is required' })}
+                {...register('propertyNumber')}
                 className="input"
-                placeholder="PROP-001"
+                placeholder="Optional – e.g. 94 (your reference)"
               />
-              {errors.propertyNumber && (
-                <p className="text-red-500 text-sm mt-1">{errors.propertyNumber.message}</p>
-              )}
+              <p className="text-xs text-gray-500 mt-1">Optional. Unique code (e.g. PR0230055) is auto-assigned on save.</p>
             </div>
 
             <div>

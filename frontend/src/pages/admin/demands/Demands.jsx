@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { demandAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
@@ -9,6 +9,8 @@ import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
 import { exportToCSV } from '../../../utils/exportCSV';
 
 const Demands = () => {
+  const [searchParams] = useSearchParams();
+  const moduleFromUrl = searchParams.get('module') || '';
   const basePath = useShopTaxBasePath();
   const { isAdmin, isAssessor } = useAuth();
   const [demands, setDemands] = useState([]);
@@ -27,7 +29,7 @@ const Demands = () => {
 
   useEffect(() => {
     fetchDemands();
-  }, [page, search, filters]);
+  }, [page, search, filters, moduleFromUrl]);
 
   const fetchDemands = async () => {
     try {
@@ -38,11 +40,15 @@ const Demands = () => {
         limit: 10,
         ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''))
       };
+      if (moduleFromUrl && ['PROPERTY', 'WATER', 'SHOP', 'D2DC'].includes(moduleFromUrl.toUpperCase())) {
+        params.module = moduleFromUrl.toUpperCase();
+      }
       const response = await demandAPI.getAll(params);
-      setDemands(response.data.data.demands);
-      setPagination(response.data.data.pagination);
+      const data = response.data?.data ?? {};
+      setDemands(Array.isArray(data.demands) ? data.demands : []);
+      setPagination(data.pagination ?? null);
     } catch (error) {
-      toast.error('Failed to fetch tax demands');
+      toast.error(error.response?.data?.message || 'Failed to fetch tax demands');
     } finally {
       setLoading(false);
     }
@@ -92,6 +98,9 @@ const Demands = () => {
   const handleExport = async () => {
     try {
       const params = { page: 1, limit: 5000, search, ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== '')) };
+      if (moduleFromUrl && ['PROPERTY', 'WATER', 'SHOP', 'D2DC'].includes(moduleFromUrl.toUpperCase())) {
+        params.module = moduleFromUrl.toUpperCase();
+      }
       const response = await demandAPI.getAll(params);
       const list = response.data.data.demands || [];
       const rows = list.map(d => ({

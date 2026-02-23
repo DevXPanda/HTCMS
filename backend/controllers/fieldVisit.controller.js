@@ -18,7 +18,7 @@ export const createFieldVisit = async (req, res, next) => {
     const user = req.user;
 
     // Only collectors can create field visits
-    if (user.role !== 'collector') {
+    if ((user.role || '').toString().toLowerCase() !== 'collector') {
       await transaction.rollback();
       return res.status(403).json({
         success: false,
@@ -1065,7 +1065,7 @@ export const getFieldVisitContext = async (req, res, next) => {
     const { taskId } = req.params;
 
     // Only collectors can access this endpoint
-    if (user.role !== 'collector') {
+    if ((user.role || '').toString().toLowerCase() !== 'collector') {
       return res.status(403).json({
         success: false,
         message: 'Only collectors can access field visit context'
@@ -1090,7 +1090,7 @@ export const getFieldVisitContext = async (req, res, next) => {
         {
           model: Demand,
           as: 'demand',
-          attributes: ['id', 'demandNumber', 'balanceAmount', 'overdueDays', 'dueDate', 'status', 'serviceType'],
+          attributes: ['id', 'demandNumber', 'finalAmount', 'paidAmount', 'balanceAmount', 'overdueDays', 'dueDate', 'status', 'serviceType'],
           required: false
         },
         {
@@ -1135,8 +1135,11 @@ export const getFieldVisitContext = async (req, res, next) => {
       });
     }
 
-    // Extract and return only necessary data (no sensitive user fields)
-    // Use task's denormalized data first, fallback to related models
+    // Re-fetch demand by ID so Remaining Balance always reflects latest DB (discount/waiver updates)
+    const demandRow = await Demand.findByPk(task.demandId, {
+      attributes: ['id', 'demandNumber', 'finalAmount', 'paidAmount', 'balanceAmount', 'overdueDays', 'dueDate', 'status', 'serviceType']
+    });
+
     const owner = task.owner || task.property?.owner || null;
     const citizenName = owner
       ? `${owner.firstName} ${owner.lastName}`
@@ -1155,12 +1158,14 @@ export const getFieldVisitContext = async (req, res, next) => {
       },
       demand: {
         id: task.demandId,
-        demandNumber: task.demand?.demandNumber || 'N/A',
-        balanceAmount: parseFloat(task.dueAmount || task.demand?.balanceAmount || 0),
-        overdueDays: task.overdueDays || task.demand?.overdueDays || 0,
-        dueDate: task.demand?.dueDate || null,
-        status: task.demand?.status || 'pending',
-        serviceType: task.demand?.serviceType || 'HOUSE_TAX'
+        demandNumber: demandRow?.demandNumber || task.demand?.demandNumber || 'N/A',
+        finalAmount: demandRow != null ? parseFloat(demandRow.finalAmount || 0) : 0,
+        paidAmount: demandRow != null ? parseFloat(demandRow.paidAmount || 0) : 0,
+        balanceAmount: demandRow != null ? parseFloat(demandRow.balanceAmount || 0) : 0,
+        overdueDays: demandRow?.overdueDays ?? task.overdueDays ?? task.demand?.overdueDays ?? 0,
+        dueDate: demandRow?.dueDate ?? task.demand?.dueDate ?? null,
+        status: demandRow?.status ?? task.demand?.status ?? 'pending',
+        serviceType: demandRow?.serviceType ?? task.demand?.serviceType ?? 'HOUSE_TAX'
       },
       followUp: task.followUp ? {
         visitCount: task.followUp.visitCount || 0,

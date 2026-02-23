@@ -31,6 +31,9 @@ import { WorkerPayroll } from './WorkerPayroll.js';
 import { WorkerTask } from './WorkerTask.js';
 import { Alert } from './Alert.js';
 import { ULB } from './ULB.js';
+import { TaxDiscount } from './TaxDiscount.js';
+import { PenaltyWaiver } from './PenaltyWaiver.js';
+import { WardSequence } from './WardSequence.js';
 
 // Define Relationships
 
@@ -62,6 +65,8 @@ Ward.belongsTo(AdminManagement, { foreignKey: 'clerkId', as: 'clerk' });
 Ward.belongsTo(AdminManagement, { foreignKey: 'inspectorId', as: 'inspector' });
 Ward.belongsTo(AdminManagement, { foreignKey: 'officerId', as: 'officer' });
 Ward.hasMany(Property, { foreignKey: 'wardId', as: 'properties' });
+Ward.hasMany(WardSequence, { foreignKey: 'wardId', as: 'sequences' });
+WardSequence.belongsTo(Ward, { foreignKey: 'wardId', as: 'ward' });
 
 // Assessment Relationships
 Assessment.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
@@ -77,6 +82,10 @@ Demand.belongsTo(ShopTaxAssessment, { foreignKey: 'shopTaxAssessmentId', as: 'sh
 Demand.belongsTo(User, { foreignKey: 'generatedBy', as: 'generator' });
 Demand.hasMany(Payment, { foreignKey: 'demandId', as: 'payments' });
 Demand.hasMany(DemandItem, { foreignKey: 'demandId', as: 'items' });
+Demand.hasMany(TaxDiscount, { foreignKey: 'demandId', as: 'taxDiscounts' });
+TaxDiscount.belongsTo(Demand, { foreignKey: 'demandId', as: 'demand' });
+Demand.hasMany(PenaltyWaiver, { foreignKey: 'demandId', as: 'penaltyWaivers' });
+PenaltyWaiver.belongsTo(Demand, { foreignKey: 'demandId', as: 'demand' });
 
 // Payment Relationships
 Payment.belongsTo(Demand, { foreignKey: 'demandId', as: 'demand' });
@@ -362,6 +371,7 @@ export {
   User,
   Property,
   Ward,
+  WardSequence,
   Assessment,
   Demand,
   DemandItem,
@@ -391,5 +401,7 @@ export {
   WorkerPayroll,
   WorkerTask,
   Alert,
-  ULB
+  ULB,
+  TaxDiscount,
+  PenaltyWaiver
 };

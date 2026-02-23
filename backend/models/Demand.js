@@ -135,6 +135,19 @@ export const Demand = sequelize.define('Demand', {
     type: DataTypes.JSONB,
     allowNull: true,
     comment: 'JSON array tracking penalty/interest history: [{date, penalty, interest, reason}]'
+  },
+  penaltyWaived: {
+    type: DataTypes.DECIMAL(12, 2),
+    defaultValue: 0,
+    allowNull: true,
+    field: 'penalty_waived',
+    comment: 'Amount of penalty waived by approval'
+  },
+  finalAmount: {
+    type: DataTypes.DECIMAL(12, 2),
+    allowNull: true,
+    field: 'final_amount',
+    comment: 'Final payable after discount/waiver (original_amount + remaining penalty - discount)'
   }
 }, {
   tableName: 'demands',
@@ -143,10 +156,10 @@ export const Demand = sequelize.define('Demand', {
     beforeValidate: (demand) => {
       // CRITICAL VALIDATION: Ensure assessmentId rules based on serviceType
       // D2DC is a municipal service, NOT a tax assessment
-      
+
       // Default serviceType to HOUSE_TAX for backward compatibility
       const serviceType = demand.serviceType || 'HOUSE_TAX';
-      
+
       if (serviceType === 'D2DC') {
         // D2DC demands MUST have assessmentId = null
         // D2DC is linked directly to property, not assessment
@@ -163,14 +176,14 @@ export const Demand = sequelize.define('Demand', {
         // EXCEPTION: Unified demands may have both assessments stored in demand items
         // Check if this is a unified demand (has UNIFIED_DEMAND in remarks)
         let isUnifiedDemand = false;
-        
+
         if (demand.remarks) {
           if (typeof demand.remarks === 'string') {
             // Check if it's a JSON string containing UNIFIED_DEMAND
             try {
               const remarksObj = JSON.parse(demand.remarks);
-              isUnifiedDemand = remarksObj.type === 'UNIFIED_DEMAND' || 
-                               (typeof remarksObj === 'string' && remarksObj.includes('UNIFIED_DEMAND'));
+              isUnifiedDemand = remarksObj.type === 'UNIFIED_DEMAND' ||
+                (typeof remarksObj === 'string' && remarksObj.includes('UNIFIED_DEMAND'));
             } catch (e) {
               // If it's not valid JSON, check as simple string
               isUnifiedDemand = demand.remarks.includes('UNIFIED_DEMAND');
@@ -180,7 +193,7 @@ export const Demand = sequelize.define('Demand', {
             isUnifiedDemand = demand.remarks.type === 'UNIFIED_DEMAND';
           }
         }
-        
+
         if (!isUnifiedDemand && !demand.assessmentId) {
           throw new Error('HOUSE_TAX demands require an assessmentId. Please provide a valid assessment.');
         }
@@ -214,10 +227,10 @@ export const Demand = sequelize.define('Demand', {
       // Ensure numeric fields are always numbers, not strings
       // This handles cases where Sequelize returns DECIMAL as strings
       if (!demands) return;
-      
+
       const normalizeDemand = (demand) => {
         if (!demand || typeof demand !== 'object') return;
-        
+
         // Convert DECIMAL fields to numbers
         if (demand.baseAmount !== undefined) demand.baseAmount = parseFloat(demand.baseAmount) || 0;
         if (demand.arrearsAmount !== undefined) demand.arrearsAmount = parseFloat(demand.arrearsAmount) || 0;
@@ -226,9 +239,11 @@ export const Demand = sequelize.define('Demand', {
         if (demand.totalAmount !== undefined) demand.totalAmount = parseFloat(demand.totalAmount) || 0;
         if (demand.paidAmount !== undefined) demand.paidAmount = parseFloat(demand.paidAmount) || 0;
         if (demand.balanceAmount !== undefined) demand.balanceAmount = parseFloat(demand.balanceAmount) || 0;
+        if (demand.penaltyWaived !== undefined) demand.penaltyWaived = parseFloat(demand.penaltyWaived) || 0;
+        if (demand.finalAmount !== undefined) demand.finalAmount = parseFloat(demand.finalAmount) || 0;
         if (demand.overdueDays !== undefined) demand.overdueDays = parseInt(demand.overdueDays) || 0;
       };
-      
+
       if (Array.isArray(demands)) {
         demands.forEach(normalizeDemand);
       } else {

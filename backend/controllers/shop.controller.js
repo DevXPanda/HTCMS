@@ -1,5 +1,6 @@
 import { Shop, Property, Ward, User } from '../models/index.js';
 import { Op } from 'sequelize';
+import { generateShopId } from '../services/uniqueIdService.js';
 
 /**
  * Apply ward filter to where clause for clerk/inspector/collector (from req.wardFilter set by requireWardAccess)
@@ -20,20 +21,7 @@ const getAllowedWardIds = (req) => {
 };
 
 /**
- * Generate unique shop number
- */
-const generateShopNumber = async () => {
-  const year = new Date().getFullYear();
-  const count = await Shop.count({
-    where: {
-      shopNumber: { [Op.like]: `SH-${year}-%` }
-    }
-  });
-  const sequence = String(count + 1).padStart(5, '0');
-  return `SH-${year}-${sequence}`;
-};
-
-/**
+ *
  * @route   GET /api/shops
  * @desc    List shops (ward-filtered for clerk/inspector/collector)
  * @access  Private
@@ -163,8 +151,7 @@ export const createShop = async (req, res, next) => {
       licenseValidFrom,
       licenseValidTo,
       licenseStatus,
-      remarks,
-      shopNumber: bodyShopNumber
+      remarks
     } = req.body;
 
     if (!propertyId || !wardId || !shopName) {
@@ -174,19 +161,11 @@ export const createShop = async (req, res, next) => {
       });
     }
 
-    // Duplicate protection: unique shopNumber (allow optional override from body, else generate)
-    const shopNumber = (bodyShopNumber && String(bodyShopNumber).trim()) || (await generateShopNumber());
-    const existingByNumber = await Shop.findOne({ where: { shopNumber } });
-    if (existingByNumber) {
-      return res.status(409).json({
-        success: false,
-        message: `Shop number already exists: ${shopNumber}`,
-        code: 'DUPLICATE_SHOP_NUMBER'
-      });
-    }
+    const parsedWardId = parseInt(wardId, 10);
+    const shopNumber = await generateShopId(parsedWardId);
 
     const allowedWardIds = getAllowedWardIds(req);
-    if (allowedWardIds && !allowedWardIds.includes(parseInt(wardId))) {
+    if (allowedWardIds && !allowedWardIds.includes(parsedWardId)) {
       return res.status(403).json({ success: false, message: 'Access denied to this ward' });
     }
 
@@ -194,14 +173,14 @@ export const createShop = async (req, res, next) => {
     if (!property) {
       return res.status(404).json({ success: false, message: 'Property not found' });
     }
-    if (property.wardId !== parseInt(wardId)) {
+    if (property.wardId !== parsedWardId) {
       return res.status(400).json({ success: false, message: 'Property ward must match wardId' });
     }
 
     const shop = await Shop.create({
       shopNumber,
       propertyId,
-      wardId,
+      wardId: parsedWardId,
       ownerId: ownerId || null,
       shopName,
       shopType: shopType || 'retail',

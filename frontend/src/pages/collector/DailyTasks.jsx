@@ -296,8 +296,8 @@ const TaskCard = ({ task, onClick, getPriorityBadge, formatCurrency }) => {
         <div className="flex items-center">
           <DollarSign className="w-4 h-4 mr-2 text-gray-400" />
           <div>
-            <p className="text-xs text-gray-500">Amount Due</p>
-            <p className="text-sm font-medium text-red-600">{formatCurrency(task.dueAmount)}</p>
+            <p className="text-xs text-gray-500">Remaining Balance</p>
+            <p className="text-sm font-medium text-red-600">{formatCurrency(task.demand?.balanceAmount ?? task.dueAmount)}</p>
           </div>
         </div>
         <div className="flex items-center">

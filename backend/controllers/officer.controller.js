@@ -11,6 +11,7 @@ import {
 } from '../models/index.js';
 import { sequelize } from '../config/database.js';
 import { Op } from 'sequelize';
+import { getNextPropertyNumberInWard, generatePropertyUniqueId } from '../services/uniqueIdService.js';
 
 // Helper function to get corresponding user ID from admin_management
 const getCorrespondingUserId = async (adminManagementId) => {
@@ -248,10 +249,13 @@ export const decidePropertyApplication = async (req, res) => {
     switch (decision) {
       case 'APPROVE':
         newStatus = 'APPROVED';
-        // Create property from application
-        const propertyCount = await Property.count({ transaction });
+        // Create property from application (unique ID = PREFIX + WARD(3) + PROPERTY_NUMBER(4))
+        const nextNum = await getNextPropertyNumberInWard(application.wardId);
+        const uniqueCode = generatePropertyUniqueId(application.wardId, application.propertyType, nextNum);
+        const propertyNumber = uniqueCode;
         const newProperty = await Property.create({
-          propertyNumber: `PROP-${Date.now()}-${propertyCount + 1}`,
+          propertyNumber,
+          uniqueCode,
           ownerId: application.applicantId,
           wardId: application.wardId,
           ownerName: application.ownerName,

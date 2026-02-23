@@ -37,7 +37,7 @@ const Dashboard = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
   // Field Worker Monitoring Analytics
   const [fieldWorkerStats, setFieldWorkerStats] = useState({
     total_workers: 0,
@@ -91,15 +91,15 @@ const Dashboard = () => {
       if (selectedUlbId) {
         params.ulb_id = selectedUlbId;
       }
-      
+
       const response = await fieldWorkerMonitoringAPI.getAdminDashboard(params);
       if (response?.data?.success && response.data.data) {
         const data = response.data.data;
         const attendanceSummary = data.attendance_summary || {};
         const totalWorkers = attendanceSummary.total_workers || 0;
         const presentToday = attendanceSummary.present_today || 0;
-        const attendancePct = totalWorkers > 0 
-          ? Math.round((presentToday / totalWorkers) * 100) 
+        const attendancePct = totalWorkers > 0
+          ? Math.round((presentToday / totalWorkers) * 100)
           : 0;
 
         // Calculate payroll summary
@@ -110,9 +110,9 @@ const Dashboard = () => {
         const contractorPerformance = data.contractor_performance || [];
         const avgCompliance = contractorPerformance.length > 0
           ? Math.round(
-              contractorPerformance.reduce((sum, item) => sum + (item.compliance_pct || 0), 0) /
-              contractorPerformance.length
-            )
+            contractorPerformance.reduce((sum, item) => sum + (item.compliance_pct || 0), 0) /
+            contractorPerformance.length
+          )
           : 100;
 
         // Geo violations count
@@ -215,7 +215,7 @@ const Dashboard = () => {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Admin Control Center</h1>
+          <h1 className="text-2xl font-bold text-gray-900">EO Control Center</h1>
           <p className="text-gray-500 text-sm">System Overview & Management</p>
         </div>
         <button
@@ -260,7 +260,7 @@ const Dashboard = () => {
       </div>
 
       {/* Field Worker Monitoring Analytics */}
-      <section>
+      {/* <section>
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center">
           <Users className="w-4 h-4 mr-2" />
           Field Worker Monitoring Analytics
@@ -315,13 +315,12 @@ const Dashboard = () => {
                 <CheckCircle className="h-4 w-4 text-gray-400" />
               </div>
               <div>
-                <p className={`text-xl font-bold ${
-                  fieldWorkerStats.contractor_compliance >= 90 
-                    ? 'text-green-600' 
-                    : fieldWorkerStats.contractor_compliance >= 70 
-                    ? 'text-yellow-600' 
+                <p className={`text-xl font-bold ${fieldWorkerStats.contractor_compliance >= 90
+                  ? 'text-green-600'
+                  : fieldWorkerStats.contractor_compliance >= 70
+                    ? 'text-yellow-600'
                     : 'text-red-600'
-                }`}>
+                  }`}>
                   {fieldWorkerStats.contractor_compliance}%
                 </p>
               </div>
@@ -331,15 +330,14 @@ const Dashboard = () => {
                 <p className="text-xs font-medium text-gray-500 uppercase">Geo Violations</p>
                 <AlertTriangle className="h-4 w-4 text-red-400" />
               </div>
-              <p className={`text-xl font-bold ${
-                fieldWorkerStats.geo_violations > 0 ? 'text-red-600' : 'text-gray-900'
-              }`}>
+              <p className={`text-xl font-bold ${fieldWorkerStats.geo_violations > 0 ? 'text-red-600' : 'text-gray-900'
+                }`}>
                 {fieldWorkerStats.geo_violations}
               </p>
             </div>
           </div>
         )}
-      </section>
+      </section> */}
 
       {/* 1. Primary Navigation - Quick Actions */}
       <section>

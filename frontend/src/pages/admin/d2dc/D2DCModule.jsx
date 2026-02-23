@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Truck, User, LogOut, X, Home } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { ArrowLeft, Truck, User, LogOut, X, Home, FileText } from 'lucide-react';
 import D2DCLayout from './D2DCLayout';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useStaffAuth } from '../../../contexts/StaffAuthContext';
@@ -140,8 +140,16 @@ const D2DCModule = () => {
                             </div>
                             <p className="text-gray-500 text-sm ml-7">Door-to-door collection and field monitoring</p>
                         </div>
-                        <div className="p-3 bg-purple-100 rounded-full">
-                            <Truck className="w-6 h-6 text-purple-600" />
+                        <div className="flex items-center gap-3">
+                            <Link
+                                to="/demands?module=D2DC"
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors text-sm font-medium"
+                            >
+                                <FileText className="w-4 h-4" /> View D2DC Demands
+                            </Link>
+                            <div className="p-3 bg-purple-100 rounded-full">
+                                <Truck className="w-6 h-6 text-purple-600" />
+                            </div>
                         </div>
                     </div>
 

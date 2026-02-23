@@ -54,6 +54,12 @@ const PropertyDetails = () => {
         <div className="card">
           <h2 className="text-xl font-semibold mb-4">Basic Information</h2>
           <dl className="space-y-3">
+            {property.uniqueCode && (
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Unique Code</dt>
+                <dd className="text-lg font-semibold">{property.uniqueCode}</dd>
+              </div>
+            )}
             <div>
               <dt className="text-sm font-medium text-gray-500">Property Number</dt>
               <dd className="text-lg font-semibold">{property.propertyNumber}</dd>

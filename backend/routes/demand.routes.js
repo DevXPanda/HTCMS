@@ -3,6 +3,7 @@ import { authenticate, authorize } from '../middleware/enhancedAuth.js';
 import {
     getAllDemands,
     getDemandById,
+    getDemandPdf,
     createDemand,
     createD2DCDemand,
     generateShopDemand,
@@ -12,6 +13,7 @@ import {
     generateUnifiedDemand,
     calculatePenalty,
     getDemandsByProperty,
+    getDemandsByModuleAndEntity,
     getDemandStatistics,
     getDemandBreakdown,
     getUnifiedTaxSummary
@@ -27,6 +29,9 @@ router.get('/statistics/summary', getDemandStatistics);
 
 // Get demands by property
 router.get('/property/:propertyId', getDemandsByProperty);
+
+// Get demands by module and entity (Admin only - for discount workflow)
+router.get('/by-entity/:module/:entityId', authorize('admin'), getDemandsByModuleAndEntity);
 
 // Get all demands (filtered by role)
 router.get('/', (req, res, next) => {
@@ -58,6 +63,9 @@ router.post('/generate-combined', authorize('admin', 'assessor'), generateCombin
 
 // Generate unified demand (Property Tax + Water Tax in one demand) (Admin, Assessor)
 router.post('/generate-unified', authorize('admin', 'assessor'), generateUnifiedDemand);
+
+// Get demand PDF (must be before /:id)
+router.get('/:id/pdf', getDemandPdf);
 
 // Get demand by ID
 router.get('/:id', getDemandById);

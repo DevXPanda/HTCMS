@@ -479,7 +479,9 @@ export const authorize = (...roles) => {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    if (!roles.includes(req.user.role)) {
+    const userRole = (req.user.role || '').toString().toLowerCase();
+    const allowed = roles.map((r) => (r || '').toString().toLowerCase());
+    if (!allowed.includes(userRole)) {
       return res.status(403).json({
         message: 'Access denied. Insufficient permissions.'
       });
@@ -500,7 +502,9 @@ export const requireRole = (role) => {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    if (req.user.role !== role) {
+    const userRole = (req.user.role || '').toString().toLowerCase();
+    const required = (role || '').toString().toLowerCase();
+    if (userRole !== required) {
       return res.status(403).json({
         message: 'Access denied. Insufficient permissions.'
       });

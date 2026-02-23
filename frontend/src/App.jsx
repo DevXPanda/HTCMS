@@ -14,6 +14,8 @@ import EoLayout from './components/EoLayout';
 import SupervisorLayout from './components/SupervisorLayout';
 import RoleBasedRedirect from './components/RoleBasedRedirect';
 import D2DCModule from './pages/admin/d2dc/D2DCModule';
+import DiscountManagement from './pages/admin/discount/DiscountManagement';
+import PenaltyWaiverManagement from './pages/admin/penaltyWaiver/PenaltyWaiverManagement';
 
 // Auth Pages
 import AdminLogin from './pages/auth/AdminLogin';
@@ -113,6 +115,7 @@ import CollectorAttendance from './pages/collector/Attendance';
 import DailyTasks from './pages/collector/DailyTasks';
 import RecordFieldVisit from './pages/collector/RecordFieldVisit';
 import TaxSummarySimple from './pages/collector/TaxSummarySimple';
+import CollectorDemandDetails from './pages/collector/CollectorDemandDetails';
 
 // Clerk Pages
 import ClerkDashboard from './pages/clerk/ClerkDashboard';
@@ -207,6 +210,8 @@ function App() {
             <Route path="dashboard" element={<Dashboard />} />
             {/* New Modules */}
             <Route path="tax-management" element={<TaxManagement />} />
+            <Route path="tax/discount-management" element={<DiscountManagement />} />
+            <Route path="tax/penalty-waiver" element={<PenaltyWaiverManagement />} />
             <Route path="property-tax" element={<PropertyTaxModule />} />
             <Route path="water-tax" element={<WaterTaxModule />} />
             <Route path="shop-tax" element={<ShopTaxModule />} />
@@ -332,6 +337,7 @@ function App() {
             <Route path="field-visit/new" element={<RecordFieldVisit />} />
             <Route path="attendance" element={<CollectorAttendance />} />
             <Route path="activity-logs" element={<ActivityLogs />} />
+            <Route path="demands/:id" element={<CollectorDemandDetails />} />
           </Route>
 
           {/* Protected Routes - Clerk Portal */}

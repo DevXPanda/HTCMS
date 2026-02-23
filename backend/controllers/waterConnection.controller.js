@@ -3,6 +3,7 @@ import { Op } from 'sequelize';
 import { WATER_CONNECTION_STATUS } from '../constants/waterTaxStatuses.js';
 import { validateMandatoryDocuments } from '../constants/waterConnectionDocumentTypes.js';
 import { WaterConnectionRequest } from '../models/index.js';
+import { generateWaterConnectionId } from '../services/uniqueIdService.js';
 
 /**
  * @route   POST /api/water-connections
@@ -84,22 +85,7 @@ export const createWaterConnection = async (req, res, next) => {
       });
     }
 
-    // Generate connection number with retry logic for race conditions
-    let connectionNumber;
-    let retries = 3;
-    while (retries > 0) {
-      try {
-        const connectionCount = await WaterConnection.count({
-          where: { propertyId: normalizedPropertyId }
-        });
-        connectionNumber = `WC-${property.propertyNumber}-${String(connectionCount + 1).padStart(3, '0')}`;
-        break;
-      } catch (error) {
-        retries--;
-        if (retries === 0) throw error;
-        await new Promise(resolve => setTimeout(resolve, 100)); // Wait 100ms before retry
-      }
-    }
+    const connectionNumber = await generateWaterConnectionId(property.wardId);
 
     // Create water connection (status: DRAFT - requires documents for activation)
     const waterConnection = await WaterConnection.create({

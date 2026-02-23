@@ -93,6 +93,7 @@ const Properties = () => {
       const response = await propertyAPI.getAll(params);
       const list = response.data.data.properties || [];
       const rows = list.map(p => ({
+        uniqueCode: p.uniqueCode || p.propertyNumber,
         propertyNumber: p.propertyNumber,
         address: p.address,
         ward: p.ward?.wardName,
@@ -260,6 +261,7 @@ const Properties = () => {
         <table className="table">
           <thead>
             <tr>
+              <th>Unique Code</th>
               <th>Property Number</th>
               <th>Address</th>
               <th>Ward</th>
@@ -272,14 +274,15 @@ const Properties = () => {
           <tbody>
             {properties.length === 0 ? (
               <tr>
-                <td colSpan="7" className="text-center py-8 text-gray-500">
+                <td colSpan="8" className="text-center py-8 text-gray-500">
                   No properties found
                 </td>
               </tr>
             ) : (
               properties.map((property) => (
                 <tr key={property.id}>
-                  <td className="font-medium">{property.propertyNumber}</td>
+                  <td className="font-medium">{property.uniqueCode || property.propertyNumber}</td>
+                  <td className="text-gray-600">{property.propertyNumber}</td>
                   <td className="max-w-xs truncate">{property.address}</td>
                   <td>{property.ward?.wardName || 'N/A'}</td>
                   <td>

@@ -1,6 +1,8 @@
 import { Property, User, Ward } from '../models/index.js';
+import { sequelize } from '../config/database.js';
 import { Op } from 'sequelize';
 import { auditLogger } from '../utils/auditLogger.js';
+import { generatePropertyUniqueId, parsePropertyNumberForId, getNextPropertyNumberInWard } from '../services/uniqueIdService.js';
 
 /**
  * @route   GET /api/properties
@@ -143,9 +145,9 @@ export const getPropertyById = async (req, res, next) => {
  */
 export const createProperty = async (req, res, next) => {
   try {
-
     const {
-      propertyNumber,
+      propertyNumber: bodyPropertyNumber,
+      property_number: bodyPropertyNumberSnake,
       ownerId,
       ownerName,
       ownerPhone,
@@ -168,11 +170,8 @@ export const createProperty = async (req, res, next) => {
       remarks
     } = req.body;
 
-    // Validation - check for missing or empty required fields
+    // Validation - check for missing or empty required fields (propertyNumber is optional; admin can set or leave blank to auto-generate)
     const missingFields = [];
-    if (!propertyNumber || (typeof propertyNumber === 'string' && propertyNumber.trim() === '')) {
-      missingFields.push('propertyNumber');
-    }
     if (!wardId || wardId === '' || wardId === null || wardId === undefined) {
       missingFields.push('wardId');
     }
@@ -227,16 +226,37 @@ export const createProperty = async (req, res, next) => {
       });
     }
 
-    // Check if property number already exists
-    const existingProperty = await Property.findOne({
-      where: { propertyNumber: propertyNumber.trim() }
-    });
+    // Unique ID = PREFIX + WARD(3) + PROPERTY_NUMBER(4). Use admin property number or next in ward.
+    const rawPropertyNumber = bodyPropertyNumber ?? bodyPropertyNumberSnake;
+    const adminPropertyNumber =
+      rawPropertyNumber != null && String(rawPropertyNumber).trim() !== ''
+        ? String(rawPropertyNumber).trim()
+        : null;
 
-    if (existingProperty) {
+    const propertyNumberForId = adminPropertyNumber != null
+      ? parsePropertyNumberForId(adminPropertyNumber)
+      : await getNextPropertyNumberInWard(parsedWardId);
+    const uniqueCode = generatePropertyUniqueId(parsedWardId, propertyType, propertyNumberForId);
+
+    const existingByUniqueCode = await Property.findOne({
+      where: { uniqueCode }
+    });
+    if (existingByUniqueCode) {
       return res.status(400).json({
         success: false,
-        message: 'Property with this number already exists'
+        message: `Unique code ${uniqueCode} already exists. Change property number or ward.`
       });
+    }
+    if (adminPropertyNumber) {
+      const existingByPropertyNumber = await Property.findOne({
+        where: { propertyNumber: adminPropertyNumber }
+      });
+      if (existingByPropertyNumber) {
+        return res.status(400).json({
+          success: false,
+          message: 'Property with this number already exists'
+        });
+      }
     }
 
     // Validate geolocation format if provided
@@ -383,8 +403,11 @@ export const createProperty = async (req, res, next) => {
       });
     }
 
+    const propertyNumber = adminPropertyNumber || uniqueCode;
+
     const property = await Property.create({
-      propertyNumber: propertyNumber.trim(),
+      propertyNumber,
+      uniqueCode,
       ownerId: finalOwnerId,
       ownerName: ownerName.trim(),
       ownerPhone: ownerPhone.trim(),
@@ -449,7 +472,7 @@ export const createProperty = async (req, res, next) => {
 export const updateProperty = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    const updateData = { ...req.body };
 
     const property = await Property.findByPk(id);
     if (!property) {
@@ -457,6 +480,25 @@ export const updateProperty = async (req, res, next) => {
         success: false,
         message: 'Property not found'
       });
+    }
+
+    const wardChanged = updateData.hasOwnProperty('wardId') && updateData.wardId !== property.wardId;
+    const propertyNumberChanged = updateData.hasOwnProperty('propertyNumber') && String(updateData.propertyNumber).trim() !== String(property.propertyNumber || '').trim();
+    if (wardChanged || propertyNumberChanged) {
+      const wardId = updateData.wardId != null ? updateData.wardId : property.wardId;
+      const propertyType = updateData.propertyType != null ? updateData.propertyType : property.propertyType;
+      const propNum = parsePropertyNumberForId(updateData.propertyNumber != null ? updateData.propertyNumber : property.propertyNumber);
+      const newUniqueCode = generatePropertyUniqueId(wardId, propertyType, propNum);
+      const existing = await Property.findOne({
+        where: { uniqueCode: newUniqueCode, id: { [Op.ne]: id } }
+      });
+      if (existing) {
+        return res.status(400).json({
+          success: false,
+          message: `Unique code ${newUniqueCode} already exists. Use a different property number or ward.`
+        });
+      }
+      updateData.uniqueCode = newUniqueCode;
     }
 
     // Capture previous data for audit log

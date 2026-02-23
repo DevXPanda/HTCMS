@@ -1,7 +1,8 @@
-import { Ward, User, Property, Demand, DemandItem, Payment, ULB } from '../models/index.js';
+import { Ward, User, Property, Demand, DemandItem, Payment, TaxDiscount, PenaltyWaiver, Shop, WaterTaxAssessment, ShopTaxAssessment, ULB } from '../models/index.js';
 import { AdminManagement } from '../models/AdminManagement.js';
 import { Op } from 'sequelize';
 import { auditLogger } from '../utils/auditLogger.js';
+import { calculateFinalAmount } from '../utils/financialCalculations.js';
 import { wardAccessControl, specificWardAccess } from '../middleware/wardAccess.js';
 import { injectUlbFilter } from '../middleware/ulbFilter.js';
 
@@ -567,7 +568,9 @@ export const getCollectorDashboard = async (req, res, next) => {
             totalCollection: 0,
             totalOutstanding: 0,
             recentPayments: [],
-            propertyWiseDemands: []
+            propertyWiseDemands: [],
+            discountedDemands: [],
+            penaltyWaivedDemands: []
           }
         }
       });
@@ -593,7 +596,9 @@ export const getCollectorDashboard = async (req, res, next) => {
             totalCollection: 0,
             totalOutstanding: 0,
             recentPayments: [],
-            propertyWiseDemands: []
+            propertyWiseDemands: [],
+            discountedDemands: [],
+            penaltyWaivedDemands: []
           }
         }
       });
@@ -759,6 +764,92 @@ export const getCollectorDashboard = async (req, res, next) => {
       return today > dueDate && parseFloat(d.balanceAmount || 0) > 0;
     });
 
+    // Discounted demands (active tax_discounts for demands in collector's wards)
+    const discountRecords = await TaxDiscount.findAll({
+      where: { status: 'ACTIVE' },
+      include: [
+        {
+          model: Demand,
+          as: 'demand',
+          required: true,
+          where: { propertyId: { [Op.in]: propertyIds } },
+          include: [
+            {
+              model: Property,
+              as: 'property',
+              required: true,
+              include: [
+                { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'phone'] }
+              ]
+            }
+          ]
+        }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+    const discountedDemands = discountRecords.map((td) => {
+      const d = td.demand;
+      const owner = d?.property?.owner;
+      const citizenName = owner ? `${owner.firstName || ''} ${owner.lastName || ''}`.trim() || 'N/A' : 'N/A';
+      const original = parseFloat(d?.totalAmount || 0);
+      const discount = parseFloat(td.discountAmount || 0);
+      const finalVal = d?.finalAmount != null ? parseFloat(d.finalAmount) : calculateFinalAmount(d, { discountAmount: discount, waiverAmount: parseFloat(d?.penaltyWaived || 0) }).finalAmount;
+      return {
+        id: d?.id,
+        demandId: d?.id,
+        demandNumber: d?.demandNumber,
+        citizen: citizenName,
+        module: td.moduleType,
+        originalAmount: original,
+        discountAmount: discount,
+        finalAmount: finalVal,
+        approvedBy: td.approvedBy,
+        date: td.created_at
+      };
+    });
+
+    // Penalty waived demands (ACTIVE penalty_waivers for demands in collector's wards)
+    const waiverRecords = await PenaltyWaiver.findAll({
+      where: { status: 'ACTIVE' },
+      include: [
+        {
+          model: Demand,
+          as: 'demand',
+          required: true,
+          include: [
+            { model: Property, as: 'property', required: false, include: [{ model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'phone'] }] },
+            { model: WaterTaxAssessment, as: 'waterTaxAssessment', required: false, attributes: ['id', 'propertyId'], include: [{ model: Property, as: 'property', required: false, include: [{ model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName'] }] }] },
+            { model: ShopTaxAssessment, as: 'shopTaxAssessment', required: false, include: [{ model: Shop, as: 'shop', attributes: ['id', 'propertyId'], required: false }] }
+          ]
+        }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+    const penaltyWaivedDemands = waiverRecords
+      .filter((pw) => {
+        const d = pw.demand;
+        const propId = d?.propertyId ?? d?.waterTaxAssessment?.propertyId ?? d?.shopTaxAssessment?.shop?.propertyId;
+        return propId != null && propertyIds.includes(propId);
+      })
+      .map((pw) => {
+        const d = pw.demand;
+        const owner = d?.property?.owner ?? d?.waterTaxAssessment?.property?.owner;
+        const citizenName = owner ? `${owner.firstName || ''} ${owner.lastName || ''}`.trim() || 'N/A' : 'N/A';
+        const finalVal = d?.finalAmount != null ? parseFloat(d.finalAmount) : calculateFinalAmount(d, { discountAmount: 0, waiverAmount: parseFloat(pw.waiverAmount || 0) }).finalAmount;
+        return {
+          id: pw.id,
+          demandId: d?.id,
+          demandNumber: d?.demandNumber,
+          citizen: citizenName,
+          module: pw.moduleType,
+          penalty: parseFloat(d?.penaltyAmount || 0),
+          waived: parseFloat(pw.waiverAmount || 0),
+          finalAmount: finalVal,
+          approvedBy: pw.approvedBy,
+          date: pw.createdAt || pw.created_at
+        };
+      });
+
     const dashboard = {
       totalWards: wards.length,
       totalProperties: properties.length,
@@ -769,8 +860,9 @@ export const getCollectorDashboard = async (req, res, next) => {
       totalOutstanding: allDemands
         .reduce((sum, d) => sum + parseFloat(d.balanceAmount || 0), 0),
       recentPayments: payments,
-      // New: Property-wise unified demands with breakdown
-      propertyWiseDemands: propertyWiseList
+      propertyWiseDemands: propertyWiseList,
+      discountedDemands,
+      penaltyWaivedDemands
     };
 
     console.log('Backend - Final dashboard summary:', {

@@ -1,6 +1,7 @@
 import { PropertyApplication, User, Ward, Property } from '../models/index.js';
 import { Op } from 'sequelize';
 import { auditLogger } from '../utils/auditLogger.js';
+import { getNextPropertyNumberInWard, generatePropertyUniqueId } from '../services/uniqueIdService.js';
 
 /**
  * @route   POST /api/property-applications
@@ -523,12 +524,14 @@ export const inspectionReviewApplication = async (req, res, next) => {
                     });
                 }
 
-                // Create actual Property record
-                const propertyCount = await Property.count();
-                const propertyNumber = `PROP-${Date.now()}-${propertyCount + 1}`;
+                // Create actual Property record (unique ID = PREFIX + WARD(3) + PROPERTY_NUMBER(4))
+                const nextNum = await getNextPropertyNumberInWard(application.wardId);
+                const uniqueCode = generatePropertyUniqueId(application.wardId, application.propertyType, nextNum);
+                const propertyNumber = uniqueCode;
 
                 const newProperty = await Property.create({
                     propertyNumber,
+                    uniqueCode,
                     ownerId: application.applicantId,
                     ownerName: application.ownerName,
                     ownerPhone: application.ownerPhone,

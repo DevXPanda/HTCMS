@@ -1432,6 +1432,70 @@ const verifyCollectorWardAccess = async (collectorId, wardId) => {
 };
 
 /**
+ * @route   GET /api/payments/:id/pdf
+ * @desc    Download payment receipt PDF by payment ID (generates if not exists)
+ * @access  Private (Role-based: citizen own, collector/admin all)
+ */
+export const getPaymentPdfById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const payment = await Payment.findByPk(id, {
+      include: [
+        { model: Demand, as: 'demand' },
+        { model: Property, as: 'property' }
+      ]
+    });
+
+    if (!payment) {
+      return res.status(404).json({ success: false, message: 'Payment not found' });
+    }
+
+    if (req.user.role === 'citizen') {
+      const property = await Property.findByPk(payment.propertyId);
+      if (!property || property.ownerId !== req.user.id) {
+        return res.status(403).json({ success: false, message: 'Access denied' });
+      }
+    }
+
+    if (!payment.receiptPdfUrl) {
+      try {
+        await generatePaymentReceiptPdf(payment.id, req, req.user);
+        await payment.reload();
+      } catch (genErr) {
+        console.error('Error generating receipt PDF:', genErr);
+        return res.status(500).json({ success: false, message: 'Failed to generate receipt PDF' });
+      }
+    }
+
+    if (!payment.receiptPdfUrl) {
+      return res.status(404).json({ success: false, message: 'Receipt PDF not available' });
+    }
+
+    const filename = payment.receiptPdfUrl.split('/').pop() || '';
+    const { readPdfFile, getReceiptPdfPath } = await import('../utils/pdfStorage.js');
+    const filePath = getReceiptPdfPath(filename);
+
+    const pdfBuffer = await readPdfFile(filePath);
+
+    await createAuditLog({
+      req,
+      user: req.user,
+      actionType: 'RECEIPT_PDF_DOWNLOADED',
+      entityType: 'Payment',
+      entityId: payment.id,
+      description: `Downloaded receipt PDF for payment ${payment.paymentNumber}`,
+      metadata: { filename }
+    });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="receipt_${payment.receiptNumber || payment.paymentNumber}.pdf"`);
+    res.send(pdfBuffer);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * @route   GET /api/payments/receipts/:filename
  * @desc    Download receipt PDF
  * @access  Private (Role-based access enforced)

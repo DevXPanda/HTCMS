@@ -11,6 +11,7 @@ import {
   verifyOnlinePayment,
   generateReceiptPdf,
   downloadReceiptPdf,
+  getPaymentPdfById,
   createFieldCollectionPayment
 } from '../controllers/payment.controller.js';
 
@@ -44,6 +45,7 @@ router.post('/online/verify', verifyOnlinePayment);
 
 // PDF routes (must be before /:id)
 router.get('/receipts/:filename', downloadReceiptPdf);
+router.get('/:id/pdf', getPaymentPdfById);
 router.post('/:id/generate-receipt', generateReceiptPdf);
 
 // Get payment receipt by receipt number (must be before /:id)
