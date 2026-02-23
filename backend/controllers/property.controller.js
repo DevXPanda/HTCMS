@@ -40,6 +40,7 @@ export const getAllProperties = async (req, res, next) => {
 
     if (search) {
       where[Op.or] = [
+        { uniqueCode: { [Op.iLike]: `%${search}%` } },
         { propertyNumber: { [Op.iLike]: `%${search}%` } },
         { address: { [Op.iLike]: `%${search}%` } },
         { city: { [Op.iLike]: `%${search}%` } },
@@ -236,7 +237,7 @@ export const createProperty = async (req, res, next) => {
     const propertyNumberForId = adminPropertyNumber != null
       ? parsePropertyNumberForId(adminPropertyNumber)
       : await getNextPropertyNumberInWard(parsedWardId);
-    const uniqueCode = generatePropertyUniqueId(parsedWardId, propertyType, propertyNumberForId);
+    const uniqueCode = await generatePropertyUniqueId(parsedWardId, propertyType, propertyNumberForId);
 
     const existingByUniqueCode = await Property.findOne({
       where: { uniqueCode }
@@ -488,7 +489,7 @@ export const updateProperty = async (req, res, next) => {
       const wardId = updateData.wardId != null ? updateData.wardId : property.wardId;
       const propertyType = updateData.propertyType != null ? updateData.propertyType : property.propertyType;
       const propNum = parsePropertyNumberForId(updateData.propertyNumber != null ? updateData.propertyNumber : property.propertyNumber);
-      const newUniqueCode = generatePropertyUniqueId(wardId, propertyType, propNum);
+      const newUniqueCode = await generatePropertyUniqueId(wardId, propertyType, propNum);
       const existing = await Property.findOne({
         where: { uniqueCode: newUniqueCode, id: { [Op.ne]: id } }
       });
@@ -587,7 +588,12 @@ export const searchProperties = async (req, res, next) => {
 
     const where = { isActive: true };
 
-    if (propertyNumber) where.propertyNumber = { [Op.iLike]: `%${propertyNumber}%` };
+    if (propertyNumber) {
+      where[Op.or] = [
+        { propertyNumber: { [Op.iLike]: `%${propertyNumber}%` } },
+        { uniqueCode: { [Op.iLike]: `%${propertyNumber}%` } }
+      ];
+    }
     if (ownerName) where.ownerName = { [Op.iLike]: `%${ownerName}%` };
     if (ownerPhone) where.ownerPhone = { [Op.iLike]: `%${ownerPhone}%` };
     if (wardId) where.wardId = wardId;

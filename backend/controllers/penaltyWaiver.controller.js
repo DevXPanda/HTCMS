@@ -18,7 +18,8 @@ const MODULE_SERVICE_MAP = {
   PROPERTY: 'HOUSE_TAX',
   WATER: 'WATER_TAX',
   SHOP: 'SHOP_TAX',
-  D2DC: 'D2DC'
+  D2DC: 'D2DC',
+  UNIFIED: 'HOUSE_TAX'
 };
 
 /**
@@ -45,7 +46,7 @@ export const createPenaltyWaiver = async (req, res, next) => {
     const waiverType = String(waiver_type).toUpperCase();
     const waiverValue = parseFloat(waiver_value);
 
-    if (!['PROPERTY', 'WATER', 'SHOP', 'D2DC'].includes(moduleType) || !['PERCENTAGE', 'FIXED'].includes(waiverType)) {
+    if (!['PROPERTY', 'WATER', 'SHOP', 'D2DC', 'UNIFIED'].includes(moduleType) || !['PERCENTAGE', 'FIXED'].includes(waiverType)) {
       await t.rollback();
       return res.status(400).json({ success: false, message: 'Invalid module_type or waiver_type' });
     }
@@ -61,12 +62,25 @@ export const createPenaltyWaiver = async (req, res, next) => {
     }
 
     const serviceType = MODULE_SERVICE_MAP[moduleType];
-    if (demand.serviceType !== serviceType) {
-      await t.rollback();
-      return res.status(400).json({ success: false, message: 'Demand does not match selected tax module' });
+    const isUnifiedDemand = demand.remarks && demand.remarks.includes('UNIFIED_DEMAND');
+
+    if (moduleType === 'UNIFIED') {
+      if (!isUnifiedDemand) {
+        await t.rollback();
+        return res.status(404).json({ success: false, message: 'Selected demand is not a unified tax demand' });
+      }
+      if (!['HOUSE_TAX', 'WATER_TAX'].includes(demand.serviceType)) {
+        await t.rollback();
+        return res.status(400).json({ success: false, message: 'Demand service type is incompatible with unified waiver' });
+      }
+    } else {
+      if (demand.serviceType !== serviceType) {
+        await t.rollback();
+        return res.status(400).json({ success: false, message: 'Demand does not match selected tax module' });
+      }
     }
 
-    if (moduleType === 'PROPERTY' || moduleType === 'D2DC') {
+    if (moduleType === 'PROPERTY' || moduleType === 'D2DC' || moduleType === 'UNIFIED') {
       if (demand.propertyId !== entityId) {
         await t.rollback();
         return res.status(400).json({ success: false, message: 'Demand does not belong to selected entity' });
@@ -265,7 +279,8 @@ export const getPenaltyWaiverSummary = async (req, res, next) => {
           PROPERTY: byModule.PROPERTY ?? 0,
           WATER: byModule.WATER ?? 0,
           SHOP: byModule.SHOP ?? 0,
-          D2DC: byModule.D2DC ?? 0
+          D2DC: byModule.D2DC ?? 0,
+          UNIFIED: byModule.UNIFIED ?? 0
         }
       }
     });

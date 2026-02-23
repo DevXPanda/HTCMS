@@ -52,10 +52,10 @@ const AddProperty = () => {
       setUploadingPhoto(true);
       const formData = new FormData();
       formData.append('photo', file);
-      
+
       const response = await uploadAPI.uploadPropertyPhoto(formData);
       const photoUrl = response.data.data.url;
-      
+
       setUploadedPhotos(prev => [...prev, photoUrl]);
       toast.success('Photo uploaded successfully');
     } catch (error) {
@@ -163,9 +163,9 @@ const AddProperty = () => {
                 type="text"
                 {...register('propertyNumber')}
                 className="input"
-                placeholder="Optional – e.g. 94 (your reference)"
+                placeholder="Property Number"
               />
-              <p className="text-xs text-gray-500 mt-1">Optional. Unique code (e.g. PR0230055) is auto-assigned on save.</p>
+              {/* <p className="text-xs text-gray-500 mt-1">Optional. Unique code (e.g. PR0230055) is auto-assigned on save.</p> */}
             </div>
 
             <div>
@@ -425,7 +425,7 @@ const AddProperty = () => {
         {/* Photos */}
         <div>
           <h2 className="text-xl font-semibold mb-4">Property Photos (Optional)</h2>
-          
+
           {/* Image Upload */}
           <div className="mb-4">
             <label className="label flex items-center">

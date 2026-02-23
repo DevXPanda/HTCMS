@@ -56,7 +56,7 @@ const PropertyDetails = () => {
           <dl className="space-y-3">
             {property.uniqueCode && (
               <div>
-                <dt className="text-sm font-medium text-gray-500">Unique Code</dt>
+                <dt className="text-sm font-medium text-gray-500">Property ID</dt>
                 <dd className="text-lg font-semibold">{property.uniqueCode}</dd>
               </div>
             )}
@@ -77,12 +77,11 @@ const PropertyDetails = () => {
             <div>
               <dt className="text-sm font-medium text-gray-500">Status</dt>
               <dd>
-                <span className={`badge ${
-                  property.status === 'active' ? 'badge-success' :
-                  property.status === 'pending' ? 'badge-warning' :
-                  property.status === 'disputed' ? 'badge-danger' :
-                  'badge-info'
-                } capitalize`}>
+                <span className={`badge ${property.status === 'active' ? 'badge-success' :
+                    property.status === 'pending' ? 'badge-warning' :
+                      property.status === 'disputed' ? 'badge-danger' :
+                        'badge-info'
+                  } capitalize`}>
                   {property.status || 'active'}
                 </span>
               </dd>

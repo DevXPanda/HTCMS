@@ -12,8 +12,6 @@ const Properties = () => {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     wardId: '',
@@ -30,7 +28,7 @@ const Properties = () => {
 
   useEffect(() => {
     fetchProperties();
-  }, [page, search, filters]);
+  }, [search, filters]);
 
   const fetchWards = async () => {
     try {
@@ -45,14 +43,12 @@ const Properties = () => {
     try {
       setLoading(true);
       const params = {
-        page,
         search,
-        limit: 10,
+        limit: 10000,
         ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''))
       };
       const response = await propertyAPI.getAll(params);
       setProperties(response.data.data.properties);
-      setPagination(response.data.data.pagination);
     } catch (error) {
       toast.error('Failed to fetch properties');
     } finally {
@@ -62,7 +58,6 @@ const Properties = () => {
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
-    setPage(1);
   };
 
   const clearFilters = () => {
@@ -73,12 +68,10 @@ const Properties = () => {
       status: '',
       constructionType: ''
     });
-    setPage(1);
   };
 
   const handleSearch = (e) => {
     e.preventDefault();
-    setPage(1);
     fetchProperties();
   };
 
@@ -93,8 +86,7 @@ const Properties = () => {
       const response = await propertyAPI.getAll(params);
       const list = response.data.data.properties || [];
       const rows = list.map(p => ({
-        uniqueCode: p.uniqueCode || p.propertyNumber,
-        propertyNumber: p.propertyNumber,
+        propertyId: p.uniqueCode || p.propertyNumber,
         address: p.address,
         ward: p.ward?.wardName,
         propertyType: p.propertyType,
@@ -150,7 +142,7 @@ const Properties = () => {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by property number, address, owner name, or city..."
+              placeholder="Search by Property ID, address, owner name, or city..."
               className="input pl-10"
             />
           </div>
@@ -261,8 +253,7 @@ const Properties = () => {
         <table className="table">
           <thead>
             <tr>
-              <th>Unique Code</th>
-              <th>Property Number</th>
+              <th>Property ID</th>
               <th>Address</th>
               <th>Ward</th>
               <th>Type</th>
@@ -274,7 +265,7 @@ const Properties = () => {
           <tbody>
             {properties.length === 0 ? (
               <tr>
-                <td colSpan="8" className="text-center py-8 text-gray-500">
+                <td colSpan="7" className="text-center py-8 text-gray-500">
                   No properties found
                 </td>
               </tr>
@@ -282,7 +273,6 @@ const Properties = () => {
               properties.map((property) => (
                 <tr key={property.id}>
                   <td className="font-medium">{property.uniqueCode || property.propertyNumber}</td>
-                  <td className="text-gray-600">{property.propertyNumber}</td>
                   <td className="max-w-xs truncate">{property.address}</td>
                   <td>{property.ward?.wardName || 'N/A'}</td>
                   <td>
@@ -294,12 +284,11 @@ const Properties = () => {
                     {property.ownerName || `${property.owner?.firstName} ${property.owner?.lastName}`}
                   </td>
                   <td>
-                    <span className={`badge ${
-                      property.status === 'active' ? 'badge-success' :
+                    <span className={`badge ${property.status === 'active' ? 'badge-success' :
                       property.status === 'pending' ? 'badge-warning' :
-                      property.status === 'disputed' ? 'badge-danger' :
-                      'badge-info'
-                    } capitalize`}>
+                        property.status === 'disputed' ? 'badge-danger' :
+                          'badge-info'
+                      } capitalize`}>
                       {property.status || 'active'}
                     </span>
                   </td>
@@ -330,28 +319,7 @@ const Properties = () => {
         </table>
       </div>
 
-      {/* Pagination */}
-      {pagination && pagination.pages > 1 && (
-        <div className="flex justify-center items-center space-x-2 mt-6">
-          <button
-            onClick={() => setPage(page - 1)}
-            disabled={page === 1}
-            className="btn btn-secondary"
-          >
-            Previous
-          </button>
-          <span className="text-gray-600">
-            Page {pagination.page} of {pagination.pages}
-          </span>
-          <button
-            onClick={() => setPage(page + 1)}
-            disabled={page === pagination.pages}
-            className="btn btn-secondary"
-          >
-            Next
-          </button>
-        </div>
-      )}
+      {/* Pagination removed */}
     </div>
   );
 };

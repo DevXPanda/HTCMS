@@ -87,6 +87,24 @@ import ToiletInspections from './pages/admin/toilet/ToiletInspections';
 import ToiletComplaints from './pages/admin/toilet/ToiletComplaints';
 import ToiletMaintenance from './pages/admin/toilet/ToiletMaintenance';
 import ToiletReports from './pages/admin/toilet/ToiletReports';
+import MRFManagement from './pages/admin/mrf/MRFManagement';
+import AddMRF from './pages/admin/mrf/AddMRF';
+import MRFDetails from './pages/admin/mrf/MRFDetails';
+import MRFReports from './pages/admin/mrf/MRFReports';
+import GauShalaManagement from './pages/admin/gaushala/GauShalaManagement';
+import AddGauShala from './pages/admin/gaushala/AddGauShala';
+import GauShalaDetails from './pages/admin/gaushala/GauShalaDetails';
+import GauShalaReports from './pages/admin/gaushala/GauShalaReports';
+import CattleManagement from './pages/admin/gaushala/CattleManagement';
+import AddInspection from './pages/admin/toilet/AddInspection';
+import InspectionDetails from './pages/admin/toilet/InspectionDetails';
+import AddMaintenance from './pages/admin/toilet/AddMaintenance';
+import MaintenanceDetails from './pages/admin/toilet/MaintenanceDetails';
+import ComplaintDetails from './pages/admin/toilet/ComplaintDetails';
+import StaffAssignment from './pages/admin/toilet/StaffAssignment';
+import InventoryManagement from './pages/admin/inventory/InventoryManagement';
+import UtilityTracking from './pages/admin/utility/UtilityTracking';
+import FeedbackList from './pages/admin/feedback/FeedbackList';
 
 // Citizen Pages
 import CitizenDashboard from './pages/citizen/CitizenDashboard';
@@ -234,15 +252,32 @@ function App() {
             <Route path="toilet-management/facilities/:id" element={<ToiletDetails />} />
             <Route path="toilet-management/facilities/:id/edit" element={<AddToilet />} />
             <Route path="toilet-management/inspections" element={<ToiletInspections />} />
-            <Route path="toilet-management/inspections/new" element={<div className="p-6"><h1 className="text-2xl font-bold">Schedule Inspection</h1><p className="text-gray-600 mt-2">Inspection scheduling page - Coming soon</p></div>} />
-            <Route path="toilet-management/inspections/:id" element={<div className="p-6"><h1 className="text-2xl font-bold">Inspection Details</h1><p className="text-gray-600 mt-2">Inspection details page - Coming soon</p></div>} />
+            <Route path="toilet-management/inspections/new" element={<AddInspection />} />
+            <Route path="toilet-management/inspections/:id" element={<InspectionDetails />} />
+            <Route path="toilet-management/inspections/:id/edit" element={<AddInspection />} />
             <Route path="toilet-management/complaints" element={<ToiletComplaints />} />
-            <Route path="toilet-management/complaints/:id" element={<div className="p-6"><h1 className="text-2xl font-bold">Complaint Details</h1><p className="text-gray-600 mt-2">Complaint details page - Coming soon</p></div>} />
+            <Route path="toilet-management/complaints/:id" element={<ComplaintDetails />} />
             <Route path="toilet-management/maintenance" element={<ToiletMaintenance />} />
-            <Route path="toilet-management/maintenance/new" element={<div className="p-6"><h1 className="text-2xl font-bold">Schedule Maintenance</h1><p className="text-gray-600 mt-2">Maintenance scheduling page - Coming soon</p></div>} />
-            <Route path="toilet-management/maintenance/:id" element={<div className="p-6"><h1 className="text-2xl font-bold">Maintenance Details</h1><p className="text-gray-600 mt-2">Maintenance details page - Coming soon</p></div>} />
-            <Route path="toilet-management/staff" element={<div className="p-6"><h1 className="text-2xl font-bold">Staff Assignment</h1><p className="text-gray-600 mt-2">Staff assignment page - Coming soon</p></div>} />
+            <Route path="toilet-management/maintenance/new" element={<AddMaintenance />} />
+            <Route path="toilet-management/maintenance/:id" element={<MaintenanceDetails />} />
+            <Route path="toilet-management/maintenance/:id/edit" element={<AddMaintenance />} />
+            <Route path="toilet-management/staff" element={<StaffAssignment />} />
             <Route path="toilet-management/reports" element={<ToiletReports />} />
+
+            {/* MRF Management */}
+            <Route path="mrf/management" element={<MRFManagement />} />
+            <Route path="mrf/facilities/new" element={<AddMRF />} />
+            <Route path="mrf/facilities/:id" element={<MRFDetails />} />
+            <Route path="mrf/facilities/:id/edit" element={<AddMRF />} />
+            <Route path="mrf/reports" element={<MRFReports />} />
+
+            {/* Gaushala Management */}
+            <Route path="gaushala/management" element={<GauShalaManagement />} />
+            <Route path="gaushala/facilities/new" element={<AddGauShala />} />
+            <Route path="gaushala/facilities/:id" element={<GauShalaDetails />} />
+            <Route path="gaushala/facilities/:id/edit" element={<AddGauShala />} />
+            <Route path="gaushala/facilities/:id/cattle" element={<CattleManagement />} />
+            <Route path="gaushala/reports" element={<GauShalaReports />} />
 
             {/* Properties */}
             <Route path="properties" element={<Properties />} />
@@ -313,6 +348,11 @@ function App() {
             <Route path="water/bills" element={<WaterBills />} />
             <Route path="water/payments" element={<div className="p-6"><h1 className="text-2xl font-bold">Water Payments</h1><p className="text-gray-600 mt-2">Water payments management page - Coming soon</p></div>} />
             <Route path="water/reports" element={<div className="p-6"><h1 className="text-2xl font-bold">Water Reports</h1><p className="text-gray-600 mt-2">Water reports page - Coming soon</p></div>} />
+
+            {/* Phase 4 Operational Modules */}
+            <Route path="inventory" element={<InventoryManagement />} />
+            <Route path="utilities" element={<UtilityTracking />} />
+            <Route path="feedback" element={<FeedbackList />} />
           </Route>
 
           {/* Protected Routes - Collector Portal */}

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  Bath, 
-  Plus, 
-  Search, 
-  Filter, 
-  MapPin, 
-  Users, 
-  CheckCircle, 
+import {
+  Bath,
+  Plus,
+  Search,
+  Filter,
+  MapPin,
+  Users,
+  CheckCircle,
   XCircle,
   Edit,
   Eye,
@@ -38,8 +38,8 @@ const ToiletFacilities = () => {
   const fetchWards = async () => {
     try {
       const response = await api.get('/wards');
-      if (response.data) {
-        setWards(response.data);
+      if (response.data && response.data.success) {
+        setWards(response.data.data.wards);
       }
     } catch (error) {
       console.error('Failed to fetch wards:', error);
@@ -49,43 +49,17 @@ const ToiletFacilities = () => {
   const fetchToilets = async () => {
     try {
       setLoading(true);
-      // TODO: Replace with actual API endpoint
-      // const response = await api.get('/toilet-management/facilities');
-      // setToilets(response.data);
-      
-      // Mock data for now
-      setToilets([
-        {
-          id: 1,
-          name: 'Public Toilet - Ward 1',
-          location: 'Near Market Square',
-          ward: 'Ward 1',
-          wardId: 1,
-          type: 'Public',
-          status: 'active',
-          capacity: 20,
-          assignedStaff: 2,
-          lastInspection: '2026-02-15',
-          lastMaintenance: '2026-02-10',
-          latitude: 28.6139,
-          longitude: 77.2090
-        },
-        {
-          id: 2,
-          name: 'Community Toilet - Ward 2',
-          location: 'Residential Area',
-          ward: 'Ward 2',
-          wardId: 2,
-          type: 'Community',
-          status: 'maintenance',
-          capacity: 15,
-          assignedStaff: 1,
-          lastInspection: '2026-02-14',
-          lastMaintenance: '2026-02-12',
-          latitude: 28.6140,
-          longitude: 77.2091
-        }
-      ]);
+      const response = await api.get('/toilet/facilities');
+      if (response.data && response.data.success) {
+        const formattedData = response.data.data.facilities.map(t => ({
+          ...t,
+          ward: t.ward ? t.ward.wardName : 'N/A',
+          assignedStaff: 0, // Placeholder, will be fetched if needed
+          lastInspection: t.inspections && t.inspections.length > 0 ? t.inspections[0].inspectionDate : null,
+          lastMaintenance: t.maintenanceRecords && t.maintenanceRecords.length > 0 ? t.maintenanceRecords[0].scheduledDate : null
+        }));
+        setToilets(formattedData);
+      }
     } catch (error) {
       console.error('Failed to fetch toilets:', error);
     } finally {
@@ -121,11 +95,11 @@ const ToiletFacilities = () => {
   };
 
   const filteredToilets = toilets.filter(toilet => {
-    const matchesSearch = 
+    const matchesSearch =
       toilet.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       toilet.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
       toilet.ward.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus = !filters.status || toilet.status === filters.status;
     const matchesWard = !filters.ward || toilet.wardId.toString() === filters.ward;
     const matchesType = !filters.type || toilet.type === filters.type;
@@ -139,10 +113,10 @@ const ToiletFacilities = () => {
       maintenance: { color: 'bg-yellow-100 text-yellow-800', icon: AlertCircle },
       inactive: { color: 'bg-red-100 text-red-800', icon: XCircle }
     };
-    
+
     const config = statusConfig[status] || statusConfig.inactive;
     const Icon = config.icon;
-    
+
     return (
       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
         <Icon className="w-3 h-3 mr-1" />
@@ -179,9 +153,9 @@ const ToiletFacilities = () => {
             <Filter className="w-4 h-4 mr-2" />
             Filters
           </button>
-          <button 
-            type="button" 
-            onClick={handleExport} 
+          <button
+            type="button"
+            onClick={handleExport}
             className="btn btn-secondary flex items-center"
           >
             <Download className="w-4 h-4 mr-2" />
@@ -274,73 +248,73 @@ const ToiletFacilities = () => {
       {/* Toilets List */}
       <div className="card overflow-x-auto">
         <table className="table">
-            <thead>
+          <thead>
+            <tr>
+              <th>Facility Name</th>
+              <th>Location</th>
+              <th>Ward</th>
+              <th>Type</th>
+              <th>Capacity</th>
+              <th>Status</th>
+              <th>Staff</th>
+              <th>Last Inspection</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredToilets.length === 0 ? (
               <tr>
-                <th>Facility Name</th>
-                <th>Location</th>
-                <th>Ward</th>
-                <th>Type</th>
-                <th>Capacity</th>
-                <th>Status</th>
-                <th>Staff</th>
-                <th>Last Inspection</th>
-                <th>Actions</th>
+                <td colSpan="9" className="text-center py-8 text-gray-500">
+                  No toilet facilities found
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {filteredToilets.length === 0 ? (
-                <tr>
-                  <td colSpan="9" className="text-center py-8 text-gray-500">
-                    No toilet facilities found
+            ) : (
+              filteredToilets.map((toilet) => (
+                <tr key={toilet.id}>
+                  <td>
+                    <div className="flex items-center">
+                      <Bath className="h-5 w-5 text-pink-500 mr-2" />
+                      <span className="font-medium">{toilet.name}</span>
+                    </div>
+                  </td>
+                  <td>{toilet.location}</td>
+                  <td>{toilet.ward}</td>
+                  <td>{toilet.type}</td>
+                  <td>{toilet.capacity} users</td>
+                  <td>{getStatusBadge(toilet.status)}</td>
+                  <td>
+                    <div className="flex items-center">
+                      <Users className="h-4 w-4 mr-1 text-gray-400" />
+                      {toilet.assignedStaff}
+                    </div>
+                  </td>
+                  <td>
+                    {toilet.lastInspection ? new Date(toilet.lastInspection).toLocaleDateString() : 'Never'}
+                  </td>
+                  <td>
+                    <div className="flex gap-2">
+                      <Link
+                        to={`/toilet-management/facilities/${toilet.id}`}
+                        className="text-primary-600 hover:text-primary-900"
+                        title="View Details"
+                      >
+                        <Eye className="h-5 w-5" />
+                      </Link>
+                      <Link
+                        to={`/toilet-management/facilities/${toilet.id}/edit`}
+                        className="text-blue-600 hover:text-blue-900"
+                        title="Edit"
+                      >
+                        <Edit className="h-5 w-5" />
+                      </Link>
+                    </div>
                   </td>
                 </tr>
-              ) : (
-                filteredToilets.map((toilet) => (
-                  <tr key={toilet.id}>
-                    <td>
-                      <div className="flex items-center">
-                        <Bath className="h-5 w-5 text-pink-500 mr-2" />
-                        <span className="font-medium">{toilet.name}</span>
-                      </div>
-                    </td>
-                    <td>{toilet.location}</td>
-                    <td>{toilet.ward}</td>
-                    <td>{toilet.type}</td>
-                    <td>{toilet.capacity} users</td>
-                    <td>{getStatusBadge(toilet.status)}</td>
-                    <td>
-                      <div className="flex items-center">
-                        <Users className="h-4 w-4 mr-1 text-gray-400" />
-                        {toilet.assignedStaff}
-                      </div>
-                    </td>
-                    <td>
-                      {toilet.lastInspection ? new Date(toilet.lastInspection).toLocaleDateString() : 'Never'}
-                    </td>
-                    <td>
-                      <div className="flex gap-2">
-                        <Link
-                          to={`/toilet-management/facilities/${toilet.id}`}
-                          className="text-primary-600 hover:text-primary-900"
-                          title="View Details"
-                        >
-                          <Eye className="h-5 w-5" />
-                        </Link>
-                        <Link
-                          to={`/toilet-management/facilities/${toilet.id}/edit`}
-                          className="text-blue-600 hover:text-blue-900"
-                          title="Edit"
-                        >
-                          <Edit className="h-5 w-5" />
-                        </Link>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

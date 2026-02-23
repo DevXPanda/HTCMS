@@ -1,5 +1,7 @@
 import { Demand, Assessment, Property, Payment, User, Ward, WaterTaxAssessment, WaterConnection, DemandItem, D2DCRecord, Shop, ShopTaxAssessment, AdminManagement, TaxDiscount } from '../models/index.js';
 import { Op, Sequelize } from 'sequelize';
+import { generateDemandId } from '../services/uniqueIdService.js';
+
 import { auditLogger, createAuditLog } from '../utils/auditLogger.js';
 import { generateDemandNoticePdfBuffer, generateDemandSummaryReceiptPdfBuffer } from '../services/pdfGenerator.js';
 import { generateUnifiedTaxAssessmentAndDemand, getUnifiedDemandBreakdown, getUnifiedTaxSummary as getUnifiedTaxSummaryService } from '../services/unifiedTaxService.js';
@@ -38,8 +40,13 @@ export const getAllDemands = async (req, res, next) => {
     // Module-wise filter: when provided, filter by mapped serviceType; when not provided, return all
     const moduleToServiceType = { PROPERTY: 'HOUSE_TAX', WATER: 'WATER_TAX', SHOP: 'SHOP_TAX', D2DC: 'D2DC' };
     if (moduleParam && typeof moduleParam === 'string') {
-      const mapped = moduleToServiceType[moduleParam.toUpperCase().trim()];
-      if (mapped) where.serviceType = mapped;
+      const m = moduleParam.toUpperCase().trim();
+      if (m === 'UNIFIED') {
+        where.remarks = { [Op.iLike]: '%UNIFIED_DEMAND%' };
+      } else {
+        const mapped = moduleToServiceType[m];
+        if (mapped) where.serviceType = mapped;
+      }
     } else if (serviceType) where.serviceType = serviceType; // Filter by service type (backward compat)
     if (wardId) where.wardId = wardId;
     if (dueDate) where.dueDate = dueDate;
@@ -112,7 +119,7 @@ export const getAllDemands = async (req, res, next) => {
     if (req.user.role === 'clerk') {
       // Get clerk's ward_ids from multiple sources
       let clerkWardIds = req.user.ward_ids || req.user.dataValues?.ward_ids;
-      
+
       // Fallback: If not in JWT, fetch from database
       if (!clerkWardIds || (Array.isArray(clerkWardIds) && clerkWardIds.length === 0)) {
         try {
@@ -135,7 +142,7 @@ export const getAllDemands = async (req, res, next) => {
           console.error(`[getAllDemands] Error fetching clerk wards:`, dbError.message);
         }
       }
-      
+
       // Also check req.wardFilter (set by requireWardAccess middleware)
       if (req.wardFilter && req.wardFilter.id) {
         const wardFilterIds = req.wardFilter.id[Op.in] || req.wardFilter.id;
@@ -146,13 +153,13 @@ export const getAllDemands = async (req, res, next) => {
           clerkWardIds = clerkWardIds.filter(id => wardFilterArray.includes(id));
         }
       }
-      
+
       if (clerkWardIds && (Array.isArray(clerkWardIds) ? clerkWardIds.length > 0 : clerkWardIds)) {
         const wardIdsArray = Array.isArray(clerkWardIds) ? clerkWardIds : [clerkWardIds];
         const wardIdsNum = wardIdsArray.map(id => parseInt(id)).filter(id => !isNaN(id));
-        
+
         console.log(`[getAllDemands] Clerk ${req.user.id} filtering demands by wards: [${wardIdsNum.join(', ')}]`);
-        
+
         // Build ward filter condition
         // For SHOP_TAX: filter by shop's wardId
         // For other types: filter by property's wardId
@@ -164,7 +171,7 @@ export const getAllDemands = async (req, res, next) => {
             { '$shopTaxAssessment.shop.wardId$': { [Op.in]: wardIdsNum } }
           ]
         };
-        
+
         // Add ward filter to whereConditions array
         whereConditions.push(wardFilter);
       } else {
@@ -331,10 +338,10 @@ export const getDemandById = async (req, res, next) => {
     if (req.user.role === 'clerk') {
       // Get ward_ids from multiple possible locations
       let allowedWardIds = req.user.ward_ids || req.user.dataValues?.ward_ids;
-      
+
       console.log(`[getDemandById] Clerk ${req.user.id} - ward_ids from req.user.ward_ids:`, req.user.ward_ids);
       console.log(`[getDemandById] Clerk ${req.user.id} - ward_ids from req.user.dataValues:`, req.user.dataValues?.ward_ids);
-      
+
       // Fallback: If ward_ids not in JWT, fetch from database
       if (!allowedWardIds || (Array.isArray(allowedWardIds) && allowedWardIds.length === 0)) {
         console.log(`[getDemandById] Clerk ${req.user.id} - ward_ids not in JWT, fetching from database...`);
@@ -360,16 +367,16 @@ export const getDemandById = async (req, res, next) => {
           console.error(`[getDemandById] Error fetching clerk wards from DB:`, dbError.message);
         }
       }
-      
+
       console.log(`[getDemandById] Clerk ${req.user.id} - final allowedWardIds:`, allowedWardIds);
-      
+
       if (allowedWardIds && (Array.isArray(allowedWardIds) ? allowedWardIds.length > 0 : allowedWardIds)) {
         // Normalize to array
         const wardIdsArray = Array.isArray(allowedWardIds) ? allowedWardIds : [allowedWardIds];
-        
+
         // Get ward ID from property or shop
         let demandWardId = null;
-        
+
         // For SHOP_TAX: get from shop's wardId first, then fallback to property
         if (demand.serviceType === 'SHOP_TAX' && demand.shopTaxAssessment?.shop) {
           demandWardId = demand.shopTaxAssessment.shop.wardId;
@@ -379,19 +386,19 @@ export const getDemandById = async (req, res, next) => {
             wardId: demand.shopTaxAssessment.shop.wardId
           });
         }
-        
+
         // Fallback to property wardId (for HOUSE_TAX, WATER_TAX, D2DC, or if shop wardId not available)
         if (!demandWardId && demand.property) {
           demandWardId = demand.property.wardId;
           console.log(`[getDemandById] Using property wardId: ${demandWardId}, propertyId: ${demand.property.id}`);
         }
-        
+
         // For WATER_TAX: also check waterTaxAssessment's property
         if (!demandWardId && demand.waterTaxAssessment?.property) {
           demandWardId = demand.waterTaxAssessment.property.wardId;
           console.log(`[getDemandById] Using waterTaxAssessment property wardId: ${demandWardId}`);
         }
-        
+
         // If we can't determine ward, deny access (safer than allowing)
         if (!demandWardId) {
           console.error(`[getDemandById] Clerk ${req.user.id} - Cannot determine ward for demand ${id}`);
@@ -399,40 +406,40 @@ export const getDemandById = async (req, res, next) => {
           console.error(`  - property exists: ${!!demand.property}, propertyId: ${demand.propertyId}`);
           console.error(`  - shopTaxAssessment exists: ${!!demand.shopTaxAssessment}`);
           console.error(`  - shop exists: ${!!demand.shopTaxAssessment?.shop}`);
-          return res.status(403).json({ 
-            success: false, 
-            message: 'Access denied: Unable to verify ward access' 
+          return res.status(403).json({
+            success: false,
+            message: 'Access denied: Unable to verify ward access'
           });
         }
-        
+
         // Normalize ward IDs to numbers for comparison (handle null/undefined)
         const demandWardIdNum = demandWardId ? parseInt(demandWardId) : null;
         const wardIdsArrayNum = wardIdsArray
           .map(id => id ? parseInt(id) : null)
           .filter(id => id !== null && !isNaN(id));
-        
+
         console.log(`[getDemandById] Comparing - demand ward: ${demandWardIdNum} (type: ${typeof demandWardIdNum})`);
         console.log(`[getDemandById] Comparing - clerk wards: [${wardIdsArrayNum.join(', ')}] (types: [${wardIdsArrayNum.map(id => typeof id).join(', ')}])`);
-        
+
         // Check if demand's ward is in clerk's assigned wards
         if (demandWardIdNum === null || isNaN(demandWardIdNum) || !wardIdsArrayNum.includes(demandWardIdNum)) {
           console.log(`[getDemandById] ❌ Clerk ${req.user.id} denied access to demand ${id}`);
           console.log(`  - Demand ward: ${demandWardIdNum}`);
           console.log(`  - Clerk wards: [${wardIdsArrayNum.join(', ')}]`);
           console.log(`  - Match: ${wardIdsArrayNum.includes(demandWardIdNum)}`);
-          return res.status(403).json({ 
-            success: false, 
-            message: `Access denied: Demand is in ward ${demandWardIdNum}, but you only have access to wards [${wardIdsArrayNum.join(', ')}]` 
+          return res.status(403).json({
+            success: false,
+            message: `Access denied: Demand is in ward ${demandWardIdNum}, but you only have access to wards [${wardIdsArrayNum.join(', ')}]`
           });
         }
-        
+
         console.log(`[getDemandById] ✅ Ward check passed - demand ward ${demandWardIdNum} is in clerk's wards [${wardIdsArrayNum.join(', ')}]`);
       } else {
         // Clerk has no assigned wards - deny access
         console.error(`[getDemandById] Clerk ${req.user.id} has no assigned wards`);
-        return res.status(403).json({ 
-          success: false, 
-          message: 'Access denied: No wards assigned to clerk. Please contact administrator.' 
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: No wards assigned to clerk. Please contact administrator.'
         });
       }
     }
@@ -732,11 +739,12 @@ export const createDemand = async (req, res, next) => {
     }
 
     // Generate demand number
-    const demandNumber = serviceType === 'D2DC'
-      ? `D2DC-${financialYear}-${Date.now()}`
-      : serviceType === 'WATER_TAX'
-        ? `WTD-${financialYear}-${Date.now()}`
-        : `DEM-${financialYear}-${Date.now()}`;
+    const demandTypeMap = {
+      'D2DC': 'd2dc',
+      'WATER_TAX': 'water',
+      'HOUSE_TAX': 'property'
+    };
+    const demandNumber = await generateDemandId(property.wardId, demandTypeMap[serviceType] || 'unified');
 
     // Calculate arrears from previous unpaid demands of the same serviceType
     const previousDemands = await Demand.findAll({
@@ -2066,7 +2074,7 @@ export const generateUnifiedDemand = async (req, res, next) => {
       const logMessage = `Generated unified tax demand for property ${normalizedPropertyId}` +
         (result.shopDemands?.length > 0 ? ` + ${result.shopDemands.length} shop demand(s)` : '') +
         (result.d2dcDemand ? ' + D2DC demand' : '');
-      
+
       await auditLogger.logCreate(
         req,
         req.user,

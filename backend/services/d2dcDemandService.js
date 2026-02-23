@@ -1,4 +1,5 @@
 import { Demand, Property } from '../models/index.js';
+import { generateDemandId } from './uniqueIdService.js';
 import { Op } from 'sequelize';
 
 /**
@@ -45,7 +46,8 @@ export const generateD2DCDemandForProperty = async (propertyId, month, assessorI
   const totalAmount = Math.round((calculatedBaseAmount + arrearsAmount) * 100) / 100;
   const balanceAmount = Math.round(totalAmount * 100) / 100;
 
-  const demandNumber = `D2DC-${month}-${Date.now()}`;
+  const property = await Property.findByPk(propertyId, { transaction });
+  const demandNumber = await generateDemandId(property?.wardId || propertyId, 'd2dc', transaction);
   const demand = await Demand.create({
     demandNumber,
     propertyId,

@@ -1,5 +1,6 @@
 import { ShopTaxAssessment, Shop, Property, Ward, User } from '../models/index.js';
 import { Op } from 'sequelize';
+import { generateAssessmentId } from '../services/uniqueIdService.js';
 
 /**
  * Apply ward filter via shop.wardId (where on included Shop)
@@ -16,17 +17,6 @@ const getAllowedWardIds = (req) => {
   if (id && typeof id === 'object' && id[Op.in]) return id[Op.in];
   if (Array.isArray(id)) return id;
   return [id];
-};
-
-/**
- * Generate unique shop tax assessment number
- */
-const generateAssessmentNumber = async (assessmentYear) => {
-  const count = await ShopTaxAssessment.count({
-    where: { assessmentNumber: { [Op.like]: `STA-${assessmentYear}-%` } }
-  });
-  const sequence = String(count + 1).padStart(5, '0');
-  return `STA-${assessmentYear}-${sequence}`;
 };
 
 /**
@@ -173,7 +163,7 @@ export const createShopTaxAssessment = async (req, res, next) => {
       });
     }
 
-    const assessmentNumber = await generateAssessmentNumber(assessmentYear);
+    const assessmentNumber = await generateAssessmentId(shop.wardId, 'shop');
     const fy = financialYear || `${assessmentYear}-${String(assessmentYear + 1).slice(-2)}`;
 
     const assessment = await ShopTaxAssessment.create({

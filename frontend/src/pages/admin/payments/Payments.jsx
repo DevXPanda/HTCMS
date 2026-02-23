@@ -10,9 +10,7 @@ const Payments = () => {
   const { isAdmin, isCashier } = useAuth();
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [pagination, setPagination] = useState(null);
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     paymentMode: '',
@@ -25,20 +23,18 @@ const Payments = () => {
 
   useEffect(() => {
     fetchPayments();
-  }, [page, search, filters]);
+  }, [search, filters]);
 
   const fetchPayments = async () => {
     try {
       setLoading(true);
       const params = {
-        page,
         search,
-        limit: 10,
+        limit: 10000,
         ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''))
       };
       const response = await paymentAPI.getAll(params);
       setPayments(response.data.data.payments);
-      setPagination(response.data.data.pagination);
     } catch (error) {
       toast.error('Failed to fetch payments');
     } finally {
@@ -48,7 +44,6 @@ const Payments = () => {
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
-    setPage(1);
   };
 
   const clearFilters = () => {
@@ -60,7 +55,6 @@ const Payments = () => {
       minAmount: '',
       maxAmount: ''
     });
-    setPage(1);
   };
 
   if (loading && !payments.length) return <Loading />;
@@ -87,7 +81,7 @@ const Payments = () => {
       </div>
 
       {/* Search */}
-      <form onSubmit={(e) => { e.preventDefault(); setPage(1); fetchPayments(); }} className="mb-6">
+      <form onSubmit={(e) => { e.preventDefault(); fetchPayments(); }} className="mb-6">
         <div className="flex gap-2">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -237,17 +231,16 @@ const Payments = () => {
                   <td className="capitalize">{payment.paymentMode}</td>
                   <td>{new Date(payment.paymentDate).toLocaleDateString()}</td>
                   <td>
-                    {payment.cashier ? 
-                      `${payment.cashier.firstName} ${payment.cashier.lastName}` : 
+                    {payment.cashier ?
+                      `${payment.cashier.firstName} ${payment.cashier.lastName}` :
                       'N/A'}
                   </td>
                   <td>
-                    <span className={`badge ${
-                      payment.status === 'completed' ? 'badge-success' :
-                      payment.status === 'pending' ? 'badge-warning' :
-                      payment.status === 'failed' ? 'badge-danger' :
-                      'badge-info'
-                    } capitalize`}>
+                    <span className={`badge ${payment.status === 'completed' ? 'badge-success' :
+                        payment.status === 'pending' ? 'badge-warning' :
+                          payment.status === 'failed' ? 'badge-danger' :
+                            'badge-info'
+                      } capitalize`}>
                       {payment.status}
                     </span>
                   </td>
@@ -269,28 +262,7 @@ const Payments = () => {
         </table>
       </div>
 
-      {/* Pagination */}
-      {pagination && pagination.pages > 1 && (
-        <div className="flex justify-center items-center space-x-2 mt-6">
-          <button
-            onClick={() => setPage(page - 1)}
-            disabled={page === 1}
-            className="btn btn-secondary"
-          >
-            Previous
-          </button>
-          <span className="text-gray-600">
-            Page {pagination.page} of {pagination.pages}
-          </span>
-          <button
-            onClick={() => setPage(page + 1)}
-            disabled={page === pagination.pages}
-            className="btn btn-secondary"
-          >
-            Next
-          </button>
-        </div>
-      )}
+      {/* Pagination removed */}
     </div>
   );
 };

@@ -1,16 +1,6 @@
 import { Assessment, Property, Demand } from '../models/index.js';
+import { generateAssessmentId } from './uniqueIdService.js';
 import { Op } from 'sequelize';
-
-/**
- * Property tax demand generation logic (assessment + amounts).
- * Used by bulk generation and by unified orchestrator.
- */
-
-const generateUniquePropertyAssessmentNumber = async (assessmentYear) => {
-  const timestamp = Date.now().toString();
-  const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-  return `ASS-${assessmentYear}-${timestamp.slice(-8)}-${random}`;
-};
 
 /**
  * Get or create property tax assessment for a property and year.
@@ -42,7 +32,7 @@ export const getOrCreatePropertyAssessment = async (propertyId, assessmentYear, 
   const taxRate = defaultTaxRate;
   const netAssessedValue = assessedValue;
   const annualTaxAmount = (netAssessedValue * taxRate) / 100;
-  const assessmentNumber = await generateUniquePropertyAssessmentNumber(assessmentYear);
+  const assessmentNumber = await generateAssessmentId(property.wardId, 'property', transaction);
 
   const assessment = await Assessment.create({
     assessmentNumber,

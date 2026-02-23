@@ -1,22 +1,4 @@
-import { WaterTaxAssessment, Property, WaterConnection, User, Ward } from '../models/index.js';
-import { Op } from 'sequelize';
-import { validatePropertyId } from '../utils/queryHelpers.js';
-
-/**
- * Generate unique assessment number
- */
-const generateAssessmentNumber = async (assessmentYear) => {
-  const year = new Date().getFullYear();
-  const count = await WaterTaxAssessment.count({
-    where: {
-      assessmentNumber: {
-        [Op.like]: `WTA-${assessmentYear}-%`
-      }
-    }
-  });
-  const sequence = String(count + 1).padStart(6, '0');
-  return `WTA-${assessmentYear}-${sequence}`;
-};
+import { generateAssessmentId } from '../services/uniqueIdService.js';
 
 /**
  * @route   GET /api/water-tax-assessments
@@ -25,16 +7,16 @@ const generateAssessmentNumber = async (assessmentYear) => {
  */
 export const getAllWaterTaxAssessments = async (req, res, next) => {
   try {
-    const { 
+    const {
       waterConnectionId,
-      assessmentYear, 
+      assessmentYear,
       assessmentType,
       status,
       search,
       minValue,
       maxValue,
-      page = 1, 
-      limit = 10 
+      page = 1,
+      limit = 10
     } = req.query;
 
     // Safely extract and validate propertyId
@@ -51,7 +33,7 @@ export const getAllWaterTaxAssessments = async (req, res, next) => {
     }
 
     const where = {};
-    
+
     if (validPropertyId) where.propertyId = validPropertyId;
     if (waterConnectionId) where.waterConnectionId = waterConnectionId;
     if (assessmentYear) where.assessmentYear = assessmentYear;
@@ -94,8 +76,8 @@ export const getAllWaterTaxAssessments = async (req, res, next) => {
     const { count, rows } = await WaterTaxAssessment.findAndCountAll({
       where,
       include: [
-        { 
-          model: Property, 
+        {
+          model: Property,
           as: 'property',
           include: [
             { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] },
@@ -143,8 +125,8 @@ export const getWaterTaxAssessmentById = async (req, res, next) => {
 
     const assessment = await WaterTaxAssessment.findByPk(id, {
       include: [
-        { 
-          model: Property, 
+        {
+          model: Property,
           as: 'property',
           include: [
             { model: User, as: 'owner', attributes: { exclude: ['password'] } },
@@ -287,7 +269,7 @@ export const createWaterTaxAssessment = async (req, res, next) => {
     }
 
     // Generate assessment number
-    const assessmentNumber = await generateAssessmentNumber(normalizedAssessmentYear);
+    const assessmentNumber = await generateAssessmentId(property.wardId, 'water');
 
     const assessment = await WaterTaxAssessment.create({
       assessmentNumber,
@@ -303,8 +285,8 @@ export const createWaterTaxAssessment = async (req, res, next) => {
 
     const createdAssessment = await WaterTaxAssessment.findByPk(assessment.id, {
       include: [
-        { 
-          model: Property, 
+        {
+          model: Property,
           as: 'property',
           include: [
             { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] },

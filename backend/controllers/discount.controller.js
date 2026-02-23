@@ -21,7 +21,8 @@ const MODULE_SERVICE_MAP = {
   PROPERTY: 'HOUSE_TAX',
   WATER: 'WATER_TAX',
   SHOP: 'SHOP_TAX',
-  D2DC: 'D2DC'
+  D2DC: 'D2DC',
+  UNIFIED: 'HOUSE_TAX' // Default to HOUSE_TAX, but will allow WATER_TAX if unified
 };
 
 /**
@@ -48,7 +49,7 @@ export const createDiscount = async (req, res, next) => {
     const discountType = String(discount_type).toUpperCase();
     const discountValue = parseFloat(discount_value);
 
-    if (!['PROPERTY', 'WATER', 'SHOP', 'D2DC'].includes(moduleType) || !['PERCENTAGE', 'FIXED'].includes(discountType)) {
+    if (!['PROPERTY', 'WATER', 'SHOP', 'D2DC', 'UNIFIED'].includes(moduleType) || !['PERCENTAGE', 'FIXED'].includes(discountType)) {
       await t.rollback();
       return res.status(400).json({ success: false, message: 'Invalid module_type or discount_type' });
     }
@@ -64,12 +65,27 @@ export const createDiscount = async (req, res, next) => {
     }
 
     const serviceType = MODULE_SERVICE_MAP[moduleType];
-    if (demand.serviceType !== serviceType) {
-      await t.rollback();
-      return res.status(400).json({ success: false, message: 'Demand does not match selected tax module' });
+    // For UNIFIED, we allow either HOUSE_TAX or WATER_TAX serviceType if it's a unified demand
+    const isUnifiedDemand = demand.remarks && demand.remarks.includes('UNIFIED_DEMAND');
+
+    if (moduleType === 'UNIFIED') {
+      if (!isUnifiedDemand) {
+        await t.rollback();
+        return res.status(400).json({ success: false, message: 'Selected demand is not a unified tax demand' });
+      }
+      // Unified demands can have HOUSE_TAX or WATER_TAX service types
+      if (!['HOUSE_TAX', 'WATER_TAX'].includes(demand.serviceType)) {
+        await t.rollback();
+        return res.status(400).json({ success: false, message: 'Demand service type is incompatible with unified discount' });
+      }
+    } else {
+      if (demand.serviceType !== serviceType) {
+        await t.rollback();
+        return res.status(400).json({ success: false, message: 'Demand does not match selected tax module' });
+      }
     }
 
-    if (moduleType === 'PROPERTY' || moduleType === 'D2DC') {
+    if (moduleType === 'PROPERTY' || moduleType === 'D2DC' || moduleType === 'UNIFIED') {
       if (demand.propertyId !== entityId) {
         await t.rollback();
         return res.status(400).json({ success: false, message: 'Demand does not belong to selected entity' });
@@ -269,7 +285,8 @@ export const getDiscountSummary = async (req, res, next) => {
           PROPERTY: byModule.PROPERTY ?? 0,
           WATER: byModule.WATER ?? 0,
           SHOP: byModule.SHOP ?? 0,
-          D2DC: byModule.D2DC ?? 0
+          D2DC: byModule.D2DC ?? 0,
+          UNIFIED: byModule.UNIFIED ?? 0
         }
       }
     });

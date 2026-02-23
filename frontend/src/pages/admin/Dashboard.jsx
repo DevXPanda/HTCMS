@@ -3,7 +3,8 @@ import {
   Building2, Users, FileText, DollarSign, TrendingUp,
   AlertCircle, CheckCircle, Clock, Truck, Bath, MapPin,
   Shield, BarChart3, Droplet, UserCog, ClipboardList,
-  Store, ScrollText, Filter, Percent, AlertTriangle
+  Store, ScrollText, Filter, Percent, AlertTriangle,
+  Package, Zap, MessageSquare
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
@@ -142,8 +143,11 @@ const Dashboard = () => {
     { name: 'Tax Management', icon: FileText, link: '/tax-management', color: 'bg-blue-600' },
     { name: 'EO Management', icon: Store, link: '/field-worker-monitoring', color: 'bg-yellow-600' },
     { name: 'Toilet Management', icon: Bath, link: '/toilet-management', color: 'bg-pink-600' },
-    { name: 'MRF', icon: ClipboardList, link: '/field-monitoring', color: 'bg-green-600' },
-    { name: 'Gau Shala', icon: ScrollText, link: '/water/connections', color: 'bg-orange-600' },
+    { name: 'MRF', icon: ClipboardList, link: '/mrf/management', color: 'bg-green-600' },
+    { name: 'Gau Shala', icon: ScrollText, link: '/gaushala/management', color: 'bg-orange-600' },
+    { name: 'Inventory', icon: Package, link: '/inventory', color: 'bg-indigo-600' },
+    { name: 'Utilities', icon: Zap, link: '/utilities', color: 'bg-teal-600' },
+    { name: 'Feedback', icon: MessageSquare, link: '/feedback', color: 'bg-cyan-600' },
 
 
 
@@ -167,7 +171,10 @@ const Dashboard = () => {
     { name: 'Field Monitoring', icon: ClipboardList, link: '/field-monitoring' },
     { name: 'Field Worker Monitoring', icon: Users, link: '/admin-field-worker-monitoring' },
     { name: 'Reports', icon: BarChart3, link: '/reports' },
-    { name: 'Audit Logs', icon: Shield, link: '/audit-logs' }
+    { name: 'Audit Logs', icon: Shield, link: '/audit-logs' },
+    { name: 'Inventory', icon: Package, link: '/inventory' },
+    { name: 'Utilities', icon: Zap, link: '/utilities' },
+    { name: 'Feedback', icon: MessageSquare, link: '/feedback' }
   ];
 
   // Home Icon Component

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../../../services/api';
 
 const AddToilet = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const isEditMode = !!id;
   const [wards, setWards] = useState([]);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -34,15 +36,34 @@ const AddToilet = () => {
     'Lighting'
   ];
 
+
   useEffect(() => {
     fetchWards();
-  }, []);
+    if (isEditMode) {
+      fetchToiletDetails();
+    }
+  }, [id]);
+
+  const fetchToiletDetails = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get(`/toilet/facilities/${id}`);
+      if (response.data && response.data.success) {
+        setFormData(response.data.data.facility);
+      }
+    } catch (error) {
+      console.error('Failed to fetch toilet details:', error);
+      alert('Failed to load toilet details.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchWards = async () => {
     try {
       const response = await api.get('/wards');
-      if (response.data) {
-        setWards(response.data);
+      if (response.data && response.data.success) {
+        setWards(response.data.data.wards);
       }
     } catch (error) {
       console.error('Failed to fetch wards:', error);
@@ -71,16 +92,17 @@ const AddToilet = () => {
     setLoading(true);
 
     try {
-      // TODO: Replace with actual API endpoint
-      // await api.post('/toilet-management/facilities', formData);
-      
-      // Mock success
-      console.log('Form data:', formData);
-      alert('Toilet facility added successfully!');
+      if (isEditMode) {
+        await api.put(`/toilet/facilities/${id}`, formData);
+        alert('Toilet facility updated successfully!');
+      } else {
+        await api.post('/toilet/facilities', formData);
+        alert('Toilet facility added successfully!');
+      }
       navigate('/toilet-management/facilities');
     } catch (error) {
-      console.error('Failed to add toilet:', error);
-      alert('Failed to add toilet facility. Please try again.');
+      console.error('Failed to save toilet:', error);
+      alert('Failed to save toilet facility. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -97,9 +119,14 @@ const AddToilet = () => {
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Add New Toilet Facility</h1>
-          <p className="text-gray-600 text-sm">Register a new public toilet facility</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {isEditMode ? 'Edit Toilet Facility' : 'Add New Toilet Facility'}
+          </h1>
+          <p className="text-gray-600 text-sm">
+            {isEditMode ? 'Update existing toilet facility details' : 'Register a new public toilet facility'}
+          </p>
         </div>
+
       </div>
 
       {/* Form */}

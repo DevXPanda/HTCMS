@@ -11,9 +11,7 @@ const Notices = () => {
   const { isAdmin, isAssessor } = useAuth();
   const [notices, setNotices] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [pagination, setPagination] = useState(null);
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [filters, setFilters] = useState({
@@ -27,20 +25,18 @@ const Notices = () => {
 
   useEffect(() => {
     fetchNotices();
-  }, [page, search, filters]);
+  }, [search, filters]);
 
   const fetchNotices = async () => {
     try {
       setLoading(true);
       const params = {
-        page,
         search,
-        limit: 10,
+        limit: 10000,
         ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''))
       };
       const response = await noticeAPI.getAll(params);
       setNotices(response.data.data.notices);
-      setPagination(response.data.data.pagination);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to fetch notices');
     } finally {
@@ -50,7 +46,6 @@ const Notices = () => {
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
-    setPage(1);
   };
 
   const clearFilters = () => {
@@ -62,7 +57,6 @@ const Notices = () => {
       dateFrom: '',
       dateTo: ''
     });
-    setPage(1);
   };
 
   const handleSendNotice = async (noticeId, deliveryMode) => {
@@ -160,7 +154,7 @@ const Notices = () => {
       </div>
 
       {/* Search */}
-      <form onSubmit={(e) => { e.preventDefault(); setPage(1); fetchNotices(); }} className="mb-6">
+      <form onSubmit={(e) => { e.preventDefault(); fetchNotices(); }} className="mb-6">
         <div className="flex gap-2">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -350,16 +344,16 @@ const Notices = () => {
                           </button>
                         </>
                       )}
-                      {notice.status !== 'resolved' && notice.status !== 'escalated' && 
-                       notice.noticeType !== 'final_warrant' && (isAdmin || isAssessor) && (
-                        <button
-                          onClick={() => handleEscalate(notice.id)}
-                          className="text-orange-600 hover:text-orange-700"
-                          title="Escalate"
-                        >
-                          <ArrowUp className="w-4 h-4" />
-                        </button>
-                      )}
+                      {notice.status !== 'resolved' && notice.status !== 'escalated' &&
+                        notice.noticeType !== 'final_warrant' && (isAdmin || isAssessor) && (
+                          <button
+                            onClick={() => handleEscalate(notice.id)}
+                            className="text-orange-600 hover:text-orange-700"
+                            title="Escalate"
+                          >
+                            <ArrowUp className="w-4 h-4" />
+                          </button>
+                        )}
                     </div>
                   </td>
                 </tr>
@@ -369,28 +363,7 @@ const Notices = () => {
         </table>
       </div>
 
-      {/* Pagination */}
-      {pagination && pagination.pages > 1 && (
-        <div className="flex justify-center items-center space-x-2 mt-6">
-          <button
-            onClick={() => setPage(page - 1)}
-            disabled={page === 1}
-            className="btn btn-secondary"
-          >
-            Previous
-          </button>
-          <span className="text-gray-600">
-            Page {pagination.page} of {pagination.pages}
-          </span>
-          <button
-            onClick={() => setPage(page + 1)}
-            disabled={page === pagination.pages}
-            className="btn btn-secondary"
-          >
-            Next
-          </button>
-        </div>
-      )}
+      {/* Pagination removed */}
 
       {/* Generate Notice Modal */}
       {showGenerateModal && (

@@ -3,6 +3,7 @@ import { Op } from 'sequelize';
 import { auditLogger } from '../utils/auditLogger.js';
 import { generateUnifiedTaxAssessmentAndDemand } from '../services/unifiedTaxService.js';
 import { validatePropertyId } from '../utils/queryHelpers.js';
+import { generateAssessmentId } from '../services/uniqueIdService.js';
 
 /**
  * @route   GET /api/assessments
@@ -11,15 +12,15 @@ import { validatePropertyId } from '../utils/queryHelpers.js';
  */
 export const getAllAssessments = async (req, res, next) => {
   try {
-    const { 
-      assessmentYear, 
-      status, 
+    const {
+      assessmentYear,
+      status,
       assessorId,
       search,
       minValue,
       maxValue,
-      page = 1, 
-      limit = 10 
+      page = 1,
+      limit = 10
     } = req.query;
 
     // Safely extract and validate propertyId
@@ -36,7 +37,7 @@ export const getAllAssessments = async (req, res, next) => {
     }
 
     const where = {};
-    
+
     if (validPropertyId) where.propertyId = validPropertyId;
     if (assessmentYear) where.assessmentYear = assessmentYear;
     if (status) where.status = status;
@@ -69,8 +70,8 @@ export const getAllAssessments = async (req, res, next) => {
     const { count, rows } = await Assessment.findAndCountAll({
       where,
       include: [
-        { 
-          model: Property, 
+        {
+          model: Property,
           as: 'property',
           include: [
             { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] }
@@ -112,8 +113,8 @@ export const getAssessmentById = async (req, res, next) => {
 
     const assessment = await Assessment.findByPk(id, {
       include: [
-        { 
-          model: Property, 
+        {
+          model: Property,
           as: 'property',
           include: [
             { model: User, as: 'owner', attributes: { exclude: ['password'] } },
@@ -219,9 +220,7 @@ export const createAssessment = async (req, res, next) => {
     const annualTaxAmount = (netAssessedValue * taxRate) / 100;
 
     // Generate assessment number
-    const year = new Date().getFullYear();
-    const timestamp = Date.now().toString().slice(-6);
-    const assessmentNumber = `ASS-${assessmentYear}-${timestamp}`;
+    const assessmentNumber = await generateAssessmentId(property.wardId, 'property');
 
     const assessment = await Assessment.create({
       assessmentNumber,
@@ -243,8 +242,8 @@ export const createAssessment = async (req, res, next) => {
 
     const createdAssessment = await Assessment.findByPk(assessment.id, {
       include: [
-        { 
-          model: Property, 
+        {
+          model: Property,
           as: 'property',
           include: [
             { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] }
@@ -283,16 +282,16 @@ export const createAssessment = async (req, res, next) => {
 export const updateAssessment = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { 
-      assessedValue, 
+    const {
+      assessedValue,
       landValue,
       buildingValue,
       depreciation,
       exemptionAmount,
-      taxRate, 
+      taxRate,
       effectiveDate,
       expiryDate,
-      remarks 
+      remarks
     } = req.body;
 
     const assessment = await Assessment.findByPk(id);
@@ -365,8 +364,8 @@ export const updateAssessment = async (req, res, next) => {
 
     const updatedAssessment = await Assessment.findByPk(id, {
       include: [
-        { 
-          model: Property, 
+        {
+          model: Property,
           as: 'property',
           include: [
             { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] }

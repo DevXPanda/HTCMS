@@ -11,7 +11,7 @@ import {
 } from '../models/index.js';
 import { sequelize } from '../config/database.js';
 import { Op } from 'sequelize';
-import { getNextPropertyNumberInWard, generatePropertyUniqueId } from '../services/uniqueIdService.js';
+import { getNextPropertyNumberInWard, generatePropertyUniqueId, generateWaterConnectionId } from '../services/uniqueIdService.js';
 
 // Helper function to get corresponding user ID from admin_management
 const getCorrespondingUserId = async (adminManagementId) => {
@@ -251,7 +251,7 @@ export const decidePropertyApplication = async (req, res) => {
         newStatus = 'APPROVED';
         // Create property from application (unique ID = PREFIX + WARD(3) + PROPERTY_NUMBER(4))
         const nextNum = await getNextPropertyNumberInWard(application.wardId);
-        const uniqueCode = generatePropertyUniqueId(application.wardId, application.propertyType, nextNum);
+        const uniqueCode = await generatePropertyUniqueId(application.wardId, application.propertyType, nextNum);
         const propertyNumber = uniqueCode;
         const newProperty = await Property.create({
           propertyNumber,
@@ -375,9 +375,9 @@ export const decideWaterRequest = async (req, res) => {
       case 'APPROVE':
         newStatus = 'APPROVED';
         // Create water connection from request
-        const connectionCount = await WaterConnection.count({ transaction });
+        const connectionNumber = await generateWaterConnectionId(request.property.wardId);
         const newConnection = await WaterConnection.create({
-          connectionNumber: `WC-${Date.now()}-${connectionCount + 1}`,
+          connectionNumber,
           propertyId: request.propertyId,
           connectionType: request.connectionType,
           status: 'ACTIVE',

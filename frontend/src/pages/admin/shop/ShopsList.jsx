@@ -16,8 +16,6 @@ const ShopsList = () => {
   const [wards, setWards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState(null);
   const [search, setSearch] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
@@ -32,7 +30,7 @@ const ShopsList = () => {
 
   useEffect(() => {
     fetchShops();
-  }, [page, search, filters]);
+  }, [search, filters]);
 
   const fetchWards = async () => {
     try {
@@ -47,15 +45,13 @@ const ShopsList = () => {
     try {
       setLoading(true);
       const params = {
-        page,
-        limit: 10,
+        limit: 10000,
         ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== '')),
         ...(search ? { search } : {})
       };
       const response = await shopsAPI.getAll(params);
       if (response.data.success) {
         setShops(response.data.data.shops || []);
-        setPagination(response.data.data.pagination || null);
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load shops');
@@ -66,13 +62,11 @@ const ShopsList = () => {
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
-    setPage(1);
   };
 
   const clearFilters = () => {
     setFilters({ status: '', wardId: '', shopType: '' });
     setSearch('');
-    setPage(1);
   };
 
   const handleExport = async () => {
@@ -123,7 +117,7 @@ const ShopsList = () => {
       </div>
 
       {/* Search */}
-      <form onSubmit={(e) => { e.preventDefault(); setPage(1); fetchShops(); }} className="mb-6">
+      <form onSubmit={(e) => { e.preventDefault(); fetchShops(); }} className="mb-6">
         <div className="flex gap-2">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -236,11 +230,10 @@ const ShopsList = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{shop.shopType?.replace('_', ' ') || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{shop.ward?.wardName || shop.wardId}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs rounded ${
-                        shop.status === 'active' ? 'bg-green-100 text-green-800' : 
-                        shop.status === 'closed' ? 'bg-gray-100 text-gray-800' : 
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
+                      <span className={`px-2 py-1 text-xs rounded ${shop.status === 'active' ? 'bg-green-100 text-green-800' :
+                          shop.status === 'closed' ? 'bg-gray-100 text-gray-800' :
+                            'bg-yellow-100 text-yellow-800'
+                        }`}>
                         {shop.status}
                       </span>
                     </td>
@@ -263,30 +256,7 @@ const ShopsList = () => {
         </div>
       )}
 
-      {/* Pagination */}
-      {pagination && pagination.pages > 1 && (
-        <div className="flex justify-center items-center space-x-2 mt-6">
-          <button
-            type="button"
-            onClick={() => setPage(page - 1)}
-            disabled={page === 1}
-            className="btn btn-secondary"
-          >
-            Previous
-          </button>
-          <span className="text-gray-600">
-            Page {pagination.page} of {pagination.pages}
-          </span>
-          <button
-            type="button"
-            onClick={() => setPage(page + 1)}
-            disabled={page === pagination.pages}
-            className="btn btn-secondary"
-          >
-            Next
-          </button>
-        </div>
-      )}
+      {/* Pagination removed */}
     </div>
   );
 };

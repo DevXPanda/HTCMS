@@ -10,14 +10,16 @@ const MODULE_OPTIONS = [
   { value: 'PROPERTY', label: 'Property Tax' },
   { value: 'WATER', label: 'Water Tax' },
   { value: 'SHOP', label: 'Shop Tax' },
-  { value: 'D2DC', label: 'D2DC' }
+  { value: 'D2DC', label: 'D2DC' },
+  { value: 'UNIFIED', label: 'Unified Tax' }
 ];
 
 const ENTITY_LABELS = {
   PROPERTY: 'Select Property ID',
   WATER: 'Select Connection No',
   SHOP: 'Select Shop ID',
-  D2DC: 'Select Linked Unit'
+  D2DC: 'Select Linked Unit',
+  UNIFIED: 'Select Property ID'
 };
 
 const formatCurrency = (n) => `₹${parseFloat(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
@@ -179,7 +181,7 @@ const DiscountManagement = () => {
     const fetchEntities = async () => {
       setLoadingEntities(true);
       try {
-        if (module === 'PROPERTY' || module === 'D2DC') {
+        if (module === 'PROPERTY' || module === 'D2DC' || module === 'UNIFIED') {
           const res = await propertyAPI.getAll({ limit: 500 });
           setEntityList(res.data.data?.properties || []);
         } else if (module === 'WATER') {
@@ -222,7 +224,7 @@ const DiscountManagement = () => {
   const filteredEntities = entityList.filter((e) => {
     const search = (entitySearch || '').toLowerCase();
     if (!search) return true;
-    if (module === 'PROPERTY' || module === 'D2DC') {
+    if (module === 'PROPERTY' || module === 'D2DC' || module === 'UNIFIED') {
       return String(e.propertyNumber || e.id || '').toLowerCase().includes(search);
     }
     if (module === 'WATER') {
@@ -237,7 +239,7 @@ const DiscountManagement = () => {
   const selectEntity = (e) => {
     const id = e.id;
     let label = '';
-    if (module === 'PROPERTY' || module === 'D2DC') label = `${e.propertyNumber || ''} (ID: ${id})`;
+    if (module === 'PROPERTY' || module === 'D2DC' || module === 'UNIFIED') label = `${e.propertyNumber || ''} (ID: ${id})`;
     else if (module === 'WATER') label = `${e.connectionNumber || ''} (ID: ${id})`;
     else if (module === 'SHOP') label = `${e.shopNumber || ''} (ID: ${id})`;
     setEntityId(id);
@@ -723,7 +725,7 @@ const DiscountManagement = () => {
                       onClick={() => selectEntity(e)}
                       className="w-full text-left px-4 py-2.5 hover:bg-emerald-50 border-b border-gray-100 last:border-b-0"
                     >
-                      {module === 'PROPERTY' || module === 'D2DC' ? e.propertyNumber || `ID ${e.id}` : module === 'WATER' ? e.connectionNumber || `ID ${e.id}` : e.shopNumber || `ID ${e.id}`}
+                      {module === 'PROPERTY' || module === 'D2DC' || module === 'UNIFIED' ? e.propertyNumber || `ID ${e.id}` : module === 'WATER' ? e.connectionNumber || `ID ${e.id}` : e.shopNumber || `ID ${e.id}`}
                     </button>
                   ))}
                   {filteredEntities.length === 0 && <p className="p-4 text-gray-500 text-sm">No entities found</p>}

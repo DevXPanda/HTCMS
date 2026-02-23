@@ -13,8 +13,6 @@ const ShopAssessments = () => {
   const { isAdmin, isAssessor } = useAuth();
   const [assessments, setAssessments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     status: '',
@@ -23,19 +21,17 @@ const ShopAssessments = () => {
 
   useEffect(() => {
     fetchAssessments();
-  }, [page, filters]);
+  }, [filters]);
 
   const fetchAssessments = async () => {
     try {
       setLoading(true);
       const params = {
-        page,
-        limit: 10,
+        limit: 10000,
         ...Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== ''))
       };
       const response = await shopTaxAssessmentsAPI.getAll(params);
       setAssessments(response.data.data.assessments || []);
-      setPagination(response.data.data.pagination || null);
     } catch (error) {
       toast.error('Failed to fetch shop tax assessments');
     } finally {
@@ -45,12 +41,10 @@ const ShopAssessments = () => {
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
-    setPage(1);
   };
 
   const clearFilters = () => {
     setFilters({ status: '', assessmentYear: '' });
-    setPage(1);
   };
 
   const handleSubmit = async (assessmentId) => {
@@ -194,16 +188,16 @@ const ShopAssessments = () => {
       <div className="card overflow-x-auto">
         <table className="table">
           <thead>
-              <tr>
-                <th>Assessment Number</th>
-                <th>Shop</th>
-                <th>Assessment Year</th>
-                <th>Financial Year</th>
-                <th>Annual Amount</th>
-                <th>Status</th>
-                <th>Assessor</th>
-                <th>Actions</th>
-              </tr>
+            <tr>
+              <th>Assessment Number</th>
+              <th>Shop</th>
+              <th>Assessment Year</th>
+              <th>Financial Year</th>
+              <th>Annual Amount</th>
+              <th>Status</th>
+              <th>Assessor</th>
+              <th>Actions</th>
+            </tr>
           </thead>
           <tbody>
             {assessments.length === 0 ? (
@@ -293,29 +287,7 @@ const ShopAssessments = () => {
         </table>
       </div>
 
-      {pagination && pagination.pages > 1 && (
-        <div className="flex justify-center items-center space-x-2 mt-6">
-          <button
-            type="button"
-            onClick={() => setPage(p => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="btn btn-secondary"
-          >
-            Previous
-          </button>
-          <span className="text-gray-600">
-            Page {pagination.page} of {pagination.pages}
-          </span>
-          <button
-            type="button"
-            onClick={() => setPage(p => Math.min(pagination.pages, p + 1))}
-            disabled={page === pagination.pages}
-            className="btn btn-secondary"
-          >
-            Next
-          </button>
-        </div>
-      )}
+      {/* Pagination removed */}
     </div>
   );
 };

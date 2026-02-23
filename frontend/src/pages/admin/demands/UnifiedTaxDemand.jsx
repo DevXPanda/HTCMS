@@ -18,6 +18,8 @@ const UnifiedTaxDemand = () => {
     const [propertyDemands, setPropertyDemands] = useState([]);
     const [loadingDemands, setLoadingDemands] = useState(false);
     const [loadingProperties, setLoadingProperties] = useState(false);
+    const [unifiedHistory, setUnifiedHistory] = useState([]);
+    const [loadingHistory, setLoadingHistory] = useState(false);
 
     // Selection states
     const [generateHouseTax, setGenerateHouseTax] = useState(false);
@@ -43,6 +45,7 @@ const UnifiedTaxDemand = () => {
 
     useEffect(() => {
         fetchProperties();
+        fetchUnifiedHistory();
     }, []);
 
     useEffect(() => {
@@ -74,6 +77,22 @@ const UnifiedTaxDemand = () => {
             console.error('Failed to fetch demands:', error);
         } finally {
             setLoadingDemands(false);
+        }
+    };
+
+    const fetchUnifiedHistory = async () => {
+        try {
+            setLoadingHistory(true);
+            // Fetch demands with remarks including UNIFIED_DEMAND
+            const response = await demandAPI.getAll({
+                remarks: 'UNIFIED_DEMAND',
+                limit: 10
+            });
+            setUnifiedHistory(response.data.data.demands || []);
+        } catch (error) {
+            console.error('Failed to fetch unified history:', error);
+        } finally {
+            setLoadingHistory(false);
         }
     };
 
@@ -255,7 +274,10 @@ const UnifiedTaxDemand = () => {
             setResult(results);
 
             // Refresh demands list
-            fetchPropertyDemands(selectedProperty.id);
+            if (selectedProperty) {
+                fetchPropertyDemands(selectedProperty.id);
+            }
+            fetchUnifiedHistory();
 
         } catch (error) {
             console.error(error);
@@ -266,15 +288,15 @@ const UnifiedTaxDemand = () => {
     };
 
     return (
-        <div className="max-w-5xl mx-auto">
+        <div className="w-full">
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center">
-                    <Link to="/tax-management" className="mr-4 text-gray-500 hover:text-primary-600 transition-colors">
-                        <ArrowLeft className="w-6 h-6" />
+                    <Link to="/tax-management" className="mr-5 p-2 bg-white rounded-xl shadow-sm border border-gray-200 text-gray-400 hover:text-primary-600 hover:border-primary-100 transition-all">
+                        <ArrowLeft className="w-5 h-5" />
                     </Link>
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900">Unified Tax Demand</h1>
-                        <p className="text-gray-500 mt-1">Generate Property, Water, and D2DC demands in one go</p>
+                        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Unified Tax Demand</h1>
+                        <p className="text-gray-500 mt-1 font-medium">Generate Property, Water, and D2DC demands in one go</p>
                     </div>
                 </div>
             </div>
@@ -465,17 +487,17 @@ const UnifiedTaxDemand = () => {
                                     <div className="space-y-3">
                                         <div>
                                             <label className="block text-xs font-medium text-gray-500 mb-1">Month (YYYY-MM)</label>
-                                            <input 
-                                                type="text" 
-                                                {...register('month', { 
+                                            <input
+                                                type="text"
+                                                {...register('month', {
                                                     required: generateD2DC || (generateUnified && generateD2DC),
                                                     pattern: {
                                                         value: /^\d{4}-\d{2}$/,
                                                         message: 'Format: YYYY-MM (e.g., 2024-01)'
                                                     }
-                                                })} 
+                                                })}
                                                 placeholder="2024-01"
-                                                className="w-full text-sm rounded-lg border-gray-300" 
+                                                className="w-full text-sm rounded-lg border-gray-300"
                                             />
                                             {errors.month && (
                                                 <span className="text-xs text-red-500">{errors.month.message}</span>
@@ -587,11 +609,11 @@ const UnifiedTaxDemand = () => {
                 </div>
             </div>
 
-            {/* Generated Demands List */}
+            {/* Generated Demands List for Selected Property */}
             {selectedProperty && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-8">
                     <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center justify-between">
-                        <span>Existing Demands</span>
+                        <span>Existing Demands for {selectedProperty.propertyNumber}</span>
                         <span className="text-sm font-normal text-gray-500">{propertyDemands.length} found</span>
                     </h2>
 
@@ -603,15 +625,15 @@ const UnifiedTaxDemand = () => {
                                 <div key={demand.id} className="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                                     <div className="flex justify-between items-start mb-1">
                                         <span className={`px-2 py-0.5 rounded text-xs font-semibold ${demand.serviceType === 'HOUSE_TAX' ? 'bg-blue-100 text-blue-700' :
-                                                demand.serviceType === 'WATER_TAX' ? 'bg-cyan-100 text-cyan-700' :
-                                                    demand.serviceType === 'D2DC' ? 'bg-purple-100 text-purple-700' :
-                                                        'bg-gray-100 text-gray-700'
+                                            demand.serviceType === 'WATER_TAX' ? 'bg-cyan-100 text-cyan-700' :
+                                                demand.serviceType === 'D2DC' ? 'bg-purple-100 text-purple-700' :
+                                                    'bg-gray-100 text-gray-700'
                                             }`}>
                                             {demand.serviceType.replace('_', ' ')}
                                         </span>
                                         <span className={`text-xs font-medium ${demand.status === 'paid' ? 'text-green-600' :
-                                                demand.status === 'partially_paid' ? 'text-yellow-600' :
-                                                    'text-red-600'
+                                            demand.status === 'partially_paid' ? 'text-yellow-600' :
+                                                'text-red-600'
                                             }`}>
                                             {demand.status.toUpperCase()}
                                         </span>
@@ -634,6 +656,72 @@ const UnifiedTaxDemand = () => {
                     )}
                 </div>
             )}
+
+            {/* Global Unified History */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-8">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center justify-between">
+                    <div className="flex items-center">
+                        <span className="bg-indigo-100 p-2 rounded-lg mr-3 text-indigo-600">
+                            <Zap className="w-5 h-5" />
+                        </span>
+                        <span>Recent Unified Generations</span>
+                    </div>
+                </h2>
+
+                {loadingHistory ? (
+                    <Loading />
+                ) : unifiedHistory.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {unifiedHistory.map((demand) => (
+                            <div key={demand.id} className="p-4 border border-gray-100 rounded-xl bg-gray-50/50 hover:bg-white hover:shadow-md transition-all duration-300 group">
+                                <div className="flex justify-between items-start mb-3">
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-bold text-gray-900 group-hover:text-primary-600 transition-colors">
+                                            {demand.demandNumber}
+                                        </span>
+                                        <span className="text-xs text-gray-500 mt-0.5">
+                                            FY: {demand.financialYear}
+                                        </span>
+                                    </div>
+                                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${demand.status === 'paid' ? 'bg-green-100 text-green-700' :
+                                        demand.status === 'partially_paid' ? 'bg-yellow-100 text-yellow-700' :
+                                            'bg-red-100 text-red-700'
+                                        }`}>
+                                        {demand.status}
+                                    </span>
+                                </div>
+
+                                <div className="flex items-center text-sm text-gray-600 mb-3">
+                                    <Building2 className="w-4 h-4 mr-2 text-gray-400" />
+                                    <span className="truncate">
+                                        {demand.property?.propertyNumber || 'Property Demand'} - {demand.property?.address || 'System Wide'}
+                                    </span>
+                                </div>
+
+                                <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+                                    <div className="flex flex-col">
+                                        <span className="text-xs text-gray-400">Total Amount</span>
+                                        <span className="text-lg font-black text-gray-900">
+                                            ₹{parseFloat(demand.totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                        </span>
+                                    </div>
+                                    <Link
+                                        to={`/demands/${demand.id}`}
+                                        className="inline-flex items-center px-3 py-1.5 bg-white border border-gray-200 text-xs font-semibold text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-600 hover:border-primary-200 transition-all shadow-sm"
+                                    >
+                                        Details <ArrowLeft className="w-3 h-3 ml-1 transform rotate-180" />
+                                    </Link>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                        <Zap className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                        <p className="text-gray-500">No unified demands found in system records.</p>
+                    </div>
+                )}
+            </div>
         </div>
     );
 };

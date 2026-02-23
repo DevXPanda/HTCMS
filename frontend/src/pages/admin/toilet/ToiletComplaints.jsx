@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  AlertCircle, 
-  Search, 
-  Filter, 
-  Clock, 
+import {
+  AlertCircle,
+  Search,
+  Filter,
+  Clock,
   CheckCircle,
   XCircle,
   Eye,
@@ -26,55 +26,15 @@ const ToiletComplaints = () => {
   const fetchComplaints = async () => {
     try {
       setLoading(true);
-      // TODO: Replace with actual API endpoint
-      // const response = await api.get('/toilet-management/complaints');
-      // setComplaints(response.data);
-      
-      // Mock data
-      setComplaints([
-        {
-          id: 1,
-          toiletId: 1,
-          toiletName: 'Public Toilet - Ward 1',
-          citizenName: 'Rajesh Kumar',
-          citizenPhone: '+91 9876543210',
-          complaintType: 'Cleanliness',
-          description: 'Toilet is very dirty and not cleaned properly',
-          status: 'pending',
-          priority: 'high',
-          createdAt: '2026-02-17T10:30:00',
-          resolvedAt: null,
-          assignedTo: null
-        },
-        {
-          id: 2,
-          toiletId: 2,
-          toiletName: 'Community Toilet - Ward 2',
-          citizenName: 'Priya Sharma',
-          citizenPhone: '+91 9876543211',
-          complaintType: 'Maintenance',
-          description: 'Water tap is not working',
-          status: 'in_progress',
-          priority: 'medium',
-          createdAt: '2026-02-16T14:20:00',
-          resolvedAt: null,
-          assignedTo: 'John Doe'
-        },
-        {
-          id: 3,
-          toiletId: 1,
-          toiletName: 'Public Toilet - Ward 1',
-          citizenName: 'Amit Singh',
-          citizenPhone: '+91 9876543212',
-          complaintType: 'Other',
-          description: 'No soap available in the toilet',
-          status: 'resolved',
-          priority: 'low',
-          createdAt: '2026-02-15T09:15:00',
-          resolvedAt: '2026-02-15T16:45:00',
-          assignedTo: 'Jane Smith'
-        }
-      ]);
+      const response = await api.get('/toilet/complaints');
+      if (response.data && response.data.success) {
+        const formattedData = response.data.data.complaints.map(c => ({
+          ...c,
+          toiletName: c.facility ? c.facility.name : 'N/A',
+          assignedTo: c.assignee ? c.assignee.full_name : null
+        }));
+        setComplaints(formattedData);
+      }
     } catch (error) {
       console.error('Failed to fetch complaints:', error);
     } finally {
@@ -83,11 +43,11 @@ const ToiletComplaints = () => {
   };
 
   const filteredComplaints = complaints.filter(complaint => {
-    const matchesSearch = 
+    const matchesSearch =
       complaint.toiletName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       complaint.citizenName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       complaint.description.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus = filterStatus === 'all' || complaint.status === filterStatus;
 
     return matchesSearch && matchesStatus;
@@ -100,10 +60,10 @@ const ToiletComplaints = () => {
       resolved: { color: 'bg-green-100 text-green-800', icon: CheckCircle },
       closed: { color: 'bg-gray-100 text-gray-800', icon: XCircle }
     };
-    
+
     const config = statusConfig[status] || statusConfig.pending;
     const Icon = config.icon;
-    
+
     return (
       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
         <Icon className="w-3 h-3 mr-1" />
@@ -118,7 +78,7 @@ const ToiletComplaints = () => {
       medium: 'bg-yellow-100 text-yellow-800',
       low: 'bg-green-100 text-green-800'
     };
-    
+
     return (
       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${priorityConfig[priority] || priorityConfig.low}`}>
         {priority.charAt(0).toUpperCase() + priority.slice(1)}
@@ -157,7 +117,7 @@ const ToiletComplaints = () => {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
-          
+
           <div className="relative">
             <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <select

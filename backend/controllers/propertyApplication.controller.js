@@ -526,7 +526,7 @@ export const inspectionReviewApplication = async (req, res, next) => {
 
                 // Create actual Property record (unique ID = PREFIX + WARD(3) + PROPERTY_NUMBER(4))
                 const nextNum = await getNextPropertyNumberInWard(application.wardId);
-                const uniqueCode = generatePropertyUniqueId(application.wardId, application.propertyType, nextNum);
+                const uniqueCode = await generatePropertyUniqueId(application.wardId, application.propertyType, nextNum);
                 const propertyNumber = uniqueCode;
 
                 const newProperty = await Property.create({

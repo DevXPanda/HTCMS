@@ -9,9 +9,7 @@ const Attendance = () => {
   const [attendance, setAttendance] = useState([]);
   const [allAttendance, setAllAttendance] = useState([]); // Store all fetched records for frontend filtering
   const [loading, setLoading] = useState(true);
-  const [pagination, setPagination] = useState(null);
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [collectors, setCollectors] = useState([]);
@@ -29,7 +27,7 @@ const Attendance = () => {
   useEffect(() => {
     fetchCollectors();
     fetchAttendance();
-  }, [page, search, filters]);
+  }, [search, filters]);
 
   // Frontend filter when selected role changes
   useEffect(() => {
@@ -54,9 +52,8 @@ const Attendance = () => {
     try {
       setLoading(true);
       const params = {
-        page,
         search,
-        limit: 1000, // Fetch all records for frontend filtering
+        limit: 10000,
         sortBy: 'loginAt',
         sortOrder: 'DESC',
         ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''))
@@ -68,7 +65,6 @@ const Attendance = () => {
       // Apply frontend role filtering
       const filtered = records.filter(record => record.collector?.role === selectedRole);
       setAttendance(filtered);
-      setPagination(response.data.data.pagination);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to fetch attendance records');
     } finally {
@@ -78,7 +74,6 @@ const Attendance = () => {
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
-    setPage(1);
   };
 
   const clearFilters = () => {
@@ -91,7 +86,6 @@ const Attendance = () => {
       hasNoLogout: '',
       lateLogin: ''
     });
-    setPage(1);
   };
 
   const formatDuration = (minutes) => {
@@ -229,7 +223,7 @@ const Attendance = () => {
       </div>
 
       {/* Search */}
-      <form onSubmit={(e) => { e.preventDefault(); setPage(1); fetchAttendance(); }} className="mb-6">
+      <form onSubmit={(e) => { e.preventDefault(); fetchAttendance(); }} className="mb-6">
         <div className="flex gap-2">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -438,30 +432,7 @@ const Attendance = () => {
           </table>
         </div>
 
-        {/* Pagination */}
-        {pagination && pagination.pages > 1 && (
-          <div className="flex justify-between items-center mt-4 px-4 pb-4">
-            <div className="text-sm text-gray-600">
-              Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} records
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={pagination.page === 1}
-                className="btn btn-sm btn-secondary disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => setPage(p => Math.min(pagination.pages, p + 1))}
-                disabled={pagination.page === pagination.pages}
-                className="btn btn-sm btn-secondary disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Pagination removed */}
       </div>
 
       {/* Details Modal */}

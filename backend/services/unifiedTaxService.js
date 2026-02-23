@@ -1,5 +1,7 @@
 import { Assessment, WaterTaxAssessment, Demand, DemandItem, Property, WaterConnection, User, Ward, Shop, ShopTaxAssessment } from '../models/index.js';
+import { generateDemandId } from './uniqueIdService.js';
 import { Op } from 'sequelize';
+
 import { sequelize } from '../config/database.js';
 import {
   getActivePenaltyRule,
@@ -95,55 +97,44 @@ export const generateUnifiedTaxAssessmentAndDemand = async ({
     // Step 1: Call Property demand generation logic (assessment + amounts)
     let propertyTaxBaseAmount = 0;
     let propertyTaxArrears = 0;
-    try {
-      const propertyData = await getPropertyDemandData(
-        propertyId,
-        assessmentYear,
-        financialYear,
-        assessorId,
-        defaultTaxRate,
-        transaction
-      );
-      results.propertyAssessment = propertyData.assessment;
-      results.created.propertyAssessment = propertyData.created;
-      propertyTaxBaseAmount = propertyData.baseAmount;
-      propertyTaxArrears = propertyData.arrearsAmount;
-    } catch (error) {
-      results.errors.push({ type: 'PROPERTY_ASSESSMENT', message: error.message });
-    }
+    const propertyData = await getPropertyDemandData(
+      propertyId,
+      assessmentYear,
+      financialYear,
+      assessorId,
+      defaultTaxRate,
+      transaction
+    );
+    results.propertyAssessment = propertyData.assessment;
+    results.created.propertyAssessment = propertyData.created;
+    propertyTaxBaseAmount = propertyData.baseAmount;
+    propertyTaxArrears = propertyData.arrearsAmount;
 
     // Step 2: Call Water demand generation logic (assessments + amounts per connection)
     let waterItemsData = [];
     let waterTaxBaseAmount = 0;
     let waterTaxArrears = 0;
-    try {
-      const { waterAssessments: waterDataList } = await getWaterDemandData(
-        propertyId,
-        assessmentYear,
-        financialYear,
-        assessorId,
-        transaction
-      );
-      results.waterAssessments = waterDataList.map((w) => w.assessment);
-      results.created.waterAssessments = waterDataList.map((w) => ({ created: w.created }));
-      waterItemsData = waterDataList.map((w) => ({ assessment: w.assessment, baseAmount: w.baseAmount, arrearsAmount: w.arrearsAmount }));
-      waterItemsData.forEach((w) => {
-        waterTaxBaseAmount += w.baseAmount;
-        waterTaxArrears += w.arrearsAmount;
-      });
-    } catch (error) {
-      results.errors.push({ type: 'WATER_ASSESSMENT', message: error.message });
-    }
+    const { waterAssessments: waterDataList } = await getWaterDemandData(
+      propertyId,
+      assessmentYear,
+      financialYear,
+      assessorId,
+      transaction
+    );
+    results.waterAssessments = waterDataList.map((w) => w.assessment);
+    results.created.waterAssessments = waterDataList.map((w) => ({ created: w.created }));
+    waterItemsData = waterDataList.map((w) => ({ assessment: w.assessment, baseAmount: w.baseAmount, arrearsAmount: w.arrearsAmount }));
+    waterItemsData.forEach((w) => {
+      waterTaxBaseAmount += w.baseAmount;
+      waterTaxArrears += w.arrearsAmount;
+    });
 
     // Step 3: Check if unified demand already exists (idempotency)
     const existingDemand = await Demand.findOne({
       where: {
         propertyId,
         financialYear,
-        serviceType: 'HOUSE_TAX', // Use HOUSE_TAX as base, but store both assessments
-        remarks: {
-          [Op.like]: `%UNIFIED_DEMAND%`
-        }
+        serviceType: 'HOUSE_TAX'
       },
       transaction
     });
@@ -231,7 +222,7 @@ export const generateUnifiedTaxAssessmentAndDemand = async ({
     const totalAmount = Math.round((totalBaseAmount + totalArrears + penaltyAmount + interestAmount) * 100) / 100;
 
     // Generate demand number
-    const demandNumber = `UD-${financialYear}-${Date.now()}-${propertyId}`;
+    const demandNumber = await generateDemandId(propertyId, 'unified', transaction);
 
     // Store assessment IDs in remarks as JSON for reference
     // IMPORTANT: Set remarks BEFORE creating demand so validation hook can detect unified demand

@@ -15,9 +15,7 @@ const Demands = () => {
   const { isAdmin, isAssessor } = useAuth();
   const [demands, setDemands] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [pagination, setPagination] = useState(null);
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     status: '',
@@ -29,15 +27,14 @@ const Demands = () => {
 
   useEffect(() => {
     fetchDemands();
-  }, [page, search, filters, moduleFromUrl]);
+  }, [search, filters, moduleFromUrl]);
 
   const fetchDemands = async () => {
     try {
       setLoading(true);
       const params = {
-        page,
         search,
-        limit: 10,
+        limit: 10000,
         ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''))
       };
       if (moduleFromUrl && ['PROPERTY', 'WATER', 'SHOP', 'D2DC'].includes(moduleFromUrl.toUpperCase())) {
@@ -46,7 +43,6 @@ const Demands = () => {
       const response = await demandAPI.getAll(params);
       const data = response.data?.data ?? {};
       setDemands(Array.isArray(data.demands) ? data.demands : []);
-      setPagination(data.pagination ?? null);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to fetch tax demands');
     } finally {
@@ -56,7 +52,6 @@ const Demands = () => {
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
-    setPage(1);
   };
 
   const clearFilters = () => {
@@ -67,7 +62,6 @@ const Demands = () => {
       maxAmount: '',
       overdue: ''
     });
-    setPage(1);
   };
 
   const handleCalculatePenalty = async (demandId) => {
@@ -156,7 +150,7 @@ const Demands = () => {
       </div>
 
       {/* Search */}
-      <form onSubmit={(e) => { e.preventDefault(); setPage(1); fetchDemands(); }} className="mb-6">
+      <form onSubmit={(e) => { e.preventDefault(); fetchDemands(); }} className="mb-6">
         <div className="flex gap-2">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -300,15 +294,15 @@ const Demands = () => {
                   ? null
                   : isWaterTax
                     ? (demand.waterTaxAssessment?.waterConnection?.connectionNumber
-                        ? `Water - ${demand.waterTaxAssessment.waterConnection.connectionNumber}`
-                        : demand.waterTaxAssessment?.assessmentNumber || 'N/A')
+                      ? `Water - ${demand.waterTaxAssessment.waterConnection.connectionNumber}`
+                      : demand.waterTaxAssessment?.assessmentNumber || 'N/A')
                     : isD2DC
                       ? `D2DC - ${demand.financialYear || '—'}`
                       : (demand.property?.propertyNumber ? (
-                          <Link to={`/properties/${demand.propertyId}`} className="text-primary-600 hover:underline">
-                            {demand.property.propertyNumber}
-                          </Link>
-                        ) : 'N/A');
+                        <Link to={`/properties/${demand.propertyId}`} className="text-primary-600 hover:underline">
+                          {demand.property.propertyNumber}
+                        </Link>
+                      ) : 'N/A');
                 return (
                   <tr key={demand.id} className={overdue ? 'bg-red-50' : ''}>
                     <td className="font-medium">{demand.demandNumber}</td>
@@ -435,28 +429,7 @@ const Demands = () => {
         </table>
       </div>
 
-      {/* Pagination */}
-      {pagination && pagination.pages > 1 && (
-        <div className="flex justify-center items-center space-x-2 mt-6">
-          <button
-            onClick={() => setPage(page - 1)}
-            disabled={page === 1}
-            className="btn btn-secondary"
-          >
-            Previous
-          </button>
-          <span className="text-gray-600">
-            Page {pagination.page} of {pagination.pages}
-          </span>
-          <button
-            onClick={() => setPage(page + 1)}
-            disabled={page === pagination.pages}
-            className="btn btn-secondary"
-          >
-            Next
-          </button>
-        </div>
-      )}
+      {/* Pagination removed */}
     </div>
   );
 };

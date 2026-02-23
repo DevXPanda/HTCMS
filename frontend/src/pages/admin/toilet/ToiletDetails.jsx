@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { 
-  Bath, 
-  MapPin, 
-  Users, 
-  Calendar, 
-  CheckCircle, 
-  XCircle, 
+import {
+  Bath,
+  MapPin,
+  Users,
+  Calendar,
+  CheckCircle,
+  XCircle,
   AlertCircle,
   Edit,
   ArrowLeft,
   ClipboardCheck,
   Wrench,
-  FileText
+  FileText,
+  UserPlus,
+  PlusCircle
 } from 'lucide-react';
 import api from '../../../services/api';
 
@@ -32,33 +34,31 @@ const ToiletDetails = () => {
   const fetchToiletDetails = async () => {
     try {
       setLoading(true);
-      // TODO: Replace with actual API endpoint
-      // const response = await api.get(`/toilet-management/facilities/${id}`);
-      // setToilet(response.data);
-      
-      // Mock data
-      setToilet({
-        id: parseInt(id),
-        name: 'Public Toilet - Ward 1',
-        location: 'Near Market Square',
-        ward: 'Ward 1',
-        wardId: 1,
-        type: 'Public',
-        status: 'active',
-        capacity: 20,
-        assignedStaff: [
-          { id: 1, name: 'John Doe', role: 'Cleaner' },
-          { id: 2, name: 'Jane Smith', role: 'Maintenance' }
-        ],
-        lastInspection: '2026-02-15',
-        lastMaintenance: '2026-02-10',
-        latitude: 28.6139,
-        longitude: 77.2090,
-        amenities: ['Water Supply', 'Electricity', 'Soap Dispenser', 'Hand Dryer'],
-        openingHours: '6:00 AM - 10:00 PM',
-        contactPerson: 'John Doe',
-        contactNumber: '+91 9876543210'
-      });
+      const response = await api.get(`/toilet/facilities/${id}`);
+      if (response.data && response.data.success) {
+        const facilityData = response.data.data.facility;
+        setToilet({
+          ...facilityData,
+          ward: facilityData.ward ? facilityData.ward.wardName : 'N/A',
+        });
+
+        // Use data from the same response if available
+        if (facilityData.inspections) {
+          setInspections(facilityData.inspections.map(i => ({
+            ...i,
+            date: i.inspectionDate,
+            inspector: i.inspector ? `${i.inspector.firstName} ${i.inspector.lastName}` : 'Unknown'
+          })));
+        }
+
+        if (facilityData.maintenanceRecords) {
+          setMaintenance(facilityData.maintenanceRecords.map(m => ({
+            ...m,
+            date: m.scheduledDate,
+            staff: m.staff ? m.staff.full_name : 'Unknown'
+          })));
+        }
+      }
     } catch (error) {
       console.error('Failed to fetch toilet details:', error);
     } finally {
@@ -67,65 +67,11 @@ const ToiletDetails = () => {
   };
 
   const fetchInspections = async () => {
-    try {
-      // TODO: Replace with actual API endpoint
-      // const response = await api.get(`/toilet-management/facilities/${id}/inspections`);
-      // setInspections(response.data);
-      
-      // Mock data
-      setInspections([
-        {
-          id: 1,
-          date: '2026-02-15',
-          inspector: 'Inspector A',
-          status: 'passed',
-          cleanliness: 'Good',
-          maintenance: 'Good',
-          notes: 'All facilities working properly'
-        },
-        {
-          id: 2,
-          date: '2026-02-10',
-          inspector: 'Inspector B',
-          status: 'failed',
-          cleanliness: 'Fair',
-          maintenance: 'Needs Repair',
-          notes: 'Water supply issue reported'
-        }
-      ]);
-    } catch (error) {
-      console.error('Failed to fetch inspections:', error);
-    }
+    // Already handled in fetchToiletDetails for the recent ones
   };
 
   const fetchMaintenance = async () => {
-    try {
-      // TODO: Replace with actual API endpoint
-      // const response = await api.get(`/toilet-management/facilities/${id}/maintenance`);
-      // setMaintenance(response.data);
-      
-      // Mock data
-      setMaintenance([
-        {
-          id: 1,
-          date: '2026-02-10',
-          type: 'Routine Cleaning',
-          staff: 'John Doe',
-          status: 'completed',
-          notes: 'Deep cleaning completed'
-        },
-        {
-          id: 2,
-          date: '2026-02-20',
-          type: 'Repair',
-          staff: 'Jane Smith',
-          status: 'scheduled',
-          notes: 'Water tap replacement'
-        }
-      ]);
-    } catch (error) {
-      console.error('Failed to fetch maintenance:', error);
-    }
+    // Already handled in fetchToiletDetails for the recent ones
   };
 
   const getStatusBadge = (status) => {
@@ -134,10 +80,10 @@ const ToiletDetails = () => {
       maintenance: { color: 'bg-yellow-100 text-yellow-800', icon: AlertCircle },
       inactive: { color: 'bg-red-100 text-red-800', icon: XCircle }
     };
-    
+
     const config = statusConfig[status] || statusConfig.inactive;
     const Icon = config.icon;
-    
+
     return (
       <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${config.color}`}>
         <Icon className="w-4 h-4 mr-1" />
@@ -268,12 +214,15 @@ const ToiletDetails = () => {
             <Users className="w-5 h-5 mr-2 text-gray-400" />
             Assigned Staff
           </h2>
-          <Link
-            to={`/toilet-management/facilities/${id}/staff`}
-            className="text-sm text-primary-600 hover:text-primary-700"
-          >
-            Manage Staff
-          </Link>
+          <div className="flex gap-2">
+            <Link
+              to={`/toilet-management/staff?facilityId=${id}`}
+              className="px-3 py-1.5 bg-primary-50 text-primary-600 rounded-lg text-xs font-bold hover:bg-primary-100 transition-colors flex items-center gap-1.5"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              Assign Staff
+            </Link>
+          </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {toilet.assignedStaff && toilet.assignedStaff.length > 0 ? (
@@ -296,12 +245,21 @@ const ToiletDetails = () => {
             <ClipboardCheck className="w-5 h-5 mr-2 text-gray-400" />
             Recent Inspections
           </h2>
-          <Link
-            to="/toilet-management/inspections"
-            className="text-sm text-primary-600 hover:text-primary-700"
-          >
-            View All
-          </Link>
+          <div className="flex gap-3 items-center">
+            <Link
+              to={`/toilet-management/inspections/new?facilityId=${id}`}
+              className="px-3 py-1.5 bg-green-50 text-green-700 rounded-lg text-xs font-bold hover:bg-green-100 transition-colors flex items-center gap-1.5"
+            >
+              <PlusCircle className="w-3.5 h-3.5" />
+              Record Inspection
+            </Link>
+            <Link
+              to="/toilet-management/inspections"
+              className="text-sm text-primary-600 hover:text-primary-700"
+            >
+              View All
+            </Link>
+          </div>
         </div>
         <div className="space-y-4">
           {inspections.length > 0 ? (
@@ -342,12 +300,21 @@ const ToiletDetails = () => {
             <Wrench className="w-5 h-5 mr-2 text-gray-400" />
             Maintenance History
           </h2>
-          <Link
-            to="/toilet-management/maintenance"
-            className="text-sm text-primary-600 hover:text-primary-700"
-          >
-            View All
-          </Link>
+          <div className="flex gap-3 items-center">
+            <Link
+              to={`/toilet-management/maintenance/new?facilityId=${id}`}
+              className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors flex items-center gap-1.5"
+            >
+              <PlusCircle className="w-3.5 h-3.5" />
+              Schedule Maintenance
+            </Link>
+            <Link
+              to="/toilet-management/maintenance"
+              className="text-sm text-primary-600 hover:text-primary-700"
+            >
+              View All
+            </Link>
+          </div>
         </div>
         <div className="space-y-4">
           {maintenance.length > 0 ? (
@@ -360,11 +327,10 @@ const ToiletDetails = () => {
                       {new Date(item.date).toLocaleDateString()} - {item.staff}
                     </div>
                   </div>
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${
-                    item.status === 'completed' 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-yellow-100 text-yellow-800'
-                  }`}>
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${item.status === 'completed'
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-yellow-100 text-yellow-800'
+                    }`}>
                     {item.status}
                   </span>
                 </div>

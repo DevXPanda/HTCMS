@@ -1,16 +1,6 @@
 import { WaterTaxAssessment, WaterConnection, Property, Demand, DemandItem } from '../models/index.js';
+import { generateAssessmentId } from './uniqueIdService.js';
 import { Op } from 'sequelize';
-
-/**
- * Water tax demand generation logic (assessments + amounts per connection).
- * Used by unified orchestrator.
- */
-
-const generateWaterAssessmentNumber = async (assessmentYear) => {
-  const timestamp = Date.now().toString();
-  const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-  return `WTA-${assessmentYear}-${timestamp.slice(-8)}-${random}`;
-};
 
 /**
  * Calculate water tax base amount based on assessment type.
@@ -63,7 +53,7 @@ export const getOrCreateWaterAssessment = async (waterConnectionId, propertyId, 
     rate = parseFloat(waterConnection.monthlyRate || 100);
   }
 
-  const assessmentNumber = await generateWaterAssessmentNumber(assessmentYear);
+  const assessmentNumber = await generateAssessmentId(property.wardId, 'water', transaction);
   const assessment = await WaterTaxAssessment.create({
     assessmentNumber,
     propertyId,

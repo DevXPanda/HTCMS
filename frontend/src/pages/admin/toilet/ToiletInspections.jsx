@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  ClipboardCheck, 
-  Plus, 
-  Search, 
-  Filter, 
-  CheckCircle, 
+import {
+  ClipboardCheck,
+  Plus,
+  Search,
+  Filter,
+  CheckCircle,
   XCircle,
   Eye,
   Calendar
@@ -25,41 +25,16 @@ const ToiletInspections = () => {
   const fetchInspections = async () => {
     try {
       setLoading(true);
-      // TODO: Replace with actual API endpoint
-      // const response = await api.get('/toilet-management/inspections');
-      // setInspections(response.data);
-      
-      // Mock data
-      setInspections([
-        {
-          id: 1,
-          toiletId: 1,
-          toiletName: 'Public Toilet - Ward 1',
-          date: '2026-02-15',
-          inspector: 'Inspector A',
-          status: 'passed',
-          cleanliness: 'Good',
-          maintenance: 'Good',
-          waterSupply: 'Working',
-          electricity: 'Working',
-          notes: 'All facilities working properly',
-          photos: []
-        },
-        {
-          id: 2,
-          toiletId: 2,
-          toiletName: 'Community Toilet - Ward 2',
-          date: '2026-02-14',
-          inspector: 'Inspector B',
-          status: 'failed',
-          cleanliness: 'Fair',
-          maintenance: 'Needs Repair',
-          waterSupply: 'Working',
-          electricity: 'Not Working',
-          notes: 'Water supply issue reported, needs immediate attention',
-          photos: []
-        }
-      ]);
+      const response = await api.get('/toilet/inspections');
+      if (response.data && response.data.success) {
+        const formattedData = response.data.data.inspections.map(i => ({
+          ...i,
+          toiletName: i.facility ? i.facility.name : 'N/A',
+          date: i.inspectionDate,
+          inspector: i.inspector ? `${i.inspector.firstName} ${i.inspector.lastName}` : 'N/A',
+        }));
+        setInspections(formattedData);
+      }
     } catch (error) {
       console.error('Failed to fetch inspections:', error);
     } finally {
@@ -68,10 +43,10 @@ const ToiletInspections = () => {
   };
 
   const filteredInspections = inspections.filter(inspection => {
-    const matchesSearch = 
+    const matchesSearch =
       inspection.toiletName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       inspection.inspector.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus = filterStatus === 'all' || inspection.status === filterStatus;
 
     return matchesSearch && matchesStatus;
@@ -133,7 +108,7 @@ const ToiletInspections = () => {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
-          
+
           <div className="relative">
             <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <select

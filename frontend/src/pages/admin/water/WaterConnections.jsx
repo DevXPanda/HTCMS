@@ -14,8 +14,6 @@ const WaterConnections = () => {
   const [selectedPropertyId, setSelectedPropertyId] = useState('');
   const [search, setSearch] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState(null);
 
   useEffect(() => {
     fetchProperties();
@@ -23,7 +21,7 @@ const WaterConnections = () => {
 
   useEffect(() => {
     fetchConnections();
-  }, [selectedPropertyId, search, page]);
+  }, [selectedPropertyId, search]);
 
   const fetchProperties = async () => {
     try {
@@ -41,18 +39,16 @@ const WaterConnections = () => {
     try {
       setLoading(true);
       const params = {
-        page,
-        limit: 10,
+        limit: 10000,
         search
       };
-      
+
       if (selectedPropertyId) {
         params.propertyId = selectedPropertyId;
       }
 
       const response = await waterConnectionAPI.getAll(params);
       setConnections(response.data.data.waterConnections || []);
-      setPagination(response.data.data.pagination);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to fetch water connections');
     } finally {
@@ -62,12 +58,10 @@ const WaterConnections = () => {
 
   const handlePropertyChange = (e) => {
     setSelectedPropertyId(e.target.value);
-    setPage(1);
   };
 
   const handleSearch = (e) => {
     e.preventDefault();
-    setPage(1);
     fetchConnections();
   };
 
@@ -188,7 +182,7 @@ const WaterConnections = () => {
             {connections.length === 0 ? (
               <tr>
                 <td colSpan="8" className="text-center py-8 text-gray-500">
-                  {selectedPropertyId 
+                  {selectedPropertyId
                     ? 'No water connections found for this property'
                     : 'No water connections found'}
                 </td>
@@ -224,7 +218,7 @@ const WaterConnections = () => {
                     </span>
                   </td>
                   <td>
-                    {connection.connectionDate 
+                    {connection.connectionDate
                       ? new Date(connection.connectionDate).toLocaleDateString()
                       : '-'
                     }
@@ -245,28 +239,7 @@ const WaterConnections = () => {
         </table>
       </div>
 
-      {/* Pagination */}
-      {pagination && pagination.pages > 1 && (
-        <div className="flex justify-center items-center space-x-2 mt-6">
-          <button
-            onClick={() => setPage(page - 1)}
-            disabled={page === 1}
-            className="btn btn-secondary"
-          >
-            Previous
-          </button>
-          <span className="text-gray-600">
-            Page {pagination.page} of {pagination.pages}
-          </span>
-          <button
-            onClick={() => setPage(page + 1)}
-            disabled={page === pagination.pages}
-            className="btn btn-secondary"
-          >
-            Next
-          </button>
-        </div>
-      )}
+      {/* Pagination removed */}
 
       {/* Add Water Connection Modal */}
       {showAddModal && (

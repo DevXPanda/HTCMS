@@ -424,7 +424,7 @@ export const processPropertyInspection = async (req, res) => {
 
         // Create actual property record (unique ID = PREFIX + WARD(3) + PROPERTY_NUMBER(4))
         const nextNum = await getNextPropertyNumberInWard(application.wardId);
-        const uniqueCode = generatePropertyUniqueId(application.wardId, application.propertyType, nextNum);
+        const uniqueCode = await generatePropertyUniqueId(application.wardId, application.propertyType, nextNum);
         const newProperty = await Property.create({
           propertyNumber: uniqueCode,
           uniqueCode,
@@ -574,8 +574,9 @@ export const processWaterInspection = async (req, res) => {
         updateData.adminRemarks = inspectorRemarks || 'Request approved by inspector';
 
         // Create actual water connection record
+        const connectionNumber = await generateWaterConnectionId(request.property.wardId);
         const newConnection = await WaterConnection.create({
-          connectionNumber: `WC-${Date.now()}`,
+          connectionNumber,
           propertyId: request.propertyId,
           connectionType: request.connectionType,
           status: 'ACTIVE',

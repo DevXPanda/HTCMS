@@ -34,6 +34,24 @@ import { ULB } from './ULB.js';
 import { TaxDiscount } from './TaxDiscount.js';
 import { PenaltyWaiver } from './PenaltyWaiver.js';
 import { WardSequence } from './WardSequence.js';
+import { ToiletFacility } from './ToiletFacility.js';
+import { ToiletInspection } from './ToiletInspection.js';
+import { ToiletMaintenance } from './ToiletMaintenance.js';
+import { ToiletStaffAssignment } from './ToiletStaffAssignment.js';
+import { ToiletComplaint } from './ToiletComplaint.js';
+import { MrfFacility } from './MrfFacility.js';
+import { GauShalaFacility } from './GauShalaFacility.js';
+import { GauShalaCattle } from './GauShalaCattle.js';
+import { GauShalaComplaint } from './GauShalaComplaint.js';
+import { GauShalaFeedingRecord } from './GauShalaFeedingRecord.js';
+import { GauShalaInspection } from './GauShalaInspection.js';
+import { InventoryItem } from './InventoryItem.js';
+import { InventoryTransaction } from './InventoryTransaction.js';
+import { CattleMedicalRecord } from './CattleMedicalRecord.js';
+import { FacilityUtilityBill } from './FacilityUtilityBill.js';
+import { MrfSale } from './MrfSale.js';
+import { CitizenFeedback } from './CitizenFeedback.js';
+
 
 // Define Relationships
 
@@ -351,9 +369,64 @@ AdminManagement.hasMany(WorkerTask, { foreignKey: 'supervisor_id', as: 'assigned
 Ward.hasMany(WorkerTask, { foreignKey: 'ward_id', as: 'tasks' });
 ULB.hasMany(WorkerTask, { foreignKey: 'ulb_id', as: 'tasks' });
 
-Alert.belongsTo(AdminManagement, { foreignKey: 'eo_id', as: 'eo' });
 Alert.belongsTo(Ward, { foreignKey: 'ward_id', as: 'ward' });
 AdminManagement.hasMany(Alert, { foreignKey: 'eo_id', as: 'alertsUnderEo' });
+
+// Toilet Management Relationships
+ToiletFacility.belongsTo(Ward, { foreignKey: 'wardId', as: 'ward' });
+ToiletFacility.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
+ToiletFacility.hasMany(ToiletInspection, { foreignKey: 'toiletFacilityId', as: 'inspections' });
+ToiletFacility.hasMany(ToiletMaintenance, { foreignKey: 'toiletFacilityId', as: 'maintenanceRecords' });
+ToiletFacility.hasMany(ToiletStaffAssignment, { foreignKey: 'toiletFacilityId', as: 'staffAssignments' });
+ToiletFacility.hasMany(ToiletComplaint, { foreignKey: 'toiletFacilityId', as: 'complaints' });
+
+ToiletInspection.belongsTo(ToiletFacility, { foreignKey: 'toiletFacilityId', as: 'facility' });
+ToiletInspection.belongsTo(User, { foreignKey: 'inspectorId', as: 'inspector' });
+
+ToiletMaintenance.belongsTo(ToiletFacility, { foreignKey: 'toiletFacilityId', as: 'facility' });
+ToiletMaintenance.belongsTo(AdminManagement, { foreignKey: 'assignedStaffId', as: 'staff' });
+
+ToiletStaffAssignment.belongsTo(ToiletFacility, { foreignKey: 'toiletFacilityId', as: 'facility' });
+ToiletStaffAssignment.belongsTo(AdminManagement, { foreignKey: 'staffId', as: 'staff' });
+
+ToiletComplaint.belongsTo(ToiletFacility, { foreignKey: 'toiletFacilityId', as: 'facility' });
+ToiletComplaint.belongsTo(AdminManagement, { foreignKey: 'assignedTo', as: 'assignee' });
+
+Ward.hasMany(ToiletFacility, { foreignKey: 'wardId', as: 'toiletFacilities' });
+
+// MRF Relationships
+MrfFacility.belongsTo(Ward, { foreignKey: 'ward_id', as: 'ward' });
+Ward.hasMany(MrfFacility, { foreignKey: 'ward_id', as: 'mrfFacilities' });
+
+// Gaushala Relationships
+GauShalaFacility.belongsTo(Ward, { foreignKey: 'ward_id', as: 'ward' });
+GauShalaFacility.hasMany(GauShalaCattle, { foreignKey: 'gau_shala_facility_id', as: 'cattle' });
+GauShalaFacility.hasMany(GauShalaComplaint, { foreignKey: 'gau_shala_facility_id', as: 'complaints' });
+GauShalaFacility.hasMany(GauShalaFeedingRecord, { foreignKey: 'gau_shala_facility_id', as: 'feedingRecords' });
+GauShalaFacility.hasMany(GauShalaInspection, { foreignKey: 'gau_shala_facility_id', as: 'inspections' });
+
+GauShalaCattle.belongsTo(GauShalaFacility, { foreignKey: 'gau_shala_facility_id', as: 'facility' });
+GauShalaComplaint.belongsTo(GauShalaFacility, { foreignKey: 'gau_shala_facility_id', as: 'facility' });
+GauShalaFeedingRecord.belongsTo(GauShalaFacility, { foreignKey: 'gau_shala_facility_id', as: 'facility' });
+GauShalaInspection.belongsTo(GauShalaFacility, { foreignKey: 'gau_shala_facility_id', as: 'facility' });
+GauShalaInspection.belongsTo(User, { foreignKey: 'inspector_id', as: 'inspector' });
+
+Ward.hasMany(GauShalaFacility, { foreignKey: 'ward_id', as: 'gauShalaFacilities' });
+
+// Phase 4 - Advanced Operations Relationships
+InventoryItem.hasMany(InventoryTransaction, { foreignKey: 'inventory_item_id', as: 'transactions' });
+InventoryTransaction.belongsTo(InventoryItem, { foreignKey: 'inventory_item_id', as: 'item' });
+InventoryTransaction.belongsTo(User, { foreignKey: 'performed_by', as: 'performer' });
+
+GauShalaCattle.hasMany(CattleMedicalRecord, { foreignKey: 'gau_shala_cattle_id', as: 'medicalRecords' });
+CattleMedicalRecord.belongsTo(GauShalaCattle, { foreignKey: 'gau_shala_cattle_id', as: 'cattle' });
+
+MrfFacility.hasMany(MrfSale, { foreignKey: 'mrf_facility_id', as: 'sales' });
+MrfSale.belongsTo(MrfFacility, { foreignKey: 'mrf_facility_id', as: 'facility' });
+
+// Generic relationships for Feedback and Utilities (no direct associations to multiple tables easily in Sequelize without Polymorphic logic, 
+// but we define them here for clarity or use raw queries if needed)
+
 
 // ULB Relationships
 ULB.hasMany(User, { foreignKey: 'ulb_id', as: 'users' });
@@ -403,5 +476,23 @@ export {
   Alert,
   ULB,
   TaxDiscount,
-  PenaltyWaiver
+  PenaltyWaiver,
+  ToiletFacility,
+  ToiletInspection,
+  ToiletMaintenance,
+  ToiletStaffAssignment,
+  ToiletComplaint,
+  MrfFacility,
+  GauShalaFacility,
+  GauShalaCattle,
+  GauShalaComplaint,
+  GauShalaFeedingRecord,
+  GauShalaInspection,
+  InventoryItem,
+  InventoryTransaction,
+  CattleMedicalRecord,
+  FacilityUtilityBill,
+  MrfSale,
+  CitizenFeedback
 };
+

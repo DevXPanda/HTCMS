@@ -10,9 +10,7 @@ import { exportToCSV } from '../../../utils/exportCSV';
 const WaterBills = () => {
   const [bills, setBills] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [pagination, setPagination] = useState(null);
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [properties, setProperties] = useState([]);
@@ -27,7 +25,7 @@ const WaterBills = () => {
 
   useEffect(() => {
     fetchBills();
-  }, [page, search, filters]);
+  }, [search, filters]);
 
   const fetchProperties = async () => {
     try {
@@ -42,8 +40,7 @@ const WaterBills = () => {
     try {
       setLoading(true);
       const params = {
-        page,
-        limit: 10
+        limit: 10000
       };
 
       // Add search if provided
@@ -61,19 +58,18 @@ const WaterBills = () => {
         try {
           const connectionsResponse = await waterConnectionAPI.getByProperty(filters.propertyId);
           const connections = connectionsResponse.data.data.waterConnections || [];
-          
+
           if (connections.length === 0) {
             setBills([]);
-            setPagination({ total: 0, page, limit: 10, pages: 0 });
             return;
           }
 
           // Fetch bills for all connections in parallel
-          const billsPromises = connections.map(conn => 
+          const billsPromises = connections.map(conn =>
             waterBillAPI.getByConnection(conn.id).catch(() => ({ data: { data: { waterBills: [] } } }))
           );
           const billsResponses = await Promise.all(billsPromises);
-          
+
           // Combine all bills
           let allBills = [];
           billsResponses.forEach(response => {
@@ -88,7 +84,7 @@ const WaterBills = () => {
           // Apply search filter if set
           if (search) {
             const searchLower = search.toLowerCase();
-            allBills = allBills.filter(bill => 
+            allBills = allBills.filter(bill =>
               bill.billNumber?.toLowerCase().includes(searchLower) ||
               bill.billingPeriod?.toLowerCase().includes(searchLower)
             );
@@ -102,28 +98,15 @@ const WaterBills = () => {
             return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
           });
 
-          // Client-side pagination
-          const total = allBills.length;
-          const startIndex = (page - 1) * 10;
-          const paginatedBills = allBills.slice(startIndex, startIndex + 10);
-
-          setBills(paginatedBills);
-          setPagination({
-            total,
-            page,
-            limit: 10,
-            pages: Math.ceil(total / 10)
-          });
+          setBills(allBills);
         } catch (error) {
           toast.error('Failed to fetch bills for selected property');
           setBills([]);
-          setPagination({ total: 0, page, limit: 10, pages: 0 });
         }
       } else {
         // No property filter - use standard API call
         const response = await waterBillAPI.getAll(params);
         setBills(response.data.data.waterBills || []);
-        setPagination(response.data.data.pagination);
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to fetch water bills');
@@ -134,7 +117,6 @@ const WaterBills = () => {
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
-    setPage(1);
   };
 
   const clearFilters = () => {
@@ -142,7 +124,6 @@ const WaterBills = () => {
       propertyId: '',
       status: ''
     });
-    setPage(1);
   };
 
   const handleGenerateSuccess = () => {
@@ -218,7 +199,7 @@ const WaterBills = () => {
       </div>
 
       {/* Search */}
-      <form onSubmit={(e) => { e.preventDefault(); setPage(1); fetchBills(); }} className="mb-6">
+      <form onSubmit={(e) => { e.preventDefault(); fetchBills(); }} className="mb-6">
         <div className="flex gap-2">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -314,8 +295,8 @@ const WaterBills = () => {
                   <td className="font-medium">{bill.billNumber}</td>
                   <td>
                     {bill.waterConnection?.property ? (
-                      <Link 
-                        to={`/properties/${bill.waterConnection.property.id}`} 
+                      <Link
+                        to={`/properties/${bill.waterConnection.property.id}`}
                         className="text-primary-600 hover:underline"
                       >
                         {bill.waterConnection.property.propertyNumber}
@@ -326,8 +307,8 @@ const WaterBills = () => {
                   </td>
                   <td>
                     {bill.waterConnection ? (
-                      <Link 
-                        to={`/water/connections?propertyId=${bill.waterConnection.property?.id}`} 
+                      <Link
+                        to={`/water/connections?propertyId=${bill.waterConnection.property?.id}`}
                         className="text-primary-600 hover:underline"
                       >
                         {bill.waterConnection.connectionNumber}
@@ -370,34 +351,7 @@ const WaterBills = () => {
         </table>
       </div>
 
-      {/* Pagination */}
-      {pagination && pagination.pages > 1 && (
-        <div className="flex justify-between items-center mt-6">
-          <div className="text-sm text-gray-600">
-            Showing {((pagination.page - 1) * pagination.limit) + 1} to{' '}
-            {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} bills
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={pagination.page === 1}
-              className="btn btn-secondary"
-            >
-              Previous
-            </button>
-            <span className="flex items-center px-4">
-              Page {pagination.page} of {pagination.pages}
-            </span>
-            <button
-              onClick={() => setPage(p => Math.min(pagination.pages, p + 1))}
-              disabled={pagination.page === pagination.pages}
-              className="btn btn-secondary"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Pagination removed */}
 
       {/* Generate Bill Modal */}
       {showGenerateModal && (

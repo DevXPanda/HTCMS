@@ -21,7 +21,13 @@ import {
   Wallet,
   TrendingUp,
   Plus,
-  Store
+  Store,
+  Bath,
+  Recycle,
+  Beef,
+  Package,
+  Zap,
+  MessageSquare
 } from 'lucide-react';
 
 const AdminSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
@@ -71,6 +77,12 @@ const AdminSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
     { path: '/field-monitoring', label: 'Field Monitoring', icon: MapPin },
     { path: '/field-worker-monitoring', label: 'Field Worker Monitoring', icon: LayoutDashboard },
     { path: '/admin-field-worker-monitoring', label: 'Admin Field Monitoring', icon: Users },
+    { path: '/toilet-management', label: 'Toilet Management', icon: Bath },
+    { path: '/mrf/management', label: 'MRF Management', icon: Recycle },
+    { path: '/gaushala/management', label: 'Gaushala Management', icon: Beef },
+    { path: '/inventory', label: 'Inventory', icon: Package },
+    { path: '/utilities', label: 'Utility Tracking', icon: Zap },
+    { path: '/feedback', label: 'Feedback', icon: MessageSquare },
     { path: '/reports', label: 'Reports', icon: BarChart3 },
     { path: '/audit-logs', label: 'Audit Logs', icon: Shield }
   ];

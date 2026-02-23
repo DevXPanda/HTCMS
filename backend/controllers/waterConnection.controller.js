@@ -657,8 +657,7 @@ export const approveWaterConnectionRequest = async (req, res, next) => {
     }
 
     // Generate connection number
-    const connectionCount = await WaterConnection.count();
-    const connectionNumber = `WC-${String(connectionCount + 1).padStart(6, '0')}`;
+    const connectionNumber = await generateWaterConnectionId(request.property.wardId);
 
     // Create water connection
     const waterConnection = await WaterConnection.create({

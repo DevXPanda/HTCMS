@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  BarChart3, 
-  TrendingUp, 
+import {
+  BarChart3,
+  TrendingUp,
   TrendingDown,
   CheckCircle,
   XCircle,
@@ -38,25 +38,10 @@ const ToiletReports = () => {
   const fetchReports = async () => {
     try {
       setLoading(true);
-      // TODO: Replace with actual API endpoint
-      // const response = await api.get('/toilet-management/reports', { params: dateRange });
-      // setStats(response.data);
-      
-      // Mock data
-      setStats({
-        totalFacilities: 25,
-        activeFacilities: 20,
-        maintenanceFacilities: 5,
-        totalInspections: 150,
-        passedInspections: 120,
-        failedInspections: 30,
-        totalComplaints: 45,
-        pendingComplaints: 10,
-        resolvedComplaints: 35,
-        totalMaintenance: 80,
-        completedMaintenance: 70,
-        scheduledMaintenance: 10
-      });
+      const response = await api.get('/toilet/reports/stats', { params: dateRange });
+      if (response.data && response.data.success) {
+        setStats(response.data.data);
+      }
     } catch (error) {
       console.error('Failed to fetch reports:', error);
     } finally {
@@ -72,7 +57,7 @@ const ToiletReports = () => {
     );
   }
 
-  const inspectionRate = stats.totalInspections > 0 
+  const inspectionRate = stats.totalInspections > 0
     ? ((stats.passedInspections / stats.totalInspections) * 100).toFixed(1)
     : 0;
 
@@ -183,8 +168,8 @@ const ToiletReports = () => {
                 <span className="font-medium">{stats.totalInspections}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-primary-600 h-2 rounded-full" 
+                <div
+                  className="bg-primary-600 h-2 rounded-full"
                   style={{ width: '100%' }}
                 ></div>
               </div>
@@ -195,8 +180,8 @@ const ToiletReports = () => {
                 <span className="font-medium text-green-600">{stats.passedInspections}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-green-600 h-2 rounded-full" 
+                <div
+                  className="bg-green-600 h-2 rounded-full"
                   style={{ width: `${inspectionRate}%` }}
                 ></div>
               </div>
@@ -207,8 +192,8 @@ const ToiletReports = () => {
                 <span className="font-medium text-red-600">{stats.failedInspections}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-red-600 h-2 rounded-full" 
+                <div
+                  className="bg-red-600 h-2 rounded-full"
                   style={{ width: `${100 - inspectionRate}%` }}
                 ></div>
               </div>
@@ -226,8 +211,8 @@ const ToiletReports = () => {
                 <span className="font-medium">{stats.totalComplaints}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-primary-600 h-2 rounded-full" 
+                <div
+                  className="bg-primary-600 h-2 rounded-full"
                   style={{ width: '100%' }}
                 ></div>
               </div>
@@ -238,8 +223,8 @@ const ToiletReports = () => {
                 <span className="font-medium text-green-600">{stats.resolvedComplaints}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-green-600 h-2 rounded-full" 
+                <div
+                  className="bg-green-600 h-2 rounded-full"
                   style={{ width: `${complaintResolutionRate}%` }}
                 ></div>
               </div>
@@ -250,8 +235,8 @@ const ToiletReports = () => {
                 <span className="font-medium text-yellow-600">{stats.pendingComplaints}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-yellow-600 h-2 rounded-full" 
+                <div
+                  className="bg-yellow-600 h-2 rounded-full"
                   style={{ width: `${100 - complaintResolutionRate}%` }}
                 ></div>
               </div>

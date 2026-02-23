@@ -98,6 +98,13 @@ import waterPaymentRoutes from "./routes/waterPayment.routes.js";
 import waterDashboardRoutes from "./routes/waterDashboard.routes.js";
 import waterTaxAssessmentRoutes from "./routes/waterTaxAssessment.routes.js";
 import waterConnectionDocumentRoutes from "./routes/waterConnectionDocument.routes.js";
+import toiletRoutes from "./routes/toilet.routes.js";
+import mrfRoutes from "./routes/mrf.routes.js";
+import gauShalaRoutes from "./routes/gauShala.routes.js";
+import inventoryRoutes from "./routes/inventory.routes.js";
+import utilityRoutes from "./routes/utility.routes.js";
+import feedbackRoutes from "./routes/feedback.routes.js";
+
 import waterConnectionRequestRoutes from "./routes/waterConnectionRequest.routes.js";
 import propertyApplicationRoutes from "./routes/propertyApplication.routes.js";
 import shopRoutes from "./routes/shop.routes.js";
@@ -160,6 +167,13 @@ app.use("/api/officer", officerRoutes);
 app.use("/api/admin-management", adminManagementRoutes);
 app.use("/api/employee-auth", employeeAuthRoutes);
 app.use("/api/d2dc", d2dcRoutes);
+app.use("/api/toilet", toiletRoutes);
+app.use("/api/mrf", mrfRoutes);
+app.use("/api/gaushala", gauShalaRoutes);
+app.use("/api/inventory", inventoryRoutes);
+app.use("/api/utilities", utilityRoutes);
+app.use("/api/feedback", feedbackRoutes);
+
 
 // Serve uploaded files statically
 const __filename = fileURLToPath(import.meta.url);

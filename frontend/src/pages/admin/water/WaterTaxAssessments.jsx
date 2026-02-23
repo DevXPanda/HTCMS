@@ -10,8 +10,6 @@ const WaterTaxAssessments = () => {
   const [assessments, setAssessments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     status: '',
@@ -21,20 +19,18 @@ const WaterTaxAssessments = () => {
 
   useEffect(() => {
     fetchAssessments();
-  }, [page, search, filters]);
+  }, [search, filters]);
 
   const fetchAssessments = async () => {
     try {
       setLoading(true);
       const params = {
-        page,
         search,
-        limit: 10,
+        limit: 10000,
         ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''))
       };
       const response = await waterTaxAssessmentAPI.getAll(params);
       setAssessments(response.data.data.assessments);
-      setPagination(response.data.data.pagination);
     } catch (error) {
       toast.error('Failed to fetch water tax assessments');
     } finally {
@@ -44,7 +40,6 @@ const WaterTaxAssessments = () => {
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
-    setPage(1);
   };
 
   const clearFilters = () => {
@@ -53,7 +48,6 @@ const WaterTaxAssessments = () => {
       assessmentYear: '',
       assessmentType: ''
     });
-    setPage(1);
   };
 
   const getStatusBadge = (status) => {
@@ -112,7 +106,7 @@ const WaterTaxAssessments = () => {
       </div>
 
       {/* Search */}
-      <form onSubmit={(e) => { e.preventDefault(); setPage(1); fetchAssessments(); }} className="mb-6">
+      <form onSubmit={(e) => { e.preventDefault(); fetchAssessments(); }} className="mb-6">
         <div className="flex gap-2">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -214,8 +208,8 @@ const WaterTaxAssessments = () => {
                   <td className="font-medium">{assessment.assessmentNumber}</td>
                   <td>
                     {assessment.property ? (
-                      <Link 
-                        to={`/properties/${assessment.propertyId}`} 
+                      <Link
+                        to={`/properties/${assessment.propertyId}`}
                         className="text-primary-600 hover:underline"
                       >
                         {assessment.property.propertyNumber}
@@ -226,8 +220,8 @@ const WaterTaxAssessments = () => {
                   </td>
                   <td>
                     {assessment.waterConnection ? (
-                      <Link 
-                        to={`/water/connections?propertyId=${assessment.propertyId}`} 
+                      <Link
+                        to={`/water/connections?propertyId=${assessment.propertyId}`}
                         className="text-primary-600 hover:underline"
                       >
                         {assessment.waterConnection.connectionNumber}
@@ -249,8 +243,8 @@ const WaterTaxAssessments = () => {
                     </span>
                   </td>
                   <td>
-                    {assessment.assessor ? 
-                      `${assessment.assessor.firstName} ${assessment.assessor.lastName}` : 
+                    {assessment.assessor ?
+                      `${assessment.assessor.firstName} ${assessment.assessor.lastName}` :
                       'N/A'}
                   </td>
                   <td>
@@ -269,28 +263,7 @@ const WaterTaxAssessments = () => {
         </table>
       </div>
 
-      {/* Pagination */}
-      {pagination && pagination.pages > 1 && (
-        <div className="flex justify-center items-center space-x-2 mt-6">
-          <button
-            onClick={() => setPage(page - 1)}
-            disabled={page === 1}
-            className="btn btn-secondary"
-          >
-            Previous
-          </button>
-          <span className="text-gray-600">
-            Page {pagination.page} of {pagination.pages}
-          </span>
-          <button
-            onClick={() => setPage(page + 1)}
-            disabled={page === pagination.pages}
-            className="btn btn-secondary"
-          >
-            Next
-          </button>
-        </div>
-      )}
+      {/* Pagination removed */}
     </div>
   );
 };

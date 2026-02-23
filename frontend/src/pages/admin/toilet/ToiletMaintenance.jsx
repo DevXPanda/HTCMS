@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  Wrench, 
-  Plus, 
-  Search, 
-  Filter, 
-  CheckCircle, 
+import {
+  Wrench,
+  Plus,
+  Search,
+  Filter,
+  CheckCircle,
   Clock,
   Calendar,
   Eye
@@ -25,49 +25,15 @@ const ToiletMaintenance = () => {
   const fetchMaintenance = async () => {
     try {
       setLoading(true);
-      // TODO: Replace with actual API endpoint
-      // const response = await api.get('/toilet-management/maintenance');
-      // setMaintenance(response.data);
-      
-      // Mock data
-      setMaintenance([
-        {
-          id: 1,
-          toiletId: 1,
-          toiletName: 'Public Toilet - Ward 1',
-          type: 'Routine Cleaning',
-          scheduledDate: '2026-02-20',
-          completedDate: null,
-          staff: 'John Doe',
-          status: 'scheduled',
-          notes: 'Deep cleaning scheduled',
-          priority: 'normal'
-        },
-        {
-          id: 2,
-          toiletId: 2,
-          toiletName: 'Community Toilet - Ward 2',
-          type: 'Repair',
-          scheduledDate: '2026-02-18',
-          completedDate: '2026-02-18',
-          staff: 'Jane Smith',
-          status: 'completed',
-          notes: 'Water tap replacement completed',
-          priority: 'high'
-        },
-        {
-          id: 3,
-          toiletId: 1,
-          toiletName: 'Public Toilet - Ward 1',
-          type: 'Preventive Maintenance',
-          scheduledDate: '2026-02-10',
-          completedDate: '2026-02-10',
-          staff: 'John Doe',
-          status: 'completed',
-          notes: 'All systems checked and working',
-          priority: 'normal'
-        }
-      ]);
+      const response = await api.get('/toilet/maintenance');
+      if (response.data && response.data.success) {
+        const formattedData = response.data.data.maintenanceRecords.map(m => ({
+          ...m,
+          toiletName: m.facility ? m.facility.name : 'N/A',
+          staff: m.staff ? m.staff.full_name : 'N/A'
+        }));
+        setMaintenance(formattedData);
+      }
     } catch (error) {
       console.error('Failed to fetch maintenance:', error);
     } finally {
@@ -76,11 +42,11 @@ const ToiletMaintenance = () => {
   };
 
   const filteredMaintenance = maintenance.filter(item => {
-    const matchesSearch = 
+    const matchesSearch =
       item.toiletName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.staff.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus = filterStatus === 'all' || item.status === filterStatus;
 
     return matchesSearch && matchesStatus;
@@ -93,10 +59,10 @@ const ToiletMaintenance = () => {
       completed: { color: 'bg-green-100 text-green-800', icon: CheckCircle },
       cancelled: { color: 'bg-red-100 text-red-800', icon: Clock }
     };
-    
+
     const config = statusConfig[status] || statusConfig.scheduled;
     const Icon = config.icon;
-    
+
     return (
       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
         <Icon className="w-3 h-3 mr-1" />
@@ -143,7 +109,7 @@ const ToiletMaintenance = () => {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
-          
+
           <div className="relative">
             <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <select
@@ -214,8 +180,8 @@ const ToiletMaintenance = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {item.completedDate 
-                          ? new Date(item.completedDate).toLocaleDateString() 
+                        {item.completedDate
+                          ? new Date(item.completedDate).toLocaleDateString()
                           : '-'}
                       </div>
                     </td>

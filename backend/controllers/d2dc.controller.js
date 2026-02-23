@@ -1,6 +1,7 @@
 import { D2DCRecord, Demand, Payment, Property, User, Ward, AdminManagement } from '../models/index.js';
 import { Op } from 'sequelize';
 import { sequelize } from '../config/database.js';
+import { generateD2DCId } from '../services/uniqueIdService.js';
 
 /**
  * @route   GET /api/d2dc/collector/stats
@@ -384,8 +385,7 @@ export const generateD2DCDemand = async (req, res, next) => {
         const financialYear = month >= 3 ? `${year}-${year + 1}` : `${year - 1}-${year}`;
 
         // Generate demand number
-        const demandCount = await Demand.count({ where: { serviceType: 'D2DC' } });
-        const demandNumber = `D2DC-${year}-${String(demandCount + 1).padStart(5, '0')}`;
+        const demandNumber = await generateD2DCId(property.wardId);
 
         // Create demand
         const demand = await Demand.create({

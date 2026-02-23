@@ -220,37 +220,17 @@ export const getPaymentById = async (req, res, next) => {
 };
 
 /**
- * Generate unique payment number using sequence-based approach
+ * Generate unique payment number using centralized service
  */
-const generatePaymentNumber = async (transaction = null) => {
-  const year = new Date().getFullYear();
-  const count = await Payment.count({
-    where: {
-      paymentNumber: {
-        [Op.like]: `PAY-${year}-%`
-      }
-    },
-    transaction
-  });
-  const sequence = String(count + 1).padStart(6, '0');
-  return `PAY-${year}-${sequence}`;
+const generatePaymentNumber = async (wardId, transaction = null) => {
+  return await generatePaymentId(wardId, false, transaction);
 };
 
 /**
- * Generate unique receipt number using sequence-based approach
+ * Generate unique receipt number using centralized service
  */
-const generateReceiptNumber = async (transaction = null) => {
-  const year = new Date().getFullYear();
-  const count = await Payment.count({
-    where: {
-      receiptNumber: {
-        [Op.like]: `RCP-${year}-%`
-      }
-    },
-    transaction
-  });
-  const sequence = String(count + 1).padStart(6, '0');
-  return `RCP-${year}-${sequence}`;
+const generateReceiptNumber = async (wardId, transaction = null) => {
+  return await generatePaymentId(wardId, true, transaction);
 };
 
 /**
@@ -260,7 +240,7 @@ const generateReceiptNumber = async (transaction = null) => {
  */
 export const createPayment = async (req, res, next) => {
   const transaction = await sequelize.transaction();
-  
+
   try {
     const {
       demandId,
@@ -362,9 +342,10 @@ export const createPayment = async (req, res, next) => {
       });
     }
 
-    // Generate payment number and receipt number using sequence-based approach
-    const paymentNumber = await generatePaymentNumber(transaction);
-    const receiptNumber = await generateReceiptNumber(transaction);
+    // Generate payment number and receipt number using structured ward-based approach
+    const wardId = demand.wardId || demand.property?.wardId;
+    const paymentNumber = await generatePaymentNumber(wardId, transaction);
+    const receiptNumber = await generateReceiptNumber(wardId, transaction);
 
     // Create payment within transaction
     const payment = await Payment.create({
@@ -526,7 +507,7 @@ export const createPayment = async (req, res, next) => {
   } catch (error) {
     // Rollback transaction on error
     await transaction.rollback();
-    
+
     // Handle specific error types
     if (error.name === 'SequelizeUniqueConstraintError') {
       return res.status(400).json({
@@ -534,14 +515,14 @@ export const createPayment = async (req, res, next) => {
         message: 'Payment number or receipt number already exists. Please try again.'
       });
     }
-    
+
     if (error.name === 'SequelizeDatabaseError' && error.message.includes('lock')) {
       return res.status(409).json({
         success: false,
         message: 'Payment processing conflict. Another payment is being processed for this demand. Please try again.'
       });
     }
-    
+
     next(error);
   }
 };
@@ -770,8 +751,9 @@ export const createOnlinePaymentOrder = async (req, res, next) => {
 
     const order = await razorpay.orders.create(options);
 
-    // Create pending payment record with sequence-based payment number
-    const paymentNumber = await generatePaymentNumber();
+    // Create pending payment record with structured payment number
+    const wardId = demand.wardId || demand.property?.wardId;
+    const paymentNumber = await generatePaymentNumber(wardId);
     const payment = await Payment.create({
       paymentNumber,
       demandId,
@@ -808,7 +790,7 @@ export const createOnlinePaymentOrder = async (req, res, next) => {
  */
 export const verifyOnlinePayment = async (req, res, next) => {
   const transaction = await sequelize.transaction();
-  
+
   try {
     // Check if Razorpay is configured
     if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
@@ -916,7 +898,8 @@ export const verifyOnlinePayment = async (req, res, next) => {
     }
 
     // Payment verified successfully - update payment record
-    const receiptNumber = await generateReceiptNumber(transaction);
+    const wardId = demand.wardId || demand.property?.wardId;
+    const receiptNumber = await generateReceiptNumber(wardId, transaction);
     payment.status = 'completed';
     payment.razorpayPaymentId = razorpayPaymentId;
     payment.razorpaySignature = razorpaySignature;
@@ -1012,7 +995,7 @@ export const verifyOnlinePayment = async (req, res, next) => {
   } catch (error) {
     // Rollback transaction on error
     await transaction.rollback();
-    
+
     // Handle specific error types
     if (error.name === 'SequelizeUniqueConstraintError') {
       return res.status(400).json({
@@ -1020,14 +1003,14 @@ export const verifyOnlinePayment = async (req, res, next) => {
         message: 'Receipt number already exists. Please try again.'
       });
     }
-    
+
     if (error.name === 'SequelizeDatabaseError' && error.message.includes('lock')) {
       return res.status(409).json({
         success: false,
         message: 'Payment processing conflict. Another payment is being processed. Please try again.'
       });
     }
-    
+
     console.error('Payment verification error:', error);
     next(error);
   }
@@ -1096,7 +1079,7 @@ export const generateReceiptPdf = async (req, res, next) => {
  */
 export const createFieldCollectionPayment = async (req, res, next) => {
   const transaction = await sequelize.transaction();
-  
+
   try {
     const {
       demandId,
@@ -1391,7 +1374,7 @@ export const createFieldCollectionPayment = async (req, res, next) => {
   } catch (error) {
     // Rollback transaction on error
     await transaction.rollback();
-    
+
     // Handle specific error types
     if (error.name === 'SequelizeUniqueConstraintError') {
       return res.status(400).json({
@@ -1399,14 +1382,14 @@ export const createFieldCollectionPayment = async (req, res, next) => {
         message: 'Payment number or receipt number already exists. Please try again.'
       });
     }
-    
+
     if (error.name === 'SequelizeDatabaseError' && error.message.includes('lock')) {
       return res.status(409).json({
         success: false,
         message: 'Payment processing conflict. Another payment is being processed for this demand. Please try again.'
       });
     }
-    
+
     next(error);
   }
 };

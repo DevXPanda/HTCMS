@@ -3,36 +3,20 @@ import { Op } from 'sequelize';
 import { sequelize } from '../config/database.js';
 import { WATER_BILL_STATUS, WATER_PAYMENT_STATUS, getUnpaidBillStatuses, isSuccessfulPaymentStatus } from '../constants/waterTaxStatuses.js';
 
+import { generatePaymentId } from '../services/uniqueIdService.js';
+
 /**
  * Generate unique payment number
  */
-const generatePaymentNumber = async () => {
-  const year = new Date().getFullYear();
-  const count = await WaterPayment.count({
-    where: {
-      paymentNumber: {
-        [Op.like]: `WP-${year}-%`
-      }
-    }
-  });
-  const sequence = String(count + 1).padStart(6, '0');
-  return `WP-${year}-${sequence}`;
+const generatePaymentNumber = async (wardId, transaction = null) => {
+  return await generatePaymentId(wardId, false, transaction, 'water');
 };
 
 /**
  * Generate unique receipt number
  */
-const generateReceiptNumber = async () => {
-  const year = new Date().getFullYear();
-  const count = await WaterPayment.count({
-    where: {
-      receiptNumber: {
-        [Op.like]: `WRCP-${year}-%`
-      }
-    }
-  });
-  const sequence = String(count + 1).padStart(6, '0');
-  return `WRCP-${year}-${sequence}`;
+const generateReceiptNumber = async (wardId, transaction = null) => {
+  return await generatePaymentId(wardId, true, transaction, 'water');
 };
 
 /**
@@ -42,7 +26,7 @@ const generateReceiptNumber = async () => {
  */
 export const createWaterPayment = async (req, res, next) => {
   const transaction = await sequelize.transaction();
-  
+
   try {
     // Support both snake_case and camelCase
     const {
@@ -157,8 +141,9 @@ export const createWaterPayment = async (req, res, next) => {
     }
 
     // Generate payment and receipt numbers
-    const paymentNumber = await generatePaymentNumber();
-    const receiptNumber = await generateReceiptNumber();
+    const wardId = waterBill.waterConnection?.property?.wardId;
+    const paymentNumber = await generatePaymentNumber(wardId, transaction);
+    const receiptNumber = await generateReceiptNumber(wardId, transaction);
 
     // Create water payment
     const waterPayment = await WaterPayment.create({
@@ -181,7 +166,7 @@ export const createWaterPayment = async (req, res, next) => {
     // Update bill - calculate new paid and balance amounts
     const currentPaidAmount = parseFloat(waterBill.paidAmount) || 0;
     const totalAmount = parseFloat(waterBill.totalAmount) || 0;
-    
+
     const newPaidAmount = Math.round((currentPaidAmount + paymentAmount) * 100) / 100;
     const newBalanceAmount = Math.round((totalAmount - newPaidAmount) * 100) / 100;
 
@@ -232,7 +217,7 @@ export const createWaterPayment = async (req, res, next) => {
     res.status(201).json({
       success: true,
       message: 'Water payment processed successfully',
-      data: { 
+      data: {
         waterPayment: createdPayment,
         billStatus: waterBill.status,
         remainingBalance: newBalanceAmount
@@ -240,7 +225,7 @@ export const createWaterPayment = async (req, res, next) => {
     });
   } catch (error) {
     await transaction.rollback();
-    
+
     // Handle unique constraint violation
     if (error.name === 'SequelizeUniqueConstraintError') {
       return res.status(400).json({
