@@ -91,8 +91,21 @@ const ToiletManagementModule = () => {
             </div>
 
             {/* Summary Stats */}
-            {!loading && stats && (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
+                {loading || !stats ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                        <div key={i} className="bg-white rounded-lg shadow p-4 border-l-4 border-gray-200 animate-pulse">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-2">
+                                    <div className="h-3 w-20 bg-gray-200 rounded"></div>
+                                    <div className="h-6 w-16 bg-gray-200 rounded"></div>
+                                </div>
+                                <div className="h-5 w-5 bg-gray-200 rounded"></div>
+                            </div>
+                            <div className="h-3 w-24 bg-gray-200 rounded mt-2"></div>
+                        </div>
+                    ))
+                ) : (<>
                     <div className="bg-white rounded-lg shadow p-4 border-l-4 border-pink-500">
                         <div className="flex items-center justify-between">
                             <div>
@@ -147,8 +160,8 @@ const ToiletManagementModule = () => {
                         </div>
                         <p className="text-xs text-gray-500 mt-1">average rating</p>
                     </div>
-                </div>
-            )}
+                </>)}
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {modules.map((module, index) => (
