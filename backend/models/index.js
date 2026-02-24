@@ -409,7 +409,7 @@ GauShalaCattle.belongsTo(GauShalaFacility, { foreignKey: 'gau_shala_facility_id'
 GauShalaComplaint.belongsTo(GauShalaFacility, { foreignKey: 'gau_shala_facility_id', as: 'facility' });
 GauShalaFeedingRecord.belongsTo(GauShalaFacility, { foreignKey: 'gau_shala_facility_id', as: 'facility' });
 GauShalaInspection.belongsTo(GauShalaFacility, { foreignKey: 'gau_shala_facility_id', as: 'facility' });
-GauShalaInspection.belongsTo(User, { foreignKey: 'inspector_id', as: 'inspector' });
+GauShalaInspection.belongsTo(AdminManagement, { foreignKey: 'inspector_id', as: 'inspector' });
 
 Ward.hasMany(GauShalaFacility, { foreignKey: 'ward_id', as: 'gauShalaFacilities' });
 

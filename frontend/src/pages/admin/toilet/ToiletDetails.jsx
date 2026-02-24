@@ -16,10 +16,12 @@ import {
   UserPlus,
   PlusCircle
 } from 'lucide-react';
+import { useBackTo } from '../../../contexts/NavigationContext';
 import api from '../../../services/api';
 
 const ToiletDetails = () => {
   const { id } = useParams();
+  useBackTo('/toilet-management/facilities');
   const [toilet, setToilet] = useState(null);
   const [loading, setLoading] = useState(true);
   const [inspections, setInspections] = useState([]);
@@ -115,17 +117,9 @@ const ToiletDetails = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex items-center gap-4">
-          <Link
-            to="/toilet-management/facilities"
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{toilet.name}</h1>
-            <p className="text-gray-600 text-sm">{toilet.location}</p>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">{toilet.name}</h1>
+          <p className="text-gray-600 text-sm">{toilet.location}</p>
         </div>
         <Link
           to={`/toilet-management/facilities/${id}/edit`}

@@ -1,8 +1,27 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Droplet, FileText, Receipt, ClipboardList, CreditCard, PlusCircle } from 'lucide-react';
+import { Droplet, FileText, Receipt, ClipboardList, CreditCard, PlusCircle, TrendingUp, AlertCircle } from 'lucide-react';
+import api from '../../services/api';
 
 const WaterTaxModule = () => {
+    const [stats, setStats] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => { fetchStats(); }, []);
+
+    const fetchStats = async () => {
+        try {
+            const response = await api.get('/reports/dashboard');
+            if (response.data && response.data.success) {
+                setStats(response.data.data);
+            }
+        } catch (error) {
+            console.error('Failed to fetch water tax stats:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const modules = [
         {
             title: 'Water Connections',
@@ -48,6 +67,8 @@ const WaterTaxModule = () => {
         }
     ];
 
+    const fmtCur = (val) => '₹' + parseFloat(val || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -56,6 +77,56 @@ const WaterTaxModule = () => {
                     <p className="text-gray-600">Manage all water tax related activities</p>
                 </div>
             </div>
+
+            {/* Summary Stats */}
+            {!loading && stats && (
+                <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-4">
+                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-cyan-500">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs text-gray-500 uppercase font-medium">Connections</p>
+                                <p className="text-xl font-bold text-gray-900">{(stats.totalWaterConnections || 0).toLocaleString()}</p>
+                            </div>
+                            <Droplet className="w-5 h-5 text-cyan-500" />
+                        </div>
+                        <p className="text-xs text-green-600 mt-1">active connections</p>
+                    </div>
+                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs text-gray-500 uppercase font-medium">Revenue</p>
+                                <p className="text-xl font-bold text-green-600">{fmtCur(stats.totalWaterRevenue)}</p>
+                            </div>
+                            <TrendingUp className="w-5 h-5 text-green-500" />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">total collected</p>
+                    </div>
+                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs text-gray-500 uppercase font-medium">Outstanding</p>
+                                <p className="text-xl font-bold text-red-600">{fmtCur(stats.waterOutstanding)}</p>
+                            </div>
+                            <AlertCircle className="w-5 h-5 text-red-500" />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">unpaid bills</p>
+                    </div>
+                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-purple-500">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs text-gray-500 uppercase font-medium">Collection Rate</p>
+                                <p className="text-xl font-bold text-purple-600">
+                                    {(parseFloat(stats.totalWaterRevenue || 0) + parseFloat(stats.waterOutstanding || 0)) > 0
+                                        ? ((parseFloat(stats.totalWaterRevenue || 0) / (parseFloat(stats.totalWaterRevenue || 0) + parseFloat(stats.waterOutstanding || 0))) * 100).toFixed(1)
+                                        : 0}%
+                                </p>
+                            </div>
+                            <CreditCard className="w-5 h-5 text-purple-500" />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">revenue vs outstanding</p>
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {modules.map((module, index) => (

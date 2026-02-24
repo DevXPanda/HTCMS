@@ -12,11 +12,13 @@ import {
     Camera,
     Edit
 } from 'lucide-react';
+import { useBackTo } from '../../../contexts/NavigationContext';
 import api from '../../../services/api';
 
 const InspectionDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    useBackTo('/toilet-management/inspections');
     const [inspection, setInspection] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -82,14 +84,9 @@ const InspectionDetails = () => {
         <div className="space-y-6 max-w-5xl mx-auto">
             {/* Header */}
             <div className="flex justify-between items-center">
-                <div className="flex items-center gap-4">
-                    <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                        <ArrowLeft className="w-5 h-5" />
-                    </button>
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Inspection Report</h1>
-                        <p className="text-gray-500 text-sm">Reviewing audit as of {new Date(inspection.inspectionDate).toLocaleDateString()}</p>
-                    </div>
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Inspection Report</h1>
+                    <p className="text-gray-500 text-sm">Reviewing audit as of {new Date(inspection.inspectionDate).toLocaleDateString()}</p>
                 </div>
                 <Link
                     to={`/toilet-management/inspections/${inspection.id}/edit`}

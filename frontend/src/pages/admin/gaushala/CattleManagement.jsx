@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useBackTo } from '../../../contexts/NavigationContext';
 import {
-    ArrowLeft,
     Search,
     Plus,
     Filter,
@@ -19,6 +19,7 @@ import api from '../../../services/api';
 const CattleManagement = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    useBackTo(`/gaushala/facilities/${id}`);
     const [cattle, setCattle] = useState([]);
     const [facility, setFacility] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -119,14 +120,9 @@ const CattleManagement = () => {
     return (
         <div className="space-y-6 max-w-6xl mx-auto">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div className="flex items-center gap-4">
-                    <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-gray-600">
-                        <ArrowLeft className="w-5 h-5" />
-                    </button>
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Cattle Management</h1>
-                        <p className="text-gray-500 text-sm">{facility?.name}</p>
-                    </div>
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Cattle Management</h1>
+                    <p className="text-gray-500 text-sm">{facility?.name}</p>
                 </div>
                 <button
                     onClick={() => { setEditingAnimal(null); setShowAddModal(true); }}
@@ -186,10 +182,10 @@ const CattleManagement = () => {
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${animal.health_status === 'healthy'
-                                                    ? 'bg-green-50 text-green-700 border-green-100'
-                                                    : animal.health_status === 'sick'
-                                                        ? 'bg-red-50 text-red-700 border-red-100'
-                                                        : 'bg-yellow-50 text-yellow-700 border-yellow-100'
+                                                ? 'bg-green-50 text-green-700 border-green-100'
+                                                : animal.health_status === 'sick'
+                                                    ? 'bg-red-50 text-red-700 border-red-100'
+                                                    : 'bg-yellow-50 text-yellow-700 border-yellow-100'
                                                 }`}>
                                                 {animal.health_status}
                                             </span>
@@ -294,8 +290,8 @@ const CattleManagement = () => {
                                             type="button"
                                             onClick={() => setFormData(prev => ({ ...prev, health_status: s }))}
                                             className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded-lg border transition-all ${formData.health_status === s
-                                                    ? 'bg-primary-600 border-primary-600 text-white shadow-lg shadow-primary-200'
-                                                    : 'bg-white border-gray-100 text-gray-500 hover:border-primary-200'
+                                                ? 'bg-primary-600 border-primary-600 text-white shadow-lg shadow-primary-200'
+                                                : 'bg-white border-gray-100 text-gray-500 hover:border-primary-200'
                                                 }`}
                                         >
                                             {s}

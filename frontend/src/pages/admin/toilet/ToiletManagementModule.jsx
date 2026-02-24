@@ -1,19 +1,41 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  Bath, 
-  MapPin, 
-  ClipboardCheck, 
-  AlertCircle, 
-  Wrench, 
-  BarChart3, 
-  Users,
-  PlusCircle,
-  FileText,
-  Calendar
+import { useBackTo } from '../../../contexts/NavigationContext';
+import {
+    Bath,
+    MapPin,
+    ClipboardCheck,
+    AlertCircle,
+    Wrench,
+    BarChart3,
+    Users,
+    PlusCircle,
+    FileText,
+    Calendar,
+    CheckCircle
 } from 'lucide-react';
+import api from '../../../services/api';
 
 const ToiletManagementModule = () => {
+    useBackTo('/dashboard');
+    const [stats, setStats] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => { fetchStats(); }, []);
+
+    const fetchStats = async () => {
+        try {
+            const response = await api.get('/toilet/reports/stats');
+            if (response.data && response.data.success) {
+                setStats(response.data.data);
+            }
+        } catch (error) {
+            console.error('Failed to fetch toilet stats:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const modules = [
         {
             title: 'Toilet Facilities',
@@ -68,6 +90,66 @@ const ToiletManagementModule = () => {
                 </div>
             </div>
 
+            {/* Summary Stats */}
+            {!loading && stats && (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
+                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-pink-500">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs text-gray-500 uppercase font-medium">Facilities</p>
+                                <p className="text-xl font-bold text-gray-900">{stats.totalFacilities || 0}</p>
+                            </div>
+                            <Bath className="w-5 h-5 text-pink-500" />
+                        </div>
+                        <p className="text-xs text-green-600 mt-1">{stats.activeFacilities || 0} operational</p>
+                    </div>
+                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs text-gray-500 uppercase font-medium">Inspections</p>
+                                <p className="text-xl font-bold text-gray-900">{stats.totalInspections || 0}</p>
+                            </div>
+                            <ClipboardCheck className="w-5 h-5 text-blue-500" />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">total conducted</p>
+                    </div>
+                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs text-gray-500 uppercase font-medium">Complaints</p>
+                                <p className="text-xl font-bold text-gray-900">{stats.activeComplaints || stats.pendingComplaints || 0}</p>
+                            </div>
+                            <AlertCircle className="w-5 h-5 text-red-500" />
+                        </div>
+                        <p className="text-xs text-red-600 mt-1">pending resolution</p>
+                    </div>
+                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-orange-500">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs text-gray-500 uppercase font-medium">Maintenance</p>
+                                <p className="text-xl font-bold text-gray-900">{stats.totalMaintenance || stats.maintenanceRecords || 0}</p>
+                            </div>
+                            <Wrench className="w-5 h-5 text-orange-500" />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">records logged</p>
+                    </div>
+                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs text-gray-500 uppercase font-medium">Hygiene Score</p>
+                                <p className="text-xl font-bold text-green-600">
+                                    {stats.avgHygieneScore || stats.averageRating
+                                        ? parseFloat(stats.avgHygieneScore || stats.averageRating || 0).toFixed(1)
+                                        : 'N/A'}
+                                </p>
+                            </div>
+                            <CheckCircle className="w-5 h-5 text-green-500" />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">average rating</p>
+                    </div>
+                </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {modules.map((module, index) => (
                     <Link
@@ -91,20 +173,20 @@ const ToiletManagementModule = () => {
             <div className="bg-white rounded-lg shadow p-6 mt-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
                 <div className="flex flex-wrap gap-4">
-                    <Link 
-                        to="/toilet-management/facilities/new" 
+                    <Link
+                        to="/toilet-management/facilities/new"
                         className="btn btn-primary flex items-center"
                     >
                         <PlusCircle className="h-4 w-4 mr-2" /> Add New Toilet Facility
                     </Link>
-                    <Link 
-                        to="/toilet-management/inspections/new" 
+                    <Link
+                        to="/toilet-management/inspections/new"
                         className="btn btn-secondary flex items-center"
                     >
                         <ClipboardCheck className="h-4 w-4 mr-2" /> Schedule Inspection
                     </Link>
-                    <Link 
-                        to="/toilet-management/maintenance/new" 
+                    <Link
+                        to="/toilet-management/maintenance/new"
                         className="btn btn-secondary flex items-center"
                     >
                         <Wrench className="h-4 w-4 mr-2" /> Schedule Maintenance

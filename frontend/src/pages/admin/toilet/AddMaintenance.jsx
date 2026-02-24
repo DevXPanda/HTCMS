@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
-import { ArrowLeft, Save, Clock, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { useBackTo } from '../../../contexts/NavigationContext';
+import { Save, Clock, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import api from '../../../services/api';
 
 const AddMaintenance = () => {
@@ -8,6 +9,7 @@ const AddMaintenance = () => {
     const { id } = useParams();
     const [searchParams] = useSearchParams();
     const preSelectedFacilityId = searchParams.get('facilityId');
+    useBackTo('/toilet-management/maintenance');
 
     const isEditMode = !!id;
     const [facilities, setFacilities] = useState([]);
@@ -113,16 +115,11 @@ const AddMaintenance = () => {
 
     return (
         <div className="space-y-6 max-w-4xl mx-auto">
-            <div className="flex items-center gap-4">
-                <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                    <ArrowLeft className="w-5 h-5" />
-                </button>
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">
-                        {isEditMode ? 'Edit Maintenance Record' : 'Schedule Maintenance'}
-                    </h1>
-                    <p className="text-gray-600 text-sm">Manage repairs and routine maintenance for toilet facilities</p>
-                </div>
+            <div>
+                <h1 className="text-2xl font-bold text-gray-900">
+                    {isEditMode ? 'Edit Maintenance Record' : 'Schedule Maintenance'}
+                </h1>
+                <p className="text-gray-600 text-sm">Manage repairs and routine maintenance for toilet facilities</p>
             </div>
 
             <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

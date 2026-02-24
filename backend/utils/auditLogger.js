@@ -73,12 +73,22 @@ const validateEnumValue = (value, validValues, fieldName) => {
 /**
  * Valid entity types (must match AuditLog model)
  */
-const VALID_ENTITY_TYPES = ['User', 'Property', 'Assessment', 'Demand', 'Payment', 'Ward', 'Notice', 'Attendance', 'FieldVisit', 'FollowUp', 'CollectorTask', 'PropertyApplication', 'WaterConnectionRequest', 'D2DC', 'ShopRegistrationRequest'];
+const VALID_ENTITY_TYPES = [
+  'User', 'Property', 'Assessment', 'Demand', 'Payment', 'Ward', 'Notice',
+  'Attendance', 'FieldVisit', 'FollowUp', 'CollectorTask', 'PropertyApplication',
+  'WaterConnectionRequest', 'D2DC', 'ShopRegistrationRequest',
+  'ToiletFacility', 'ToiletInspection', 'ToiletMaintenance', 'ToiletStaffAssignment', 'ToiletComplaint',
+  'MrfFacility', 'MrfSale',
+  'GauShalaFacility', 'GauShalaCattle', 'GauShalaComplaint', 'GauShalaFeedingRecord', 'GauShalaInspection', 'CattleMedicalRecord',
+  'Worker', 'WorkerAttendance', 'WorkerPayroll', 'WorkerTask',
+  'InventoryItem', 'InventoryTransaction', 'FacilityUtilityBill', 'CitizenFeedback',
+  'Alert', 'ULB', 'TaxDiscount', 'PenaltyWaiver'
+];
 
 /**
  * Valid action types (must match AuditLog model)
  */
-const VALID_ACTION_TYPES = ['CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'REJECT', 'PAY', 'LOGIN', 'LOGOUT', 'ASSIGN', 'ESCALATE', 'SEND', 'RESOLVE', 'PENALTY_APPLIED', 'RECEIPT_PDF_GENERATED', 'NOTICE_PDF_GENERATED', 'RECEIPT_PDF_DOWNLOADED', 'NOTICE_PDF_DOWNLOADED', 'FIELD_VISIT', 'FOLLOW_UP', 'TASK_GENERATED', 'TASK_COMPLETED', 'NOTICE_TRIGGERED', 'ENFORCEMENT_ELIGIBLE', 'VIEW', 'PAYMENT_COLLECTED'];
+const VALID_ACTION_TYPES = ['CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'REJECT', 'RETURN', 'PAY', 'LOGIN', 'LOGOUT', 'ASSIGN', 'ESCALATE', 'SEND', 'RESOLVE', 'PENALTY_APPLIED', 'RECEIPT_PDF_GENERATED', 'NOTICE_PDF_GENERATED', 'RECEIPT_PDF_DOWNLOADED', 'NOTICE_PDF_DOWNLOADED', 'FIELD_VISIT', 'FOLLOW_UP', 'TASK_GENERATED', 'TASK_COMPLETED', 'NOTICE_TRIGGERED', 'ENFORCEMENT_ELIGIBLE', 'VIEW', 'PAYMENT_COLLECTED'];
 
 export const createAuditLog = async ({
   req,

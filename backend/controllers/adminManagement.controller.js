@@ -10,22 +10,20 @@ export const getAllEmployees = async (req, res) => {
     const offset = (page - 1) * limit;
 
     // Build where clause - Only show staff roles (including field worker hierarchy)
-    // Normalize role to uppercase for comparison
-    const normalizedRole = role ? role.toUpperCase().replace(/-/g, '_') : role;
+    // Normalize role to uppercase for comparison, support multiple comma-separated roles
     const staffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR'];
+    let requestedRoles = [];
+    if (role) {
+      requestedRoles = role.toUpperCase().split(',').map(r => r.trim().replace(/-/g, '_'));
+      // Filter out non-staff roles
+      requestedRoles = requestedRoles.filter(r => staffRoles.includes(r));
+    }
+
     const whereClause = {
       role: {
-        [AdminManagement.sequelize.Sequelize.Op.in]: staffRoles
+        [AdminManagement.sequelize.Sequelize.Op.in]: requestedRoles.length > 0 ? requestedRoles : staffRoles
       }
     };
-
-    if (normalizedRole) {
-      if (staffRoles.includes(normalizedRole)) {
-        whereClause.role = normalizedRole;
-      } else {
-        return res.status(400).json({ message: 'Invalid staff role specified' });
-      }
-    }
     if (status) whereClause.status = status;
 
     // Add search functionality
@@ -111,12 +109,12 @@ export const getEmployeesByUlb = async (req, res) => {
 
     // Normalize role to uppercase
     const normalizedRole = role ? role.toUpperCase().replace(/-/g, '_') : role;
-    
+
     // Only allow fetching SUPERVISOR and CONTRACTOR roles for EO
     const allowedRoles = ['SUPERVISOR', 'CONTRACTOR'];
     if (normalizedRole && !allowedRoles.includes(normalizedRole)) {
-      return res.status(400).json({ 
-        message: `Invalid role. Only ${allowedRoles.join(' or ')} can be fetched by EO` 
+      return res.status(400).json({
+        message: `Invalid role. Only ${allowedRoles.join(' or ')} can be fetched by EO`
       });
     }
 
@@ -217,7 +215,7 @@ export const createEmployee = async (req, res) => {
       company_name,
       contact_details
     } = req.body;
-    
+
     // Normalize role to uppercase to match database CHECK constraint
     const role = rawRole ? rawRole.toUpperCase().replace(/-/g, '_') : rawRole;
 
@@ -244,7 +242,7 @@ export const createEmployee = async (req, res) => {
 
     // Determine ulb_id based on role and provided data
     let finalUlbId = ulb_id;
-    
+
     // For supervisor/field_worker, get ulb_id from ward if not provided
     if ((role === 'SUPERVISOR' || role === 'FIELD_WORKER') && ward_id && !finalUlbId) {
       const ward = await Ward.findByPk(ward_id, { attributes: ['id', 'ulb_id'] });
@@ -252,7 +250,7 @@ export const createEmployee = async (req, res) => {
         finalUlbId = ward.ulb_id;
       }
     }
-    
+
     // For EO, ulb_id is mandatory (already validated in middleware)
     // Validate that wards belong to the selected ULB
     if (ward_ids && ward_ids.length > 0 && finalUlbId && role === 'EO') {
@@ -260,13 +258,13 @@ export const createEmployee = async (req, res) => {
         where: { id: ward_ids },
         attributes: ['id', 'ulb_id']
       });
-      
+
       if (wards.length !== ward_ids.length) {
         return res.status(400).json({
           message: 'One or more ward IDs are invalid'
         });
       }
-      
+
       // Check that all wards belong to the selected ULB
       const invalidWards = wards.filter(w => w.ulb_id !== finalUlbId);
       if (invalidWards.length > 0) {
@@ -275,7 +273,7 @@ export const createEmployee = async (req, res) => {
         });
       }
     }
-    
+
     // Validate ward_id belongs to ULB if both are provided
     if (ward_id && finalUlbId) {
       const ward = await Ward.findByPk(ward_id, { attributes: ['id', 'ulb_id'] });
@@ -285,7 +283,7 @@ export const createEmployee = async (req, res) => {
         });
       }
     }
-    
+
     // Validate EO belongs to ULB if both are provided
     if (eo_id && finalUlbId) {
       const eo = await AdminManagement.findByPk(eo_id, { attributes: ['id', 'ulb_id', 'role'] });
@@ -406,7 +404,7 @@ export const updateEmployee = async (req, res) => {
       company_name,
       contact_details
     } = req.body;
-    
+
     // Normalize role to uppercase to match database CHECK constraint
     const role = rawRole ? rawRole.toUpperCase().replace(/-/g, '_') : rawRole;
 
@@ -449,7 +447,7 @@ export const updateEmployee = async (req, res) => {
     // Determine ulb_id based on role
     let finalUlbId = ulb_id;
     const currentRole = role || normalizedEmployeeRole;
-    
+
     // For SUPERVISOR and FIELD_WORKER, auto-select ULB from ward
     if ((currentRole === 'SUPERVISOR' || currentRole === 'FIELD_WORKER') && ward_id) {
       const ward = await Ward.findByPk(ward_id, { attributes: ['id', 'ulb_id'] });
@@ -461,17 +459,17 @@ export const updateEmployee = async (req, res) => {
       }
       finalUlbId = ward.ulb_id;
     }
-    
+
     // For EO, ulb_id is mandatory
     if (currentRole === 'EO' && !finalUlbId && !employee.ulb_id) {
       return res.status(400).json({ message: 'ULB is required for EO role' });
     }
-    
+
     // Use existing ulb_id if not provided
     if (!finalUlbId && employee.ulb_id) {
       finalUlbId = employee.ulb_id;
     }
-    
+
     // Validate ward IDs and check they belong to selected ULB
     if (ward_ids && ward_ids.length > 0) {
       const wards = await Ward.findAll({
@@ -484,7 +482,7 @@ export const updateEmployee = async (req, res) => {
           message: 'One or more ward IDs are invalid'
         });
       }
-      
+
       // If ULB is specified, validate all wards belong to it
       if (finalUlbId && currentRole === 'EO') {
         const invalidWards = wards.filter(w => w.ulb_id !== finalUlbId);
@@ -495,7 +493,7 @@ export const updateEmployee = async (req, res) => {
         }
       }
     }
-    
+
     // Validate ward_id belongs to ULB (for supervisor/field_worker)
     if (ward_id && finalUlbId) {
       const ward = await Ward.findByPk(ward_id, { attributes: ['id', 'ulb_id'] });
@@ -505,7 +503,7 @@ export const updateEmployee = async (req, res) => {
         });
       }
     }
-    
+
     // Validate EO belongs to selected ULB
     if (eo_id && finalUlbId) {
       const eo = await AdminManagement.findByPk(eo_id, { attributes: ['id', 'ulb_id', 'role'] });
@@ -625,11 +623,11 @@ export const getAvailableWards = async (req, res) => {
   try {
     const { ulb_id } = req.query;
     const whereClause = {};
-    
+
     if (ulb_id) {
       whereClause.ulb_id = ulb_id;
     }
-    
+
     const wards = await Ward.findAll({
       where: whereClause,
       attributes: ['id', 'wardNumber', 'wardName', 'ulb_id'],

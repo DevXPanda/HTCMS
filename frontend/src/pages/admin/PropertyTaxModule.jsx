@@ -1,8 +1,27 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Home, FileText, Receipt, Bell, CreditCard, PlusCircle } from 'lucide-react';
+import { Home, FileText, Receipt, Bell, CreditCard, PlusCircle, TrendingUp, AlertCircle, IndianRupee, CheckCircle } from 'lucide-react';
+import api from '../../services/api';
 
 const PropertyTaxModule = () => {
+    const [stats, setStats] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => { fetchStats(); }, []);
+
+    const fetchStats = async () => {
+        try {
+            const response = await api.get('/reports/dashboard');
+            if (response.data && response.data.success) {
+                setStats(response.data.data);
+            }
+        } catch (error) {
+            console.error('Failed to fetch property tax stats:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const modules = [
         {
             title: 'Properties',
@@ -41,6 +60,9 @@ const PropertyTaxModule = () => {
         }
     ];
 
+    const fmt = (val) => parseFloat(val || 0).toLocaleString('en-IN', { minimumFractionDigits: 0 });
+    const fmtCur = (val) => '₹' + parseFloat(val || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -49,6 +71,62 @@ const PropertyTaxModule = () => {
                     <p className="text-gray-600">Manage all property tax related activities</p>
                 </div>
             </div>
+
+            {/* Summary Stats */}
+            {!loading && stats && (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
+                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs text-gray-500 uppercase font-medium">Properties</p>
+                                <p className="text-xl font-bold text-gray-900">{fmt(stats.totalProperties)}</p>
+                            </div>
+                            <Home className="w-5 h-5 text-blue-500" />
+                        </div>
+                        <p className="text-xs text-green-600 mt-1">active records</p>
+                    </div>
+                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs text-gray-500 uppercase font-medium">Assessments</p>
+                                <p className="text-xl font-bold text-gray-900">{fmt(stats.totalAssessments)}</p>
+                            </div>
+                            <FileText className="w-5 h-5 text-green-500" />
+                        </div>
+                        <p className="text-xs text-green-600 mt-1">{fmt(stats.approvedAssessments)} approved</p>
+                    </div>
+                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs text-gray-500 uppercase font-medium">PT Demands</p>
+                                <p className="text-xl font-bold text-gray-900">{fmt(stats.houseTaxDemands)}</p>
+                            </div>
+                            <Receipt className="w-5 h-5 text-yellow-500" />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">house tax demands</p>
+                    </div>
+                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-emerald-500">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs text-gray-500 uppercase font-medium">PT Revenue</p>
+                                <p className="text-xl font-bold text-green-600">{fmtCur(stats.houseTaxRevenue)}</p>
+                            </div>
+                            <TrendingUp className="w-5 h-5 text-emerald-500" />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">collected</p>
+                    </div>
+                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs text-gray-500 uppercase font-medium">Outstanding</p>
+                                <p className="text-xl font-bold text-red-600">{fmtCur(stats.houseTaxOutstanding)}</p>
+                            </div>
+                            <AlertCircle className="w-5 h-5 text-red-500" />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">pending collection</p>
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {modules.map((module, index) => (

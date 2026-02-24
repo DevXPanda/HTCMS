@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useBackTo } from '../../../contexts/NavigationContext';
+import { Save } from 'lucide-react';
 import api from '../../../services/api';
 
 const AddToilet = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditMode = !!id;
+  useBackTo('/toilet-management/facilities');
   const [wards, setWards] = useState([]);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -111,22 +112,13 @@ const AddToilet = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link
-          to="/toilet-management/facilities"
-          className="text-gray-400 hover:text-gray-600 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {isEditMode ? 'Edit Toilet Facility' : 'Add New Toilet Facility'}
-          </h1>
-          <p className="text-gray-600 text-sm">
-            {isEditMode ? 'Update existing toilet facility details' : 'Register a new public toilet facility'}
-          </p>
-        </div>
-
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">
+          {isEditMode ? 'Edit Toilet Facility' : 'Add New Toilet Facility'}
+        </h1>
+        <p className="text-gray-600 text-sm">
+          {isEditMode ? 'Update existing toilet facility details' : 'Register a new public toilet facility'}
+        </p>
       </div>
 
       {/* Form */}

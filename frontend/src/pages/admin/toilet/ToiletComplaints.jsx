@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useBackTo } from '../../../contexts/NavigationContext';
 import {
   AlertCircle,
   Search,
@@ -14,6 +15,7 @@ import {
 import api from '../../../services/api';
 
 const ToiletComplaints = () => {
+  useBackTo('/toilet-management');
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

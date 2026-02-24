@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
-import { ArrowLeft, Save, Camera, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useBackTo } from '../../../contexts/NavigationContext';
+import { Save, Camera, CheckCircle2, AlertCircle } from 'lucide-react';
 import api from '../../../services/api';
 
 const AddInspection = () => {
@@ -8,6 +9,7 @@ const AddInspection = () => {
     const { id } = useParams(); // For edit mode
     const [searchParams] = useSearchParams();
     const preSelectedFacilityId = searchParams.get('facilityId');
+    useBackTo('/toilet-management/inspections');
 
     const isEditMode = !!id;
     const [facilities, setFacilities] = useState([]);
@@ -99,16 +101,11 @@ const AddInspection = () => {
 
     return (
         <div className="space-y-6 max-w-4xl mx-auto">
-            <div className="flex items-center gap-4">
-                <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                    <ArrowLeft className="w-5 h-5" />
-                </button>
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">
-                        {isEditMode ? 'Edit Inspection' : 'Record New Inspection'}
-                    </h1>
-                    <p className="text-gray-600 text-sm">Fill in the details for the toilet facility inspection</p>
-                </div>
+            <div>
+                <h1 className="text-2xl font-bold text-gray-900">
+                    {isEditMode ? 'Edit Inspection' : 'Record New Inspection'}
+                </h1>
+                <p className="text-gray-600 text-sm">Fill in the details for the toilet facility inspection</p>
             </div>
 
             <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -183,8 +180,8 @@ const AddInspection = () => {
                                             type="button"
                                             onClick={() => setFormData(prev => ({ ...prev, cleanliness: option }))}
                                             className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-all ${formData.cleanliness === option
-                                                    ? 'bg-primary-600 border-primary-600 text-white shadow-sm'
-                                                    : 'bg-white border-gray-200 text-gray-600 hover:border-primary-300'
+                                                ? 'bg-primary-600 border-primary-600 text-white shadow-sm'
+                                                : 'bg-white border-gray-200 text-gray-600 hover:border-primary-300'
                                                 }`}
                                         >
                                             {option}
@@ -203,8 +200,8 @@ const AddInspection = () => {
                                             type="button"
                                             onClick={() => setFormData(prev => ({ ...prev, maintenance: option }))}
                                             className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-all ${formData.maintenance === option
-                                                    ? 'bg-primary-600 border-primary-600 text-white shadow-sm'
-                                                    : 'bg-white border-gray-200 text-gray-600 hover:border-primary-300'
+                                                ? 'bg-primary-600 border-primary-600 text-white shadow-sm'
+                                                : 'bg-white border-gray-200 text-gray-600 hover:border-primary-300'
                                                 }`}
                                         >
                                             {option}
@@ -223,8 +220,8 @@ const AddInspection = () => {
                                             type="button"
                                             onClick={() => setFormData(prev => ({ ...prev, waterSupply: option }))}
                                             className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-all ${formData.waterSupply === option
-                                                    ? 'bg-cyan-600 border-cyan-600 text-white shadow-sm'
-                                                    : 'bg-white border-gray-200 text-gray-600 hover:border-cyan-300'
+                                                ? 'bg-cyan-600 border-cyan-600 text-white shadow-sm'
+                                                : 'bg-white border-gray-200 text-gray-600 hover:border-cyan-300'
                                                 }`}
                                         >
                                             {option}
@@ -243,8 +240,8 @@ const AddInspection = () => {
                                             type="button"
                                             onClick={() => setFormData(prev => ({ ...prev, electricity: option }))}
                                             className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-all ${formData.electricity === option
-                                                    ? 'bg-amber-600 border-amber-600 text-white shadow-sm'
-                                                    : 'bg-white border-gray-200 text-gray-600 hover:border-amber-300'
+                                                ? 'bg-amber-600 border-amber-600 text-white shadow-sm'
+                                                : 'bg-white border-gray-200 text-gray-600 hover:border-amber-300'
                                                 }`}
                                         >
                                             {option}
@@ -263,8 +260,8 @@ const AddInspection = () => {
                                             type="button"
                                             onClick={() => setFormData(prev => ({ ...prev, ventilation: option }))}
                                             className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-all ${formData.ventilation === option
-                                                    ? 'bg-purple-600 border-purple-600 text-white shadow-sm'
-                                                    : 'bg-white border-gray-200 text-gray-600 hover:border-purple-300'
+                                                ? 'bg-purple-600 border-purple-600 text-white shadow-sm'
+                                                : 'bg-white border-gray-200 text-gray-600 hover:border-purple-300'
                                                 }`}
                                         >
                                             {option}
@@ -283,8 +280,8 @@ const AddInspection = () => {
                                             type="button"
                                             onClick={() => setFormData(prev => ({ ...prev, lighting: option }))}
                                             className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-all ${formData.lighting === option
-                                                    ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
-                                                    : 'bg-white border-gray-200 text-gray-600 hover:border-blue-300'
+                                                ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                                                : 'bg-white border-gray-200 text-gray-600 hover:border-blue-300'
                                                 }`}
                                         >
                                             {option}

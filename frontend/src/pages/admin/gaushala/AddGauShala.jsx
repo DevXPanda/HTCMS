@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Save } from 'lucide-react';
+import { useBackTo } from '../../../contexts/NavigationContext';
+import { Save } from 'lucide-react';
 import api from '../../../services/api';
 
 const AddGauShala = () => {
     const navigate = useNavigate();
     const { id } = useParams();
     const isEditMode = !!id;
+    useBackTo('/gaushala/facilities');
     const [wards, setWards] = useState([]);
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -75,12 +77,7 @@ const AddGauShala = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center gap-4">
-                <Link to="/gaushala/management" className="text-gray-400 hover:text-gray-600 transition-colors">
-                    <ArrowLeft className="w-5 h-5" />
-                </Link>
-                <h1 className="text-2xl font-bold text-gray-900">{isEditMode ? 'Edit Gaushala' : 'Add New Gaushala'}</h1>
-            </div>
+            <h1 className="text-2xl font-bold text-gray-900">{isEditMode ? 'Edit Gaushala' : 'Add New Gaushala'}</h1>
 
             <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -92,7 +89,11 @@ const AddGauShala = () => {
                         <label className="block text-sm font-medium text-gray-700">Ward *</label>
                         <select name="ward_id" value={formData.ward_id} onChange={handleChange} required className="input mt-1 w-full border border-gray-300 rounded-lg px-3 py-2">
                             <option value="">Select Ward</option>
-                            {wards.map(ward => (<option key={ward.id} value={ward.id}>{ward.name}</option>))}
+                            {wards.map(ward => (
+                                <option key={ward.id} value={ward.id}>
+                                    {ward.wardNumber} - {ward.wardName}
+                                </option>
+                            ))}
                         </select>
                     </div>
                     <div>

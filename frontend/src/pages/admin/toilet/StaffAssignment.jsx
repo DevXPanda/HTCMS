@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, UserPlus, Trash2, Shield, Clock, Users } from 'lucide-react';
+import { useBackTo } from '../../../contexts/NavigationContext';
 import api from '../../../services/api';
 
 const StaffAssignment = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    useBackTo(id ? `/toilet-management/facilities/${id}` : '/toilet-management/facilities');
     const [facility, setFacility] = useState(null);
     const [assignments, setAssignments] = useState([]);
     const [staffList, setStaffList] = useState([]);
@@ -79,14 +81,9 @@ const StaffAssignment = () => {
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto">
-            <div className="flex items-center gap-4">
-                <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                    <ArrowLeft className="w-5 h-5" />
-                </button>
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Staff Assignment</h1>
-                    <p className="text-gray-500 text-sm">Managing staff for {facility?.name}</p>
-                </div>
+            <div>
+                <h1 className="text-2xl font-bold text-gray-900">Staff Assignment</h1>
+                <p className="text-gray-500 text-sm">Managing staff for {facility?.name}</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

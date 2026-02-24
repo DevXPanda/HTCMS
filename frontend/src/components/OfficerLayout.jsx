@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { User, LogOut, Home, ArrowLeft, X } from 'lucide-react';
 import { useStaffAuth } from '../contexts/StaffAuthContext';
+import { useNavigation } from '../contexts/NavigationContext';
 
 const OfficerLayout = () => {
   const { user, logout } = useStaffAuth();
   const [showProfileModal, setShowProfileModal] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { backTo } = useNavigation();
   const isDashboard = location.pathname === '/officer/dashboard';
 
   const handleLogout = async () => {
@@ -26,9 +28,9 @@ const OfficerLayout = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16">
               <div className="flex items-center gap-4">
-                {!isDashboard && (
+                {backTo && (
                   <button
-                    onClick={() => navigate(-1)}
+                    onClick={() => navigate(backTo)}
                     className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
                     title="Go Back"
                   >

@@ -13,13 +13,13 @@ export const getAllUsers = async (req, res, next) => {
     const { role, isActive, search, page = 1, limit = 10 } = req.query;
 
     const where = {};
-    
+
     // Only allow citizen and admin roles in users table
     const allowedRoles = ['citizen', 'admin'];
     where.role = {
       [Op.in]: allowedRoles
     };
-    
+
     // Normalize role to lowercase for matching
     if (role) {
       const normalizedRole = role.toLowerCase().trim();
@@ -33,7 +33,7 @@ export const getAllUsers = async (req, res, next) => {
         });
       }
     }
-    
+
     if (isActive !== undefined) where.isActive = isActive === 'true';
     if (search) {
       where[Op.or] = [
@@ -169,17 +169,17 @@ export const createUser = async (req, res, next) => {
           'inspector': 'inspectorid',
           'officer': 'officerid'
         };
-        
+
         const fieldToUpdate = roleFieldMap[normalizedRole];
-        
+
         // Update wards to assign this user to the appropriate role field
         await Ward.update(
           { [fieldToUpdate]: user.id },
-          { 
-            where: { 
+          {
+            where: {
               id: { [Op.in]: wardIds },
               isActive: true
-            } 
+            }
           }
         );
 
@@ -419,6 +419,53 @@ export const getCollectors = async (req, res, next) => {
       }
     });
   } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   GET /api/users/staff
+ * @desc    Get users filtered by roles (e.g., inspector, vet)
+ * @access  Private
+ */
+export const getStaffByRoles = async (req, res, next) => {
+  try {
+    const { roles } = req.query;
+
+    // Define the valid roles based on the User model's ENUM
+    const validUserRoles = ['admin', 'assessor', 'cashier', 'collector', 'citizen', 'clerk', 'inspector', 'officer'];
+
+    // Normalized role list from query, filtered by what's actually in the database model
+    let roleList = roles ? roles.split(',').map(r => r.trim().toLowerCase()) : ['inspector', 'officer', 'clerk', 'admin'];
+
+    // Filter to only valid roles to prevent Sequelize ENUM validation errors
+    const filteredRoleList = roleList.filter(role => validUserRoles.includes(role));
+
+    console.log(`🔍 Fetching staff with roles: ${filteredRoleList.join(', ')} (Requested: ${roleList.join(', ')})`);
+
+    const staff = await User.findAll({
+      where: {
+        role: {
+          [Op.in]: filteredRoleList
+        },
+        isActive: true
+      },
+      attributes: ['id', 'firstName', 'lastName', 'role', 'username'],
+      order: [['firstName', 'ASC']]
+    });
+
+    res.json({
+      success: true,
+      data: {
+        staff: staff.map(s => ({
+          ...s.toJSON(),
+          displayName: `${s.firstName || s.username} ${s.lastName || ''}`.trim(),
+          readableRole: s.role.charAt(0).toUpperCase() + s.role.slice(1)
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error in getStaffByRoles:', error);
     next(error);
   }
 };

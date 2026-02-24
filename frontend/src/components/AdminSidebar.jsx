@@ -24,10 +24,7 @@ import {
   Store,
   Bath,
   Recycle,
-  Beef,
-  Package,
-  Zap,
-  MessageSquare
+  Beef
 } from 'lucide-react';
 
 const AdminSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
@@ -80,9 +77,6 @@ const AdminSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
     { path: '/toilet-management', label: 'Toilet Management', icon: Bath },
     { path: '/mrf/management', label: 'MRF Management', icon: Recycle },
     { path: '/gaushala/management', label: 'Gaushala Management', icon: Beef },
-    { path: '/inventory', label: 'Inventory', icon: Package },
-    { path: '/utilities', label: 'Utility Tracking', icon: Zap },
-    { path: '/feedback', label: 'Feedback', icon: MessageSquare },
     { path: '/reports', label: 'Reports', icon: BarChart3 },
     { path: '/audit-logs', label: 'Audit Logs', icon: Shield }
   ];

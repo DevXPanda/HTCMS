@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useBackTo } from '../../../contexts/NavigationContext';
 import {
   Wrench,
   Plus,
@@ -13,6 +14,7 @@ import {
 import api from '../../../services/api';
 
 const ToiletMaintenance = () => {
+  useBackTo('/toilet-management');
   const [maintenance, setMaintenance] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

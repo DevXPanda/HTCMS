@@ -23,7 +23,7 @@ export const GauShalaInspection = sequelize.define('GauShalaInspection', {
         type: DataTypes.INTEGER,
         allowNull: true,
         references: {
-            model: 'users',
+            model: 'admin_management',
             key: 'id'
         }
     },

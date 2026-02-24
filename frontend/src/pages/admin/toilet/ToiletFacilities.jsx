@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useBackTo } from '../../../contexts/NavigationContext';
 import {
   Bath,
   Plus,
@@ -19,6 +20,7 @@ import api from '../../../services/api';
 import { exportToCSV } from '../../../utils/exportCSV';
 
 const ToiletFacilities = () => {
+  useBackTo('/toilet-management');
   const [toilets, setToilets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

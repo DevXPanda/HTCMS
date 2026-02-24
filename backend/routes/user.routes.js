@@ -6,7 +6,8 @@ import {
     createUser,
     updateUser,
     deleteUser,
-    getCollectors
+    getCollectors,
+    getStaffByRoles
 } from '../controllers/user.controller.js';
 
 const router = express.Router();
@@ -17,6 +18,7 @@ router.use(authenticate);
 // Admin only routes
 router.get('/', authorize('admin'), getAllUsers);
 router.get('/collectors', authorize('admin'), getCollectors);
+router.get('/staff', getStaffByRoles);
 router.post('/', authorize('admin'), createUser);
 router.put('/:id', updateUser); // Users can update their own profile
 router.delete('/:id', authorize('admin'), deleteUser);

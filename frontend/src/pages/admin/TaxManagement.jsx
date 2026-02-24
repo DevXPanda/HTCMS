@@ -1,11 +1,29 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, Droplet, Store, Truck, ArrowLeft, Zap, Percent, ShieldAlert } from 'lucide-react';
+import { Building2, Droplet, Store, Truck, ArrowLeft, Zap, Percent, ShieldAlert, TrendingUp, AlertCircle, IndianRupee, FileText } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import api from '../../services/api';
 
 const TaxManagement = () => {
     const { user } = useAuth();
     const isAdmin = user?.role === 'admin';
+    const [stats, setStats] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => { fetchStats(); }, []);
+
+    const fetchStats = async () => {
+        try {
+            const response = await api.get('/reports/dashboard');
+            if (response.data && response.data.success) {
+                setStats(response.data.data);
+            }
+        } catch (error) {
+            console.error('Failed to fetch tax stats:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const taxModules = [
         {
@@ -79,6 +97,9 @@ const TaxManagement = () => {
         }
     ];
 
+    const fmt = (val) => parseFloat(val || 0).toLocaleString('en-IN', { minimumFractionDigits: 0 });
+    const fmtCur = (val) => '₹' + parseFloat(val || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+
     return (
         <div className="space-y-8 max-w-7xl mx-auto">
             {/* Header */}
@@ -93,6 +114,72 @@ const TaxManagement = () => {
                     <p className="text-gray-500 text-sm ml-7">Select a tax module to proceed</p>
                 </div>
             </div>
+
+            {/* Summary Stats */}
+            {!loading && stats && (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
+                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs text-gray-500 uppercase font-medium">Properties</p>
+                                <p className="text-xl font-bold text-gray-900">{fmt(stats.totalProperties)}</p>
+                            </div>
+                            <Building2 className="w-5 h-5 text-blue-500" />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">{fmt(stats.totalAssessments)} assessments</p>
+                    </div>
+                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-cyan-500">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs text-gray-500 uppercase font-medium">Water Connections</p>
+                                <p className="text-xl font-bold text-gray-900">{fmt(stats.totalWaterConnections)}</p>
+                            </div>
+                            <Droplet className="w-5 h-5 text-cyan-500" />
+                        </div>
+                        <p className="text-xs text-cyan-600 mt-1">active connections</p>
+                    </div>
+                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs text-gray-500 uppercase font-medium">Shops</p>
+                                <p className="text-xl font-bold text-gray-900">{fmt(stats.activeShops)}</p>
+                            </div>
+                            <Store className="w-5 h-5 text-yellow-500" />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">{fmt(stats.shopTaxDemands)} demands</p>
+                    </div>
+                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs text-gray-500 uppercase font-medium">Total Revenue</p>
+                                <p className="text-xl font-bold text-green-600">{fmtCur(stats.totalRevenue)}</p>
+                            </div>
+                            <TrendingUp className="w-5 h-5 text-green-500" />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">all tax modules</p>
+                    </div>
+                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs text-gray-500 uppercase font-medium">Outstanding</p>
+                                <p className="text-xl font-bold text-red-600">{fmtCur(stats.totalOutstanding)}</p>
+                            </div>
+                            <AlertCircle className="w-5 h-5 text-red-500" />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">{fmt(stats.pendingDemands)} pending</p>
+                    </div>
+                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-purple-500">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs text-gray-500 uppercase font-medium">Total Demands</p>
+                                <p className="text-xl font-bold text-gray-900">{fmt(stats.totalDemands)}</p>
+                            </div>
+                            <FileText className="w-5 h-5 text-purple-500" />
+                        </div>
+                        <p className="text-xs text-orange-600 mt-1">{fmt(stats.overdueDemands)} overdue</p>
+                    </div>
+                </div>
+            )}
 
             {/* Modules Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
