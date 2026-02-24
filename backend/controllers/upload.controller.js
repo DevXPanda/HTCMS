@@ -293,3 +293,36 @@ export const uploadDiscountDocument = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * @route   POST /api/upload/toilet-photo
+ * @desc    Upload photo for toilet module (Admin, Inspector, Worker)
+ * @access  Private
+ */
+export const uploadToiletPhoto = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+    }
+
+    const fileUrl = `/uploads/${req.file.filename}`;
+    const fullUrl = `${req.protocol}://${req.get('host')}${fileUrl}`;
+
+    res.json({
+      success: true,
+      message: 'Photo uploaded successfully',
+      data: {
+        url: fullUrl,
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};

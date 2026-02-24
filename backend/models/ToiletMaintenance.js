@@ -55,12 +55,12 @@ export const ToiletMaintenance = sequelize.define('ToiletMaintenance', {
         defaultValue: 0
     },
     materialsUsed: {
-        type: DataTypes.ARRAY(DataTypes.STRING),
+        type: DataTypes.JSONB,
         allowNull: true,
         defaultValue: []
     },
     photos: {
-        type: DataTypes.ARRAY(DataTypes.STRING),
+        type: DataTypes.JSONB,
         allowNull: true,
         defaultValue: []
     }

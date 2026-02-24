@@ -35,11 +35,11 @@ const FieldWorkerEoDashboard = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       // Get ulb_id from URL query params
       const urlParams = new URLSearchParams(window.location.search);
       const ulbId = urlParams.get('ulb_id');
-      
+
       const params = {
         startDate,
         endDate
@@ -47,7 +47,7 @@ const FieldWorkerEoDashboard = () => {
       if (ulbId) {
         params.ulb_id = ulbId;
       }
-      
+
       const res = await fieldWorkerMonitoringAPI.getEoDashboard(eoId, params);
       setData(res?.data?.data ?? null);
     } catch (err) {

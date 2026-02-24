@@ -33,7 +33,7 @@ const ToiletComplaints = () => {
         const formattedData = response.data.data.complaints.map(c => ({
           ...c,
           toiletName: c.facility ? c.facility.name : 'N/A',
-          assignedTo: c.assignee ? c.assignee.full_name : null
+          assignedToName: c.assignee ? c.assignee.full_name : 'Unassigned'
         }));
         setComplaints(formattedData);
       }
@@ -46,44 +46,46 @@ const ToiletComplaints = () => {
 
   const filteredComplaints = complaints.filter(complaint => {
     const matchesSearch =
-      complaint.toiletName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      complaint.citizenName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      complaint.description.toLowerCase().includes(searchTerm.toLowerCase());
+      (complaint.toiletName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (complaint.citizenName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (complaint.description || '').toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStatus = filterStatus === 'all' || complaint.status === filterStatus;
+    const matchesStatus = filterStatus === 'all' || complaint.status?.toLowerCase() === filterStatus.toLowerCase();
 
     return matchesSearch && matchesStatus;
   });
 
   const getStatusBadge = (status) => {
+    const s = status?.toLowerCase() || '';
     const statusConfig = {
-      pending: { color: 'bg-yellow-100 text-yellow-800', icon: Clock },
-      in_progress: { color: 'bg-blue-100 text-blue-800', icon: AlertCircle },
-      resolved: { color: 'bg-green-100 text-green-800', icon: CheckCircle },
-      closed: { color: 'bg-gray-100 text-gray-800', icon: XCircle }
+      pending: { color: 'bg-amber-50 text-amber-700 border-amber-100', icon: Clock },
+      'in progress': { color: 'bg-blue-50 text-blue-700 border-blue-100', icon: AlertCircle },
+      resolved: { color: 'bg-green-50 text-green-700 border-green-100', icon: CheckCircle },
+      closed: { color: 'bg-gray-50 text-gray-700 border-gray-100', icon: XCircle }
     };
 
-    const config = statusConfig[status] || statusConfig.pending;
+    const config = statusConfig[s] || statusConfig.pending;
     const Icon = config.icon;
 
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border ${config.color}`}>
         <Icon className="w-3 h-3 mr-1" />
-        {status.replace('_', ' ').charAt(0).toUpperCase() + status.replace('_', ' ').slice(1)}
+        {status || 'Pending'}
       </span>
     );
   };
 
   const getPriorityBadge = (priority) => {
+    const p = priority?.toLowerCase() || '';
     const priorityConfig = {
-      high: 'bg-red-100 text-red-800',
-      medium: 'bg-yellow-100 text-yellow-800',
-      low: 'bg-green-100 text-green-800'
+      high: 'bg-red-50 text-red-700 border-red-100',
+      medium: 'bg-amber-50 text-amber-700 border-amber-100',
+      low: 'bg-green-50 text-green-700 border-green-100'
     };
 
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${priorityConfig[priority] || priorityConfig.low}`}>
-        {priority.charAt(0).toUpperCase() + priority.slice(1)}
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border ${priorityConfig[p] || priorityConfig.low}`}>
+        {priority || 'Low'}
       </span>
     );
   };
@@ -102,18 +104,18 @@ const ToiletComplaints = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Toilet Complaints</h1>
-          <p className="text-gray-600 text-sm">Manage citizen complaints and feedback</p>
+          <p className="text-gray-500 text-sm">Manage citizen reports and track resolution progress</p>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
               type="text"
-              placeholder="Search by toilet, citizen name, or description..."
+              placeholder="Search by facility, citizen, or issue..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -129,7 +131,7 @@ const ToiletComplaints = () => {
             >
               <option value="all">All Status</option>
               <option value="pending">Pending</option>
-              <option value="in_progress">In Progress</option>
+              <option value="in progress">In Progress</option>
               <option value="resolved">Resolved</option>
               <option value="closed">Closed</option>
             </select>
@@ -138,81 +140,101 @@ const ToiletComplaints = () => {
       </div>
 
       {/* Complaints List */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
+          <table className="min-w-full divide-y divide-gray-100">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Toilet Facility
+                <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                  Facility & Date
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Citizen
+                <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                  Citizen Info
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Complaint Type
+                <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                  Issue Type & Priority
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Description
+                <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                  Assigned To
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Priority
+                <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                  Photos
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-right text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white divide-y divide-gray-100">
               {filteredComplaints.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-8 text-center text-gray-500">
-                    No complaints found
+                  <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
+                    <div className="flex flex-col items-center">
+                      <AlertCircle className="w-8 h-8 text-gray-300 mb-2" />
+                      <p className="font-medium text-gray-600">No complaints found</p>
+                    </div>
                   </td>
                 </tr>
               ) : (
                 filteredComplaints.map((complaint) => (
-                  <tr key={complaint.id} className="hover:bg-gray-50">
+                  <tr key={complaint.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{complaint.toiletName}</div>
+                      <div className="text-sm font-bold text-gray-900">{complaint.toiletName}</div>
+                      <div className="flex items-center text-[10px] text-gray-500 mt-0.5">
+                        <Calendar className="w-3 h-3 mr-1" />
+                        {new Date(complaint.createdAt).toLocaleDateString()}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center text-sm text-gray-900">
-                        <User className="w-4 h-4 mr-1 text-gray-400" />
+                      <div className="flex items-center text-sm font-semibold text-gray-800">
                         {complaint.citizenName}
                       </div>
-                      <div className="text-xs text-gray-500">{complaint.citizenPhone}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{complaint.complaintType}</div>
+                      <div className="text-[10px] text-gray-500 flex items-center gap-1">
+                        <User className="w-3 h-3" /> {complaint.citizenPhone}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900 max-w-xs truncate">{complaint.description}</div>
+                      <div className="text-sm font-medium text-gray-900">{complaint.complaintType}</div>
+                      <div className="mt-1">{getPriorityBadge(complaint.priority)}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {getPriorityBadge(complaint.priority)}
+                      <div className="flex items-center gap-2">
+                        <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold ${complaint.assignee ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-500'}`}>
+                          {complaint.assignedToName?.charAt(0)}
+                        </div>
+                        <span className="text-xs font-semibold text-gray-700">{complaint.assignedToName}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex -space-x-2">
+                        {complaint.photos?.slice(0, 3).map((p, i) => (
+                          <div key={i} className="h-8 w-8 rounded-md border-2 border-white bg-gray-100 overflow-hidden shadow-sm">
+                            <img src={p} alt="" className="w-full h-full object-cover" />
+                          </div>
+                        ))}
+                        {complaint.photos?.length > 3 && (
+                          <div className="h-8 w-8 rounded-md border-2 border-white bg-gray-200 flex items-center justify-center text-[10px] font-bold text-gray-600 shadow-sm">
+                            +{complaint.photos.length - 3}
+                          </div>
+                        )}
+                        {(!complaint.photos || complaint.photos.length === 0) && (
+                          <span className="text-[10px] text-gray-400 font-medium italic">No photos</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {getStatusBadge(complaint.status)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center text-sm text-gray-900">
-                        <Calendar className="w-4 h-4 mr-1 text-gray-400" />
-                        {new Date(complaint.createdAt).toLocaleDateString()}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
                       <Link
                         to={`/toilet-management/complaints/${complaint.id}`}
-                        className="text-primary-600 hover:text-primary-900"
+                        className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors inline-block"
+                        title="View & Edit Details"
                       >
-                        <Eye className="h-5 w-5" />
+                        <Eye className="h-4 w-4" />
                       </Link>
                     </td>
                   </tr>
@@ -225,26 +247,26 @@ const ToiletComplaints = () => {
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-sm text-gray-500">Total Complaints</div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Total Reports</div>
           <div className="text-2xl font-bold text-gray-900">{complaints.length}</div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-sm text-gray-500">Pending</div>
-          <div className="text-2xl font-bold text-yellow-600">
-            {complaints.filter(c => c.status === 'pending').length}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 border-l-4 border-amber-500">
+          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Pending</div>
+          <div className="text-2xl font-bold text-amber-600">
+            {complaints.filter(c => c.status?.toLowerCase() === 'pending').length}
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-sm text-gray-500">In Progress</div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 border-l-4 border-blue-500">
+          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">In Progress</div>
           <div className="text-2xl font-bold text-blue-600">
-            {complaints.filter(c => c.status === 'in_progress').length}
+            {complaints.filter(c => c.status?.toLowerCase() === 'in progress').length}
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-sm text-gray-500">Resolved</div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 border-l-4 border-green-500">
+          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Resolved</div>
           <div className="text-2xl font-bold text-green-600">
-            {complaints.filter(c => c.status === 'resolved').length}
+            {complaints.filter(c => c.status?.toLowerCase() === 'resolved').length}
           </div>
         </div>
       </div>

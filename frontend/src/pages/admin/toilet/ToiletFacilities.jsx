@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useBackTo } from '../../../contexts/NavigationContext';
 import {
   Bath,
@@ -45,6 +46,7 @@ const ToiletFacilities = () => {
       }
     } catch (error) {
       console.error('Failed to fetch wards:', error);
+      toast.error('Failed to load wards.');
     }
   };
 
@@ -55,8 +57,8 @@ const ToiletFacilities = () => {
       if (response.data && response.data.success) {
         const formattedData = response.data.data.facilities.map(t => ({
           ...t,
-          ward: t.ward ? t.ward.wardName : 'N/A',
-          assignedStaff: 0, // Placeholder, will be fetched if needed
+          ward: t.ward ? t.ward.wardName : (t.wardId ? `Ward ${t.wardId}` : 'N/A'),
+          assignedStaff: t.staffAssignments?.length || 0,
           lastInspection: t.inspections && t.inspections.length > 0 ? t.inspections[0].inspectionDate : null,
           lastMaintenance: t.maintenanceRecords && t.maintenanceRecords.length > 0 ? t.maintenanceRecords[0].scheduledDate : null
         }));
@@ -64,6 +66,7 @@ const ToiletFacilities = () => {
       }
     } catch (error) {
       console.error('Failed to fetch toilets:', error);
+      toast.error('Failed to load toilet facilities.');
     } finally {
       setLoading(false);
     }
@@ -223,7 +226,7 @@ const ToiletFacilities = () => {
                 <option value="">All Wards</option>
                 {wards.map(ward => (
                   <option key={ward.id} value={ward.id.toString()}>
-                    {ward.name}
+                    {ward.wardName}
                   </option>
                 ))}
               </select>
@@ -274,9 +277,18 @@ const ToiletFacilities = () => {
               filteredToilets.map((toilet) => (
                 <tr key={toilet.id}>
                   <td>
-                    <div className="flex items-center">
-                      <Bath className="h-5 w-5 text-pink-500 mr-2" />
-                      <span className="font-medium">{toilet.name}</span>
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-lg overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center">
+                        {toilet.photos?.[0] ? (
+                          <img src={toilet.photos[0]} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <Bath className="h-5 w-5 text-gray-300" />
+                        )}
+                      </div>
+                      <div>
+                        <span className="font-bold text-gray-900 text-sm block">{toilet.name}</span>
+                        <span className="text-[10px] text-gray-400 font-medium uppercase">{toilet.type}</span>
+                      </div>
                     </div>
                   </td>
                   <td>{toilet.location}</td>

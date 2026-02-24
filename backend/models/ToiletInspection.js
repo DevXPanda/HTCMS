@@ -24,12 +24,12 @@ export const ToiletInspection = sequelize.define('ToiletInspection', {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
-            model: 'users',
+            model: 'admin_management',
             key: 'id'
         }
     },
     status: {
-        type: DataTypes.STRING(10),
+        type: DataTypes.STRING(30),
         allowNull: false
     },
     cleanliness: {
@@ -57,7 +57,7 @@ export const ToiletInspection = sequelize.define('ToiletInspection', {
         allowNull: true
     },
     photos: {
-        type: DataTypes.ARRAY(DataTypes.STRING),
+        type: DataTypes.JSONB,
         allowNull: true,
         defaultValue: []
     },

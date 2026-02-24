@@ -31,9 +31,10 @@ const ToiletInspections = () => {
       if (response.data && response.data.success) {
         const formattedData = response.data.data.inspections.map(i => ({
           ...i,
+          id: i.id, // Explicitly ensure id is present
           toiletName: i.facility ? i.facility.name : 'N/A',
           date: i.inspectionDate,
-          inspector: i.inspector ? `${i.inspector.firstName} ${i.inspector.lastName}` : 'N/A',
+          inspector: i.inspector ? i.inspector.full_name : 'N/A',
         }));
         setInspections(formattedData);
       }
@@ -55,18 +56,21 @@ const ToiletInspections = () => {
   });
 
   const getStatusBadge = (status) => {
-    if (status === 'passed') {
+    const s = status?.toLowerCase() || '';
+    const isPassed = ['passed', 'good', 'excellent', 'satisfactory'].includes(s);
+
+    if (isPassed) {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-green-50 text-green-700 border border-green-100">
           <CheckCircle className="w-3 h-3 mr-1" />
-          Passed
+          {status || 'Passed'}
         </span>
       );
     } else {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-red-50 text-red-700 border border-red-100">
           <XCircle className="w-3 h-3 mr-1" />
-          Failed
+          {status || 'Failed'}
         </span>
       );
     }
@@ -98,7 +102,7 @@ const ToiletInspections = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -127,7 +131,7 @@ const ToiletInspections = () => {
       </div>
 
       {/* Inspections List */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -204,20 +208,20 @@ const ToiletInspections = () => {
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-sm text-gray-500">Total Inspections</div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <div className="text-sm text-gray-500 font-medium">Total Inspections</div>
           <div className="text-2xl font-bold text-gray-900">{inspections.length}</div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-sm text-gray-500">Passed</div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <div className="text-sm text-gray-500 font-medium">Passed</div>
           <div className="text-2xl font-bold text-green-600">
-            {inspections.filter(i => i.status === 'passed').length}
+            {inspections.filter(i => ['passed', 'good', 'excellent', 'satisfactory'].includes(i.status?.toLowerCase())).length}
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-sm text-gray-500">Failed</div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <div className="text-sm text-gray-500 font-medium">Failed</div>
           <div className="text-2xl font-bold text-red-600">
-            {inspections.filter(i => i.status === 'failed').length}
+            {inspections.filter(i => !['passed', 'good', 'excellent', 'satisfactory'].includes(i.status?.toLowerCase())).length}
           </div>
         </div>
       </div>

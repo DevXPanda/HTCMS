@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, UserPlus, Trash2, Shield, Clock, Users } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useBackTo } from '../../../contexts/NavigationContext';
 import api from '../../../services/api';
 
@@ -30,14 +31,15 @@ const StaffAssignment = () => {
             const [facilityRes, assignmentsRes, staffRes] = await Promise.all([
                 api.get(`/toilet/facilities/${id}`),
                 api.get(`/toilet/facilities/${id}/staff`),
-                api.get('/admin-management/users')
+                api.get('/admin-management/employees?limit=1000')
             ]);
 
             if (facilityRes.data.success) setFacility(facilityRes.data.data.facility);
             if (assignmentsRes.data.success) setAssignments(assignmentsRes.data.data.assignments);
-            setStaffList(staffRes.data || []);
+            setStaffList(staffRes.data.employees || []);
         } catch (error) {
             console.error('Failed to fetch assignment data:', error);
+            toast.error('Failed to load staffing data.');
         } finally {
             setLoading(false);
         }
@@ -54,7 +56,7 @@ const StaffAssignment = () => {
             fetchData(); // Refresh list
         } catch (error) {
             console.error('Failed to add assignment:', error);
-            alert('Failed to assign staff.');
+            toast.error(error.response?.data?.message || 'Failed to assign staff.');
         } finally {
             setSaving(false);
         }

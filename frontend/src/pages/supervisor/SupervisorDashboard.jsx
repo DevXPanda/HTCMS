@@ -14,8 +14,10 @@ import {
   FileText,
   X,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  ClipboardList
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useStaffAuth } from '../../contexts/StaffAuthContext';
 import { fieldWorkerMonitoringAPI, workerTaskAPI, attendanceAPI } from '../../services/api';
 import toast from 'react-hot-toast';
@@ -57,7 +59,7 @@ const SupervisorDashboard = () => {
     escalation_flag: false,
     escalation_reason: ''
   });
-  
+
   const [cameraState, setCameraState] = useState({
     showCamera: false,
     cameraType: null, // 'before' or 'after'
@@ -111,7 +113,7 @@ const SupervisorDashboard = () => {
       console.warn('SupervisorDashboard: No user ID found');
       setLoading(false);
     }
-    
+
     // Cleanup camera stream on unmount
     return () => {
       if (cameraState.stream) {
@@ -125,7 +127,7 @@ const SupervisorDashboard = () => {
 
     try {
       setMarkingAttendance(workerId);
-      
+
       // Get current location if available
       let location = {};
       if (navigator.geolocation) {
@@ -167,7 +169,7 @@ const SupervisorDashboard = () => {
 
     try {
       setMarkingAll(true);
-      
+
       let location = {};
       if (navigator.geolocation) {
         try {
@@ -247,18 +249,18 @@ const SupervisorDashboard = () => {
           }
         }
       );
-      
+
       if (!response.ok) {
         throw new Error('Reverse geocoding failed');
       }
-      
+
       const data = await response.json();
-      
+
       if (data && data.address) {
         // Build a readable address from the components
         const addr = data.address;
         const addressParts = [];
-        
+
         if (addr.house_number) addressParts.push(addr.house_number);
         if (addr.road) addressParts.push(addr.road);
         if (addr.suburb || addr.neighbourhood) addressParts.push(addr.suburb || addr.neighbourhood);
@@ -267,10 +269,10 @@ const SupervisorDashboard = () => {
         if (addr.state) addressParts.push(addr.state);
         if (addr.postcode) addressParts.push(addr.postcode);
         if (addr.country) addressParts.push(addr.country);
-        
+
         return addressParts.join(', ') || data.display_name || 'Address not available';
       }
-      
+
       return data.display_name || 'Address not available';
     } catch (error) {
       console.error('Reverse geocoding error:', error);
@@ -282,19 +284,19 @@ const SupervisorDashboard = () => {
     try {
       // Get current location first
       const location = await getCurrentLocation();
-      
+
       // Get address using reverse geocoding
       toast.loading('Getting address...', { id: 'geocode' });
       const address = await reverseGeocode(location.latitude, location.longitude);
       toast.dismiss('geocode');
-      
+
       const video = document.getElementById(`video-${type}`);
       const canvas = document.createElement('canvas');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0);
-      
+
       canvas.toBlob((blob) => {
         if (type === 'before') {
           setWorkProofForm({
@@ -314,7 +316,7 @@ const SupervisorDashboard = () => {
           });
         }
       }, 'image/jpeg', 0.9);
-      
+
       // Stop camera
       stopCamera();
       toast.success(`${type === 'before' ? 'Before' : 'After'} photo captured with location${address ? ' and address' : ''}`);
@@ -329,13 +331,13 @@ const SupervisorDashboard = () => {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment' } // Use back camera on mobile
       });
-      
+
       setCameraState({
         showCamera: true,
         cameraType: type,
         stream: stream
       });
-      
+
       setTimeout(() => {
         const video = document.getElementById(`video-${type}`);
         if (video) {
@@ -537,7 +539,7 @@ const SupervisorDashboard = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <div className="bg-white rounded-lg shadow border border-gray-200 p-4">
           <div className="flex items-center justify-between">
             <div>
@@ -589,6 +591,16 @@ const SupervisorDashboard = () => {
             <CheckCircle className="w-10 h-10 text-blue-500" />
           </div>
         </div>
+
+        <Link to="/supervisor/toilet-complaints" className="bg-white rounded-lg shadow border border-gray-200 p-4 hover:bg-gray-50 transition-colors">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Toilet Complaints</p>
+              <p className="text-2xl font-bold text-pink-600 mt-1">View All</p>
+            </div>
+            <ClipboardList className="w-10 h-10 text-pink-500" />
+          </div>
+        </Link>
       </div>
 
       {/* Quick Actions */}
@@ -768,11 +780,10 @@ const SupervisorDashboard = () => {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-medium text-gray-900">{task.worker?.full_name || 'Unknown Worker'}</span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        task.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${task.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
                         task.status === 'IN_PROGRESS' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-blue-100 text-blue-800'
-                      }`}>
+                          'bg-blue-100 text-blue-800'
+                        }`}>
                         {task.status.replace('_', ' ')}
                       </span>
                     </div>
@@ -808,6 +819,25 @@ const SupervisorDashboard = () => {
           ) : (
             <p className="text-center text-gray-500 py-8">No tasks assigned today</p>
           )}
+        </div>
+      </div>
+
+      {/* Toilet Complaints Panel */}
+      <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden mt-6">
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">Toilet Complaints (Assigned to Me)</h2>
+          <Link
+            to="/supervisor/toilet-complaints"
+            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+          >
+            Manage All
+          </Link>
+        </div>
+        <div className="p-6">
+          <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+            <ClipboardList className="w-12 h-12 text-gray-200 mb-2" />
+            <p className="text-sm font-medium">Click "Manage All" to view and resolve assigned complaints.</p>
+          </div>
         </div>
       </div>
 

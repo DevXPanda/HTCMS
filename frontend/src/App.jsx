@@ -25,6 +25,8 @@ import CitizenLogin from './pages/auth/CitizenLogin';
 import EmployeeLogin from './pages/auth/EmployeeLogin';
 import EmployeeChangePassword from './pages/auth/EmployeeChangePassword';
 import Register from './pages/auth/Register';
+import FileToiletComplaint from './pages/citizen/FileToiletComplaint';
+import ToiletComplaintHistory from './pages/citizen/ToiletComplaintHistory';
 
 // Admin/Staff Pages
 import Dashboard from './pages/admin/Dashboard';
@@ -114,6 +116,8 @@ import StaffAssignment from './pages/admin/toilet/StaffAssignment';
 // import InventoryManagement from './pages/admin/inventory/InventoryManagement';
 // import UtilityTracking from './pages/admin/utility/UtilityTracking';
 // import FeedbackList from './pages/admin/feedback/FeedbackList';
+
+import ToiletComplaintsSupervisor from './pages/supervisor/ToiletComplaintsSupervisor';
 
 // Citizen Pages
 import CitizenDashboard from './pages/citizen/CitizenDashboard';
@@ -495,6 +499,7 @@ function App() {
             >
               <Route index element={<Navigate to="/supervisor/dashboard" replace />} />
               <Route path="dashboard" element={<SupervisorDashboard />} />
+              <Route path="toilet-complaints" element={<ToiletComplaintsSupervisor />} />
             </Route>
 
             {/* Protected Routes - Officer Portal */}
@@ -557,6 +562,8 @@ function App() {
               <Route path="activity-history" element={<ActivityHistory />} />
               <Route path="payments/online/:demandId" element={<OnlinePayment />} />
               <Route path="payments/:id" element={<PaymentDetails />} />
+              <Route path="toilet/file-complaint" element={<FileToiletComplaint />} />
+              <Route path="toilet/complaint-history" element={<ToiletComplaintHistory />} />
             </Route>
 
             {/* 404 - Redirect based on role */}

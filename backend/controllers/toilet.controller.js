@@ -66,9 +66,20 @@ export const getFacilityById = async (req, res, next) => {
             include: [
                 { model: Ward, as: 'ward' },
                 { model: User, as: 'creator', attributes: ['id', 'firstName', 'lastName'] },
-                { model: ToiletInspection, as: 'inspections', limit: 5, order: [['inspectionDate', 'DESC']] },
+                {
+                    model: ToiletInspection,
+                    as: 'inspections',
+                    include: [{ model: AdminManagement, as: 'inspector', attributes: ['id', 'full_name'] }],
+                    limit: 5,
+                    order: [['inspectionDate', 'DESC']]
+                },
                 { model: ToiletMaintenance, as: 'maintenanceRecords', limit: 5, order: [['scheduledDate', 'DESC']] },
-                { model: ToiletComplaint, as: 'complaints', limit: 5, order: [['createdAt', 'DESC']] }
+                { model: ToiletComplaint, as: 'complaints', limit: 5, order: [['createdAt', 'DESC']] },
+                {
+                    model: ToiletStaffAssignment,
+                    as: 'staffAssignments',
+                    include: [{ model: AdminManagement, as: 'staff', attributes: ['id', 'full_name', 'role'] }]
+                }
             ]
         });
 
@@ -95,9 +106,13 @@ export const getFacilityById = async (req, res, next) => {
  */
 export const createFacility = async (req, res, next) => {
     try {
+        // Extract ulb_id from request (added by ulbFilter) or from the user
+        const ulb_id = req.ulbFilter?.ulb_id || req.user.ulb_id;
+
         const facility = await ToiletFacility.create({
             ...req.body,
-            createdBy: req.user.id
+            createdBy: req.user.id,
+            ulb_id
         });
 
         await auditLogger.logCreate(
@@ -208,21 +223,94 @@ export const getAllInspections = async (req, res, next) => {
         if (inspectorId) where.inspectorId = inspectorId;
         if (status) where.status = status;
 
-        const offset = (parseInt(page) - 1) * parseInt(limit);
         const { count, rows } = await ToiletInspection.findAndCountAll({
             where,
             include: [
                 { model: ToiletFacility, as: 'facility', attributes: ['id', 'name'] },
-                { model: User, as: 'inspector', attributes: ['id', 'firstName', 'lastName'] }
+                { model: AdminManagement, as: 'inspector', attributes: ['id', 'full_name'] }
             ],
-            limit: parseInt(limit),
-            offset,
             order: [['inspectionDate', 'DESC']]
         });
 
         res.json({
             success: true,
-            data: { inspections: rows, pagination: { total: count, page, limit, pages: Math.ceil(count / limit) } }
+            data: { inspections: rows, total: count }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Get all staff with INSPECTOR role
+ */
+export const getInspectors = async (req, res, next) => {
+    try {
+        const inspectors = await AdminManagement.findAll({
+            where: {
+                role: 'INSPECTOR',
+                status: 'active'
+            },
+            attributes: ['id', 'full_name'],
+            order: [['full_name', 'ASC']]
+        });
+
+        res.json({
+            success: true,
+            data: { inspectors }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Get all staff with SUPERVISOR role
+ */
+export const getSupervisors = async (req, res, next) => {
+    try {
+        const supervisors = await AdminManagement.findAll({
+            where: {
+                role: 'SUPERVISOR',
+                status: 'active'
+            },
+            attributes: ['id', 'full_name'],
+            order: [['full_name', 'ASC']]
+        });
+
+        res.json({
+            success: true,
+            data: { supervisors }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Get toilet inspection by ID
+ */
+export const getInspectionById = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        const inspection = await ToiletInspection.findByPk(id, {
+            include: [
+                { model: ToiletFacility, as: 'facility' },
+                { model: AdminManagement, as: 'inspector', attributes: ['id', 'full_name', 'role'] }
+            ]
+        });
+
+        if (!inspection) {
+            return res.status(404).json({
+                success: false,
+                message: 'Toilet inspection not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: { inspection }
         });
     } catch (error) {
         next(error);
@@ -231,11 +319,58 @@ export const getAllInspections = async (req, res, next) => {
 
 export const createInspection = async (req, res, next) => {
     try {
+        const { inspectorId, ...otherData } = req.body;
+
+        // Validation: inspectorId is mandatory
+        if (!inspectorId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Inspector selection is mandatory.'
+            });
+        }
+
+        const numericInspectorId = Number(inspectorId);
+        console.log(`[DEBUG] Creating inspection: toiletFacilityId=${req.body.toiletFacilityId}, inspectorId=${numericInspectorId}`);
+
         const inspection = await ToiletInspection.create({
-            ...req.body,
-            inspectorId: req.user.id
+            ...otherData,
+            inspectorId: numericInspectorId
         });
+
         res.status(201).json({ success: true, data: { inspection } });
+    } catch (error) {
+        console.error('[ERROR] createInspection failed:', error);
+        next(error);
+    }
+};
+
+/**
+ * Update toilet inspection
+ */
+export const updateInspection = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const inspection = await ToiletInspection.findByPk(id);
+
+        if (!inspection) {
+            return res.status(404).json({
+                success: false,
+                message: 'Toilet inspection not found'
+            });
+        }
+
+        const { inspectorId, ...otherData } = req.body;
+
+        await inspection.update({
+            ...otherData,
+            inspectorId: inspectorId ? Number(inspectorId) : inspection.inspectorId
+        });
+
+        res.json({
+            success: true,
+            message: 'Inspection updated successfully',
+            data: { inspection }
+        });
     } catch (error) {
         next(error);
     }
@@ -251,21 +386,18 @@ export const getAllMaintenanceRecords = async (req, res, next) => {
         if (status) where.status = status;
         if (priority) where.priority = priority;
 
-        const offset = (parseInt(page) - 1) * parseInt(limit);
         const { count, rows } = await ToiletMaintenance.findAndCountAll({
             where,
             include: [
                 { model: ToiletFacility, as: 'facility', attributes: ['id', 'name'] },
                 { model: AdminManagement, as: 'staff', attributes: ['id', 'full_name'] }
             ],
-            limit: parseInt(limit),
-            offset,
             order: [['scheduledDate', 'DESC']]
         });
 
         res.json({
             success: true,
-            data: { maintenanceRecords: rows, pagination: { total: count, page, limit, pages: Math.ceil(count / limit) } }
+            data: { maintenanceRecords: rows, total: count }
         });
     } catch (error) {
         next(error);
@@ -291,21 +423,18 @@ export const getAllComplaints = async (req, res, next) => {
         if (status) where.status = status;
         if (priority) where.priority = priority;
 
-        const offset = (parseInt(page) - 1) * parseInt(limit);
-        const { count, rows } = await ToiletComplaint.findAndCountAll({
+        const { rows, count } = await ToiletComplaint.findAndCountAll({
             where,
             include: [
                 { model: ToiletFacility, as: 'facility', attributes: ['id', 'name'] },
                 { model: AdminManagement, as: 'assignee', attributes: ['id', 'full_name'] }
             ],
-            limit: parseInt(limit),
-            offset,
             order: [['createdAt', 'DESC']]
         });
 
         res.json({
             success: true,
-            data: { complaints: rows, pagination: { total: count, page, limit, pages: Math.ceil(count / limit) } }
+            data: { complaints: rows, total: count }
         });
     } catch (error) {
         next(error);
@@ -321,13 +450,125 @@ export const createComplaint = async (req, res, next) => {
     }
 };
 
+export const getComplaintById = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const complaint = await ToiletComplaint.findByPk(id, {
+            include: [
+                { model: ToiletFacility, as: 'facility' },
+                { model: AdminManagement, as: 'assignee', attributes: ['id', 'full_name', 'role'] }
+            ]
+        });
+
+        if (!complaint) {
+            return res.status(404).json({
+                success: false,
+                message: 'Complaint not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: { complaint }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const updateComplaint = async (req, res, next) => {
     try {
         const { id } = req.params;
         const complaint = await ToiletComplaint.findByPk(id);
-        if (!complaint) return res.status(404).json({ success: false, message: 'Complaint not found' });
-        await complaint.update(req.body);
-        res.json({ success: true, data: { complaint } });
+
+        if (!complaint) {
+            return res.status(404).json({
+                success: false,
+                message: 'Complaint not found'
+            });
+        }
+
+        const updateData = { ...req.body };
+
+        // Handle specific business logic for resolution
+        if (updateData.status === 'Resolved' && complaint.status !== 'Resolved') {
+            updateData.resolvedAt = new Date();
+        }
+
+        await complaint.update(updateData);
+
+        res.json({
+            success: true,
+            message: 'Complaint updated successfully',
+            data: { complaint }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const deleteComplaint = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const complaint = await ToiletComplaint.findByPk(id);
+
+        if (!complaint) {
+            return res.status(404).json({
+                success: false,
+                message: 'Complaint not found'
+            });
+        }
+
+        await complaint.destroy();
+
+        res.json({
+            success: true,
+            message: 'Complaint deleted successfully'
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getCitizenComplaints = async (req, res, next) => {
+    try {
+        const { email, phone } = req.query; // Citizen history by contact
+        const where = {};
+        if (email) where.citizenEmail = email;
+        if (phone) where.citizenPhone = phone;
+
+        if (!email && !phone) {
+            return res.status(400).json({ success: false, message: 'Contact info required' });
+        }
+
+        const complaints = await ToiletComplaint.findAll({
+            where,
+            include: [{ model: ToiletFacility, as: 'facility', attributes: ['name'] }],
+            order: [['createdAt', 'DESC']]
+        });
+
+        res.json({
+            success: true,
+            data: { complaints }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getAssignedComplaints = async (req, res, next) => {
+    try {
+        const { supervisorId } = req.params;
+        const complaints = await ToiletComplaint.findAll({
+            where: { assignedTo: supervisorId },
+            include: [{ model: ToiletFacility, as: 'facility' }],
+            order: [['createdAt', 'DESC']]
+        });
+
+        res.json({
+            success: true,
+            data: { complaints }
+        });
     } catch (error) {
         next(error);
     }

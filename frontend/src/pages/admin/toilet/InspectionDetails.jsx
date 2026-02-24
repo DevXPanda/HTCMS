@@ -23,7 +23,9 @@ const InspectionDetails = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetchInspectionDetails();
+        if (id) {
+            fetchInspectionDetails();
+        }
     }, [id]);
 
     const fetchInspectionDetails = async () => {
@@ -32,20 +34,41 @@ const InspectionDetails = () => {
             const response = await api.get(`/toilet/inspections/${id}`);
             if (response.data && response.data.success) {
                 setInspection(response.data.data.inspection);
+            } else {
+                setInspection(null);
             }
         } catch (error) {
             console.error('Failed to fetch inspection details:', error);
+            setInspection(null);
         } finally {
             setLoading(false);
         }
     };
 
-    const getStatusIcon = (status) => {
-        switch (status.toLowerCase()) {
-            case 'good': return <CheckCircle2 className="w-5 h-5 text-green-500" />;
-            case 'poor': return <XCircle className="w-5 h-5 text-red-500" />;
-            default: return <AlertTriangle className="w-5 h-5 text-yellow-500" />;
+    const [updatingStatus, setUpdatingStatus] = useState(false);
+
+    const handleStatusChange = async (newStatus) => {
+        try {
+            setUpdatingStatus(true);
+            const response = await api.put(`/toilet/inspections/${id}`, {
+                ...inspection,
+                status: newStatus
+            });
+            if (response.data && response.data.success) {
+                setInspection(prev => ({ ...prev, status: newStatus }));
+            }
+        } catch (error) {
+            console.error('Failed to update status:', error);
+        } finally {
+            setUpdatingStatus(false);
         }
+    };
+
+    const getStatusIcon = (status) => {
+        const s = status?.toLowerCase() || '';
+        if (s === 'good' || s === 'passed' || s === 'excellent') return <CheckCircle2 className="w-5 h-5 text-green-500" />;
+        if (s === 'poor' || s === 'failed' || s === 'critical') return <XCircle className="w-5 h-5 text-red-500" />;
+        return <AlertTriangle className="w-5 h-5 text-yellow-500" />;
     };
 
     const ParamBadge = ({ label, value }) => {
@@ -81,9 +104,9 @@ const InspectionDetails = () => {
     }
 
     return (
-        <div className="space-y-6 max-w-5xl mx-auto">
+        <div className="space-y-6">
             {/* Header */}
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Inspection Report</h1>
                     <p className="text-gray-500 text-sm">Reviewing audit as of {new Date(inspection.inspectionDate).toLocaleDateString()}</p>
@@ -100,15 +123,35 @@ const InspectionDetails = () => {
                 {/* Main Details */}
                 <div className="lg:col-span-2 space-y-6">
                     {/* Facility Summary Card */}
-                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
                         <div className="px-6 py-4 bg-gray-50 flex justify-between items-center border-b border-gray-100">
                             <span className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                                 <MapPin className="w-4 h-4 text-primary-600" />
                                 {inspection.facility?.name}
                             </span>
-                            <div className="flex items-center gap-2 px-3 py-1 bg-white border border-gray-200 rounded-full">
-                                {getStatusIcon(inspection.status)}
-                                <span className="text-xs font-bold uppercase text-gray-700">{inspection.status}</span>
+                            <div className="relative">
+                                <select
+                                    value={inspection.status?.toLowerCase()}
+                                    onChange={(e) => handleStatusChange(e.target.value)}
+                                    disabled={updatingStatus}
+                                    className={`appearance-none flex items-center gap-2 pl-10 pr-8 py-1.5 bg-white border border-gray-200 rounded-full text-xs font-bold uppercase text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer ${updatingStatus ? 'opacity-50' : ''}`}
+                                >
+                                    <option value="good">Good</option>
+                                    <option value="passed">Passed</option>
+                                    <option value="excellent">Excellent</option>
+                                    <option value="satisfactory">Satisfactory</option>
+                                    <option value="poor">Poor</option>
+                                    <option value="failed">Failed</option>
+                                    <option value="critical">Critical</option>
+                                </select>
+                                <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                                    {getStatusIcon(inspection.status)}
+                                </div>
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </div>
                             </div>
                         </div>
 
@@ -117,10 +160,10 @@ const InspectionDetails = () => {
                                 <p className="text-[10px] font-bold text-gray-400 uppercase">Inspector</p>
                                 <div className="flex items-center gap-2">
                                     <div className="h-6 w-6 bg-primary-100 rounded-full flex items-center justify-center text-[10px] font-bold text-primary-600">
-                                        {inspection.inspector?.firstName?.[0]}
+                                        {inspection.inspector?.full_name?.[0]}
                                     </div>
                                     <span className="text-sm font-semibold text-gray-900">
-                                        {inspection.inspector?.firstName} {inspection.inspector?.lastName}
+                                        {inspection.inspector?.full_name}
                                     </span>
                                 </div>
                             </div>
@@ -142,7 +185,7 @@ const InspectionDetails = () => {
                     </div>
 
                     {/* Observations */}
-                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
                         <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 border-b border-gray-50 pb-2">Observation Notes</h3>
                         <div className="flex gap-4 p-4 bg-gray-50 rounded-xl">
                             <FileText className="w-5 h-5 text-primary-400 shrink-0" />
@@ -155,7 +198,7 @@ const InspectionDetails = () => {
 
                 {/* Sidebar: Photos & History */}
                 <div className="space-y-6">
-                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
                         <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 flex items-center gap-2">
                             <Camera className="w-4 h-4 text-primary-600" />
                             Visual Evidence
@@ -176,7 +219,7 @@ const InspectionDetails = () => {
                         )}
                     </div>
 
-                    <div className="bg-primary-900 rounded-2xl p-6 text-white shadow-xl shadow-primary-900/10">
+                    <div className="bg-primary-900 rounded-xl p-6 text-white shadow-xl shadow-primary-900/10">
                         <h3 className="text-xs font-bold uppercase tracking-widest mb-4 opacity-60">System Log</h3>
                         <div className="space-y-4">
                             <div className="flex gap-3">

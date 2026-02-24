@@ -381,7 +381,7 @@ ToiletFacility.hasMany(ToiletStaffAssignment, { foreignKey: 'toiletFacilityId', 
 ToiletFacility.hasMany(ToiletComplaint, { foreignKey: 'toiletFacilityId', as: 'complaints' });
 
 ToiletInspection.belongsTo(ToiletFacility, { foreignKey: 'toiletFacilityId', as: 'facility' });
-ToiletInspection.belongsTo(User, { foreignKey: 'inspectorId', as: 'inspector' });
+ToiletInspection.belongsTo(AdminManagement, { foreignKey: 'inspectorId', as: 'inspector' });
 
 ToiletMaintenance.belongsTo(ToiletFacility, { foreignKey: 'toiletFacilityId', as: 'facility' });
 ToiletMaintenance.belongsTo(AdminManagement, { foreignKey: 'assignedStaffId', as: 'staff' });

@@ -265,6 +265,9 @@ export const uploadAPI = {
   }),
   uploadShopRegistrationDocument: (formData) => api.post('/upload/shop-registration-document', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  uploadToiletPhoto: (formData) => api.post('/upload/toilet-photo', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
   })
 };
 

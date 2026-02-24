@@ -10,7 +10,8 @@ import {
     Clock,
     MapPin,
     Edit,
-    ClipboardList
+    ClipboardList,
+    Camera
 } from 'lucide-react';
 import { useBackTo } from '../../../contexts/NavigationContext';
 import api from '../../../services/api';
@@ -148,13 +149,43 @@ const MaintenanceDetails = () => {
 
                 {/* Sidebar */}
                 <div className="space-y-6">
+                    {/* Photos */}
                     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Materials Used</h3>
+                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <Camera className="w-4 h-4 text-primary-600" />
+                            Maintenance Photos
+                        </h3>
+                        {record.photos?.length > 0 ? (
+                            <div className="grid grid-cols-2 gap-2">
+                                {record.photos.map((p, idx) => (
+                                    <div key={idx} className="aspect-square bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
+                                        <img src={p} alt={`maintenance-${idx}`} className="w-full h-full object-cover" />
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="p-8 border border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center text-center">
+                                <Camera className="w-8 h-8 text-gray-300 mb-2" />
+                                <p className="text-xs text-gray-400">No photos uploaded</p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Materials */}
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <ClipboardList className="w-4 h-4 text-primary-600" />
+                            Materials Used
+                        </h3>
                         {record.materialsUsed?.length > 0 ? (
-                            <div className="space-y-2">
+                            <div className="space-y-3">
                                 {record.materialsUsed.map((m, idx) => (
-                                    <div key={idx} className="flex justify-between p-2 bg-gray-50 rounded-lg text-xs font-semibold text-gray-700">
-                                        <span>{m}</span>
+                                    <div key={idx} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                        <div className="font-semibold text-xs text-gray-900 mb-1">{typeof m === 'object' ? m.name : m}</div>
+                                        <div className="flex justify-between items-center text-[10px] text-gray-500">
+                                            <span>Qty: {m.quantity || 'N/A'}</span>
+                                            <span className="font-bold text-primary-600">₹{m.cost || 0}</span>
+                                        </div>
                                     </div>
                                 ))}
                             </div>

@@ -62,11 +62,12 @@ export const ToiletComplaint = sequelize.define('ToiletComplaint', {
         allowNull: true
     },
     photos: {
-        type: DataTypes.ARRAY(DataTypes.STRING),
+        type: DataTypes.JSONB,
         allowNull: true,
         defaultValue: []
     }
 }, {
     tableName: 'toilet_complaints',
-    timestamps: true
+    timestamps: true,
+    paranoid: true
 });

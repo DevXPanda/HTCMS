@@ -129,6 +129,8 @@ const CitizenDashboard = () => {
     { name: 'My Shops', icon: Store, link: '/citizen/shops', color: 'bg-amber-600' },
     { name: 'Shop Registration Requests', icon: FileCheck, link: '/citizen/shop-registration-requests', color: 'bg-yellow-600' },
     { name: 'My Notices', icon: Bell, link: '/citizen/notices', color: 'bg-purple-600' },
+    { name: 'File Toilet Complaint', icon: PlusCircle, link: '/citizen/toilet/file-complaint', color: 'bg-pink-600' },
+    { name: 'Toilet Complaint History', icon: ClipboardList, link: '/citizen/toilet/complaint-history', color: 'bg-pink-600' },
     { name: 'Payment History', icon: CreditCard, link: '/citizen/payments', color: 'bg-green-600' },
     { name: 'Activity History', icon: History, link: '/citizen/activity-history', color: 'bg-gray-600' },
   ];
@@ -192,7 +194,7 @@ const CitizenDashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-lg border border-gray-100 p-6">
           <h2 className="text-xl font-semibold mb-4">Pending Demands</h2>
-              {dashboard?.pendingDemandsList && dashboard.pendingDemandsList.length > 0 ? (
+          {dashboard?.pendingDemandsList && dashboard.pendingDemandsList.length > 0 ? (
             <div className="space-y-3">
               {dashboard.pendingDemandsList.slice(0, 5).map((demand) => {
                 const isD2DC = demand.serviceType === 'D2DC';
@@ -202,15 +204,14 @@ const CitizenDashboard = () => {
                   <div key={demand.id} className="border-b pb-3">
                     <div className="flex items-center justify-between mb-1">
                       <p className="font-medium">{demand.demandNumber}</p>
-                      <span className={`px-2 py-1 text-xs font-semibold rounded ${
-                        isD2DC 
-                          ? 'bg-green-100 text-green-800 border border-green-300'
-                          : isWaterTax
+                      <span className={`px-2 py-1 text-xs font-semibold rounded ${isD2DC
+                        ? 'bg-green-100 text-green-800 border border-green-300'
+                        : isWaterTax
                           ? 'bg-cyan-100 text-cyan-800 border border-cyan-300'
                           : isShopTax
-                          ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                          : 'bg-blue-100 text-blue-800 border border-blue-300'
-                      }`}>
+                            ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                            : 'bg-blue-100 text-blue-800 border border-blue-300'
+                        }`}>
                         {isD2DC ? 'D2DC' : isWaterTax ? 'Water Tax' : isShopTax ? 'Shop Tax' : 'House Tax'}
                       </span>
                     </div>
@@ -241,15 +242,14 @@ const CitizenDashboard = () => {
                   <div key={payment.id} className="border-b pb-3">
                     <div className="flex items-center justify-between mb-1">
                       <p className="font-medium">{payment.receiptNumber}</p>
-                      <span className={`px-2 py-1 text-xs font-semibold rounded ${
-                        isD2DC 
-                          ? 'bg-green-100 text-green-800 border border-green-300'
-                          : isWaterTax
+                      <span className={`px-2 py-1 text-xs font-semibold rounded ${isD2DC
+                        ? 'bg-green-100 text-green-800 border border-green-300'
+                        : isWaterTax
                           ? 'bg-cyan-100 text-cyan-800 border border-cyan-300'
                           : isShopTax
-                          ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                          : 'bg-blue-100 text-blue-800 border border-blue-300'
-                      }`}>
+                            ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                            : 'bg-blue-100 text-blue-800 border border-blue-300'
+                        }`}>
                         {isD2DC ? 'D2DC' : isWaterTax ? 'Water Tax' : isShopTax ? 'Shop Tax' : 'House Tax'}
                       </span>
                     </div>

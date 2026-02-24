@@ -60,7 +60,12 @@ export const ToiletFacility = sequelize.define('ToiletFacility', {
         allowNull: true
     },
     amenities: {
-        type: DataTypes.ARRAY(DataTypes.STRING),
+        type: DataTypes.JSONB,
+        allowNull: true,
+        defaultValue: []
+    },
+    photos: {
+        type: DataTypes.JSONB,
         allowNull: true,
         defaultValue: []
     },
@@ -73,6 +78,14 @@ export const ToiletFacility = sequelize.define('ToiletFacility', {
         allowNull: true,
         references: {
             model: 'users',
+            key: 'id'
+        }
+    },
+    ulb_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: 'ulbs',
             key: 'id'
         }
     }
