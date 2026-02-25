@@ -113,6 +113,7 @@ import AddMaintenance from './pages/admin/toilet/AddMaintenance';
 import MaintenanceDetails from './pages/admin/toilet/MaintenanceDetails';
 import ComplaintDetails from './pages/admin/toilet/ComplaintDetails';
 import StaffAssignment from './pages/admin/toilet/StaffAssignment';
+import GlobalStaffAssignment from './pages/admin/toilet/GlobalStaffAssignment';
 // import InventoryManagement from './pages/admin/inventory/InventoryManagement';
 // import UtilityTracking from './pages/admin/utility/UtilityTracking';
 // import FeedbackList from './pages/admin/feedback/FeedbackList';
@@ -275,7 +276,8 @@ function App() {
               <Route path="toilet-management/maintenance/new" element={<AddMaintenance />} />
               <Route path="toilet-management/maintenance/:id" element={<MaintenanceDetails />} />
               <Route path="toilet-management/maintenance/:id/edit" element={<AddMaintenance />} />
-              <Route path="toilet-management/staff" element={<StaffAssignment />} />
+              <Route path="toilet-management/staff" element={<GlobalStaffAssignment />} />
+              <Route path="toilet-management/facilities/:id/staff" element={<StaffAssignment />} />
               <Route path="toilet-management/reports" element={<ToiletReports />} />
 
               {/* MRF Management */}

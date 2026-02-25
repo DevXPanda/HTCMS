@@ -25,7 +25,7 @@ router.post('/discount-document', authorize('admin'), upload.single('document'),
 // Upload penalty waiver application document - PDF only (Admin)
 router.post('/penalty-waiver-document', authorize('admin'), upload.single('document'), uploadPenaltyWaiverDocument);
 
-// Upload toilet module photos (Admin, Inspector)
-router.post('/toilet-photo', authorize('admin', 'inspector'), upload.single('photo'), uploadToiletPhoto);
+// Upload toilet module photos (Admin, Inspector, Citizen, Supervisor)
+router.post('/toilet-photo', authorize('admin', 'inspector', 'citizen', 'supervisor'), upload.single('photo'), uploadToiletPhoto);
 
 export default router;

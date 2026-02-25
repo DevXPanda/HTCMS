@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, UserPlus, Trash2, Shield, Clock, Users } from 'lucide-react';
+import { ArrowLeft, PlusCircle, Trash2, Shield, Clock, Users, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useBackTo } from '../../../contexts/NavigationContext';
 import api from '../../../services/api';
@@ -26,6 +26,7 @@ const StaffAssignment = () => {
     }, [id]);
 
     const fetchData = async () => {
+        if (!id || id === 'undefined') return;
         try {
             setLoading(true);
             const [facilityRes, assignmentsRes, staffRes] = await Promise.all([
@@ -34,9 +35,9 @@ const StaffAssignment = () => {
                 api.get('/admin-management/employees?limit=1000')
             ]);
 
-            if (facilityRes.data.success) setFacility(facilityRes.data.data.facility);
-            if (assignmentsRes.data.success) setAssignments(assignmentsRes.data.data.assignments);
-            setStaffList(staffRes.data.employees || []);
+            if (facilityRes.data?.success) setFacility(facilityRes.data.data.facility);
+            if (assignmentsRes.data?.success) setAssignments(assignmentsRes.data.data?.assignments || []);
+            setStaffList(staffRes.data?.employees || []);
         } catch (error) {
             console.error('Failed to fetch assignment data:', error);
             toast.error('Failed to load staffing data.');
@@ -83,23 +84,25 @@ const StaffAssignment = () => {
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto">
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900">Staff Assignment</h1>
-                <p className="text-gray-500 text-sm">Managing staff for {facility?.name}</p>
+            <div className="mb-6">
+                <h1 className="text-3xl font-black text-gray-900 tracking-tight">Staff Assignment</h1>
+                <p className="text-gray-500 font-medium flex items-center gap-1.5 mt-1">
+                    Managing staff for {facility?.name || '...'}
+                </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Assignment Form */}
                 <div className="md:col-span-1">
                     <form onSubmit={handleAddAssignment} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sticky top-6">
-                        <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-6 flex items-center gap-2">
-                            <UserPlus className="w-4 h-4 text-primary-600" />
+                        <h2 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                            <PlusCircle className="w-4 h-4 text-primary-500" />
                             Assign New Staff
                         </h2>
 
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Select Staff Member</label>
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">Select Staff Member</label>
                                 <select
                                     value={newAssignment.staffId}
                                     onChange={(e) => setNewAssignment(prev => ({ ...prev, staffId: e.target.value }))}
@@ -107,14 +110,14 @@ const StaffAssignment = () => {
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm"
                                 >
                                     <option value="">Choose Staff...</option>
-                                    {staffList.map(s => (
+                                    {(staffList || []).map(s => (
                                         <option key={s.id} value={s.id}>{s.full_name} ({s.role})</option>
                                     ))}
                                 </select>
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Operational Role</label>
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">Operational Role</label>
                                 <select
                                     value={newAssignment.role}
                                     onChange={(e) => setNewAssignment(prev => ({ ...prev, role: e.target.value }))}
@@ -128,7 +131,7 @@ const StaffAssignment = () => {
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Shift Timing</label>
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">Shift Timing</label>
                                 <select
                                     value={newAssignment.shift}
                                     onChange={(e) => setNewAssignment(prev => ({ ...prev, shift: e.target.value }))}
@@ -144,7 +147,7 @@ const StaffAssignment = () => {
                             <button
                                 type="submit"
                                 disabled={saving}
-                                className="w-full py-2 bg-primary-600 text-white rounded-lg font-semibold text-sm hover:bg-primary-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 mt-2"
+                                className="w-full py-3 bg-gray-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-primary-600 transition-all shadow-sm hover:shadow-md active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 mt-2"
                             >
                                 {saving ? 'Assigning...' : 'Assign to Facility'}
                             </button>
@@ -156,42 +159,51 @@ const StaffAssignment = () => {
                 <div className="md:col-span-2 space-y-4">
                     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                         <div className="px-6 py-4 border-b border-gray-50 flex justify-between items-center bg-gray-50">
-                            <h2 className="text-sm font-bold text-gray-900 uppercase tracking-widest flex items-center gap-2">
-                                <Users className="w-4 h-4 text-primary-600" />
-                                Current Active Staff ({assignments.length})
+                            <h2 className="text-sm font-black text-gray-900 uppercase tracking-widest flex items-center gap-2">
+                                <Users className="w-4 h-4 text-primary-500" />
+                                Current Active Staff ({(assignments || []).length})
                             </h2>
                         </div>
 
                         <div className="divide-y divide-gray-50">
-                            {assignments.length > 0 ? (
-                                assignments.map((assignment) => (
-                                    <div key={assignment.id} className="p-4 hover:bg-gray-50 transition-colors flex items-center justify-between">
-                                        <div className="flex items-center gap-4">
-                                            <div className="h-10 w-10 bg-primary-100 rounded-full flex items-center justify-center text-primary-700 font-bold">
-                                                {assignment.staff?.full_name?.[0]}
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-bold text-gray-900">{assignment.staff?.full_name}</p>
-                                                <div className="flex gap-3 mt-1">
-                                                    <span className="flex items-center gap-1 text-[10px] font-bold text-blue-600 uppercase">
-                                                        <Shield className="w-3 h-3" />
-                                                        {assignment.role}
-                                                    </span>
-                                                    <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 uppercase">
-                                                        <Clock className="w-3 h-3" />
-                                                        {assignment.shift} Shift
-                                                    </span>
+                            {(assignments || []).length > 0 ? (
+                                (assignments || []).map((assignment) => {
+                                    if (!assignment) return null;
+                                    return (
+                                        <div key={assignment.id} className="p-4 hover:bg-gray-50 transition-colors flex items-center justify-between">
+                                            <div className="flex items-center gap-4">
+                                                <div className="h-10 w-10 bg-primary-100 rounded-full flex items-center justify-center text-primary-700 font-bold">
+                                                    {assignment.staff?.full_name?.[0] || 'S'}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-black text-gray-900 uppercase tracking-tight">
+                                                        {assignment.staff?.full_name || 'N/A'}
+                                                    </p>
+                                                    <div className="flex gap-3 mt-1">
+                                                        <span className="flex items-center gap-1 text-[10px] font-bold text-blue-600 uppercase">
+                                                            <Shield className="w-3 h-3" />
+                                                            {assignment.role || 'Staff'}
+                                                        </span>
+                                                        <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 uppercase">
+                                                            <Clock className="w-3 h-3" />
+                                                            {assignment.shift || 'General'} Shift
+                                                        </span>
+                                                        <span className="flex items-center gap-1 text-[10px] font-bold text-gray-500 uppercase">
+                                                            <Calendar className="w-3 h-3" />
+                                                            Assigned: {assignment.assignedDate ? new Date(assignment.assignedDate).toLocaleDateString() : 'N/A'}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
+                                            <button
+                                                onClick={() => handleRemoveAssignment(assignment.id)}
+                                                className="p-2 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
                                         </div>
-                                        <button
-                                            onClick={() => handleRemoveAssignment(assignment.id)}
-                                            className="p-2 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                ))
+                                    );
+                                })
                             ) : (
                                 <div className="p-12 text-center text-gray-400">
                                     <p className="text-sm">No staff members assigned to this facility yet.</p>

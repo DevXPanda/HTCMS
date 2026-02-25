@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useStaffAuth } from '../../contexts/StaffAuthContext';
-import { fieldWorkerMonitoringAPI, workerTaskAPI, attendanceAPI } from '../../services/api';
+import { fieldWorkerMonitoringAPI, workerTaskAPI, attendanceAPI, toiletComplaintAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 
 const SupervisorDashboard = () => {
@@ -69,6 +69,8 @@ const SupervisorDashboard = () => {
 
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
+  const [toiletComplaints, setToiletComplaints] = useState([]);
+  const [complaintsLoading, setComplaintsLoading] = useState(false);
 
   const fetchDashboard = async () => {
     try {
@@ -105,10 +107,23 @@ const SupervisorDashboard = () => {
     }
   };
 
+  const fetchToiletComplaints = async () => {
+    try {
+      setComplaintsLoading(true);
+      const res = await toiletComplaintAPI.getAssigned(user.id);
+      setToiletComplaints(res.data?.data?.complaints || []);
+    } catch (err) {
+      console.error('Error fetching toilet complaints:', err);
+    } finally {
+      setComplaintsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (user?.id) {
       fetchDashboard();
       fetchTasks();
+      fetchToiletComplaints();
     } else {
       console.warn('SupervisorDashboard: No user ID found');
       setLoading(false);
@@ -834,10 +849,52 @@ const SupervisorDashboard = () => {
           </Link>
         </div>
         <div className="p-6">
-          <div className="flex flex-col items-center justify-center py-8 text-gray-500">
-            <ClipboardList className="w-12 h-12 text-gray-200 mb-2" />
-            <p className="text-sm font-medium">Click "Manage All" to view and resolve assigned complaints.</p>
-          </div>
+          {complaintsLoading ? (
+            <div className="flex justify-center py-8">
+              <RefreshCw className="w-6 h-6 animate-spin text-blue-600" />
+            </div>
+          ) : toiletComplaints.length > 0 ? (
+            <div className="space-y-4">
+              {toiletComplaints.filter(c => c.status?.toLowerCase() !== 'resolved').slice(0, 5).map((complaint) => (
+                <div key={complaint.id} className="border border-gray-100 rounded-xl p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-bold text-gray-900 text-sm">
+                        {complaint.complaintType}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase border ${complaint.priority?.toLowerCase() === 'high' ? 'bg-red-50 text-red-600 border-red-100' :
+                          complaint.priority?.toLowerCase() === 'medium' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                            'bg-green-50 text-green-600 border-green-100'
+                        }`}>
+                        {complaint.priority}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-gray-500 text-xs">
+                      <MapPin className="w-3 h-3" />
+                      {complaint.facility?.name}
+                    </div>
+                  </div>
+                  <Link
+                    to="/supervisor/toilet-complaints"
+                    className="px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100"
+                  >
+                    RESOLVE
+                  </Link>
+                </div>
+              ))}
+              {toiletComplaints.filter(c => c.status?.toLowerCase() !== 'resolved').length === 0 && (
+                <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+                  <CheckCircle className="w-12 h-12 text-green-100 mb-2" />
+                  <p className="text-sm font-medium">No active complaints! Everything looks good.</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+              <ClipboardList className="w-12 h-12 text-gray-200 mb-2" />
+              <p className="text-sm font-medium">No complaints assigned to you.</p>
+            </div>
+          )}
         </div>
       </div>
 

@@ -108,6 +108,32 @@ const ToiletComplaints = () => {
         </div>
       </div>
 
+      {/* Summary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Total Reports</div>
+          <div className="text-2xl font-bold text-gray-900">{complaints.length}</div>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 border-l-4 border-amber-500">
+          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Pending</div>
+          <div className="text-2xl font-bold text-amber-600">
+            {complaints.filter(c => c.status?.toLowerCase() === 'pending').length}
+          </div>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 border-l-4 border-blue-500">
+          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">In Progress</div>
+          <div className="text-2xl font-bold text-blue-600">
+            {complaints.filter(c => c.status?.toLowerCase() === 'in progress').length}
+          </div>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 border-l-4 border-green-500">
+          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Resolved</div>
+          <div className="text-2xl font-bold text-green-600">
+            {complaints.filter(c => c.status?.toLowerCase() === 'resolved').length}
+          </div>
+        </div>
+      </div>
+
       {/* Filters */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -245,31 +271,7 @@ const ToiletComplaints = () => {
         </div>
       </div>
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Total Reports</div>
-          <div className="text-2xl font-bold text-gray-900">{complaints.length}</div>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 border-l-4 border-amber-500">
-          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Pending</div>
-          <div className="text-2xl font-bold text-amber-600">
-            {complaints.filter(c => c.status?.toLowerCase() === 'pending').length}
-          </div>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 border-l-4 border-blue-500">
-          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">In Progress</div>
-          <div className="text-2xl font-bold text-blue-600">
-            {complaints.filter(c => c.status?.toLowerCase() === 'in progress').length}
-          </div>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 border-l-4 border-green-500">
-          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Resolved</div>
-          <div className="text-2xl font-bold text-green-600">
-            {complaints.filter(c => c.status?.toLowerCase() === 'resolved').length}
-          </div>
-        </div>
-      </div>
+
     </div>
   );
 };

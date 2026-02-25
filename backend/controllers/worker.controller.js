@@ -295,7 +295,7 @@ export const createWorker = async (req, res) => {
     });
   } catch (error) {
     console.error('createWorker error:', error);
-    
+
     // Handle unique constraint violation
     if (error.name === 'SequelizeUniqueConstraintError') {
       return res.status(400).json({
@@ -347,10 +347,10 @@ export const getAllWorkers = async (req, res) => {
 
       // Get supervisors under this EO
       const supervisorIds = (await AdminManagement.findAll({
-        where: { 
-          eo_id: eo.id, 
+        where: {
+          eo_id: eo.id,
           ulb_id: eo.ulb_id,
-          role: 'SUPERVISOR' 
+          role: 'SUPERVISOR'
         },
         attributes: ['id']
       })).map(s => s.id);
@@ -366,19 +366,19 @@ export const getAllWorkers = async (req, res) => {
     // ADMIN: Can filter by ulb_id, eo_id, ward_id if provided
     else if (userRole === 'ADMIN') {
       const { ulb_id, eo_id, ward_id, status } = req.query;
-      
+
       if (ulb_id) {
         whereClause.ulb_id = ulb_id;
       }
-      
+
       if (eo_id) {
         whereClause.eo_id = parseInt(eo_id);
       }
-      
+
       if (ward_id) {
         whereClause.ward_id = parseInt(ward_id);
       }
-      
+
       if (status) {
         whereClause.status = status.toUpperCase();
       }
@@ -439,12 +439,12 @@ export const getAllWorkers = async (req, res) => {
       ],
       order: [['completed_at', 'DESC']]
     }) : [];
-    
+
     // Filter out tasks with empty string photo URLs
     const tasksWithProofs = tasks.filter(task => {
       const taskData = task.get({ plain: true });
       return (taskData.before_photo_url && taskData.before_photo_url.trim() !== '') ||
-             (taskData.after_photo_url && taskData.after_photo_url.trim() !== '');
+        (taskData.after_photo_url && taskData.after_photo_url.trim() !== '');
     });
 
     // Group tasks by worker_id
@@ -495,7 +495,36 @@ export const getAllWorkers = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('getAllWorkers error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch workers',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get workers for a specific supervisor
+ * GET /api/workers/supervisor/:supervisorId
+ */
+export const getWorkersBySupervisor = async (req, res) => {
+  try {
+    const { supervisorId } = req.params;
+    const workers = await Worker.findAll({
+      where: {
+        supervisor_id: supervisorId,
+        status: 'ACTIVE'
+      },
+      attributes: ['id', 'full_name', 'employee_code'],
+      order: [['full_name', 'ASC']]
+    });
+
+    res.json({
+      success: true,
+      data: { workers }
+    });
+  } catch (error) {
+    console.error('getWorkersBySupervisor error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch workers',

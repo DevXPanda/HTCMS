@@ -14,7 +14,9 @@ import {
     FileText,
     MessageSquare,
     UserPlus,
-    CheckCircle2
+    CheckCircle2,
+    HardHat,
+    Image as ImageIcon
 } from 'lucide-react';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
@@ -64,11 +66,9 @@ const ComplaintDetails = () => {
 
     const fetchSupervisors = async () => {
         try {
-            const response = await api.get('/admin-management/employees', {
-                params: { role: 'SUPERVISOR' }
-            });
-            if (response.data && response.employees) {
-                setSupervisors(response.data.employees);
+            const response = await api.get('/toilet/supervisors');
+            if (response.data && response.data.success) {
+                setSupervisors(response.data.data.supervisors);
             }
         } catch (error) {
             console.error('Failed to fetch supervisors:', error);
@@ -125,7 +125,7 @@ const ComplaintDetails = () => {
     };
 
     return (
-        <div className="space-y-6 max-w-6xl mx-auto">
+        <div className="space-y-6 max-w-6xl mx-auto p-4 sm:p-6 text-left">
             {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
@@ -206,6 +206,82 @@ const ComplaintDetails = () => {
                         </div>
                     </div>
 
+                    {/* Resolution Proof Card */}
+                    {(complaint.status.toLowerCase() === 'resolved' || complaint.resolution_after_photo) && (
+                        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                            <div className="p-6">
+                                <div className="flex items-center gap-2 mb-4 border-b pb-4">
+                                    <CheckCircle2 className="w-5 h-5 text-green-600" />
+                                    <h2 className="text-lg font-bold text-gray-900">Resolution Proof</h2>
+                                </div>
+
+                                <div className="space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                        {complaint.resolution_before_photo && (
+                                            <div className="space-y-2">
+                                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Before Photo (Arrival)</p>
+                                                <a href={complaint.resolution_before_photo} target="_blank" rel="noopener noreferrer" className="block relative aspect-video rounded-xl overflow-hidden border-2 border-gray-100">
+                                                    <img src={complaint.resolution_before_photo} alt="Before" className="w-full h-full object-cover" />
+                                                    {complaint.resolution_before_address && (
+                                                        <div className="absolute bottom-0 inset-x-0 p-2 bg-black/50 text-[10px] text-white backdrop-blur-sm truncate">
+                                                            <MapPin className="w-3 h-3 inline mr-1" />
+                                                            {complaint.resolution_before_address}
+                                                        </div>
+                                                    )}
+                                                </a>
+                                            </div>
+                                        )}
+                                        {complaint.resolution_after_photo && (
+                                            <div className="space-y-2">
+                                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">After Photo (Resolved)</p>
+                                                <a href={complaint.resolution_after_photo} target="_blank" rel="noopener noreferrer" className="block relative aspect-video rounded-xl overflow-hidden border-2 border-green-100">
+                                                    <img src={complaint.resolution_after_photo} alt="After" className="w-full h-full object-cover" />
+                                                    {complaint.resolution_after_address && (
+                                                        <div className="absolute bottom-0 inset-x-0 p-2 bg-green-900/60 text-[10px] text-white backdrop-blur-sm truncate">
+                                                            <MapPin className="w-3 h-3 inline mr-1" />
+                                                            {complaint.resolution_after_address}
+                                                        </div>
+                                                    )}
+                                                </a>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-50">
+                                        <div className="flex items-start gap-3">
+                                            <div className="bg-primary-50 p-2 rounded-lg">
+                                                <HardHat className="w-5 h-5 text-primary-600" />
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Resolved By Worker</p>
+                                                <p className="text-sm font-bold text-gray-900">{complaint.worker ? `${complaint.worker.full_name} (${complaint.worker.employee_code})` : 'N/A'}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-3">
+                                            <div className="bg-amber-50 p-2 rounded-lg">
+                                                <MessageSquare className="w-5 h-5 text-amber-600" />
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Resolution Notes</p>
+                                                <p className="text-sm font-medium text-gray-700 italic">"{complaint.resolutionNotes || 'No notes provided'}"</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {complaint.is_escalated && (
+                                        <div className="bg-red-50 border border-red-100 p-4 rounded-xl">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <AlertTriangle className="w-4 h-4 text-red-600" />
+                                                <p className="text-xs font-black text-red-600 uppercase">Task Escalated</p>
+                                            </div>
+                                            <p className="text-sm font-medium text-red-800">{complaint.escalation_reason || 'No reason provided'}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Citizen Details */}
                     <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
                         <div className="p-6">
@@ -233,7 +309,7 @@ const ComplaintDetails = () => {
 
                 {/* Management Sidebar */}
                 <div className="space-y-6">
-                    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden text-left">
                         <div className="p-6">
                             <div className="flex items-center gap-2 mb-4 border-b pb-4">
                                 <UserPlus className="w-5 h-5 text-primary-600" />
@@ -297,7 +373,7 @@ const ComplaintDetails = () => {
                     </div>
 
                     {/* Timeline/Audit Info */}
-                    <div className="bg-primary-900 rounded-xl p-6 text-white shadow-lg shadow-primary-900/10">
+                    <div className="bg-primary-900 rounded-xl p-6 text-white shadow-lg shadow-primary-900/10 text-left">
                         <div className="flex items-center gap-2 mb-4">
                             <Clock className="w-5 h-5 text-primary-300" />
                             <h2 className="text-lg font-bold">System Log</h2>

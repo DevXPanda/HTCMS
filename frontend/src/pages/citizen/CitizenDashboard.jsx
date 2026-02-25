@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { citizenAPI } from '../../services/api';
 import Loading from '../../components/Loading';
-import { Home, FileText, DollarSign, CreditCard, Bell, Store, Droplet, PlusCircle, FileCheck, History, TrendingUp } from 'lucide-react';
+import { Home, FileText, DollarSign, CreditCard, Bell, Store, Droplet, PlusCircle, FileCheck, History, TrendingUp, ClipboardList } from 'lucide-react';
 
 const CitizenDashboard = () => {
   const [dashboard, setDashboard] = useState(null);

@@ -102,10 +102,11 @@ const FileToiletComplaint = () => {
 
             const payload = {
                 ...formData,
+                priority: formData.priority.toLowerCase(),
                 citizenName: `${user?.firstName} ${user?.lastName}`,
                 citizenPhone: user?.phone || user?.phoneNumber,
                 citizenEmail: user?.email,
-                status: 'Pending'
+                status: 'pending'
             };
 
             const response = await api.post('/toilet/complaints', payload);

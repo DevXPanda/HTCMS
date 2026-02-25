@@ -259,32 +259,6 @@ const GauShalaInspections = () => {
                     </table>
                 </div>
             </div>
-
-            {/* Summary Stats
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-white rounded-lg shadow p-4">
-                    <div className="text-sm text-gray-500">Total Inspections</div>
-                    <div className="text-2xl font-bold text-gray-900">{inspections.length}</div>
-                </div>
-                <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
-                    <div className="text-sm text-gray-500">Completed</div>
-                    <div className="text-2xl font-bold text-green-600">
-                        {inspections.filter(i => i.status === 'completed').length}
-                    </div>
-                </div>
-                <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
-                    <div className="text-sm text-gray-500">Pending</div>
-                    <div className="text-2xl font-bold text-yellow-600">
-                        {inspections.filter(i => i.status === 'pending').length}
-                    </div>
-                </div>
-                <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
-                    <div className="text-sm text-gray-500">Overdue</div>
-                    <div className="text-2xl font-bold text-red-600">
-                        {inspections.filter(i => isOverdue(i)).length}
-                    </div>
-                </div>
-            </div> */}
         </div>
     );
 };

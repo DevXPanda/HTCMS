@@ -26,7 +26,7 @@ const createEmployeeValidation = [
     .withMessage('Full name is required')
     .isLength({ min: 2, max: 100 })
     .withMessage('Full name must be between 2 and 100 characters'),
-  
+
   body('role')
     .custom((value) => {
       const normalizedValue = value ? value.toUpperCase().replace(/-/g, '_') : value;
@@ -40,7 +40,7 @@ const createEmployeeValidation = [
       // Normalize role to uppercase with underscores
       return value ? value.toUpperCase().replace(/-/g, '_') : value;
     }),
-  
+
   body('phone_number')
     .trim()
     .notEmpty()
@@ -49,7 +49,7 @@ const createEmployeeValidation = [
     .withMessage('Phone number must be between 6 and 15 digits')
     .matches(/^[0-9+\-\s()]+$/)
     .withMessage('Phone number can only contain digits, +, -, spaces, and parentheses'),
-  
+
   body('email')
     .trim()
     .notEmpty()
@@ -57,7 +57,7 @@ const createEmployeeValidation = [
     .isEmail()
     .withMessage('Please provide a valid email address')
     .normalizeEmail(),
-  
+
   body('ward_ids')
     .custom((value, { req }) => {
       const role = req.body.role;
@@ -165,7 +165,7 @@ const updateEmployeeValidation = [
     .withMessage('Full name cannot be empty')
     .isLength({ min: 2, max: 100 })
     .withMessage('Full name must be between 2 and 100 characters'),
-  
+
   body('role')
     .optional()
     .custom((value) => {
@@ -181,7 +181,7 @@ const updateEmployeeValidation = [
       // Normalize role to uppercase with underscores
       return value ? value.toUpperCase().replace(/-/g, '_') : value;
     }),
-  
+
   body('phone_number')
     .optional()
     .trim()
@@ -191,7 +191,7 @@ const updateEmployeeValidation = [
     .withMessage('Phone number must be between 6 and 15 digits')
     .matches(/^[0-9+\-\s()]+$/)
     .withMessage('Phone number can only contain digits, +, -, spaces, and parentheses'),
-  
+
   body('email')
     .optional()
     .trim()
@@ -200,7 +200,7 @@ const updateEmployeeValidation = [
     .isEmail()
     .withMessage('Please provide a valid email address')
     .normalizeEmail(),
-  
+
   body('ward_ids')
     .custom((value, { req }) => {
       const role = req.body.role;
@@ -261,19 +261,19 @@ const updateEmployeeValidation = [
         length: value ? value.length : 0,
         isEmpty: !value || value.trim() === ''
       });
-      
+
       // Allow empty password (no change) or valid password
       if (!value || value.trim() === '') {
         console.log('✅ Password validation: Empty password allowed');
         return true; // Empty password is allowed (no change)
       }
-      
+
       // Simple validation: at least 4 characters
       if (value.length < 4) {
         console.log('❌ Password validation: Length failed');
         throw new Error('Password must be at least 4 characters long');
       }
-      
+
       console.log('✅ Password validation: All checks passed');
       return true;
     })
@@ -305,7 +305,7 @@ const bulkStatusUpdateValidation = [
       return value.every(id => Number.isInteger(id) && id > 0);
     })
     .withMessage('All employee IDs must be positive integers'),
-  
+
   body('status')
     .isIn(['activate', 'deactivate'])
     .withMessage('Status must be either activate or deactivate')
@@ -316,17 +316,17 @@ const requireEoOrAdmin = (req, res, next) => {
   const normalizedRole = req.user?.role ? req.user.role.toUpperCase().replace(/-/g, '_') : null;
   const isEo = req.userType === 'admin_management' && normalizedRole === 'EO';
   const isAdmin = req.userType === 'user' && req.user?.role === 'admin';
-  
+
   if (isEo || isAdmin) {
     return next();
   }
-  
+
   return res.status(403).json({ message: 'EO or Admin access required' });
 };
 
 // Apply admin authentication to all routes except wards endpoint and by-ulb endpoint
 router.use((req, res, next) => {
-  if (req.path === '/employees/wards' || req.path === '/employees/by-ulb') {
+  if (req.path === '/employees' || req.path === '/employees/wards' || req.path === '/employees/by-ulb') {
     // Use basic authentication for these endpoints - allow authenticated users
     return authenticate(req, res, next);
   }

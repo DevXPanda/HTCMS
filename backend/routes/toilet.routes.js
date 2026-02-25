@@ -21,7 +21,10 @@ import {
     deleteComplaint,
     getReports,
     getInspectors,
-    getSupervisors
+    getSupervisors,
+    getFacilityStaff,
+    assignStaff,
+    removeStaffAssignment
 } from '../controllers/toilet.controller.js';
 
 const router = express.Router();
@@ -40,6 +43,11 @@ router.get('/supervisors', getSupervisors);
 router.post('/facilities', authorize('admin'), createFacility);
 router.put('/facilities/:id', authorize('admin'), updateFacility);
 router.delete('/facilities/:id', authorize('admin'), deleteFacility);
+
+// Staff Assignments
+router.get('/facilities/:id/staff', getFacilityStaff);
+router.post('/facilities/:id/staff', authorize('admin'), assignStaff);
+router.delete('/facilities/:id/staff/:assignmentId', authorize('admin'), removeStaffAssignment);
 
 // Inspections
 router.get('/inspections', getAllInspections);

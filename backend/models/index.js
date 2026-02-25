@@ -391,6 +391,7 @@ ToiletStaffAssignment.belongsTo(AdminManagement, { foreignKey: 'staffId', as: 's
 
 ToiletComplaint.belongsTo(ToiletFacility, { foreignKey: 'toiletFacilityId', as: 'facility' });
 ToiletComplaint.belongsTo(AdminManagement, { foreignKey: 'assignedTo', as: 'assignee' });
+ToiletComplaint.belongsTo(Worker, { foreignKey: 'workerId', as: 'worker' });
 
 Ward.hasMany(ToiletFacility, { foreignKey: 'wardId', as: 'toiletFacilities' });
 

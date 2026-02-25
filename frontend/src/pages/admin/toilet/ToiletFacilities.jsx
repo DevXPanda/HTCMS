@@ -315,6 +315,13 @@ const ToiletFacilities = () => {
                         <Eye className="h-5 w-5" />
                       </Link>
                       <Link
+                        to={`/toilet-management/facilities/${toilet.id}/staff`}
+                        className="text-green-600 hover:text-green-900"
+                        title="Manage Staffing"
+                      >
+                        <Users className="h-5 w-5" />
+                      </Link>
+                      <Link
                         to={`/toilet-management/facilities/${toilet.id}/edit`}
                         className="text-blue-600 hover:text-blue-900"
                         title="Edit"

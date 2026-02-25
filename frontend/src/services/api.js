@@ -478,4 +478,11 @@ export const shopTaxAssessmentsAPI = {
 // Shop demand generation (idempotent)
 export const generateShopDemand = (data) => api.post('/demands/generate-shop', data);
 
+// Toilet Complaint API
+export const toiletComplaintAPI = {
+  getAssigned: (supervisorId) => api.get(`/toilet/complaints/assigned/${supervisorId}`),
+  getById: (id) => api.get(`/toilet/complaints/${id}`),
+  update: (id, data) => api.put(`/toilet/complaints/${id}`, data)
+};
+
 export default api;

@@ -39,6 +39,7 @@ const ToiletDetails = () => {
   }, [id]);
 
   const fetchToiletDetails = async () => {
+    if (!id || id === 'undefined') return;
     try {
       setLoading(true);
       const response = await api.get(`/toilet/facilities/${id}`);

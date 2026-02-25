@@ -1,4 +1,4 @@
-import { ToiletFacility, ToiletInspection, ToiletMaintenance, ToiletComplaint, ToiletStaffAssignment, User, Ward, AdminManagement } from '../models/index.js';
+import { ToiletFacility, ToiletInspection, ToiletMaintenance, ToiletComplaint, ToiletStaffAssignment, User, Ward, AdminManagement, Worker } from '../models/index.js';
 import { Op } from 'sequelize';
 import { auditLogger } from '../utils/auditLogger.js';
 
@@ -29,7 +29,13 @@ export const getAllFacilities = async (req, res, next) => {
         const { count, rows } = await ToiletFacility.findAndCountAll({
             where,
             include: [
-                { model: Ward, as: 'ward', attributes: ['id', 'wardNumber', 'wardName'] }
+                { model: Ward, as: 'ward', attributes: ['id', 'wardNumber', 'wardName'] },
+                {
+                    model: ToiletStaffAssignment,
+                    as: 'staffAssignments',
+                    where: { isActive: true },
+                    required: false
+                }
             ],
             limit: parseInt(limit),
             offset,
@@ -62,6 +68,13 @@ export const getFacilityById = async (req, res, next) => {
     try {
         const { id } = req.params;
 
+        if (!id || id === 'undefined' || isNaN(id)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid facility ID'
+            });
+        }
+
         const facility = await ToiletFacility.findByPk(id, {
             include: [
                 { model: Ward, as: 'ward' },
@@ -93,6 +106,153 @@ export const getFacilityById = async (req, res, next) => {
         res.json({
             success: true,
             data: { facility }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// --- Staff Assignments ---
+
+export const getFacilityStaff = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        if (!id || id === 'undefined' || isNaN(id)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid facility ID'
+            });
+        }
+
+        const assignments = await ToiletStaffAssignment.findAll({
+            where: {
+                toiletFacilityId: id,
+                isActive: true
+            },
+            include: [
+                {
+                    model: AdminManagement,
+                    as: 'staff',
+                    attributes: ['id', 'full_name', 'employee_id', 'role']
+                }
+            ],
+            order: [['assignedDate', 'DESC']]
+        });
+
+        res.json({
+            success: true,
+            data: { assignments }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const assignStaff = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        if (!id || id === 'undefined' || isNaN(id)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid facility ID'
+            });
+        }
+
+        const { staffId, role, shift } = req.body;
+
+        // Check if already assigned and active
+        const existing = await ToiletStaffAssignment.findOne({
+            where: {
+                toiletFacilityId: id,
+                staffId,
+                isActive: true
+            }
+        });
+
+        if (existing) {
+            return res.status(400).json({
+                success: false,
+                message: 'Staff member is already assigned to this facility'
+            });
+        }
+
+        const assignment = await ToiletStaffAssignment.create({
+            toiletFacilityId: id,
+            staffId,
+            role,
+            shift,
+            assignedDate: new Date(),
+            isActive: true
+        });
+
+        // Audit Log
+        await auditLogger.createAuditLog({
+            req,
+            user: req.user,
+            actionType: 'ASSIGN',
+            entityType: 'ToiletFacility',
+            entityId: id,
+            description: `Assigned staff ID ${staffId} as ${role} for ${shift} shift`,
+            metadata: { assignmentId: assignment.id, staffId, role, shift }
+        });
+
+        res.status(201).json({
+            success: true,
+            message: 'Staff assigned successfully',
+            data: { assignment }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const removeStaffAssignment = async (req, res, next) => {
+    try {
+        const { id, assignmentId } = req.params;
+
+        if (!id || id === 'undefined' || isNaN(id)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid facility ID'
+            });
+        }
+
+        const assignment = await ToiletStaffAssignment.findOne({
+            where: {
+                id: assignmentId,
+                toiletFacilityId: id
+            }
+        });
+
+        if (!assignment) {
+            return res.status(404).json({
+                success: false,
+                message: 'Assignment not found'
+            });
+        }
+
+        // Soft delete/Deactivate
+        await assignment.update({
+            isActive: false,
+            unassignedDate: new Date()
+        });
+
+        // Audit Log
+        await auditLogger.createAuditLog({
+            req,
+            user: req.user,
+            actionType: 'DELETE',
+            entityType: 'ToiletFacility',
+            entityId: id,
+            description: `Removed staff assignment ID ${assignmentId}`,
+            metadata: { assignmentId, staffId: assignment.staffId }
+        });
+
+        res.json({
+            success: true,
+            message: 'Staff assignment removed successfully'
         });
     } catch (error) {
         next(error);
@@ -142,6 +302,14 @@ export const createFacility = async (req, res, next) => {
 export const updateFacility = async (req, res, next) => {
     try {
         const { id } = req.params;
+
+        if (!id || id === 'undefined' || isNaN(id)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid facility ID'
+            });
+        }
+
         const facility = await ToiletFacility.findByPk(id);
 
         if (!facility) {
@@ -182,6 +350,14 @@ export const updateFacility = async (req, res, next) => {
 export const deleteFacility = async (req, res, next) => {
     try {
         const { id } = req.params;
+
+        if (!id || id === 'undefined' || isNaN(id)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid facility ID'
+            });
+        }
+
         const facility = await ToiletFacility.findByPk(id);
 
         if (!facility) {
@@ -456,7 +632,8 @@ export const getComplaintById = async (req, res, next) => {
         const complaint = await ToiletComplaint.findByPk(id, {
             include: [
                 { model: ToiletFacility, as: 'facility' },
-                { model: AdminManagement, as: 'assignee', attributes: ['id', 'full_name', 'role'] }
+                { model: AdminManagement, as: 'assignee', attributes: ['id', 'full_name', 'role'] },
+                { model: Worker, as: 'worker', attributes: ['id', 'full_name', 'employee_code'] }
             ]
         });
 
@@ -490,8 +667,12 @@ export const updateComplaint = async (req, res, next) => {
 
         const updateData = { ...req.body };
 
+        // Normalize status and priority if they exist
+        if (updateData.status) updateData.status = updateData.status.toLowerCase();
+        if (updateData.priority) updateData.priority = updateData.priority.toLowerCase();
+
         // Handle specific business logic for resolution
-        if (updateData.status === 'Resolved' && complaint.status !== 'Resolved') {
+        if (updateData.status === 'resolved' && complaint.status !== 'resolved') {
             updateData.resolvedAt = new Date();
         }
 
@@ -561,7 +742,10 @@ export const getAssignedComplaints = async (req, res, next) => {
         const { supervisorId } = req.params;
         const complaints = await ToiletComplaint.findAll({
             where: { assignedTo: supervisorId },
-            include: [{ model: ToiletFacility, as: 'facility' }],
+            include: [
+                { model: ToiletFacility, as: 'facility' },
+                { model: Worker, as: 'worker', attributes: ['id', 'full_name', 'employee_code'] }
+            ],
             order: [['createdAt', 'DESC']]
         });
 

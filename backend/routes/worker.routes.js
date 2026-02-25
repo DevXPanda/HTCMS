@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticate } from '../middleware/enhancedAuth.js';
-import { createWorker, getAllWorkers } from '../controllers/worker.controller.js';
+import { createWorker, getAllWorkers, getWorkersBySupervisor } from '../controllers/worker.controller.js';
 import { body, validationResult } from 'express-validator';
 
 const router = express.Router();
@@ -128,5 +128,9 @@ router.get('/', getAllWorkers);
 
 // Create worker (ADMIN, EO only)
 router.post('/', createWorkerValidation, validateRequest, checkRoleAccess, createWorker);
+
+// Get workers for a supervisor
+router.get('/supervisor/:supervisorId', getWorkersBySupervisor);
+
 
 export default router;
