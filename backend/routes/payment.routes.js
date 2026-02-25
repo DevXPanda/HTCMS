@@ -28,14 +28,7 @@ router.get('/demand/:demandId', getPaymentsByDemand);
 
 // Get all payments (filtered by role)
 router.get('/', (req, res, next) => {
-  console.log('🔍 Payment API - Get all payments called');
-  console.log('👤 Payment API - Authenticated user:', {
-    id: req.user?.id,
-    role: req.user?.role,
-    userType: req.user?.userType,
-    employee_id: req.user?.employee_id
-  });
-  console.log('📋 Payment API - Query params:', req.query);
+
   next();
 }, getAllPayments);
 

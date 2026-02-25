@@ -12,12 +12,12 @@ const generateToken = (user) => {
   if (!process.env.JWT_SECRET) {
     throw new Error('JWT_SECRET is not configured. Please set it in your .env file.');
   }
-  
+
   const tokenPayload = {
     userId: user.id,
     role: user.role || 'citizen' // Always include role
   };
-  
+
   // Include ULB and related fields if they exist
   if (user.ulb_id) tokenPayload.ulb_id = user.ulb_id;
   if (user.ward_id) tokenPayload.ward_id = user.ward_id;
@@ -25,7 +25,7 @@ const generateToken = (user) => {
   if (user.ward_ids && Array.isArray(user.ward_ids) && user.ward_ids.length > 0) {
     tokenPayload.ward_ids = user.ward_ids;
   }
-  
+
   return jwt.sign(tokenPayload, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRE || '7d'
   });
@@ -335,7 +335,7 @@ export const logout = async (req, res, next) => {
 
     // Capture attendance for collectors (automatic punch out)
     if (user.role === 'collector') {
-      console.log('🔍 Logout - Collector detected:', user.id, 'Role:', user.role, 'UserType:', user.userType);
+
 
       try {
         // Import CollectorAttendance here to avoid circular dependency
@@ -350,15 +350,9 @@ export const logout = async (req, res, next) => {
           order: [['loginAt', 'DESC']]
         });
 
-        console.log('🔍 Logout - Active attendance found:', activeAttendance ? 'YES' : 'NO');
+
         if (activeAttendance) {
-          console.log('🔍 Logout - Attendance details:', {
-            id: activeAttendance.id,
-            collectorId: activeAttendance.collectorId,
-            usertype: activeAttendance.usertype,
-            loginAt: activeAttendance.loginAt,
-            logoutAt: activeAttendance.logoutAt
-          });
+
         }
 
         if (activeAttendance) {
@@ -368,7 +362,7 @@ export const logout = async (req, res, next) => {
             // workingDurationMinutes is calculated automatically in the model hook
           });
 
-          console.log('✅ Logout - Attendance updated with logout time:', activeAttendance.logoutAt);
+
 
           // Create audit log for attendance punch out
           // Wrap in try-catch to ensure logout never fails due to audit log errors
@@ -402,9 +396,9 @@ export const logout = async (req, res, next) => {
             limit: 3
           });
 
-          console.log('🔍 Debug - All attendance records for collector:', user.id);
+
           allRecords.forEach((record, index) => {
-            console.log(`   ${index + 1}. ID: ${record.id}, UserType: ${record.usertype}, Login: ${record.loginAt}, Logout: ${record.logoutAt || 'Active'}`);
+
           });
         }
       } catch (attendanceError) {

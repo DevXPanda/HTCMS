@@ -63,13 +63,7 @@ router.get('/worker/reports', (req, res, next) => {
 
 // Get attendance records (role-based access)
 router.get('/', (req, res, next) => {
-  console.log('🔍 Attendance API - Get attendance records called');
-  console.log('👤 Attendance API - Authenticated user:', {
-    id: req.user?.id,
-    role: req.user?.role,
-    userType: req.user?.userType,
-    employee_id: req.user?.employee_id
-  });
+
   next();
 }, getAttendanceRecords);
 

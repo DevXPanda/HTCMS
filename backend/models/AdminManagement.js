@@ -115,7 +115,7 @@ AdminManagement.prototype.getDisplayName = function () {
 AdminManagement.generateEmployeeId = async (role, attempt = 1) => {
   // Normalize role to uppercase for prefix lookup
   const normalizedRole = role ? role.toUpperCase().replace(/-/g, '_') : role;
-  
+
   const prefixes = {
     CLERK: 'CLK',
     INSPECTOR: 'INSP',
@@ -148,7 +148,7 @@ AdminManagement.generateEmployeeId = async (role, attempt = 1) => {
 
     // Generate employee ID with attempt-based offset to avoid conflicts
     const employeeId = `${prefix}-${String(count + attempt).padStart(4, '0')}`;
-    
+
     // Double-check if this ID already exists (race condition protection)
     const existing = await AdminManagement.findOne({
       where: { employee_id: employeeId }
@@ -177,8 +177,8 @@ AdminManagement.generatePassword = () => {
 
 // Static method to find employee by multiple identifiers
 AdminManagement.findByIdentifier = async (identifier) => {
-  console.log(`🔍 Searching admin_management table for identifier: ${identifier}`);
-  
+
+
   const result = await AdminManagement.findOne({
     where: {
       [sequelize.Sequelize.Op.or]: [
@@ -191,9 +191,9 @@ AdminManagement.findByIdentifier = async (identifier) => {
   });
 
   if (result) {
-    console.log(`✅ Found employee: ${result.employee_id} (${result.role})`);
+
   } else {
-    console.log(`❌ No employee found for identifier: ${identifier}`);
+
   }
 
   return result;

@@ -164,18 +164,18 @@ async function backfillShops() {
 async function main() {
   try {
     await sequelize.authenticate();
-    console.log('Connected. Running backfill...');
+
 
     const propResult = await backfillProperties();
-    console.log('Properties:', propResult);
+
 
     const waterResult = await backfillWaterConnections();
-    console.log('Water connections:', waterResult);
+
 
     const shopResult = await backfillShops();
-    console.log('Shops:', shopResult);
 
-    console.log('Backfill complete.');
+
+
   } catch (err) {
     console.error('Backfill failed:', err);
     process.exit(1);

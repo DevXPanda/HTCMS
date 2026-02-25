@@ -441,7 +441,7 @@ export const getStaffByRoles = async (req, res, next) => {
     // Filter to only valid roles to prevent Sequelize ENUM validation errors
     const filteredRoleList = roleList.filter(role => validUserRoles.includes(role));
 
-    console.log(`🔍 Fetching staff with roles: ${filteredRoleList.join(', ')} (Requested: ${roleList.join(', ')})`);
+
 
     const staff = await User.findAll({
       where: {

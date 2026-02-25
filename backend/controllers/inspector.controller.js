@@ -12,15 +12,7 @@ export const getDashboardStats = async (req, res) => {
 
     // Use ward filter for inspector role
     const wardFilter = req.wardFilter || {};
-    console.log('Inspector Dashboard - Using ward filter:', wardFilter);
 
-    // Convert id filter to wardId for PropertyApplication table
-    const propertyAppWardFilter = wardFilter.id ? { wardId: wardFilter.id } : wardFilter;
-    console.log('Inspector Dashboard - Converted ward filter for PropertyApplication:', propertyAppWardFilter);
-
-    // Convert id filter to wardId for Property table (used in includes)
-    const propertyWardFilter = wardFilter.id ? { wardId: wardFilter.id } : wardFilter;
-    console.log('Inspector Dashboard - Converted ward filter for Property:', propertyWardFilter);
 
     const stats = await Promise.all([
       // Property applications pending inspection (ward-scoped)
@@ -136,18 +128,7 @@ export const getDashboardStats = async (req, res) => {
       })
     ]);
 
-    console.log('Inspector Dashboard Stats - Ward-scoped results:', {
-      pendingPropertyInspections: stats[0],
-      pendingWaterInspections: stats[1],
-      approvedPropertyToday: stats[2],
-      approvedWaterToday: stats[3],
-      rejectedPropertyToday: stats[4],
-      rejectedWaterToday: stats[5],
-      returnedPropertyToday: stats[6],
-      returnedWaterToday: stats[7],
-      totalInspectionsToday: stats[8] + stats[9],
-      inspectorWards: req.user.ward_ids
-    });
+
 
     res.json({
       pendingPropertyInspections: stats[0],
@@ -171,11 +152,7 @@ export const getPendingPropertyApplications = async (req, res) => {
   try {
     // Use ward filter for inspector role
     const wardFilter = req.wardFilter || {};
-    console.log('🔍 Inspector Pending Property Apps - Using ward filter:', wardFilter);
 
-    // Convert id filter to wardId for PropertyApplication table
-    const propertyAppWardFilter = wardFilter.id ? { wardId: wardFilter.id } : wardFilter;
-    console.log('🔍 Inspector Pending Property Apps - Converted ward filter:', propertyAppWardFilter);
 
     const applications = await PropertyApplication.findAll({
       where: {
@@ -202,7 +179,7 @@ export const getPendingPropertyApplications = async (req, res) => {
       order: [['submittedAt', 'ASC']]
     });
 
-    console.log(`Inspector Pending Property Apps - Found ${applications.length} applications in wards: [${req.user.ward_ids?.join(', ') || 'None'}]`);
+
 
     res.json(applications);
   } catch (error) {
@@ -216,11 +193,7 @@ export const getPendingWaterConnectionRequests = async (req, res) => {
   try {
     // Use ward filter for inspector role - filter through property relationship
     const wardFilter = req.wardFilter || {};
-    console.log('🔍 Inspector Pending Water Requests - Using ward filter:', wardFilter);
 
-    // Convert id filter to wardId for Property table
-    const propertyWardFilter = wardFilter.id ? { wardId: wardFilter.id } : wardFilter;
-    console.log('🔍 Inspector Pending Water Requests - Converted ward filter:', propertyWardFilter);
 
     const requests = await WaterConnectionRequest.findAll({
       where: {
@@ -259,7 +232,7 @@ export const getPendingWaterConnectionRequests = async (req, res) => {
       order: [['submittedAt', 'ASC']]
     });
 
-    console.log(`Inspector Pending Water Requests - Found ${requests.length} requests in wards: [${req.user.ward_ids?.join(', ') || 'None'}]`);
+
 
     res.json(requests);
   } catch (error) {
@@ -353,10 +326,8 @@ export const getWaterConnectionRequestForInspection = async (req, res) => {
     if (req.userType === 'admin_management' && req.user.role === 'inspector') {
       const propertyWardId = request.property?.wardId;
       if (!propertyWardId || !req.user.ward_ids || !req.user.ward_ids.includes(propertyWardId)) {
-        console.log(`❌ Inspector ${req.user.full_name} denied access to water connection request ${id} - Property ward ${propertyWardId} not in assigned wards [${req.user.ward_ids}]`);
         return res.status(403).json({ error: 'Access denied. This request is not in your assigned ward.' });
       }
-      console.log(`✅ Inspector ${req.user.full_name} granted access to water connection request ${id} - Property ward ${propertyWardId}`);
     }
 
     // Check if request is in inspectable status
@@ -549,10 +520,8 @@ export const processWaterInspection = async (req, res) => {
     if (req.userType === 'admin_management' && req.user.role === 'inspector') {
       const propertyWardId = request.property?.wardId;
       if (!propertyWardId || !req.user.ward_ids || !req.user.ward_ids.includes(propertyWardId)) {
-        console.log(`❌ Inspector ${req.user.full_name} denied access to process water connection request ${id} - Property ward ${propertyWardId} not in assigned wards [${req.user.ward_ids}]`);
         return res.status(403).json({ error: 'Access denied. This request is not in your assigned ward.' });
       }
-      console.log(`✅ Inspector ${req.user.full_name} granted access to process water connection request ${id} - Property ward ${propertyWardId}`);
     }
 
     // Check if request is in inspectable status
@@ -644,15 +613,7 @@ export const getRecentInspections = async (req, res) => {
 
     // Use ward filter for inspector role
     const wardFilter = req.wardFilter || {};
-    console.log('🔍 Inspector Recent Inspections - Using ward filter:', wardFilter);
 
-    // Convert id filter to wardId for PropertyApplication table
-    const propertyAppWardFilter = wardFilter.id ? { wardId: wardFilter.id } : wardFilter;
-    console.log('🔍 Inspector Recent Inspections - Converted ward filter for PropertyApplication:', propertyAppWardFilter);
-
-    // Convert id filter to wardId for Property table (used in includes)
-    const propertyWardFilter = wardFilter.id ? { wardId: wardFilter.id } : wardFilter;
-    console.log('🔍 Inspector Recent Inspections - Converted ward filter for Property:', propertyWardFilter);
 
     const recentPropertyInspections = await PropertyApplication.findAll({
       where: {
@@ -728,7 +689,7 @@ export const getRecentInspections = async (req, res) => {
     ].sort((a, b) => new Date(b.inspectedAt) - new Date(a.inspectedAt))
       .slice(0, limit);
 
-    console.log(`Inspector Recent Inspections - Found ${allInspections.length} inspections in wards: [${req.user.ward_ids?.join(', ') || 'None'}]`);
+
 
     res.json(allInspections);
   } catch (error) {
@@ -742,11 +703,7 @@ export const getWardProperties = async (req, res) => {
   try {
     // Use ward filter for inspector role
     const wardFilter = req.wardFilter || {};
-    console.log('🔍 Inspector Properties - Using ward filter:', wardFilter);
 
-    // For properties, we need to filter by wardId, not id
-    const propertyWardFilter = wardFilter.id ? { wardId: wardFilter.id } : wardFilter;
-    console.log('🔍 Inspector Properties - Property ward filter:', propertyWardFilter);
 
     const properties = await Property.findAll({
       where: propertyWardFilter,
@@ -765,7 +722,7 @@ export const getWardProperties = async (req, res) => {
       order: [['propertyNumber', 'ASC']]
     });
 
-    console.log(`Inspector Properties - Found ${properties.length} properties in wards: [${req.user.ward_ids?.join(', ') || 'None'}]`);
+
 
     res.json({ properties });
   } catch (error) {
@@ -805,7 +762,7 @@ export const getPropertyDetails = async (req, res) => {
       return res.status(404).json({ error: 'Property not found or access denied' });
     }
 
-    console.log(`🔍 Inspector Property Details - Retrieved property ${property.propertyNumber} in ward ${property.ward?.wardNumber}`);
+
 
     res.json({ property });
   } catch (error) {
@@ -849,7 +806,7 @@ export const getPropertyWaterConnections = async (req, res) => {
       order: [['connectionNumber', 'ASC']]
     });
 
-    console.log(`💧 Inspector Property Water Connections - Found ${waterConnections.length} connections for property ${property.propertyNumber}`);
+
 
     res.json({ waterConnections });
   } catch (error) {

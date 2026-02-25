@@ -28,7 +28,7 @@ const getCorrespondingUserId = async (adminManagementId) => {
     });
 
     if (correspondingUser) {
-      console.log(`Found corresponding user ID: ${correspondingUser.id} for admin ID: ${adminManagementId}`);
+
       return correspondingUser.id;
     } else {
       console.warn(`No corresponding user found for admin ID: ${adminManagementId}`);
@@ -51,7 +51,7 @@ export const getDashboard = async (req, res) => {
 
     // Use officer's admin_management ID directly
     const officerId = req.user.id;
-    console.log(`Getting dashboard stats for officer ID: ${officerId}`);
+
 
     const escalatedPropertyApps = await PropertyApplication.count({
       where: {
@@ -110,7 +110,7 @@ export const getDashboard = async (req, res) => {
       }]
     });
 
-    console.log(`Dashboard stats - Approved: ${approvedByOfficer}, Rejected: ${rejectedByOfficer}`);
+
 
     res.json({
       escalatedPropertyApps,
@@ -163,17 +163,12 @@ export const getEscalatedPropertyApplications = async (req, res) => {
 // Get escalated water connection requests
 export const getEscalatedWaterRequests = async (req, res) => {
   try {
-    console.log('getEscalatedWaterRequests - Starting...');
     // Apply ward-based filtering for officers
     const wardFilter = req.wardFilter || {};
-    console.log('getEscalatedWaterRequests - Ward filter:', wardFilter);
-    console.log('getEscalatedWaterRequests - req.user.ward_ids:', req.user.ward_ids);
-    console.log('getEscalatedWaterRequests - req.user.id:', req.user.id);
-    console.log('getEscalatedWaterRequests - req.user.role:', req.user.role);
 
     // Translate wardFilter from {id: ...} to {wardId: ...} for Property model
     const propertyWardFilter = wardFilter.id ? { wardId: wardFilter.id } : {};
-    console.log('getEscalatedWaterRequests - Property ward filter:', propertyWardFilter);
+
 
     const requests = await WaterConnectionRequest.findAll({
       where: { status: 'ESCALATED_TO_OFFICER' },
@@ -202,8 +197,7 @@ export const getEscalatedWaterRequests = async (req, res) => {
       order: [['updatedAt', 'DESC']]
     });
 
-    console.log('getEscalatedWaterRequests - Found requests:', requests.length);
-    console.log('getEscalatedWaterRequests - Request IDs:', requests.map(r => r.id));
+
 
     res.json(requests);
   } catch (error) {
@@ -366,7 +360,7 @@ export const decideWaterRequest = async (req, res) => {
 
     // Use officer's admin_management ID directly
     const officerId = req.user.id;
-    console.log(`Officer ${req.user.full_name} (ID: ${officerId}) making decision: ${decision}`);
+
 
     let newStatus;
     let waterConnectionId = null;
@@ -458,7 +452,7 @@ export const getDecisionHistory = async (req, res) => {
 
     // Use officer's admin_management ID directly
     const officerId = req.user.id;
-    console.log(`Getting decision history for officer ID: ${officerId}`);
+
 
     const propertyDecisions = await PropertyApplication.findAll({
       where: {
@@ -499,7 +493,7 @@ export const getDecisionHistory = async (req, res) => {
       order: [['decidedat', 'DESC']]
     });
 
-    console.log(`Found ${propertyDecisions.length} property decisions and ${waterDecisions.length} water decisions`);
+
 
     res.json({
       propertyDecisions,

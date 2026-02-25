@@ -40,6 +40,9 @@ import { ToiletMaintenance } from './ToiletMaintenance.js';
 import { ToiletStaffAssignment } from './ToiletStaffAssignment.js';
 import { ToiletComplaint } from './ToiletComplaint.js';
 import { MrfFacility } from './MrfFacility.js';
+import { MrfWasteEntry } from './MrfWasteEntry.js';
+import { MrfWorkerAssignment } from './MrfWorkerAssignment.js';
+import { MrfTask } from './MrfTask.js';
 import { GauShalaFacility } from './GauShalaFacility.js';
 import { GauShalaCattle } from './GauShalaCattle.js';
 import { GauShalaComplaint } from './GauShalaComplaint.js';
@@ -397,7 +400,27 @@ Ward.hasMany(ToiletFacility, { foreignKey: 'wardId', as: 'toiletFacilities' });
 
 // MRF Relationships
 MrfFacility.belongsTo(Ward, { foreignKey: 'ward_id', as: 'ward' });
+MrfFacility.belongsTo(AdminManagement, { foreignKey: 'supervisor_id', as: 'supervisor' });
 Ward.hasMany(MrfFacility, { foreignKey: 'ward_id', as: 'mrfFacilities' });
+AdminManagement.hasMany(MrfFacility, { foreignKey: 'supervisor_id', as: 'supervisedMrfs' });
+
+MrfWasteEntry.belongsTo(MrfFacility, { foreignKey: 'mrf_facility_id', as: 'facility' });
+MrfWasteEntry.belongsTo(AdminManagement, { foreignKey: 'received_by_id', as: 'receiver' });
+MrfFacility.hasMany(MrfWasteEntry, { foreignKey: 'mrf_facility_id', as: 'wasteEntries' });
+
+MrfWorkerAssignment.belongsTo(MrfFacility, { foreignKey: 'mrf_facility_id', as: 'facility' });
+MrfWorkerAssignment.belongsTo(Worker, { foreignKey: 'worker_id', as: 'worker' });
+MrfFacility.hasMany(MrfWorkerAssignment, { foreignKey: 'mrf_facility_id', as: 'workerAssignments' });
+Worker.hasMany(MrfWorkerAssignment, { foreignKey: 'worker_id', as: 'mrfAssignments' });
+
+MrfTask.belongsTo(MrfFacility, { foreignKey: 'mrf_facility_id', as: 'facility' });
+MrfTask.belongsTo(Worker, { foreignKey: 'worker_id', as: 'worker' });
+MrfTask.belongsTo(AdminManagement, { foreignKey: 'supervisor_id', as: 'supervisor' });
+MrfFacility.hasMany(MrfTask, { foreignKey: 'mrf_facility_id', as: 'tasks' });
+Worker.hasMany(MrfTask, { foreignKey: 'worker_id', as: 'mrfTasks' });
+
+ToiletComplaint.belongsTo(MrfFacility, { foreignKey: 'mrf_facility_id', as: 'mrfFacility' });
+MrfFacility.hasMany(ToiletComplaint, { foreignKey: 'mrf_facility_id', as: 'linkedComplaints' });
 
 // Gaushala Relationships
 GauShalaFacility.belongsTo(Ward, { foreignKey: 'ward_id', as: 'ward' });
@@ -484,6 +507,9 @@ export {
   ToiletStaffAssignment,
   ToiletComplaint,
   MrfFacility,
+  MrfWasteEntry,
+  MrfWorkerAssignment,
+  MrfTask,
   GauShalaFacility,
   GauShalaCattle,
   GauShalaComplaint,

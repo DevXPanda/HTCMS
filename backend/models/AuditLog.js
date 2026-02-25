@@ -15,7 +15,7 @@ export const AuditLog = sequelize.define('AuditLog', {
     comment: 'User who performed the action (null for system actions or when user is from admin_management table)'
   },
   actorRole: {
-    type: DataTypes.ENUM('admin', 'assessor', 'cashier', 'collector', 'citizen', 'clerk', 'inspector', 'system'),
+    type: DataTypes.ENUM('admin', 'assessor', 'cashier', 'collector', 'citizen', 'clerk', 'inspector', 'officer', 'eo', 'supervisor', 'field_worker', 'contractor', 'system'),
     allowNull: false,
     comment: 'Role of the user who performed the action'
   },
@@ -30,7 +30,7 @@ export const AuditLog = sequelize.define('AuditLog', {
       'Attendance', 'FieldVisit', 'FollowUp', 'CollectorTask', 'PropertyApplication',
       'WaterConnectionRequest', 'D2DC', 'ShopRegistrationRequest',
       'ToiletFacility', 'ToiletInspection', 'ToiletMaintenance', 'ToiletStaffAssignment', 'ToiletComplaint',
-      'MrfFacility', 'MrfSale',
+      'MrfFacility', 'MrfSale', 'MrfWorkerAssignment', 'MrfTask',
       'GauShalaFacility', 'GauShalaCattle', 'GauShalaComplaint', 'GauShalaFeedingRecord', 'GauShalaInspection', 'CattleMedicalRecord',
       'Worker', 'WorkerAttendance', 'WorkerPayroll', 'WorkerTask',
       'InventoryItem', 'InventoryTransaction', 'FacilityUtilityBill', 'CitizenFeedback',

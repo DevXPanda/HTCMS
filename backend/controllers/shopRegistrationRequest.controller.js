@@ -27,7 +27,7 @@ const getAllowedWardIds = (req) => {
   if (req.wardFilter && req.wardFilter.id) {
     const id = req.wardFilter.id;
     let wardIds = null;
-    
+
     if (id[Op.in]) {
       wardIds = id[Op.in];
     } else if (Array.isArray(id)) {
@@ -35,18 +35,18 @@ const getAllowedWardIds = (req) => {
     } else {
       wardIds = [id];
     }
-    
+
     // Normalize all ward IDs to integers for consistent database comparison
     if (wardIds && Array.isArray(wardIds)) {
       return wardIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
     }
   }
-  
+
   // Fallback: get from user.ward_ids (from JWT token) if wardFilter not set
   if (req.user && req.user.ward_ids && Array.isArray(req.user.ward_ids) && req.user.ward_ids.length > 0) {
     return req.user.ward_ids.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
   }
-  
+
   return null;
 };
 
@@ -66,11 +66,11 @@ export const getAllShopRegistrationRequests = async (req, res, next) => {
     // ============================================
     // ROLE-BASED ACCESS CONTROL
     // ============================================
-    
+
     // Citizen: only own requests (filtered by applicantId)
     if (req.user.role === 'citizen') {
       where.applicantId = req.user.id;
-      console.log('👤 Citizen access - Filtering by applicantId:', req.user.id);
+
     }
 
     // Build Property include - ALWAYS join Property to access wardId
@@ -78,34 +78,27 @@ export const getAllShopRegistrationRequests = async (req, res, next) => {
       model: Property,
       as: 'property',
       required: true, // Shop registration request MUST have a property
-      include: [{ 
-        model: Ward, 
-        as: 'ward', 
-        attributes: ['id', 'wardNumber', 'wardName'], 
-        required: false 
+      include: [{
+        model: Ward,
+        as: 'ward',
+        attributes: ['id', 'wardNumber', 'wardName'],
+        required: false
       }]
     };
-    
+
     // Admin: sees ALL requests (no ward filtering)
     if (req.user.role === 'admin') {
-      console.log('👑 Admin access - No ward filtering, seeing all requests');
+
       // No propertyInclude.where - admin sees all
     }
     // Clerk: sees ONLY requests from their assigned wards
     else if (req.user.role === 'clerk') {
       const allowedWardIds = getAllowedWardIds(req);
-      
-      // Debug logging for clerk ward filtering
-      console.log('🔍 Clerk ward filtering:', {
-        clerkId: req.user.id,
-        clerkRole: req.user.role,
-        reqWardFilter: req.wardFilter,
-        reqUserWardIds: req.user.ward_ids,
-        normalizedAllowedWardIds: allowedWardIds
-      });
-      
+
+
+
       if (!allowedWardIds || allowedWardIds.length === 0) {
-        console.log('⚠️ Clerk has no assigned wards, returning empty result');
+
         return res.json({
           success: true,
           data: {
@@ -119,18 +112,18 @@ export const getAllShopRegistrationRequests = async (req, res, next) => {
           }
         });
       }
-      
+
       // Filter by Property.wardId IN allowedWardIds
-      propertyInclude.where = { 
-        wardId: { 
+      propertyInclude.where = {
+        wardId: {
           [Op.in]: allowedWardIds
-        } 
+        }
       };
-      console.log('✅ Clerk filtering by Property.wardId IN:', allowedWardIds);
+
     }
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
-    
+
     // Build includes array
     const includes = [
       propertyInclude,
@@ -148,23 +141,7 @@ export const getAllShopRegistrationRequests = async (req, res, next) => {
       distinct: true // Important for count with includes
     });
 
-    // Debug logging for all roles
-    console.log('📊 Shop Registration Requests - Query results:', {
-      role: req.user.role,
-      userId: req.user.id,
-      totalCount: count,
-      returnedRows: rows.length,
-      requests: rows.map(r => ({
-        id: r.id,
-        requestNumber: r.requestNumber,
-        applicantId: r.applicantId,
-        propertyId: r.propertyId,
-        propertyWardId: r.property?.wardId,
-        propertyWardName: r.property?.ward?.wardName,
-        propertyWardNumber: r.property?.ward?.wardNumber,
-        status: r.status
-      }))
-    });
+
 
     res.json({
       success: true,
@@ -228,11 +205,11 @@ export const getShopRegistrationRequestById = async (req, res, next) => {
       // Normalize ward ID comparison
       const requestWardId = request.property ? parseInt(request.property.wardId, 10) : null;
       const normalizedAllowedWardIds = allowedWardIds.map(id => parseInt(id, 10));
-      
+
       if (!request.property || !requestWardId || !normalizedAllowedWardIds.includes(requestWardId)) {
-        return res.status(403).json({ 
-          success: false, 
-          message: `Access denied. Request is in ward ${requestWardId || 'unknown'}, but you only have access to wards [${normalizedAllowedWardIds.join(', ')}]` 
+        return res.status(403).json({
+          success: false,
+          message: `Access denied. Request is in ward ${requestWardId || 'unknown'}, but you only have access to wards [${normalizedAllowedWardIds.join(', ')}]`
         });
       }
     } else {
@@ -415,11 +392,11 @@ export const approveShopRegistrationRequest = async (req, res, next) => {
       // Normalize ward ID comparison
       const requestWardId = request.property ? parseInt(request.property.wardId, 10) : null;
       const normalizedAllowedWardIds = allowedWardIds.map(id => parseInt(id, 10));
-      
+
       if (!request.property || !requestWardId || !normalizedAllowedWardIds.includes(requestWardId)) {
-        return res.status(403).json({ 
-          success: false, 
-          message: `Access denied. Request is in ward ${requestWardId || 'unknown'}, but you only have access to wards [${normalizedAllowedWardIds.join(', ')}]` 
+        return res.status(403).json({
+          success: false,
+          message: `Access denied. Request is in ward ${requestWardId || 'unknown'}, but you only have access to wards [${normalizedAllowedWardIds.join(', ')}]`
         });
       }
     } else if (req.user.role !== 'admin') {
@@ -590,11 +567,11 @@ export const rejectShopRegistrationRequest = async (req, res, next) => {
       // Normalize ward ID comparison
       const requestWardId = request.property ? parseInt(request.property.wardId, 10) : null;
       const normalizedAllowedWardIds = allowedWardIds.map(id => parseInt(id, 10));
-      
+
       if (!request.property || !requestWardId || !normalizedAllowedWardIds.includes(requestWardId)) {
-        return res.status(403).json({ 
-          success: false, 
-          message: `Access denied. Request is in ward ${requestWardId || 'unknown'}, but you only have access to wards [${normalizedAllowedWardIds.join(', ')}]` 
+        return res.status(403).json({
+          success: false,
+          message: `Access denied. Request is in ward ${requestWardId || 'unknown'}, but you only have access to wards [${normalizedAllowedWardIds.join(', ')}]`
         });
       }
     } else if (req.user.role !== 'admin') {

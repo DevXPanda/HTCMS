@@ -158,7 +158,7 @@ export const getAllDemands = async (req, res, next) => {
         const wardIdsArray = Array.isArray(clerkWardIds) ? clerkWardIds : [clerkWardIds];
         const wardIdsNum = wardIdsArray.map(id => parseInt(id)).filter(id => !isNaN(id));
 
-        console.log(`[getAllDemands] Clerk ${req.user.id} filtering demands by wards: [${wardIdsNum.join(', ')}]`);
+
 
         // Build ward filter condition
         // For SHOP_TAX: filter by shop's wardId
@@ -176,7 +176,7 @@ export const getAllDemands = async (req, res, next) => {
         whereConditions.push(wardFilter);
       } else {
         // Clerk has no assigned wards - return empty result
-        console.log(`[getAllDemands] Clerk ${req.user.id} has no assigned wards, returning empty result`);
+
         return res.json({
           success: true,
           data: {
@@ -265,7 +265,7 @@ export const getDemandById = async (req, res, next) => {
     const userRole = req.user?.role;
     const userId = req.user?.id;
 
-    console.log(`[getDemandById] Request for demand ${id} by ${userRole} (userId: ${userId})`);
+
 
     const demand = await Demand.findByPk(id, {
       include: [
@@ -339,19 +339,18 @@ export const getDemandById = async (req, res, next) => {
       // Get ward_ids from multiple possible locations
       let allowedWardIds = req.user.ward_ids || req.user.dataValues?.ward_ids;
 
-      console.log(`[getDemandById] Clerk ${req.user.id} - ward_ids from req.user.ward_ids:`, req.user.ward_ids);
-      console.log(`[getDemandById] Clerk ${req.user.id} - ward_ids from req.user.dataValues:`, req.user.dataValues?.ward_ids);
+
 
       // Fallback: If ward_ids not in JWT, fetch from database
       if (!allowedWardIds || (Array.isArray(allowedWardIds) && allowedWardIds.length === 0)) {
-        console.log(`[getDemandById] Clerk ${req.user.id} - ward_ids not in JWT, fetching from database...`);
+
         try {
           const clerkRecord = await AdminManagement.findByPk(req.user.id, {
             attributes: ['id', 'ward_ids']
           });
           if (clerkRecord && clerkRecord.ward_ids) {
             allowedWardIds = clerkRecord.ward_ids;
-            console.log(`[getDemandById] Clerk ${req.user.id} - fetched ward_ids from DB:`, allowedWardIds);
+
           } else {
             // Also check Ward table for clerkId assignment
             const assignedWards = await Ward.findAll({

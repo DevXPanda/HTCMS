@@ -207,7 +207,7 @@ export const getAllInspections = async (req, res, next) => {
 
 export const createInspection = async (req, res, next) => {
     try {
-        console.log('Incoming inspection data:', req.body);
+
         const inspection = await GauShalaInspection.create(req.body);
         res.status(201).json({ success: true, data: { inspection } });
     } catch (error) {

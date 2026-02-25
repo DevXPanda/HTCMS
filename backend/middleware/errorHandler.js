@@ -6,8 +6,12 @@ export const errorHandler = (err, req, res, next) => {
     let error = { ...err };
     error.message = err.message;
 
-    // Log error for debugging
-    console.error('Error:', err);
+    // Log error for debugging (use basic logging in production to avoid stack trace leaks)
+    if (process.env.NODE_ENV === 'production') {
+        console.error(`[Error] ${err.name}: ${err.message}`);
+    } else {
+        console.error('Error:', err);
+    }
 
     // Sequelize Validation Error
     if (err.name === 'SequelizeValidationError') {

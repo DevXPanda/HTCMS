@@ -15,6 +15,15 @@ export const ToiletComplaint = sequelize.define('ToiletComplaint', {
             key: 'id'
         }
     },
+    mrf_facility_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+            model: 'mrf_facilities',
+            key: 'id'
+        },
+        onDelete: 'SET NULL'
+    },
     citizenName: {
         type: DataTypes.STRING(100),
         allowNull: false

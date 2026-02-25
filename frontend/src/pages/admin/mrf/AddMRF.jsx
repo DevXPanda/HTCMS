@@ -9,16 +9,30 @@ const AddMRF = () => {
     const { id } = useParams();
     const isEditMode = !!id;
     const [wards, setWards] = useState([]);
+    const [supervisors, setSupervisors] = useState([]);
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
         location: '',
         ward_id: '',
+        capacity: '',
+        operating_hours: '',
+        contact_person: '',
+        contact_number: '',
+        supervisor_id: '',
+        waste_types: [],
+        latitude: '',
+        longitude: '',
         status: 'active'
     });
 
+    const wasteTypeOptions = [
+        'Plastic', 'Paper', 'Organic', 'Glass', 'Metal', 'Electronic', 'Hazardous', 'Dry Waste', 'Wet Waste'
+    ];
+
     useEffect(() => {
         fetchWards();
+        fetchSupervisors();
         if (isEditMode) {
             fetchFacilityDetails();
         }
@@ -34,6 +48,14 @@ const AddMRF = () => {
                     name: facility.name || '',
                     location: facility.location || '',
                     ward_id: facility.ward_id || '',
+                    capacity: facility.capacity || '',
+                    operating_hours: facility.operating_hours || '',
+                    contact_person: facility.contact_person || '',
+                    contact_number: facility.contact_number || '',
+                    supervisor_id: facility.supervisor_id || '',
+                    waste_types: Array.isArray(facility.waste_types) ? facility.waste_types : [],
+                    latitude: facility.latitude || '',
+                    longitude: facility.longitude || '',
                     status: facility.status || 'active'
                 });
             }
@@ -57,9 +79,27 @@ const AddMRF = () => {
         }
     };
 
+    const fetchSupervisors = async () => {
+        try {
+            const response = await api.get('/admin-management/employees?role=SUPERVISOR&limit=100');
+            setSupervisors(response.data.employees || []);
+        } catch (error) {
+            console.error('Failed to fetch supervisors:', error);
+        }
+    };
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const toggleWasteType = (type) => {
+        setFormData(prev => ({
+            ...prev,
+            waste_types: prev.waste_types.includes(type)
+                ? prev.waste_types.filter(t => t !== type)
+                : [...prev.waste_types, type]
+        }));
     };
 
     const handleSubmit = async (e) => {
@@ -67,11 +107,19 @@ const AddMRF = () => {
         setLoading(true);
 
         try {
+            const payload = {
+                ...formData,
+                capacity: parseFloat(formData.capacity) || 0,
+                latitude: formData.latitude ? parseFloat(formData.latitude) : null,
+                longitude: formData.longitude ? parseFloat(formData.longitude) : null,
+                supervisor_id: formData.supervisor_id ? parseInt(formData.supervisor_id) : null
+            };
+
             if (isEditMode) {
-                await api.put(`/mrf/facilities/${id}`, formData);
+                await api.put(`/mrf/facilities/${id}`, payload);
                 toast.success('MRF center updated successfully!');
             } else {
-                await api.post('/mrf/facilities', formData);
+                await api.post('/mrf/facilities', payload);
                 toast.success('MRF center added successfully!');
             }
             navigate('/mrf/management');
@@ -92,7 +140,7 @@ const AddMRF = () => {
     }
 
     return (
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="max-w-5xl mx-auto space-y-6">
             <div className="flex items-center gap-4 mb-2">
                 <Link to="/mrf/management" className="p-2 bg-white rounded-xl border border-gray-100 shadow-sm text-gray-400 hover:text-primary-600 transition-all">
                     <ArrowLeft className="w-5 h-5" />
@@ -107,15 +155,17 @@ const AddMRF = () => {
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="p-8 space-y-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {/* Center Name */}
+            <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Basic Information */}
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden p-8 space-y-6">
+                        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 border-b border-gray-50 pb-4">
+                            <Recycle className="w-5 h-5 text-primary-500" />
+                            Basic Information
+                        </h3>
+
                         <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                                <Recycle className="w-3.5 h-3.5 text-primary-500" />
-                                Center Name *
-                            </label>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Center Name *</label>
                             <input
                                 type="text"
                                 name="name"
@@ -127,12 +177,8 @@ const AddMRF = () => {
                             />
                         </div>
 
-                        {/* Ward Selection */}
                         <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                                <Shield className="w-3.5 h-3.5 text-primary-500" />
-                                Ward *
-                            </label>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Ward *</label>
                             <select
                                 name="ward_id"
                                 value={formData.ward_id}
@@ -149,28 +195,124 @@ const AddMRF = () => {
                             </select>
                         </div>
 
-                        {/* Location */}
-                        <div className="md:col-span-2 space-y-2">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                                <MapPin className="w-3.5 h-3.5 text-primary-500" />
-                                Location *
-                            </label>
-                            <input
-                                type="text"
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Location *</label>
+                            <textarea
                                 name="location"
                                 value={formData.location}
                                 onChange={handleChange}
                                 required
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all font-medium"
-                                placeholder="e.g., Industrial Area Phase 1, Near Main Gate"
+                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all font-medium h-24 resize-none"
+                                placeholder="Enter street address or descriptive location"
                             />
                         </div>
 
-                        {/* Status */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Latitude</label>
+                                <input
+                                    type="number"
+                                    step="any"
+                                    name="latitude"
+                                    value={formData.latitude}
+                                    onChange={handleChange}
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all font-medium"
+                                    placeholder="26.1234"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Longitude</label>
+                                <input
+                                    type="number"
+                                    step="any"
+                                    name="longitude"
+                                    value={formData.longitude}
+                                    onChange={handleChange}
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all font-medium"
+                                    placeholder="85.1234"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Operational Data */}
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden p-8 space-y-6">
+                        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 border-b border-gray-50 pb-4">
+                            <Shield className="w-5 h-5 text-primary-500" />
+                            Operational Data
+                        </h3>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Capacity (TPD) *</label>
+                                <input
+                                    type="number"
+                                    step="any"
+                                    name="capacity"
+                                    value={formData.capacity}
+                                    onChange={handleChange}
+                                    required
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all font-medium"
+                                    placeholder="0.00"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Operating Hours</label>
+                                <input
+                                    type="text"
+                                    name="operating_hours"
+                                    value={formData.operating_hours}
+                                    onChange={handleChange}
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all font-medium"
+                                    placeholder="9 AM - 6 PM"
+                                />
+                            </div>
+                        </div>
+
                         <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                                Operational Status *
-                            </label>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Assign Supervisor</label>
+                            <select
+                                name="supervisor_id"
+                                value={formData.supervisor_id}
+                                onChange={handleChange}
+                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all font-medium"
+                            >
+                                <option value="">Select Supervisor</option>
+                                {supervisors.map(sup => (
+                                    <option key={sup.id} value={sup.id}>
+                                        {sup.full_name} ({sup.employee_id})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Contact Person</label>
+                                <input
+                                    type="text"
+                                    name="contact_person"
+                                    value={formData.contact_person}
+                                    onChange={handleChange}
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all font-medium"
+                                    placeholder="Name"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Contact Number</label>
+                                <input
+                                    type="text"
+                                    name="contact_number"
+                                    value={formData.contact_number}
+                                    onChange={handleChange}
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all font-medium"
+                                    placeholder="Phone/Mobile"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Status *</label>
                             <select
                                 name="status"
                                 value={formData.status}
@@ -183,32 +325,51 @@ const AddMRF = () => {
                                 <option value="inactive">Inactive</option>
                             </select>
                         </div>
-                    </div>
 
-                    {/* Form Actions */}
-                    <div className="flex items-center justify-end gap-4 pt-8 border-t border-gray-50">
-                        <Link
-                            to="/mrf/management"
-                            className="px-6 py-3 text-sm font-bold text-gray-500 uppercase tracking-widest hover:text-gray-900 transition-colors"
-                        >
-                            Cancel
-                        </Link>
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="px-8 py-3 bg-gray-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-primary-600 transition-all shadow-sm hover:shadow-md active:scale-[0.98] flex items-center gap-2 disabled:opacity-50"
-                        >
-                            <Save className="h-4 w-4" />
-                            {loading ? 'Saving...' : 'Save MRF Center'}
-                        </button>
+                        <div className="space-y-3">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Waste Types Handled</label>
+                            <div className="flex flex-wrap gap-2">
+                                {wasteTypeOptions.map((type) => (
+                                    <button
+                                        key={type}
+                                        type="button"
+                                        onClick={() => toggleWasteType(type)}
+                                        className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all border ${formData.waste_types.includes(type)
+                                            ? 'bg-primary-50 border-primary-200 text-primary-600 shadow-sm'
+                                            : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'
+                                            }`}
+                                    >
+                                        {type}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     </div>
+                </div>
+
+                {/* Form Actions */}
+                <div className="flex items-center justify-end gap-4 p-8 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                    <Link
+                        to="/mrf/management"
+                        className="px-6 py-3 text-sm font-bold text-gray-500 uppercase tracking-widest hover:text-gray-900 transition-colors"
+                    >
+                        Cancel
+                    </Link>
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="px-12 py-4 bg-gray-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-primary-600 transition-all shadow-lg hover:shadow-primary-500/25 active:scale-[0.98] flex items-center gap-3 disabled:opacity-50"
+                    >
+                        <Save className="h-4 w-4" />
+                        {loading ? 'Saving center...' : 'Save MRF Center'}
+                    </button>
                 </div>
             </form>
 
-            <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 flex gap-3">
-                <Shield className="w-5 h-5 text-blue-600 shrink-0" />
-                <p className="text-xs text-blue-800 leading-relaxed">
-                    <strong>Note:</strong> Wards are used to group MRF facilities for reporting and logistics optimizations. Ensure the correct ward is selected for accurate data aggregation.
+            <div className="p-4 bg-primary-50 rounded-2xl border border-primary-100 flex gap-3">
+                <Shield className="w-5 h-5 text-primary-600 shrink-0" />
+                <p className="text-xs text-primary-800 leading-relaxed font-medium">
+                    <strong>Production Note:</strong> Ensure the facility capacity and coordinate data are accurate as they directly impact logistics planning and monthly performance reports.
                 </p>
             </div>
         </div>

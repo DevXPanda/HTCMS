@@ -267,22 +267,22 @@ export const runAlertChecks = async () => {
  */
 export const startAlertCronJob = () => {
   if (cronJob) {
-    console.log('[ALERT_CRON] Already running');
+
     return;
   }
   cronJob = cron.schedule('*/30 * * * *', async () => {
-    console.log('[ALERT_CRON] Running alert checks...');
+
     const results = await runAlertChecks();
-    console.log('[ALERT_CRON] Done:', results);
+
   }, { scheduled: true, timezone: 'Asia/Kolkata' });
-  console.log('[ALERT_CRON] Scheduled every 30 minutes (Asia/Kolkata)');
+
 };
 
 export const stopAlertCronJob = () => {
   if (cronJob) {
     cronJob.stop();
     cronJob = null;
-    console.log('[ALERT_CRON] Stopped');
+
   }
 };
 

@@ -1,11 +1,11 @@
 import cron from 'node-cron';
 import { Demand, PenaltyRule, Notice } from '../models/index.js';
 import { Op, Sequelize } from 'sequelize';
-import { 
-  getActivePenaltyRule, 
-  calculateOverdueDays, 
-  shouldApplyPenalty, 
-  applyPenaltyToDemand 
+import {
+  getActivePenaltyRule,
+  calculateOverdueDays,
+  shouldApplyPenalty,
+  applyPenaltyToDemand
 } from './penaltyCalculator.js';
 import { createAuditLog } from '../utils/auditLogger.js';
 
@@ -76,13 +76,13 @@ const checkNoticeEscalation = async (demand, overdueDays) => {
       if (!hasFinalWarrant) {
         // Auto-escalate to final warrant (this would require admin approval in production)
         // For now, we just log it - actual escalation should be done by admin
-        console.log(`[PENALTY_CRON] Demand ${demand.demandNumber} eligible for final warrant notice (${overdueDays} days overdue)`);
+
       }
     } else if (overdueDays >= penaltyThresholdDays) {
       // Check if penalty notice exists
       const hasPenaltyNotice = existingNotices.some(n => n.noticeType === 'penalty');
       if (!hasPenaltyNotice) {
-        console.log(`[PENALTY_CRON] Demand ${demand.demandNumber} eligible for penalty notice (${overdueDays} days overdue)`);
+
       }
     }
   } catch (error) {
@@ -169,7 +169,7 @@ const processDemand = async (demand, rule) => {
  */
 const runPenaltyCronJob = async () => {
   const startTime = new Date();
-  console.log(`[PENALTY_CRON] Starting penalty cron job at ${startTime.toISOString()}`);
+
 
   const status = {
     lastRunAt: startTime,
@@ -208,7 +208,7 @@ const runPenaltyCronJob = async () => {
       order: [['dueDate', 'ASC']]
     });
 
-    console.log(`[PENALTY_CRON] Found ${overdueDemands.length} overdue demands`);
+
 
     // Group demands by financial year to get appropriate rules
     const demandsByFinancialYear = {};
@@ -225,7 +225,7 @@ const runPenaltyCronJob = async () => {
       const rule = await getActivePenaltyRule(financialYear);
 
       if (!rule) {
-        console.log(`[PENALTY_CRON] No active penalty rule found for financial year ${financialYear}`);
+
         status.skipped.push({
           financialYear,
           reason: 'No active penalty rule found',
@@ -234,7 +234,7 @@ const runPenaltyCronJob = async () => {
         continue;
       }
 
-      console.log(`[PENALTY_CRON] Processing ${demands.length} demands for FY ${financialYear} with rule: ${rule.ruleName}`);
+
 
       // Process each demand
       for (const demand of demands) {
@@ -259,9 +259,7 @@ const runPenaltyCronJob = async () => {
     const endTime = new Date();
     const duration = (endTime - startTime) / 1000;
 
-    console.log(`[PENALTY_CRON] Completed in ${duration.toFixed(2)}s`);
-    console.log(`[PENALTY_CRON] Processed: ${status.demandsProcessed}, Updated: ${status.demandsUpdated}`);
-    console.log(`[PENALTY_CRON] Total Penalty: ₹${status.totalPenaltyApplied.toFixed(2)}, Total Interest: ₹${status.totalInterestApplied.toFixed(2)}`);
+
 
     // Update last run status
     lastRunStatus = status;
@@ -282,7 +280,7 @@ const runPenaltyCronJob = async () => {
  */
 export const startPenaltyCronJob = () => {
   if (cronJob) {
-    console.log('[PENALTY_CRON] Cron job already running');
+
     return;
   }
 
@@ -294,7 +292,7 @@ export const startPenaltyCronJob = () => {
     timezone: 'Asia/Kolkata' // Adjust to your server timezone
   });
 
-  console.log('[PENALTY_CRON] Penalty cron job started. Will run daily at 12:00 AM.');
+
 
   // Run immediately on startup (optional - comment out if not desired)
   // runPenaltyCronJob();
@@ -307,7 +305,7 @@ export const stopPenaltyCronJob = () => {
   if (cronJob) {
     cronJob.stop();
     cronJob = null;
-    console.log('[PENALTY_CRON] Penalty cron job stopped');
+
   }
 };
 
@@ -322,7 +320,7 @@ export const getLastRunStatus = () => {
  * Manually trigger the cron job (for testing or admin use)
  */
 export const triggerPenaltyCronJob = async () => {
-  console.log('[PENALTY_CRON] Manual trigger requested');
+
   await runPenaltyCronJob();
   return lastRunStatus;
 };

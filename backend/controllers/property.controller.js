@@ -323,7 +323,7 @@ export const createProperty = async (req, res, next) => {
 
       if (matchedCitizen) {
         finalOwnerId = matchedCitizen.id;
-        console.log('Found citizen user by phone:', finalOwnerId, matchedCitizen.email);
+
       }
     }
 
@@ -339,10 +339,6 @@ export const createProperty = async (req, res, next) => {
     // (citizen panel queries by ownerId === loggedInUser.id)
     if (!finalOwnerId) {
       finalOwnerId = req.user.id;
-      console.log('No matching citizen found. Using admin ID as fallback:', finalOwnerId);
-      console.log('   Property will not appear in any citizen panel.');
-    } else {
-      console.log('Property will be linked to citizen ID:', finalOwnerId);
     }
 
     // Validate that ownerId exists in database

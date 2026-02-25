@@ -256,25 +256,21 @@ const updateEmployeeValidation = [
   body('password')
     .optional()
     .custom((value) => {
-      console.log('🔍 Debug - Password validation:', {
-        value: value ? '***' : 'EMPTY',
-        length: value ? value.length : 0,
-        isEmpty: !value || value.trim() === ''
-      });
+
 
       // Allow empty password (no change) or valid password
       if (!value || value.trim() === '') {
-        console.log('✅ Password validation: Empty password allowed');
+
         return true; // Empty password is allowed (no change)
       }
 
       // Simple validation: at least 4 characters
       if (value.length < 4) {
-        console.log('❌ Password validation: Length failed');
+
         throw new Error('Password must be at least 4 characters long');
       }
 
-      console.log('✅ Password validation: All checks passed');
+
       return true;
     })
     .withMessage('Password must be at least 4 characters long')

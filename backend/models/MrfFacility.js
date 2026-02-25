@@ -23,6 +23,45 @@ export const MrfFacility = sequelize.define('MrfFacility', {
         type: DataTypes.TEXT,
         allowNull: true
     },
+    capacity: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: false,
+        defaultValue: 0
+    },
+    operating_hours: {
+        type: DataTypes.STRING(100),
+        allowNull: true
+    },
+    contact_person: {
+        type: DataTypes.STRING(100),
+        allowNull: true
+    },
+    contact_number: {
+        type: DataTypes.STRING(20),
+        allowNull: true
+    },
+    supervisor_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+            model: 'admin_management',
+            key: 'id'
+        },
+        onDelete: 'SET NULL'
+    },
+    waste_types: {
+        type: DataTypes.JSONB,
+        allowNull: true,
+        defaultValue: []
+    },
+    latitude: {
+        type: DataTypes.DECIMAL(10, 8),
+        allowNull: true
+    },
+    longitude: {
+        type: DataTypes.DECIMAL(11, 8),
+        allowNull: true
+    },
     status: {
         type: DataTypes.STRING(20),
         allowNull: false,
@@ -32,5 +71,13 @@ export const MrfFacility = sequelize.define('MrfFacility', {
     tableName: 'mrf_facilities',
     timestamps: true,
     createdAt: 'created_at',
-    updatedAt: 'updated_at'
+    updatedAt: 'updated_at',
+    indexes: [
+        {
+            fields: ['supervisor_id']
+        },
+        {
+            fields: ['status']
+        }
+    ]
 });

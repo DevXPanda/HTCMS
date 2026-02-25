@@ -9,11 +9,11 @@ import { Op } from 'sequelize';
 export const getClerkDashboard = async (req, res, next) => {
     try {
         const user = req.user;
-        
+
         // Get clerk's assigned wards
         let assignedWards = [];
         let clerkWardIds = user.ward_ids || user.dataValues?.ward_ids;
-        
+
         // Fallback: If not in JWT, fetch from database
         if (!clerkWardIds || (Array.isArray(clerkWardIds) && clerkWardIds.length === 0)) {
             try {
@@ -37,21 +37,21 @@ export const getClerkDashboard = async (req, res, next) => {
                 console.error(`[getClerkDashboard] Error fetching clerk wards:`, dbError.message);
             }
         }
-        
+
         // Fetch full ward details if we have ward IDs
         if (clerkWardIds && assignedWards.length === 0) {
             const wardIdsArray = Array.isArray(clerkWardIds) ? clerkWardIds : [clerkWardIds];
             assignedWards = await Ward.findAll({
-                where: { 
+                where: {
                     id: { [Op.in]: wardIdsArray },
-                    isActive: true 
+                    isActive: true
                 },
                 attributes: ['id', 'wardNumber', 'wardName'],
                 order: [['wardNumber', 'ASC']]
             });
         }
-        
-        console.log(`[getClerkDashboard] Clerk ${user.id} - assigned wards:`, assignedWards.map(w => ({ id: w.id, name: w.wardName, number: w.wardNumber })));
+
+
 
         // Count property applications by status (created by this clerk)
         const propertyApplicationStats = await PropertyApplication.findAll({
@@ -219,7 +219,6 @@ export const getClerkDashboard = async (req, res, next) => {
 export const getWaterApplications = async (req, res, next) => {
     try {
         const { status } = req.query;
-        console.log('🔍 Clerk API - Fetching water applications with status filter:', status);
 
         // Build where clause - clerks should see only their assigned ward's requests
         const whereClause = req.wardFilter ? { ...req.wardFilter } : {};
@@ -228,7 +227,6 @@ export const getWaterApplications = async (req, res, next) => {
         }
         // If no status or ALL, don't filter by status, but always filter by ward
 
-        console.log('Clerk API - Where clause:', whereClause);
 
         const requests = await WaterConnectionRequest.findAll({
             where: whereClause,
@@ -252,8 +250,7 @@ export const getWaterApplications = async (req, res, next) => {
             order: [['createdAt', 'DESC']]
         });
 
-        console.log('Clerk API - Found requests:', requests.length);
-        console.log('Clerk API - Request statuses:', requests.map(r => ({ id: r.id, number: r.requestNumber, status: r.status })));
+
 
         res.json({
             success: true,

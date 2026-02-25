@@ -32,7 +32,7 @@ export const getCitizenDashboard = async (req, res, next) => {
     const waterTaxDemands = demands.filter(d => d.serviceType === 'WATER_TAX');
     const d2dcDemands = demands.filter(d => d.serviceType === 'D2DC');
     const shopTaxDemands = demands.filter(d => d.serviceType === 'SHOP_TAX');
-    
+
     const totalOutstanding = demands.reduce((sum, d) => sum + parseFloat(d.balanceAmount), 0);
     const houseTaxOutstanding = houseTaxDemands.reduce((sum, d) => sum + parseFloat(d.balanceAmount), 0);
     const waterTaxOutstanding = waterTaxDemands.reduce((sum, d) => sum + parseFloat(d.balanceAmount), 0);
@@ -67,9 +67,9 @@ export const getCitizenDashboard = async (req, res, next) => {
         },
         { model: Assessment, as: 'assessment', attributes: ['id', 'assessmentNumber'], required: false },
         { model: WaterTaxAssessment, as: 'waterTaxAssessment', attributes: ['id', 'assessmentNumber'], required: false },
-        { 
-          model: ShopTaxAssessment, 
-          as: 'shopTaxAssessment', 
+        {
+          model: ShopTaxAssessment,
+          as: 'shopTaxAssessment',
           required: false,
           include: [{ model: Shop, as: 'shop', attributes: ['id', 'shopNumber', 'shopName'] }]
         }
@@ -183,9 +183,9 @@ export const getCitizenDemands = async (req, res, next) => {
         },
         { model: Assessment, as: 'assessment', attributes: ['id', 'assessmentNumber', 'assessmentYear'], required: false },
         { model: WaterTaxAssessment, as: 'waterTaxAssessment', attributes: ['id', 'assessmentNumber', 'assessmentYear'], required: false },
-        { 
-          model: ShopTaxAssessment, 
-          as: 'shopTaxAssessment', 
+        {
+          model: ShopTaxAssessment,
+          as: 'shopTaxAssessment',
           required: false,
           include: [{ model: Shop, as: 'shop', attributes: ['id', 'shopNumber', 'shopName'] }]
         }
@@ -331,7 +331,7 @@ export const createWaterConnectionRequest = async (req, res, next) => {
     // Validate status is one of allowed values
     const allowedStatuses = ['DRAFT', 'SUBMITTED', 'UNDER_INSPECTION', 'ESCALATED_TO_OFFICER', 'APPROVED', 'REJECTED', 'RETURNED', 'COMPLETED'];
     const requestStatus = 'SUBMITTED'; // Always use SUBMITTED for new citizen requests
-    
+
     if (!allowedStatuses.includes(requestStatus)) {
       return res.status(500).json({
         success: false,
@@ -381,8 +381,8 @@ export const createWaterConnectionRequest = async (req, res, next) => {
       status: requestStatus // Use validated status
     };
 
-    console.log('Creating water connection request with data:', requestData);
-    
+
+
     const request = await WaterConnectionRequest.create(requestData);
 
     // Fetch with relations
@@ -403,7 +403,7 @@ export const createWaterConnectionRequest = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Error creating water connection request:', error);
-    
+
     // Handle specific database constraint violations
     if (error.name === 'SequelizeValidationError') {
       const validationErrors = error.errors.map(err => ({
@@ -417,7 +417,7 @@ export const createWaterConnectionRequest = async (req, res, next) => {
         errors: validationErrors
       });
     }
-    
+
     // Handle check constraint violations
     if (error.name === 'SequelizeDatabaseError' && error.message.includes('check constraint')) {
       return res.status(400).json({
@@ -426,7 +426,7 @@ export const createWaterConnectionRequest = async (req, res, next) => {
         technical: error.message
       });
     }
-    
+
     // Handle unique constraint violations
     if (error.name === 'SequelizeUniqueConstraintError') {
       return res.status(400).json({
@@ -434,7 +434,7 @@ export const createWaterConnectionRequest = async (req, res, next) => {
         message: 'A request with this identifier already exists'
       });
     }
-    
+
     next(error);
   }
 };

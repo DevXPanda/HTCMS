@@ -61,11 +61,11 @@ const MRFManagement = () => {
         exportToCSV(rows, `mrf_facilities_${new Date().toISOString().slice(0, 10)}`);
     };
 
-    const filteredFacilities = facilities.filter(facility => {
+    const filteredFacilities = (facilities || []).filter(facility => {
         const matchesSearch =
-            facility.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            facility.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (facility.ward && facility.ward.wardName.toLowerCase().includes(searchTerm.toLowerCase()));
+            (facility.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (facility.location || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (facility.ward && (facility.ward.wardName || '').toLowerCase().includes(searchTerm.toLowerCase()));
 
         return matchesSearch;
     });

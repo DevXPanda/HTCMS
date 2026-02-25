@@ -506,7 +506,7 @@ export const createInspection = async (req, res, next) => {
         }
 
         const numericInspectorId = Number(inspectorId);
-        console.log(`[DEBUG] Creating inspection: toiletFacilityId=${req.body.toiletFacilityId}, inspectorId=${numericInspectorId}`);
+
 
         const inspection = await ToiletInspection.create({
             ...otherData,

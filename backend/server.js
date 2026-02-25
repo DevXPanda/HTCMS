@@ -1,21 +1,19 @@
-
 import express from "express";
 import cors from "cors";
 import morgan from "morgan";
 import dotenv from "dotenv";
 import { sequelize } from "./config/database.js";
+import path from "path";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
 import { testConnection as testPgConnection, closePool } from "./db.js";
 
 // Load env
 dotenv.config();
 
-// Global production safety: Disable debug console methods in production
-if (process.env.NODE_ENV === 'production') {
-  console.log = () => { };
-  console.debug = () => { };
-  console.info = () => { };
-  // console.error and console.warn remain active for critical logging
-}
+
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -33,7 +31,7 @@ app.use(
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        console.log("CORS BLOCKED:", origin);
+
         callback(new Error("Not allowed by CORS"));
       }
     },
@@ -48,8 +46,10 @@ app.options("*", cors());
 // Middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-// Use minimal logging format in production, dev format in development
-app.use(morgan(process.env.NODE_ENV === 'production' ? ':method :url :status :response-time ms' : 'dev'));
+// Only use morgan logging in development mode
+if (process.env.NODE_ENV !== 'production') {
+  app.use(morgan('dev'));
+}
 
 // Root Test Route
 app.get("/", (req, res) => {
@@ -121,8 +121,6 @@ import { startPenaltyCronJob } from "./services/penaltyCron.js";
 import { startTaskGeneratorCronJob } from "./services/taskGeneratorCron.js";
 import { startAlertCronJob } from "./services/alertCron.js";
 import d2dcRoutes from "./routes/d2dc.routes.js";
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 // API Routes prefix
 app.use("/api/auth", authRoutes);
@@ -158,6 +156,7 @@ app.use("/api/water-tax-assessments", waterTaxAssessmentRoutes);
 app.use("/api/water-connection-documents", waterConnectionDocumentRoutes);
 app.use("/api/water-connection-requests", waterConnectionRequestRoutes);
 app.use("/api/property-applications", propertyApplicationRoutes);
+
 app.use("/api/shops", shopRoutes);
 app.use("/api/shop-tax-assessments", shopTaxAssessmentRoutes);
 app.use("/api/shop-registration-requests", shopRegistrationRequestRoutes);
@@ -177,8 +176,6 @@ app.use("/api/feedback", feedbackRoutes);
 
 
 // Serve uploaded files statically
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // 404 route handler
@@ -227,11 +224,11 @@ app.use((err, req, res, next) => {
 // Start server
 const startServer = async () => {
   console.log("Starting backend...");
-  console.log("Database:", process.env.DATABASE_URL);
+
 
   const pg = await testPgConnection();
   if (!pg.success) {
-    console.log("Database connection failed.");
+    console.error("Database connection failed.");
     process.exit(1);
   }
 
@@ -239,7 +236,7 @@ const startServer = async () => {
     await sequelize.authenticate();
     console.log("Sequelize connected");
   } catch (err) {
-    console.log("Sequelize error:", err.message);
+    console.error("Sequelize error:", err.message);
   }
 
   app.listen(PORT, "0.0.0.0", () => {
@@ -253,3 +250,5 @@ const startServer = async () => {
 };
 
 startServer();
+
+// End of file

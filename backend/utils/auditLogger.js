@@ -78,7 +78,7 @@ const VALID_ENTITY_TYPES = [
   'Attendance', 'FieldVisit', 'FollowUp', 'CollectorTask', 'PropertyApplication',
   'WaterConnectionRequest', 'D2DC', 'ShopRegistrationRequest',
   'ToiletFacility', 'ToiletInspection', 'ToiletMaintenance', 'ToiletStaffAssignment', 'ToiletComplaint',
-  'MrfFacility', 'MrfSale',
+  'MrfFacility', 'MrfSale', 'MrfWorkerAssignment', 'MrfTask',
   'GauShalaFacility', 'GauShalaCattle', 'GauShalaComplaint', 'GauShalaFeedingRecord', 'GauShalaInspection', 'CattleMedicalRecord',
   'Worker', 'WorkerAttendance', 'WorkerPayroll', 'WorkerTask',
   'InventoryItem', 'InventoryTransaction', 'FacilityUtilityBill', 'CitizenFeedback',
@@ -137,9 +137,12 @@ export const createAuditLog = async ({
     // We track them via actorRole and can add employee_id to metadata if needed
     const actorUserId = (user?.userType === 'admin_management') ? null : (user?.id || null);
 
+    // Normalize role to lowercase to match ENUM if possible
+    const actorRole = user?.role ? user.role.toLowerCase() : 'system';
+
     await AuditLog.create({
       actorUserId,
-      actorRole: user?.role || 'system',
+      actorRole,
       actionType: validatedActionType,
       entityType: validatedEntityType,
       entityId,

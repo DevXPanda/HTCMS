@@ -1,22 +1,22 @@
 import express from 'express';
 import { authenticate, authorize } from '../middleware/enhancedAuth.js';
 import {
-    getAllDemands,
-    getDemandById,
-    getDemandPdf,
-    createDemand,
-    createD2DCDemand,
-    generateShopDemand,
-    generateBulkDemands,
-    generateBulkShopDemands,
-    generateCombinedDemands,
-    generateUnifiedDemand,
-    calculatePenalty,
-    getDemandsByProperty,
-    getDemandsByModuleAndEntity,
-    getDemandStatistics,
-    getDemandBreakdown,
-    getUnifiedTaxSummary
+  getAllDemands,
+  getDemandById,
+  getDemandPdf,
+  createDemand,
+  createD2DCDemand,
+  generateShopDemand,
+  generateBulkDemands,
+  generateBulkShopDemands,
+  generateCombinedDemands,
+  generateUnifiedDemand,
+  calculatePenalty,
+  getDemandsByProperty,
+  getDemandsByModuleAndEntity,
+  getDemandStatistics,
+  getDemandBreakdown,
+  getUnifiedTaxSummary
 } from '../controllers/demand.controller.js';
 
 const router = express.Router();
@@ -35,14 +35,7 @@ router.get('/by-entity/:module/:entityId', authorize('admin'), getDemandsByModul
 
 // Get all demands (filtered by role)
 router.get('/', (req, res, next) => {
-  console.log('🔍 Demand API - Get all demands called');
-  console.log('👤 Demand API - Authenticated user:', {
-    id: req.user?.id,
-    role: req.user?.role,
-    userType: req.user?.userType,
-    employee_id: req.user?.employee_id
-  });
-  console.log('📋 Demand API - Query params:', req.query);
+
   next();
 }, getAllDemands);
 

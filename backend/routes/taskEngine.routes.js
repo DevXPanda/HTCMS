@@ -13,13 +13,7 @@ router.use(authenticate);
 
 // Get daily tasks (Collector only)
 router.get('/daily', (req, res, next) => {
-  console.log('🔍 Tasks API - Daily tasks endpoint called');
-  console.log('👤 Tasks API - Authenticated user:', {
-    id: req.user?.id,
-    role: req.user?.role,
-    userType: req.userType || (req.user?.userType),
-    employee_id: req.user?.employee_id
-  });
+
   next();
 }, authorize('collector'), getDailyTasks);
 

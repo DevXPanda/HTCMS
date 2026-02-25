@@ -40,12 +40,11 @@ export const generateTasksForCollector = async (collector, todayInfo, transactio
   const wardIds = collector.assignedWards?.map(w => w.id) || [];
 
   if (wardIds.length === 0) {
-    console.log(`Collector ${collector.id} has no assigned wards. Skipping task generation.`);
+
     return { tasksGenerated: 0, demandsProcessed: 0, skipped: [] };
   }
 
-  console.log(`Generating tasks for collector ${collector.id} (${collector.firstName} ${collector.lastName})`);
-  console.log(`   Assigned wards: ${wardIds.join(', ')}`);
+
 
   // Get demands that are due today OR overdue (dueDate <= today)
   // AND have balance > 0
@@ -89,7 +88,7 @@ export const generateTasksForCollector = async (collector, todayInfo, transactio
     transaction
   });
 
-  console.log(`   Found ${eligibleDemands.length} eligible demands (due today or overdue)`);
+
 
   let tasksGenerated = 0;
   const skipped = [];
@@ -131,7 +130,7 @@ export const generateTasksForCollector = async (collector, todayInfo, transactio
           isResolved: false
         }, { transaction });
 
-        console.log(`   Created new follow-up for demand ${demand.demandNumber}`);
+
       }
 
       // Check if task already exists for today
@@ -239,7 +238,7 @@ export const generateTasksForCollector = async (collector, todayInfo, transactio
       }, { transaction });
 
       tasksGenerated++;
-      console.log(`   Created task for demand ${demand.demandNumber} (${taskType}, ${priority})`);
+
     } catch (error) {
       console.error(`   Error creating task for demand ${demand.demandNumber}:`, error.message);
       skipped.push({ demandId: demand.id, reason: `Error: ${error.message}` });

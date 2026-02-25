@@ -69,7 +69,7 @@ async function createBackup() {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
   const backupFile = path.join(backupsDir, `backup_${timestamp}.sql`);
 
-  console.log('📦 Creating database backup...');
+
 
   try {
     // Set PGPASSWORD environment variable for pg_dump
@@ -98,8 +98,7 @@ async function createBackup() {
     // Write backup to file
     writeFileSync(backupFile, stdout, 'utf8');
 
-    console.log(`✅ Backup created: ${backupFile}`);
-    console.log(`   Size: ${(stdout.length / 1024).toFixed(2)} KB`);
+
 
     if (stderr) {
       console.warn('⚠️  pg_dump warnings:', stderr);
@@ -119,7 +118,7 @@ async function createBackup() {
 async function createSqlBackup(backupFile) {
   const client = await pool.connect();
   try {
-    console.log('📦 Creating SQL backup (fallback method)...');
+
 
     // Get all table names
     const tablesResult = await client.query(`
@@ -148,7 +147,7 @@ async function createSqlBackup(backupFile) {
     }
 
     writeFileSync(backupFile, backupSQL, 'utf8');
-    console.log(`✅ SQL backup created: ${backupFile}`);
+
 
     return backupFile;
   } finally {
@@ -160,7 +159,7 @@ async function createSqlBackup(backupFile) {
  * Verify all rows have ulb_id before applying NOT NULL constraint
  */
 async function verifyUlbIdUpdate(client) {
-  console.log('🔍 Verifying all rows have ulb_id assigned...');
+
 
   const tables = ['users', 'wards', 'workers', 'worker_attendance', 'admin_management'];
   const issues = [];
@@ -190,7 +189,7 @@ async function verifyUlbIdUpdate(client) {
       if (nullCount > 0) {
         issues.push(`${table}: ${nullCount} rows with NULL ulb_id`);
       } else {
-        console.log(`   ✅ ${table}: All rows have ulb_id`);
+
       }
     } catch (err) {
       // Table might not exist, skip
@@ -204,7 +203,7 @@ async function verifyUlbIdUpdate(client) {
     throw new Error('Cannot proceed: Some rows still have NULL ulb_id');
   }
 
-  console.log('✅ All rows verified - safe to apply NOT NULL constraint');
+
 }
 
 async function run() {
@@ -216,21 +215,21 @@ async function run() {
     backupFile = await createBackup();
 
     // Step 2: Run migrations
-    console.log('\n🚀 Starting migrations...\n');
+
     const files = readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
 
     for (const file of files) {
-      console.log(`📄 Processing: ${file}`);
+
       const sqlPath = path.join(migrationsDir, file);
       const sql = readFileSync(sqlPath, 'utf8');
 
       // For multi-ULB migration, verify before applying NOT NULL constraints
       if (file.includes('multi_ulb_architecture')) {
-        console.log('   ⚠️  Multi-ULB migration detected - will verify data before applying constraints');
+
       }
 
       await client.query(sql);
-      console.log(`   ✅ ${file} completed`);
+
     }
 
     // Step 3: Verify ulb_id updates (for multi-ULB migration)
@@ -240,7 +239,6 @@ async function run() {
     }
 
     console.log('\n✅ All migrations completed successfully!');
-    console.log(`📦 Backup saved at: ${backupFile}`);
 
   } catch (err) {
     console.error('\n❌ Migration failed:', err.message);

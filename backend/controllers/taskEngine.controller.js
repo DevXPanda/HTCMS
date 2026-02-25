@@ -15,16 +15,10 @@ export const getDailyTasks = async (req, res, next) => {
   try {
     const user = req.user;
 
-    console.log('Task Controller - Role check for daily tasks');
-    console.log('Task Controller - User details:', {
-      id: user?.id,
-      role: user?.role,
-      userType: user?.userType,
-      employee_id: user?.employee_id
-    });
+
 
     if ((user.role || '').toString().toLowerCase() !== 'collector') {
-      console.log('Task Controller - Access denied for role:', user.role);
+
       await transaction.rollback();
       return res.status(403).json({
         success: false,
@@ -32,13 +26,13 @@ export const getDailyTasks = async (req, res, next) => {
       });
     }
 
-    console.log('Task Controller - Collector access granted');
+
 
     // Get today's date in Asia/Kolkata timezone
     const todayInfo = getTodayInKolkata();
     const { dateStr } = todayInfo;
 
-    console.log(`📅 Collector ${user.id} requested daily tasks for ${dateStr}`);
+
 
     // First, try to get existing tasks
     let tasks = await CollectorTask.findAll({
@@ -54,7 +48,7 @@ export const getDailyTasks = async (req, res, next) => {
 
     // If no tasks found, generate them on-demand
     if (tasks.length === 0) {
-      console.log(`No tasks found for collector ${user.id}. Generating on-demand...`);
+
 
       // Get collector with assigned wards - use correct model based on user type
       let collector;
@@ -100,7 +94,7 @@ export const getDailyTasks = async (req, res, next) => {
           // Generate tasks for this collector
           const result = await generateTasksForCollector(collectorWithWards, todayInfo, transaction);
 
-          console.log(`Generated ${result.tasksGenerated} tasks on-demand for collector ${user.id}`);
+
 
           // Fetch the newly created tasks
           tasks = await CollectorTask.findAll({
@@ -114,10 +108,10 @@ export const getDailyTasks = async (req, res, next) => {
             transaction
           });
         } else {
-          console.log(`Collector ${user.id} has no assigned wards. Cannot generate tasks.`);
+
         }
       } else {
-        console.log(`Collector ${user.id} not found in database.`);
+
       }
     }
 
@@ -176,7 +170,7 @@ export const getDailyTasks = async (req, res, next) => {
       low: tasksWithDetails.filter(t => t.priority === 'low')
     };
 
-    console.log(`Returning ${tasksWithDetails.length} tasks for collector ${user.id} (Critical: ${tasksByPriority.critical.length}, High: ${tasksByPriority.high.length}, Medium: ${tasksByPriority.medium.length}, Low: ${tasksByPriority.low.length})`);
+
 
     res.json({
       success: true,
@@ -224,7 +218,7 @@ export const generateDailyTasks = async (req, res, next) => {
     const todayInfo = getTodayInKolkata();
     const { dateStr } = todayInfo;
 
-    console.log(`🔄 Admin triggered task generation for ${dateStr}`);
+
 
     // Get all collectors - check both User and AdminManagement tables
     let collectors = [];
@@ -272,7 +266,7 @@ export const generateDailyTasks = async (req, res, next) => {
     // Add user collectors to the list
     collectors.push(...userCollectors.map(c => c.toJSON()));
 
-    console.log(`Found ${collectors.length} collectors total (${staffCollectors.length} staff, ${userCollectors.length} users)`);
+
 
     let totalTasksGenerated = 0;
     const results = [];
@@ -291,7 +285,7 @@ export const generateDailyTasks = async (req, res, next) => {
 
     await transaction.commit();
 
-    console.log(`Task generation completed: ${totalTasksGenerated} tasks for ${collectors.length} collectors`);
+
 
     res.json({
       success: true,

@@ -221,8 +221,7 @@ export const updateWaterConnection = async (req, res, next) => {
  */
 export const getAllWaterConnections = async (req, res, next) => {
   try {
-    console.log('Water Connections API - User:', req.user.role, 'Ward IDs:', req.user.ward_ids);
-    console.log('Water Connections API - Query params:', req.query);
+
 
     const {
       propertyId,
@@ -365,8 +364,7 @@ export const getAllWaterConnections = async (req, res, next) => {
       order: [['createdAt', 'DESC']]
     });
 
-    console.log('Water Connections API - Found connections:', count);
-    console.log('Water Connections API - Where clause:', where);
+
 
     res.json({
       success: true,
