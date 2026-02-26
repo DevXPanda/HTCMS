@@ -89,7 +89,7 @@ const InspectionDetails = () => {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+                <div className="spinner spinner-md" />
             </div>
         );
     }
@@ -108,7 +108,7 @@ const InspectionDetails = () => {
             {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Inspection Report</h1>
+                    <h1 className="ds-page-title">Inspection Report</h1>
                     <p className="text-gray-500 text-sm">Reviewing audit as of {new Date(inspection.inspectionDate).toLocaleDateString()}</p>
                 </div>
                 <Link

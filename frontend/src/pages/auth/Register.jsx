@@ -3,10 +3,6 @@ import { useNavigate, Link, useSearchParams, useLocation } from 'react-router-do
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
-// Get background image path that works in both dev and production
-// Use absolute path for public assets - Vite serves public folder from root
-const backgroundImageUrl = '/background.png';
-
 const Register = () => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
@@ -106,27 +102,12 @@ const Register = () => {
   const theme = getTheme();
 
   return (
-    <div 
-      className="min-h-screen flex items-center justify-center px-4 py-8 relative"
-        style={{
-          backgroundImage: `url(${backgroundImageUrl})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          backgroundAttachment: 'fixed',
-          minHeight: '100vh',
-          width: '100%'
-        }}
-    >
-      {/* Dark overlay for better text readability */}
-      <div 
-        className="absolute inset-0 bg-black opacity-45"
-        style={{ zIndex: 0 }}
-      />
-      <div className="max-w-md w-full relative" style={{ zIndex: 1 }}>
-        <div className="bg-white rounded-lg shadow-xl p-8">
+    <div className="auth-page-bg min-h-screen flex items-center justify-center px-4 py-8 relative">
+      <div className="absolute inset-0 bg-black opacity-45 z-0" />
+      <div className="max-w-md w-full relative z-10">
+        <div className="card">
           <div className="text-center mb-8">
-            <h1 className={`text-3xl font-bold ${theme.text} mb-2`}>Register</h1>
+            <h1 className={`ds-page-title ${theme.text} mb-2`}>Register</h1>
             <p className="text-gray-600">Create your HTCMS account</p>
             {formData.role !== 'citizen' && (
               <p className="text-sm text-gray-500 mt-2">

@@ -74,25 +74,21 @@ const ClerkDashboard = () => {
     ];
 
     return (
-        <div className="space-y-8 max-w-7xl mx-auto">
+        <div className="space-y-6">
             {/* Page Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="ds-page-header">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Clerk Dashboard</h1>
-                    <p className="text-gray-500 text-sm">Ward Management & Applications</p>
+                    <h1 className="ds-page-title">Clerk Dashboard</h1>
+                    <p className="ds-page-subtitle">Ward Management & Applications</p>
                 </div>
-                <button
-                    onClick={fetchDashboard}
-                    className="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors shadow-sm flex items-center"
-                >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Refresh Data
+                <button type="button" onClick={fetchDashboard} className="btn btn-primary">
+                    <RefreshCw className="w-4 h-4" /> Refresh Data
                 </button>
             </div>
 
             {/* Quick Actions Section */}
             <section>
-                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <h2 className="form-section-title flex items-center">
                     <TrendingUp className="w-5 h-5 mr-2 text-primary-600" />
                     Quick Actions
                 </h2>
@@ -147,55 +143,41 @@ const ClerkDashboard = () => {
             )}
 
             {/* Today's Tasks / Action Required */}
-            <div className="bg-white rounded-lg border border-gray-100 p-6 mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
+            <div className="card mb-6">
                 <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-semibold text-amber-900 flex items-center">
+                    <h2 className="form-section-title flex items-center">
                         <Clock className="w-5 h-5 mr-2" />
-                        Today's Tasks
+                        Today&apos;s Tasks
                     </h2>
-                    <span className="text-sm text-amber-600">Action Required</span>
+                    <span className="text-sm text-amber-600 font-medium">Action Required</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-white p-4 rounded-lg border border-amber-200">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-gray-600">Pending Verification</p>
-                                <p className="text-2xl font-bold text-amber-600">
-                                    {(dashboard?.propertyApplications?.byStatus?.submitted || 0) + 
-                                     (dashboard?.waterApplications?.byStatus?.submitted || 0)}
-                                </p>
-                            </div>
-                            <div className="bg-amber-100 p-2 rounded-full">
-                                <Eye className="w-5 h-5 text-amber-600" />
-                            </div>
+                    <div className="stat-card">
+                        <div className="stat-card-title">
+                            <span>Pending Verification</span>
+                            <Eye className="w-5 h-5 text-amber-600" />
                         </div>
+                        <p className="stat-card-value text-amber-600">
+                            {(dashboard?.propertyApplications?.byStatus?.submitted || 0) + 
+                             (dashboard?.waterApplications?.byStatus?.submitted || 0)}
+                        </p>
                     </div>
-                    <div className="bg-white p-4 rounded-lg border border-amber-200">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-gray-600">Returned by Inspector</p>
-                                <p className="text-2xl font-bold text-orange-600">
-                                    {dashboard?.totalReturned || 0}
-                                </p>
-                            </div>
-                            <div className="bg-orange-100 p-2 rounded-full">
-                                <AlertCircle className="w-5 h-5 text-orange-600" />
-                            </div>
+                    <div className="stat-card">
+                        <div className="stat-card-title">
+                            <span>Returned by Inspector</span>
+                            <AlertCircle className="w-5 h-5 text-orange-600" />
                         </div>
+                        <p className="stat-card-value text-orange-600">{dashboard?.totalReturned || 0}</p>
                     </div>
-                    <div className="bg-white p-4 rounded-lg border border-amber-200">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-gray-600">Ready to Forward</p>
-                                <p className="text-2xl font-bold text-blue-600">
-                                    {(dashboard?.propertyApplications?.byStatus?.submitted || 0) + 
-                                     (dashboard?.waterApplications?.byStatus?.submitted || 0)}
-                                </p>
-                            </div>
-                            <div className="bg-blue-100 p-2 rounded-full">
-                                <Send className="w-5 h-5 text-blue-600" />
-                            </div>
+                    <div className="stat-card">
+                        <div className="stat-card-title">
+                            <span>Ready to Forward</span>
+                            <Send className="w-5 h-5 text-blue-600" />
                         </div>
+                        <p className="stat-card-value text-blue-600">
+                            {(dashboard?.propertyApplications?.byStatus?.submitted || 0) + 
+                             (dashboard?.waterApplications?.byStatus?.submitted || 0)}
+                        </p>
                     </div>
                 </div>
             </div>
@@ -203,7 +185,7 @@ const ClerkDashboard = () => {
             {/* Returned / Attention Needed Highlight */}
             {(dashboard?.totalReturned || 0) > 0 && (
                 <Link to="/clerk/returned-applications" className="block mb-6">
-                    <div className="bg-white rounded-lg border border-gray-100 p-6 bg-gradient-to-r from-red-50 to-pink-50 border-red-200 hover:shadow-lg transition-shadow cursor-pointer">
+                    <div className="card card-hover border-red-200 bg-red-50/30">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center">
                                 <div className="bg-red-500 p-3 rounded-full mr-4">
@@ -223,33 +205,27 @@ const ClerkDashboard = () => {
             )}
 
             {/* Stat Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 {statCards.map((stat, index) => {
                     const Icon = stat.icon;
                     return (
-                        <Link
-                            key={index}
-                            to={stat.link}
-                            className="bg-white rounded-lg border border-gray-100 p-6 hover:shadow-lg transition-shadow cursor-pointer"
-                        >
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-gray-600 text-sm">{stat.title}</p>
-                                    <p className="text-3xl font-bold text-gray-900 mt-1">{stat.value}</p>
-                                </div>
-                                <div className={`${stat.color} p-3 rounded-full`}>
-                                    <Icon className="w-6 h-6 text-white" />
+                        <Link key={index} to={stat.link} className="stat-card card-hover">
+                            <div className="stat-card-title">
+                                <span>{stat.title}</span>
+                                <div className={`${stat.color} p-2 rounded-full`}>
+                                    <Icon className="w-5 h-5 text-white" />
                                 </div>
                             </div>
+                            <p className="stat-card-value">{stat.value}</p>
                         </Link>
                     );
                 })}
             </div>
 
             {/* Property Applications Breakdown */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                <div className="bg-white rounded-lg border border-gray-100 p-6">
-                    <h2 className="text-xl font-semibold mb-4 flex items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div className="card">
+                    <h2 className="form-section-title flex items-center">
                         <FileText className="w-5 h-5 mr-2" />
                         Property Applications Status
                     </h2>
@@ -300,8 +276,8 @@ const ClerkDashboard = () => {
                 </div>
 
                 {/* Water Applications Breakdown */}
-                <div className="bg-white rounded-lg border border-gray-100 p-6">
-                    <h2 className="text-xl font-semibold mb-4 flex items-center">
+                <div className="card">
+                    <h2 className="form-section-title flex items-center">
                         <Droplet className="w-5 h-5 mr-2" />
                         Water Applications Status
                     </h2>
@@ -353,8 +329,8 @@ const ClerkDashboard = () => {
             </div>
 
             {/* Quick Navigation Shortcuts */}
-            <div className="bg-white rounded-lg border border-gray-100 p-6 mb-6">
-                <h2 className="text-xl font-semibold mb-4 flex items-center">
+            <div className="card mb-6">
+                <h2 className="form-section-title flex items-center">
                     <ArrowRight className="w-5 h-5 mr-2" />
                     Quick Navigation
                 </h2>
@@ -393,8 +369,8 @@ const ClerkDashboard = () => {
             </div>
 
             {/* Recent Activity (Ward-Scoped) */}
-            <div className="bg-white rounded-lg border border-gray-100 p-6">
-                <h2 className="text-xl font-semibold mb-4 flex items-center">
+            <div className="card">
+                <h2 className="form-section-title flex items-center">
                     <Clock className="w-5 h-5 mr-2" />
                     Recent Activity
                 </h2>
@@ -433,34 +409,24 @@ const ClerkDashboard = () => {
             </div>
 
             {/* Additional Quick Actions */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-                <Link
-                    to="/clerk/property-applications/new"
-                    className="bg-white rounded-lg border border-gray-100 p-6 hover:shadow-lg transition-shadow bg-gradient-to-r from-blue-50 to-indigo-50"
-                >
-                    <div className="flex items-center">
-                        <div className="bg-blue-500 p-3 rounded-full mr-4">
-                            <FileText className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                            <h3 className="font-semibold text-gray-900">Create Property Application</h3>
-                            <p className="text-sm text-gray-600">Start a new property registration</p>
-                        </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                <Link to="/clerk/property-applications/new" className="card card-hover flex items-center">
+                    <div className="bg-primary-500 p-3 rounded-full mr-4 shrink-0">
+                        <FileText className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                        <h3 className="font-semibold text-gray-900">Create Property Application</h3>
+                        <p className="text-sm text-gray-600">Start a new property registration</p>
                     </div>
                 </Link>
 
-                <Link
-                    to="/clerk/water-applications/new"
-                    className="bg-white rounded-lg border border-gray-100 p-6 hover:shadow-lg transition-shadow bg-gradient-to-r from-cyan-50 to-blue-50"
-                >
-                    <div className="flex items-center">
-                        <div className="bg-cyan-500 p-3 rounded-full mr-4">
-                            <Droplet className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                            <h3 className="font-semibold text-gray-900">Create Water Application</h3>
-                            <p className="text-sm text-gray-600">Request a new water connection</p>
-                        </div>
+                <Link to="/clerk/water-applications/new" className="card card-hover flex items-center">
+                    <div className="bg-cyan-500 p-3 rounded-full mr-4 shrink-0">
+                        <Droplet className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                        <h3 className="font-semibold text-gray-900">Create Water Application</h3>
+                        <p className="text-sm text-gray-600">Request a new water connection</p>
                     </div>
                 </Link>
             </div>

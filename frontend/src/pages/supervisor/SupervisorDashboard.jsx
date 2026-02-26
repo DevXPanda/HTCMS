@@ -918,7 +918,7 @@ const SupervisorDashboard = () => {
                   value={taskForm.worker_id}
                   onChange={(e) => setTaskForm({ ...taskForm, worker_id: e.target.value })}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                 >
                   <option value="">Select Worker</option>
                   {workers.map((w) => (
@@ -932,7 +932,7 @@ const SupervisorDashboard = () => {
                   value={taskForm.task_type}
                   onChange={(e) => setTaskForm({ ...taskForm, task_type: e.target.value })}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                 >
                   <option value="SWEEPING">Sweeping</option>
                   <option value="TOILET">Toilet</option>
@@ -947,7 +947,7 @@ const SupervisorDashboard = () => {
                   value={taskForm.area_street}
                   onChange={(e) => setTaskForm({ ...taskForm, area_street: e.target.value })}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                   placeholder="Enter area or street name"
                 />
               </div>
@@ -957,7 +957,7 @@ const SupervisorDashboard = () => {
                   value={taskForm.shift}
                   onChange={(e) => setTaskForm({ ...taskForm, shift: e.target.value })}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                 >
                   <option value="MORNING">Morning</option>
                   <option value="EVENING">Evening</option>
@@ -969,7 +969,7 @@ const SupervisorDashboard = () => {
                   value={taskForm.special_instructions}
                   onChange={(e) => setTaskForm({ ...taskForm, special_instructions: e.target.value })}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                   placeholder="Optional special instructions"
                 />
               </div>

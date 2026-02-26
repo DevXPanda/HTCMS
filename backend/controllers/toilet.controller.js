@@ -589,6 +589,32 @@ export const createMaintenanceRecord = async (req, res, next) => {
     }
 };
 
+export const getMaintenanceRecordById = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const maintenanceRecord = await ToiletMaintenance.findByPk(id, {
+            include: [
+                { model: ToiletFacility, as: 'facility', attributes: ['id', 'name'] },
+                { model: AdminManagement, as: 'staff', attributes: ['id', 'full_name'] }
+            ]
+        });
+
+        if (!maintenanceRecord) {
+            return res.status(404).json({
+                success: false,
+                message: 'Maintenance record not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: { maintenanceRecord }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 // --- Complaints ---
 
 export const getAllComplaints = async (req, res, next) => {

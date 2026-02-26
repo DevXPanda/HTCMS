@@ -633,14 +633,14 @@ const AdminManagement = () => {
                 placeholder="Search by name, email, phone, or employee ID..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
           </div>
           <select
             value={filterRole}
             onChange={(e) => setFilterRole(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <option value="">All Roles</option>
             <option value="CLERK">Clerk</option>
@@ -655,7 +655,7 @@ const AdminManagement = () => {
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <option value="">All Status</option>
             <option value="active">Active</option>
@@ -732,7 +732,7 @@ const AdminManagement = () => {
                       type="checkbox"
                       checked={selectAll}
                       onChange={handleSelectAll}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-primary-500"
                     />
                     <span>Select All</span>
                   </div>
@@ -780,7 +780,7 @@ const AdminManagement = () => {
                         type="checkbox"
                         checked={selectedEmployees.includes(employee.id)}
                         onChange={() => handleSelectEmployee(employee.id)}
-                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-primary-500"
                       />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -891,7 +891,7 @@ const AdminManagement = () => {
                     required
                     value={formData.full_name}
                     onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 {/* ULB Dropdown - Mandatory except ADMIN */}
@@ -922,7 +922,7 @@ const AdminManagement = () => {
                           fetchEos();
                         }
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     >
                       <option value="">Select ULB</option>
                       {ulbs.map(ulb => (
@@ -953,7 +953,7 @@ const AdminManagement = () => {
                         contact_details: '' 
                       });
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="">Select Role</option>
                     <option value="CLERK">Clerk</option>
@@ -973,7 +973,7 @@ const AdminManagement = () => {
                     required
                     value={formData.phone_number}
                     onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
@@ -983,7 +983,7 @@ const AdminManagement = () => {
                     required
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
 
@@ -1010,7 +1010,7 @@ const AdminManagement = () => {
                           
                           setFormData({ ...formData, ward_ids: selectedWardIds });
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                         disabled={!formData.ulb_id}
                         size={Math.min(wards.filter(w => !formData.ulb_id || w.ulb_id === formData.ulb_id).length, 6)}
                       >
@@ -1053,7 +1053,7 @@ const AdminManagement = () => {
                             await fetchEos(wardUlbId);
                           }
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       >
                         <option value="">Select Ward</option>
                         {allWards
@@ -1073,7 +1073,7 @@ const AdminManagement = () => {
                         required
                         value={formData.eo_id}
                         onChange={(e) => setFormData({ ...formData, eo_id: e.target.value ? parseInt(e.target.value) : '' })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                         disabled={!formData.ulb_id}
                       >
                         <option value="">Select EO</option>
@@ -1095,7 +1095,7 @@ const AdminManagement = () => {
                         required
                         value={formData.worker_type}
                         onChange={(e) => setFormData({ ...formData, worker_type: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       >
                         <option value="">Select Type</option>
                         <option value="ULB">ULB</option>
@@ -1124,7 +1124,7 @@ const AdminManagement = () => {
                             await fetchSupervisors(wardId);
                           }
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       >
                         <option value="">Select Ward</option>
                         {allWards
@@ -1144,7 +1144,7 @@ const AdminManagement = () => {
                         required
                         value={formData.supervisor_id}
                         onChange={(e) => setFormData({ ...formData, supervisor_id: e.target.value ? parseInt(e.target.value) : '' })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                         disabled={!formData.ward_id}
                       >
                         <option value="">Select Supervisor</option>
@@ -1159,7 +1159,7 @@ const AdminManagement = () => {
                       <select
                         value={formData.contractor_id}
                         onChange={(e) => setFormData({ ...formData, contractor_id: e.target.value ? parseInt(e.target.value) : '' })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       >
                         <option value="">None</option>
                         {contractorsList.map(c => (
@@ -1180,7 +1180,7 @@ const AdminManagement = () => {
                         required
                         value={formData.company_name}
                         onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       />
                     </div>
                     <div>
@@ -1190,7 +1190,7 @@ const AdminManagement = () => {
                         value={formData.contact_details}
                         onChange={(e) => setFormData({ ...formData, contact_details: e.target.value })}
                         rows={3}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       />
                     </div>
                   </>
@@ -1204,7 +1204,7 @@ const AdminManagement = () => {
                       required={formData.role && formData.role.toUpperCase() === 'CLERK'}
                       value={formData.ward_ids && formData.ward_ids.length > 0 ? formData.ward_ids[0] : ''}
                       onChange={(e) => setFormData({ ...formData, ward_ids: e.target.value ? [parseInt(e.target.value)] : [] })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     >
                       <option value="">Select Ward</option>
                       {wards.map(ward => (
@@ -1219,7 +1219,7 @@ const AdminManagement = () => {
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
@@ -1299,7 +1299,7 @@ const AdminManagement = () => {
                     required
                     value={formData.full_name}
                     onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 {/* ULB Dropdown - Mandatory except ADMIN */}
@@ -1330,7 +1330,7 @@ const AdminManagement = () => {
                           fetchEos();
                         }
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     >
                       <option value="">Select ULB</option>
                       {ulbs.map(ulb => (
@@ -1356,7 +1356,7 @@ const AdminManagement = () => {
                         ulb_id: (newRole && (newRole.toUpperCase() === 'SUPERVISOR' || newRole.toUpperCase() === 'FIELD_WORKER')) ? formData.ulb_id : ''
                       });
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="">Select Role</option>
                     <option value="CLERK">Clerk</option>
@@ -1376,7 +1376,7 @@ const AdminManagement = () => {
                     required
                     value={formData.phone_number}
                     onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
@@ -1386,7 +1386,7 @@ const AdminManagement = () => {
                     required
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 {formData.role && formData.role.toUpperCase() === 'EO' && (
@@ -1410,7 +1410,7 @@ const AdminManagement = () => {
                         
                         setFormData({ ...formData, ward_ids: selectedWardIds });
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       disabled={!formData.ulb_id}
                       size={Math.min(wards.filter(w => !formData.ulb_id || w.ulb_id === formData.ulb_id).length, 6)}
                     >
@@ -1448,7 +1448,7 @@ const AdminManagement = () => {
                             await fetchEos(wardUlbId);
                           }
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       >
                         <option value="">Select Ward</option>
                         {allWards.map(ward => (
@@ -1461,7 +1461,7 @@ const AdminManagement = () => {
                       <select
                         value={formData.eo_id}
                         onChange={(e) => setFormData({ ...formData, eo_id: e.target.value ? parseInt(e.target.value) : '' })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                         disabled={!formData.ulb_id}
                       >
                         <option value="">Select EO</option>
@@ -1480,7 +1480,7 @@ const AdminManagement = () => {
                       <select
                         value={formData.worker_type}
                         onChange={(e) => setFormData({ ...formData, worker_type: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       >
                         <option value="">Select Type</option>
                         <option value="ULB">ULB</option>
@@ -1507,7 +1507,7 @@ const AdminManagement = () => {
                             await fetchSupervisors(wardId);
                           }
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       >
                         <option value="">Select Ward</option>
                         {allWards
@@ -1526,7 +1526,7 @@ const AdminManagement = () => {
                       <select
                         value={formData.supervisor_id}
                         onChange={(e) => setFormData({ ...formData, supervisor_id: e.target.value ? parseInt(e.target.value) : '' })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                         disabled={!formData.ward_id}
                       >
                         <option value="">Select Supervisor</option>
@@ -1541,7 +1541,7 @@ const AdminManagement = () => {
                       <select
                         value={formData.contractor_id}
                         onChange={(e) => setFormData({ ...formData, contractor_id: e.target.value ? parseInt(e.target.value) : '' })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       >
                         <option value="">None</option>
                         {contractorsList.map(c => (
@@ -1559,7 +1559,7 @@ const AdminManagement = () => {
                         type="text"
                         value={formData.company_name}
                         onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       />
                     </div>
                     <div>
@@ -1568,7 +1568,7 @@ const AdminManagement = () => {
                         value={formData.contact_details}
                         onChange={(e) => setFormData({ ...formData, contact_details: e.target.value })}
                         rows={3}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       />
                     </div>
                   </>
@@ -1579,7 +1579,7 @@ const AdminManagement = () => {
                     <select
                       value={formData.ward_ids && formData.ward_ids.length > 0 ? formData.ward_ids[0] : ''}
                       onChange={(e) => setFormData({ ...formData, ward_ids: e.target.value ? [parseInt(e.target.value)] : [] })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     >
                       <option value="">Select Ward</option>
                       {wards
@@ -1597,7 +1597,7 @@ const AdminManagement = () => {
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
@@ -1612,7 +1612,7 @@ const AdminManagement = () => {
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     placeholder="Enter new password (optional)"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-text"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent cursor-text"
                     style={{ pointerEvents: 'auto', zIndex: 10 }}
                   />
                   {formData.password && (

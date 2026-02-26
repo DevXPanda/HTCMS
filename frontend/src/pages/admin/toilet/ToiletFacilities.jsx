@@ -133,17 +133,16 @@ const ToiletFacilities = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <div className="spinner spinner-md" />
       </div>
     );
   }
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Toilet Facilities</h1>
-        <div className="flex gap-2">
+      <div className="ds-page-header">
+        <h1 className="ds-page-title">Toilet Facilities</h1>
+        <div className="flex flex-wrap gap-2">
           <Link
             to="/toilet-management/facilities/new"
             className="btn btn-primary flex items-center"
@@ -251,7 +250,7 @@ const ToiletFacilities = () => {
       )}
 
       {/* Toilets List */}
-      <div className="card overflow-x-auto">
+      <div className="table-wrap">
         <table className="table">
           <thead>
             <tr>
@@ -338,28 +337,22 @@ const ToiletFacilities = () => {
       </div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-sm text-gray-500">Total Facilities</div>
-          <div className="text-2xl font-bold text-gray-900">{toilets.length}</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="stat-card">
+          <div className="stat-card-title"><span>Total Facilities</span></div>
+          <p className="stat-card-value">{toilets.length}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-sm text-gray-500">Active</div>
-          <div className="text-2xl font-bold text-green-600">
-            {toilets.filter(t => t.status === 'active').length}
-          </div>
+        <div className="stat-card">
+          <div className="stat-card-title"><span>Active</span></div>
+          <p className="stat-card-value text-green-600">{toilets.filter(t => t.status === 'active').length}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-sm text-gray-500">Under Maintenance</div>
-          <div className="text-2xl font-bold text-yellow-600">
-            {toilets.filter(t => t.status === 'maintenance').length}
-          </div>
+        <div className="stat-card">
+          <div className="stat-card-title"><span>Under Maintenance</span></div>
+          <p className="stat-card-value text-yellow-600">{toilets.filter(t => t.status === 'maintenance').length}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-sm text-gray-500">Total Capacity</div>
-          <div className="text-2xl font-bold text-gray-900">
-            {toilets.reduce((sum, t) => sum + t.capacity, 0)}
-          </div>
+        <div className="stat-card">
+          <div className="stat-card-title"><span>Total Capacity</span></div>
+          <p className="stat-card-value">{toilets.reduce((sum, t) => sum + (t.capacity || 0), 0)}</p>
         </div>
       </div>
     </div>

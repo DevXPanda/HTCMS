@@ -196,7 +196,7 @@ const AddPayment = () => {
           <Link to="/payments" className="mr-4 text-primary-600 hover:text-primary-700">
             <ArrowLeft className="w-5 h-5" />
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900">Record Payment</h1>
+          <h1 className="ds-page-title">Record Payment</h1>
         </div>
       </div>
 

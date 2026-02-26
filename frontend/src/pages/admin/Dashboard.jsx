@@ -143,7 +143,7 @@ const Dashboard = () => {
     { name: 'Tax Management', icon: FileText, link: '/tax-management', color: 'bg-blue-600' },
     { name: 'EO Management', icon: Store, link: '/field-worker-monitoring', color: 'bg-yellow-600' },
     { name: 'Toilet Management', icon: Bath, link: '/toilet-management', color: 'bg-pink-600' },
-    { name: 'MRF', icon: ClipboardList, link: '/mrf/management', color: 'bg-green-600' },
+    { name: 'MRF', icon: ClipboardList, link: '/mrf', color: 'bg-green-600' },
     { name: 'Gau Shala', icon: ScrollText, link: '/gaushala/management', color: 'bg-orange-600' },
 
 
@@ -195,19 +195,19 @@ const Dashboard = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <div className="spinner spinner-md" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-md p-4">
+      <div className="alert-error">
         <div className="flex">
-          <AlertCircle className="h-5 w-5 text-red-400" />
-          <div className="ml-3">
-            <h3 className="text-sm font-medium text-red-800">Error</h3>
-            <div className="mt-2 text-sm text-red-700">{error}</div>
+          <AlertCircle className="h-5 w-5 text-red-400 shrink-0" />
+          <div>
+            <h3 className="alert-error-title">Error</h3>
+            <div className="alert-error-text">{error}</div>
           </div>
         </div>
       </div>
@@ -215,35 +215,36 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
+    <div className="space-y-8">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="ds-page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">EO Control Center</h1>
-          <p className="text-gray-500 text-sm">System Overview & Management</p>
+          <h1 className="ds-page-title">EO Control Center</h1>
+          <p className="ds-page-subtitle">System Overview & Management</p>
         </div>
         <button
+          type="button"
           onClick={() => {
             fetchDashboardData();
             fetchFieldWorkerAnalytics();
           }}
-          className="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
+          className="btn btn-primary"
         >
           Refresh Data
         </button>
       </div>
 
       {/* ULB Filter */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <div className="flex items-center gap-4">
+      <div className="card-flat">
+        <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
             <Filter className="w-5 h-5 text-gray-500" />
-            <label className="text-sm font-medium text-gray-700">Filter by ULB:</label>
+            <label className="label mb-0">Filter by ULB:</label>
           </div>
           <select
             value={selectedUlbId}
             onChange={(e) => setSelectedUlbId(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+            className="input max-w-xs"
           >
             <option value="">All ULBs (Aggregated)</option>
             {ulbs.map(ulb => (
@@ -345,7 +346,7 @@ const Dashboard = () => {
 
       {/* 1. Primary Navigation - Quick Actions */}
       <section>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+        <h2 className="ds-section-title flex items-center">
           <TrendingUp className="w-5 h-5 mr-2 text-primary-600" />
           Quick Actions
         </h2>
@@ -354,7 +355,7 @@ const Dashboard = () => {
             <Link
               key={index}
               to={action.link}
-              className="flex flex-col items-center justify-center p-5 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-primary-100 transition-all group"
+              className="card-hover flex flex-col items-center justify-center p-5 group"
             >
               <div className={`p-3 rounded-full ${action.color} text-white mb-3 shadow-sm group-hover:scale-110 transition-transform`}>
                 <action.icon className="h-6 w-6" />
@@ -367,10 +368,10 @@ const Dashboard = () => {
 
       {/* 2. Global Metrics - Simplified */}
       <section>
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Data Insights</h2>
+        <h2 className="ds-section-title-muted">Data Insights</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {systemMetrics.map((stat, index) => (
-            <div key={index} className="bg-white rounded-lg border border-gray-100 p-4 flex flex-col justify-between hover:bg-gray-50 transition-colors">
+            <div key={index} className="stat-card">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-medium text-gray-500 uppercase">{stat.title}</p>
                 <stat.icon className={`h-4 w-4 ${stat.textRed ? 'text-red-500' : 'text-gray-400'}`} />
@@ -388,13 +389,13 @@ const Dashboard = () => {
 
       {/* 3. Administration - Compact Grid */}
       <section>
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Administration & Reports</h2>
+        <h2 className="ds-section-title-muted">Administration & Reports</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
           {adminItems.map((item, idx) => (
             <Link
               key={idx}
               to={item.link}
-              className="flex flex-col items-center p-3 rounded-lg bg-white border border-gray-100 hover:border-gray-300 hover:bg-gray-50 transition-all text-center"
+              className="stat-card flex flex-col items-center p-3 text-center"
             >
               <div className="text-gray-500 mb-2">
                 <item.icon className="w-5 h-5" />
@@ -407,12 +408,12 @@ const Dashboard = () => {
 
       {/* 4. Snapshot / Water Tax Overview */}
       {/* 4. Module Snapshots */}
-      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Module Snapshots</h2>
+      <h2 className="ds-section-title-muted">Module Snapshots</h2>
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
 
         {/* Property Tax Snapshot */}
-        <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-blue-50/30">
+        <section className="card overflow-hidden p-0">
+          <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-primary-50/50">
             <h3 className="text-sm font-semibold text-gray-900 uppercase flex items-center">
               <Building2 className="w-4 h-4 mr-2 text-blue-600" />
               Property Tax

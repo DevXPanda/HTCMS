@@ -80,7 +80,7 @@ const CollectorDemandDetails = () => {
   const discount = demand.taxDiscounts && demand.taxDiscounts.length > 0 ? demand.taxDiscounts[0] : null;
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6">
       <Link to="/collector/dashboard" className="inline-flex items-center text-primary-600 hover:underline mb-4">
         <ArrowLeft className="w-4 h-4 mr-2" />
         Back to Dashboard

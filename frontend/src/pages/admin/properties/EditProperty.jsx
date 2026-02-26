@@ -159,9 +159,8 @@ const EditProperty = () => {
               <input
                 type="text"
                 {...register('propertyNumber', { required: 'Property number is required' })}
-                className="input"
+                className="input bg-gray-100"
                 readOnly
-                style={{ backgroundColor: '#f3f4f6' }}
               />
               <p className="text-xs text-gray-500 mt-1">Property number cannot be changed</p>
             </div>

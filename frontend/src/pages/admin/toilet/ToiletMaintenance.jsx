@@ -76,18 +76,17 @@ const ToiletMaintenance = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <div className="spinner spinner-md" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="ds-page-header flex flex-wrap justify-between items-start gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Maintenance Management</h1>
-          <p className="text-gray-600 text-sm">Schedule and track maintenance activities</p>
+          <h1 className="ds-page-title">Maintenance Management</h1>
+          <p className="ds-page-subtitle">Schedule and track maintenance activities</p>
         </div>
         <Link
           to="/toilet-management/maintenance/new"
@@ -98,8 +97,7 @@ const ToiletMaintenance = () => {
         </Link>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4">
+      <div className="card">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -129,10 +127,8 @@ const ToiletMaintenance = () => {
         </div>
       </div>
 
-      {/* Maintenance List */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
+      <div className="table-wrap">
+        <table className="table">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -206,32 +202,24 @@ const ToiletMaintenance = () => {
               )}
             </tbody>
           </table>
-        </div>
       </div>
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-sm text-gray-500">Total Records</div>
-          <div className="text-2xl font-bold text-gray-900">{maintenance.length}</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="stat-card">
+          <div className="stat-card-title"><span>Total Records</span></div>
+          <p className="stat-card-value">{maintenance.length}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-sm text-gray-500">Scheduled</div>
-          <div className="text-2xl font-bold text-blue-600">
-            {maintenance.filter(m => m.status === 'scheduled').length}
-          </div>
+        <div className="stat-card">
+          <div className="stat-card-title"><span>Scheduled</span></div>
+          <p className="stat-card-value text-blue-600">{maintenance.filter(m => m.status === 'scheduled').length}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-sm text-gray-500">In Progress</div>
-          <div className="text-2xl font-bold text-yellow-600">
-            {maintenance.filter(m => m.status === 'in_progress').length}
-          </div>
+        <div className="stat-card">
+          <div className="stat-card-title"><span>In Progress</span></div>
+          <p className="stat-card-value text-yellow-600">{maintenance.filter(m => m.status === 'in_progress').length}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-sm text-gray-500">Completed</div>
-          <div className="text-2xl font-bold text-green-600">
-            {maintenance.filter(m => m.status === 'completed').length}
-          </div>
+        <div className="stat-card">
+          <div className="stat-card-title"><span>Completed</span></div>
+          <p className="stat-card-value text-green-600">{maintenance.filter(m => m.status === 'completed').length}</p>
         </div>
       </div>
     </div>

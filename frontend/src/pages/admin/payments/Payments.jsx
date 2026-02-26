@@ -62,7 +62,7 @@ const Payments = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Payments</h1>
+        <h1 className="ds-page-title">Payments</h1>
         <div className="flex gap-2">
           {(isAdmin || isCashier) && (
             <Link to="/payments/new" className="btn btn-primary flex items-center">

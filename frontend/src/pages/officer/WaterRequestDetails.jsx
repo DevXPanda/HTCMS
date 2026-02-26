@@ -259,7 +259,7 @@ const WaterRequestDetails = () => {
                   <textarea
                     value={officerRemarks}
                     onChange={(e) => setOfficerRemarks(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
                     rows={4}
                     placeholder="Provide detailed remarks for this decision..."
                   />

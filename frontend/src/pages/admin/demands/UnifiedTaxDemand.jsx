@@ -295,7 +295,7 @@ const UnifiedTaxDemand = () => {
                         <ArrowLeft className="w-5 h-5" />
                     </Link>
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Unified Tax Demand</h1>
+                        <h1 className="ds-page-title">Unified Tax Demand</h1>
                         <p className="text-gray-500 mt-1 font-medium">Generate Property, Water, and D2DC demands in one go</p>
                     </div>
                 </div>
@@ -396,7 +396,7 @@ const UnifiedTaxDemand = () => {
                                         }}
                                         disabled={generateUnified} // Lock if unified is selected? Or allow manual toggle?
                                         // UX: If Unified is checked, these should visually imply they are included.
-                                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                                        className="w-4 h-4 text-blue-600 rounded focus:ring-primary-500"
                                     />
                                     <Building2 className="w-5 h-5 text-blue-500 mx-3" />
                                     <span className="font-medium text-gray-700">Property Tax</span>

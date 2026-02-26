@@ -110,12 +110,19 @@ const ComplaintDetails = () => {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+                <div className="spinner spinner-md" />
             </div>
         );
     }
 
-    if (!complaint) return <div className="p-6 text-center">Complaint not found.</div>;
+    if (!complaint) {
+        return (
+            <div className="empty-state">
+                <p>Complaint not found.</p>
+                <button onClick={() => navigate(-1)} className="btn btn-primary mt-4">Go Back</button>
+            </div>
+        );
+    }
 
     const getStatusStyle = (status) => {
         const s = status?.toLowerCase();
@@ -125,17 +132,16 @@ const ComplaintDetails = () => {
     };
 
     return (
-        <div className="space-y-6 max-w-6xl mx-auto p-4 sm:p-6 text-left">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="space-y-6 text-left">
+            <div className="ds-page-header flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <div className="flex items-center gap-2 mb-1">
-                        <button onClick={() => navigate(-1)} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
+                        <button onClick={() => navigate(-1)} className="p-1 hover:bg-gray-100 rounded-lg transition-colors" aria-label="Go back">
                             <ArrowLeft className="w-5 h-5 text-gray-500" />
                         </button>
-                        <h1 className="text-2xl font-bold text-gray-900">Complaint Details</h1>
+                        <h1 className="ds-page-title">Complaint Details</h1>
                     </div>
-                    <p className="text-gray-500 text-sm font-medium ml-9">Ref: #COMP-{complaint.id} | Reported on {new Date(complaint.createdAt).toLocaleString()}</p>
+                    <p className="ds-page-subtitle ml-9">Ref: #COMP-{complaint.id} | Reported on {new Date(complaint.createdAt).toLocaleString()}</p>
                 </div>
                 <div className="flex gap-2">
                     <button
@@ -148,9 +154,9 @@ const ComplaintDetails = () => {
                         form="complaint-form"
                         type="submit"
                         disabled={saving}
-                        className="btn btn-primary flex items-center gap-2 text-sm"
+                        className="btn btn-primary flex items-center gap-2"
                     >
-                        {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Save className="w-4 h-4" />}
+                        {saving ? <span className="spinner spinner-sm" /> : <Save className="w-4 h-4" />}
                         Save Changes
                     </button>
                 </div>
@@ -159,11 +165,11 @@ const ComplaintDetails = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Information Card */}
                 <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="card">
                         <div className="p-6">
-                            <div className="flex items-center gap-2 mb-4 border-b pb-4">
+                            <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-4">
                                 <FileText className="w-5 h-5 text-primary-600" />
-                                <h2 className="text-lg font-bold text-gray-900">Issue Description</h2>
+                                <h2 className="ds-section-title">Issue Description</h2>
                             </div>
 
                             <div className="space-y-6">
@@ -208,11 +214,11 @@ const ComplaintDetails = () => {
 
                     {/* Resolution Proof Card */}
                     {(complaint.status.toLowerCase() === 'resolved' || complaint.resolution_after_photo) && (
-                        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                        <div className="card">
                             <div className="p-6">
-                                <div className="flex items-center gap-2 mb-4 border-b pb-4">
+                                <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-4">
                                     <CheckCircle2 className="w-5 h-5 text-green-600" />
-                                    <h2 className="text-lg font-bold text-gray-900">Resolution Proof</h2>
+                                    <h2 className="ds-section-title">Resolution Proof</h2>
                                 </div>
 
                                 <div className="space-y-6">

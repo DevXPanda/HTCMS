@@ -77,37 +77,37 @@ const StaffAssignment = () => {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+                <div className="spinner spinner-md" />
             </div>
         );
     }
 
     return (
-        <div className="space-y-6 max-w-5xl mx-auto">
-            <div className="mb-6">
-                <h1 className="text-3xl font-black text-gray-900 tracking-tight">Staff Assignment</h1>
-                <p className="text-gray-500 font-medium flex items-center gap-1.5 mt-1">
-                    Managing staff for {facility?.name || '...'}
-                </p>
+        <div className="space-y-6">
+            <div className="ds-page-header">
+                <div>
+                    <h1 className="ds-page-title">Staff Assignment</h1>
+                    <p className="ds-page-subtitle">Managing staff for {facility?.name || '...'}</p>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Assignment Form */}
                 <div className="md:col-span-1">
-                    <form onSubmit={handleAddAssignment} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sticky top-6">
-                        <h2 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                    <form onSubmit={handleAddAssignment} className="card sticky top-6">
+                        <h2 className="form-section-title flex items-center gap-2">
                             <PlusCircle className="w-4 h-4 text-primary-500" />
                             Assign New Staff
                         </h2>
 
                         <div className="space-y-4">
                             <div>
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">Select Staff Member</label>
+                                <label className="label label-required">Select Staff Member</label>
                                 <select
                                     value={newAssignment.staffId}
                                     onChange={(e) => setNewAssignment(prev => ({ ...prev, staffId: e.target.value }))}
                                     required
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm"
+                                    className="input"
                                 >
                                     <option value="">Choose Staff...</option>
                                     {(staffList || []).map(s => (
@@ -117,11 +117,11 @@ const StaffAssignment = () => {
                             </div>
 
                             <div>
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">Operational Role</label>
+                                <label className="label">Operational Role</label>
                                 <select
                                     value={newAssignment.role}
                                     onChange={(e) => setNewAssignment(prev => ({ ...prev, role: e.target.value }))}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm"
+                                    className="input"
                                 >
                                     <option value="Cleaner">Cleaner / Sanitor</option>
                                     <option value="Security">Security Guard</option>
@@ -131,11 +131,11 @@ const StaffAssignment = () => {
                             </div>
 
                             <div>
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">Shift Timing</label>
+                                <label className="label">Shift Timing</label>
                                 <select
                                     value={newAssignment.shift}
                                     onChange={(e) => setNewAssignment(prev => ({ ...prev, shift: e.target.value }))}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm"
+                                    className="input"
                                 >
                                     <option value="Morning">Morning (6 AM - 2 PM)</option>
                                     <option value="Afternoon">Afternoon (2 PM - 10 PM)</option>
@@ -144,11 +144,7 @@ const StaffAssignment = () => {
                                 </select>
                             </div>
 
-                            <button
-                                type="submit"
-                                disabled={saving}
-                                className="w-full py-3 bg-gray-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-primary-600 transition-all shadow-sm hover:shadow-md active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 mt-2"
-                            >
+                            <button type="submit" disabled={saving} className="btn btn-primary w-full mt-2">
                                 {saving ? 'Assigning...' : 'Assign to Facility'}
                             </button>
                         </div>
@@ -157,9 +153,9 @@ const StaffAssignment = () => {
 
                 {/* Assignments List */}
                 <div className="md:col-span-2 space-y-4">
-                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                        <div className="px-6 py-4 border-b border-gray-50 flex justify-between items-center bg-gray-50">
-                            <h2 className="text-sm font-black text-gray-900 uppercase tracking-widest flex items-center gap-2">
+                    <div className="card p-0 overflow-hidden">
+                        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+                            <h2 className="form-section-title flex items-center gap-2 mb-0">
                                 <Users className="w-4 h-4 text-primary-500" />
                                 Current Active Staff ({(assignments || []).length})
                             </h2>

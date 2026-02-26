@@ -294,7 +294,7 @@ const TaxSummary = () => {
                 value={filters.search}
                 onChange={(e) => handleFilterChange('search', e.target.value)}
                 placeholder="Property, Owner, Demand..."
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
               />
             </div>
           </div>
@@ -308,7 +308,7 @@ const TaxSummary = () => {
             <select
               value={filters.ward}
               onChange={(e) => handleFilterChange('ward', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
             >
               <option value="">All Wards</option>
               {wards.map(ward => (
@@ -327,7 +327,7 @@ const TaxSummary = () => {
             <select
               value={filters.status}
               onChange={(e) => handleFilterChange('status', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
             >
               <option value="">All Status</option>
               <option value="pending">Pending</option>
@@ -346,7 +346,7 @@ const TaxSummary = () => {
               type="date"
               value={filters.dueDate}
               onChange={(e) => handleFilterChange('dueDate', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
             />
           </div>
         </div>
@@ -519,7 +519,7 @@ const TaxSummary = () => {
                   inputMode="decimal"
                   value={paymentForm.amount}
                   onChange={(e) => setPaymentForm(prev => ({ ...prev, amount: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                   placeholder="0.00"
                   required
                 />
@@ -536,7 +536,7 @@ const TaxSummary = () => {
                 <select
                   value={paymentForm.paymentMode}
                   onChange={(e) => setPaymentForm(prev => ({ ...prev, paymentMode: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                   required
                 >
                   <option value="cash">Cash</option>
@@ -557,7 +557,7 @@ const TaxSummary = () => {
                       type="text"
                       value={paymentForm.chequeNumber}
                       onChange={(e) => setPaymentForm(prev => ({ ...prev, chequeNumber: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                       required
                     />
                   </div>
@@ -569,7 +569,7 @@ const TaxSummary = () => {
                       type="date"
                       value={paymentForm.chequeDate}
                       onChange={(e) => setPaymentForm(prev => ({ ...prev, chequeDate: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                       required
                     />
                   </div>
@@ -581,7 +581,7 @@ const TaxSummary = () => {
                       type="text"
                       value={paymentForm.bankName}
                       onChange={(e) => setPaymentForm(prev => ({ ...prev, bankName: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                       required
                     />
                   </div>
@@ -598,7 +598,7 @@ const TaxSummary = () => {
                     type="text"
                     value={paymentForm.transactionId}
                     onChange={(e) => setPaymentForm(prev => ({ ...prev, transactionId: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                     required
                   />
                 </div>

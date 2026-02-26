@@ -372,11 +372,13 @@ export const getAllWorkers = async (req, res) => {
       }
 
       if (eo_id) {
-        whereClause.eo_id = parseInt(eo_id);
+        const eoIdNum = parseInt(eo_id, 10);
+        if (!Number.isNaN(eoIdNum)) whereClause.eo_id = eoIdNum;
       }
 
-      if (ward_id) {
-        whereClause.ward_id = parseInt(ward_id);
+      if (ward_id != null && ward_id !== '' && String(ward_id) !== 'undefined') {
+        const wardIdNum = parseInt(ward_id, 10);
+        if (!Number.isNaN(wardIdNum)) whereClause.ward_id = wardIdNum;
       }
 
       if (status) {

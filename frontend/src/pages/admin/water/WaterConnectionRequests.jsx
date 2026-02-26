@@ -135,7 +135,7 @@ const WaterConnectionRequests = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Water Connection Requests</h1>
+        <h1 className="ds-page-title">Water Connection Requests</h1>
         <div className="flex gap-2">
           <select
             value={statusFilter}

@@ -79,18 +79,17 @@ const ToiletInspections = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <div className="spinner spinner-md" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="ds-page-header flex flex-wrap justify-between items-start gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Toilet Inspections</h1>
-          <p className="text-gray-600 text-sm">Schedule and track toilet facility inspections</p>
+          <h1 className="ds-page-title">Toilet Inspections</h1>
+          <p className="ds-page-subtitle">Schedule and track toilet facility inspections</p>
         </div>
         <Link
           to="/toilet-management/inspections/new"
@@ -101,8 +100,7 @@ const ToiletInspections = () => {
         </Link>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+      <div className="card">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -130,10 +128,8 @@ const ToiletInspections = () => {
         </div>
       </div>
 
-      {/* Inspections List */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
+      <div className="table-wrap">
+        <table className="table">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -203,26 +199,24 @@ const ToiletInspections = () => {
               )}
             </tbody>
           </table>
-        </div>
       </div>
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-          <div className="text-sm text-gray-500 font-medium">Total Inspections</div>
-          <div className="text-2xl font-bold text-gray-900">{inspections.length}</div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="stat-card">
+          <div className="stat-card-title"><span>Total Inspections</span></div>
+          <p className="stat-card-value">{inspections.length}</p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-          <div className="text-sm text-gray-500 font-medium">Passed</div>
-          <div className="text-2xl font-bold text-green-600">
+        <div className="stat-card">
+          <div className="stat-card-title"><span>Passed</span></div>
+          <p className="stat-card-value text-green-600">
             {inspections.filter(i => ['passed', 'good', 'excellent', 'satisfactory'].includes(i.status?.toLowerCase())).length}
-          </div>
+          </p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-          <div className="text-sm text-gray-500 font-medium">Failed</div>
-          <div className="text-2xl font-bold text-red-600">
+        <div className="stat-card">
+          <div className="stat-card-title"><span>Failed</span></div>
+          <p className="stat-card-value text-red-600">
             {inspections.filter(i => !['passed', 'good', 'excellent', 'satisfactory'].includes(i.status?.toLowerCase())).length}
-          </div>
+          </p>
         </div>
       </div>
     </div>

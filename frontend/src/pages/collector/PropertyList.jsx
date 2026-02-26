@@ -80,7 +80,7 @@ const PropertyList = () => {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Property List</h1>
+      <h1 className="ds-page-title mb-6">Property List</h1>
 
       {/* Filters */}
       <div className="card mb-6">

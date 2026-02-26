@@ -61,7 +61,7 @@ const Wards = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Wards</h1>
+        <h1 className="ds-page-title">Wards</h1>
         {isAdmin && (
           <Link to="/wards/new" className="btn btn-primary flex items-center">
             <Plus className="w-4 h-4 mr-2" />

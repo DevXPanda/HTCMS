@@ -96,7 +96,7 @@ const NewPropertyApplication = () => {
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     Back to Applications
                 </button>
-                <h1 className="text-3xl font-bold text-gray-900">New Property Application</h1>
+                <h1 className="ds-page-title">New Property Application</h1>
                 <p className="text-gray-600 mt-1">Create a new property registration application</p>
             </div>
 
@@ -115,7 +115,7 @@ const NewPropertyApplication = () => {
                                 value={formData.ownerName}
                                 onChange={handleChange}
                                 required
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                                 placeholder="Enter owner name"
                             />
                         </div>
@@ -129,7 +129,7 @@ const NewPropertyApplication = () => {
                                 name="ownerPhone"
                                 value={formData.ownerPhone}
                                 onChange={handleChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                                 placeholder="Enter phone number"
                             />
                         </div>
@@ -143,7 +143,7 @@ const NewPropertyApplication = () => {
                                 value={formData.wardId}
                                 onChange={handleChange}
                                 required
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                             >
                                 <option value="">Select Ward</option>
                                 {wards.map((ward) => (
@@ -163,7 +163,7 @@ const NewPropertyApplication = () => {
                                 value={formData.propertyType}
                                 onChange={handleChange}
                                 required
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                             >
                                 <option value="residential">Residential</option>
                                 <option value="commercial">Commercial</option>
@@ -181,7 +181,7 @@ const NewPropertyApplication = () => {
                                 name="usageType"
                                 value={formData.usageType}
                                 onChange={handleChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                             >
                                 <option value="residential">Residential</option>
                                 <option value="commercial">Commercial</option>
@@ -201,7 +201,7 @@ const NewPropertyApplication = () => {
                                 value={formData.occupancyStatus}
                                 onChange={handleChange}
                                 required
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                             >
                                 <option value="owner_occupied">Owner Occupied</option>
                                 <option value="tenant_occupied">Tenant Occupied</option>
@@ -225,7 +225,7 @@ const NewPropertyApplication = () => {
                                 onChange={handleChange}
                                 required
                                 rows="3"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                                 placeholder="Enter property address"
                             />
                         </div>
@@ -241,7 +241,7 @@ const NewPropertyApplication = () => {
                                     value={formData.city}
                                     onChange={handleChange}
                                     required
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                                     placeholder="Enter city"
                                 />
                             </div>
@@ -256,7 +256,7 @@ const NewPropertyApplication = () => {
                                     value={formData.state}
                                     onChange={handleChange}
                                     required
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                                     placeholder="Enter state"
                                 />
                             </div>
@@ -271,7 +271,7 @@ const NewPropertyApplication = () => {
                                     value={formData.pincode}
                                     onChange={handleChange}
                                     required
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                                     placeholder="Enter pincode"
                                 />
                             </div>
@@ -294,7 +294,7 @@ const NewPropertyApplication = () => {
                                 value={formData.area}
                                 onChange={handleChange}
                                 required
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                                 placeholder="Enter area in square meters"
                             />
                         </div>
@@ -309,7 +309,7 @@ const NewPropertyApplication = () => {
                                 name="builtUpArea"
                                 value={formData.builtUpArea}
                                 onChange={handleChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                                 placeholder="Enter built-up area"
                             />
                         </div>
@@ -324,7 +324,7 @@ const NewPropertyApplication = () => {
                                 value={formData.floors}
                                 onChange={handleChange}
                                 min="1"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                             />
                         </div>
 
@@ -336,7 +336,7 @@ const NewPropertyApplication = () => {
                                 name="constructionType"
                                 value={formData.constructionType}
                                 onChange={handleChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                             >
                                 <option value="RCC">RCC</option>
                                 <option value="Pucca">Pucca</option>
@@ -356,7 +356,7 @@ const NewPropertyApplication = () => {
                                 onChange={handleChange}
                                 min="1900"
                                 max={new Date().getFullYear()}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                             />
                         </div>
                     </div>
@@ -372,7 +372,7 @@ const NewPropertyApplication = () => {
                         value={formData.remarks}
                         onChange={handleChange}
                         rows="3"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                         placeholder="Enter any additional remarks or notes"
                     />
                 </div>

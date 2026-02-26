@@ -31,7 +31,26 @@ export const getAllFacilities = async (req, res, next) => {
             order: [['created_at', 'DESC']]
         });
 
-        res.json({ success: true, data: { facilities: rows, pagination: { total: count, page, limit, pages: Math.ceil(count / limit) } } });
+        const facilityIds = rows.map(r => r.id);
+        const workerCounts = facilityIds.length > 0
+            ? await MrfWorkerAssignment.findAll({
+                attributes: ['mrf_facility_id', [fn('COUNT', col('id')), 'workerCount']],
+                where: { mrf_facility_id: { [Op.in]: facilityIds }, isActive: true },
+                group: ['mrf_facility_id'],
+                raw: true
+            })
+            : [];
+        const countMap = Object.fromEntries(
+            workerCounts.map(c => [c.mrf_facility_id, Number(c.workerCount) || 0])
+        );
+
+        const facilities = rows.map(f => {
+            const plain = f.get ? f.get({ plain: true }) : f;
+            plain.workerCount = countMap[plain.id] ?? 0;
+            return plain;
+        });
+
+        res.json({ success: true, data: { facilities, pagination: { total: count, page, limit, pages: Math.ceil(count / limit) } } });
     } catch (error) {
         console.error('Sequelize Error in getAllFacilities:');
         console.error(error.stack || error);
@@ -53,15 +72,15 @@ export const getFacilityById = async (req, res, next) => {
             return res.status(404).json({ success: false, message: 'MRF facility not found' });
         }
 
-        // Optimized Aggregates for Dashboard
+        const facilityIdNum = parseInt(id, 10);
         const today = new Date().toISOString().split('T')[0];
         const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
 
         const [todayWaste, monthlyWaste, workerCount, activeTasks] = await Promise.all([
-            MrfWasteEntry.sum('quantity_kg', { where: { mrf_facility_id: id, entry_date: today } }).catch(() => 0),
-            MrfWasteEntry.sum('quantity_kg', { where: { mrf_facility_id: id, entry_date: { [Op.gte]: firstDayOfMonth } } }).catch(() => 0),
-            MrfWorkerAssignment.count({ where: { mrf_facility_id: id, isActive: true } }).catch(() => 0),
-            MrfTask.count({ where: { mrf_facility_id: id, status: { [Op.ne]: 'Completed' } } }).catch(() => 0)
+            MrfWasteEntry.sum('quantity_kg', { where: { mrf_facility_id: facilityIdNum, entry_date: today } }).catch(() => 0),
+            MrfWasteEntry.sum('quantity_kg', { where: { mrf_facility_id: facilityIdNum, entry_date: { [Op.gte]: firstDayOfMonth } } }).catch(() => 0),
+            MrfWorkerAssignment.count({ where: { mrf_facility_id: facilityIdNum, isActive: true } }).catch(() => 0),
+            MrfTask.count({ where: { mrf_facility_id: facilityIdNum, status: { [Op.ne]: 'Completed' } } }).catch(() => 0)
         ]);
 
         res.json({
@@ -160,10 +179,14 @@ export const createWasteEntry = async (req, res, next) => {
 export const getAssignments = async (req, res, next) => {
     try {
         const { facility_id, mrf_facility_id } = req.query;
-        const targetFacilityId = mrf_facility_id || facility_id;
+        const rawId = mrf_facility_id || facility_id;
+        const targetFacilityId = rawId != null && rawId !== '' ? parseInt(String(rawId), 10) : NaN;
+        if (Number.isNaN(targetFacilityId)) {
+            return res.json({ success: true, data: { assignments: [] } });
+        }
         const assignments = await MrfWorkerAssignment.findAll({
             where: { mrf_facility_id: targetFacilityId, isActive: true },
-            include: [{ model: Worker, as: 'worker' }]
+            include: [{ model: Worker, as: 'worker', attributes: ['id', 'full_name', 'employee_code', 'worker_type'] }]
         });
         res.json({ success: true, data: { assignments } });
     } catch (error) {

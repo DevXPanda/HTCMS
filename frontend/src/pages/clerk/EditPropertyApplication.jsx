@@ -129,7 +129,7 @@ const EditPropertyApplication = () => {
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     Back to Applications
                 </button>
-                <h1 className="text-3xl font-bold text-gray-900">Edit Property Application</h1>
+                <h1 className="ds-page-title">Edit Property Application</h1>
                 <p className="text-gray-600 mt-1">Update property registration application details</p>
             </div>
 
@@ -145,7 +145,7 @@ const EditPropertyApplication = () => {
                                 value={formData.ownerName}
                                 onChange={handleChange}
                                 required
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                             />
                         </div>
 
@@ -156,7 +156,7 @@ const EditPropertyApplication = () => {
                                 name="ownerPhone"
                                 value={formData.ownerPhone}
                                 onChange={handleChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                             />
                         </div>
 
@@ -167,7 +167,7 @@ const EditPropertyApplication = () => {
                                 value={formData.wardId}
                                 onChange={handleChange}
                                 required
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                             >
                                 <option value="">Select Ward</option>
                                 {wards.map((ward) => (
@@ -185,7 +185,7 @@ const EditPropertyApplication = () => {
                                 value={formData.propertyType}
                                 onChange={handleChange}
                                 required
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                             >
                                 <option value="residential">Residential</option>
                                 <option value="commercial">Commercial</option>
@@ -201,7 +201,7 @@ const EditPropertyApplication = () => {
                                 name="usageType"
                                 value={formData.usageType}
                                 onChange={handleChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                             >
                                 <option value="residential">Residential</option>
                                 <option value="commercial">Commercial</option>
@@ -219,7 +219,7 @@ const EditPropertyApplication = () => {
                                 value={formData.occupancyStatus}
                                 onChange={handleChange}
                                 required
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                             >
                                 <option value="owner_occupied">Owner Occupied</option>
                                 <option value="tenant_occupied">Tenant Occupied</option>
@@ -240,7 +240,7 @@ const EditPropertyApplication = () => {
                                 onChange={handleChange}
                                 required
                                 rows="3"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                             />
                         </div>
 
@@ -253,7 +253,7 @@ const EditPropertyApplication = () => {
                                     value={formData.city}
                                     onChange={handleChange}
                                     required
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                                 />
                             </div>
 
@@ -265,7 +265,7 @@ const EditPropertyApplication = () => {
                                     value={formData.state}
                                     onChange={handleChange}
                                     required
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                                 />
                             </div>
 
@@ -277,7 +277,7 @@ const EditPropertyApplication = () => {
                                     value={formData.pincode}
                                     onChange={handleChange}
                                     required
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                                 />
                             </div>
                         </div>
@@ -296,7 +296,7 @@ const EditPropertyApplication = () => {
                                 value={formData.area}
                                 onChange={handleChange}
                                 required
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                             />
                         </div>
 
@@ -308,7 +308,7 @@ const EditPropertyApplication = () => {
                                 name="builtUpArea"
                                 value={formData.builtUpArea}
                                 onChange={handleChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                             />
                         </div>
 
@@ -320,7 +320,7 @@ const EditPropertyApplication = () => {
                                 value={formData.floors}
                                 onChange={handleChange}
                                 min="1"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                             />
                         </div>
 
@@ -330,7 +330,7 @@ const EditPropertyApplication = () => {
                                 name="constructionType"
                                 value={formData.constructionType}
                                 onChange={handleChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                             >
                                 <option value="RCC">RCC</option>
                                 <option value="Pucca">Pucca</option>
@@ -348,7 +348,7 @@ const EditPropertyApplication = () => {
                                 onChange={handleChange}
                                 min="1900"
                                 max={new Date().getFullYear()}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                             />
                         </div>
                     </div>
@@ -361,7 +361,7 @@ const EditPropertyApplication = () => {
                         value={formData.remarks}
                         onChange={handleChange}
                         rows="3"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                 </div>
 
@@ -369,14 +369,14 @@ const EditPropertyApplication = () => {
                     <button
                         type="button"
                         onClick={() => navigate('/clerk/property-applications')}
-                        className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                        className="btn btn-secondary"
                     >
                         Cancel
                     </button>
                     <button
                         type="submit"
                         disabled={loading}
-                        className="flex items-center px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
+                        className="btn btn-secondary"
                     >
                         <Save className="w-4 h-4 mr-2" />
                         {loading ? 'Saving...' : 'Save Changes'}
@@ -385,7 +385,7 @@ const EditPropertyApplication = () => {
                         type="button"
                         onClick={(e) => handleSubmit(e, true)}
                         disabled={loading}
-                        className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                        className="btn btn-primary"
                     >
                         <Send className="w-4 h-4 mr-2" />
                         {loading ? 'Submitting...' : 'Save & Submit'}

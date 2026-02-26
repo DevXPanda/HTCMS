@@ -90,7 +90,9 @@ import ToiletInspections from './pages/admin/toilet/ToiletInspections';
 import ToiletComplaints from './pages/admin/toilet/ToiletComplaints';
 import ToiletMaintenance from './pages/admin/toilet/ToiletMaintenance';
 import ToiletReports from './pages/admin/toilet/ToiletReports';
+import MRFModule from './pages/admin/mrf/MRFModule';
 import MRFManagement from './pages/admin/mrf/MRFManagement';
+import MRFWorkerAssignmentPage from './pages/admin/mrf/MRFWorkerAssignmentPage';
 import AddMRF from './pages/admin/mrf/AddMRF';
 import MRFDetails from './pages/admin/mrf/MRFDetails';
 import MRFReports from './pages/admin/mrf/MRFReports';
@@ -281,7 +283,9 @@ function App() {
               <Route path="toilet-management/reports" element={<ToiletReports />} />
 
               {/* MRF Management */}
+              <Route path="mrf" element={<MRFModule />} />
               <Route path="mrf/management" element={<MRFManagement />} />
+              <Route path="mrf/worker-assignment" element={<MRFWorkerAssignmentPage />} />
               <Route path="mrf/facilities/new" element={<AddMRF />} />
               <Route path="mrf/facilities/:id" element={<MRFDetails />} />
               <Route path="mrf/facilities/:id/edit" element={<AddMRF />} />

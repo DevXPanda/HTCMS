@@ -705,7 +705,7 @@ const WorkerManagement = () => {
                     name="full_name"
                     value={formData.full_name}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 ${
                       errors.full_name ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="Enter full name"
@@ -724,7 +724,7 @@ const WorkerManagement = () => {
                     name="mobile"
                     value={formData.mobile}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 ${
                       errors.mobile ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="Enter mobile number"
@@ -742,7 +742,7 @@ const WorkerManagement = () => {
                     name="worker_type"
                     value={formData.worker_type}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 ${
                       errors.worker_type ? 'border-red-500' : 'border-gray-300'
                     }`}
                   >
@@ -762,7 +762,7 @@ const WorkerManagement = () => {
                     name="status"
                     value={formData.status}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                   >
                     <option value="ACTIVE">Active</option>
                     <option value="INACTIVE">Inactive</option>
@@ -794,7 +794,7 @@ const WorkerManagement = () => {
                           await fetchSupervisors();
                         }
                       }}
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 ${
                         errors.ward_id ? 'border-red-500' : 'border-gray-300'
                       }`}
                     >
@@ -826,7 +826,7 @@ const WorkerManagement = () => {
                       value={formData.supervisor_id}
                       onChange={handleInputChange}
                       disabled={!formData.ward_id}
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 ${
                         errors.supervisor_id ? 'border-red-500' : 'border-gray-300'
                       } ${!formData.ward_id ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                     >
@@ -858,7 +858,7 @@ const WorkerManagement = () => {
                     name="contractor_id"
                     value={formData.contractor_id}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                   >
                     <option value="">None (Direct ULB Worker)</option>
                     {contractors.filter((contractor, index, self) => 

@@ -27,10 +27,12 @@ import {
     PieChart,
     Pie
 } from 'recharts';
+import { useBackTo } from '../../../contexts/NavigationContext';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
 
 const MRFReports = () => {
+    useBackTo('/mrf');
     const [stats, setStats] = useState({
         totalFacilities: 0,
         activeFacilities: 0,

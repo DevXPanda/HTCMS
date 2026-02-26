@@ -160,19 +160,16 @@ const AddWaterConnectionModal = ({ properties: initialProperties, onClose, onSuc
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto m-4">
-        <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-gray-900">Add Water Connection</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <X className="w-6 h-6" />
+    <div className="modal-overlay">
+      <div className="modal-panel modal-panel-lg max-w-2xl">
+        <div className="modal-header">
+          <h2 className="modal-title">Add Water Connection</h2>
+          <button type="button" onClick={onClose} className="modal-close" aria-label="Close">
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="modal-body space-y-6">
           {/* Step 1: Form Fields */}
           {step === 'form' && (
             <>

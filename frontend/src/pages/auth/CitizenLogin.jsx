@@ -4,10 +4,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { User, Home } from 'lucide-react';
 
-// Get background image path that works in both dev and production
-// Use absolute path for public assets - Vite serves public folder from root
-const backgroundImageUrl = '/background.png';
-
 const CitizenLogin = () => {
   const [formData, setFormData] = useState({ emailOrPhone: '', password: '' });
   const [loading, setLoading] = useState(false);
@@ -34,23 +30,9 @@ const CitizenLogin = () => {
 
   if (authLoading) {
     return (
-      <div 
-        className="min-h-screen flex items-center justify-center relative"
-        style={{
-          backgroundImage: `url(${backgroundImageUrl})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          backgroundAttachment: 'fixed',
-          minHeight: '100vh',
-          width: '100%'
-        }}
-      >
-        <div 
-          className="absolute inset-0 bg-black opacity-45"
-          style={{ zIndex: 0 }}
-        />
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 relative" style={{ zIndex: 1 }}></div>
+      <div className="auth-page-bg min-h-screen flex items-center justify-center relative">
+        <div className="absolute inset-0 bg-black opacity-45 z-0" />
+        <div className="spinner spinner-md relative z-10" />
       </div>
     );
   }
@@ -107,32 +89,17 @@ const CitizenLogin = () => {
   };
 
   return (
-    <div 
-      className="min-h-screen flex items-center justify-center px-4 relative"
-        style={{
-          backgroundImage: `url(${backgroundImageUrl})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          backgroundAttachment: 'fixed',
-          minHeight: '100vh',
-          width: '100%'
-        }}
-    >
-      {/* Dark overlay for better text readability */}
-      <div 
-        className="absolute inset-0 bg-black opacity-45"
-        style={{ zIndex: 0 }}
-      />
-      <div className="max-w-md w-full relative" style={{ zIndex: 1 }}>
-        <div className="bg-white rounded-lg shadow-xl p-8">
+    <div className="auth-page-bg min-h-screen flex items-center justify-center px-4 relative">
+      <div className="absolute inset-0 bg-black opacity-45 z-0" />
+      <div className="max-w-md w-full relative z-10">
+        <div className="card">
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
               <div className="bg-purple-100 p-3 rounded-full">
                 <Home className="w-8 h-8 text-purple-600" />
               </div>
             </div>
-            <h1 className="text-3xl font-bold text-purple-600 mb-2">Citizen Portal</h1>
+            <h1 className="ds-page-title text-purple-600 mb-2">Citizen Portal</h1>
             <p className="text-gray-600">HTCMS - House Tax Collection & Management System</p>
             <p className="text-sm text-gray-500 mt-2">For Property Owners</p>
           </div>

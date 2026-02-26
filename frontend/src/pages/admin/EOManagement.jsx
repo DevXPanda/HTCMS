@@ -79,7 +79,7 @@ const EOManagement = () => {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">EO Management</h1>
+          <h1 className="ds-page-title">EO Management</h1>
           <p className="text-gray-600 mt-1">Manage and monitor Executive Officers across ULBs</p>
         </div>
         <button

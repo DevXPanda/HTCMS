@@ -110,8 +110,8 @@ const AddPropertyModal = ({ onClose, onSuccess }) => {
 
   if (loadingData) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto m-4">
+      <div className="modal-overlay">
+        <div className="modal-panel modal-panel-lg max-w-4xl">
           <div className="flex items-center justify-center p-8">
             <Loading />
           </div>
@@ -121,8 +121,8 @@ const AddPropertyModal = ({ onClose, onSuccess }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto m-4">
+    <div className="modal-overlay">
+      <div className="modal-panel modal-panel-lg max-w-4xl">
         <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
           <h2 className="text-2xl font-bold text-gray-900 flex items-center">
             <Plus className="w-6 h-6 mr-2" />

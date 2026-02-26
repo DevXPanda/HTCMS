@@ -134,58 +134,61 @@ const AddMRF = () => {
     if (loading && isEditMode && !formData.name) {
         return (
             <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+                <div className="spinner spinner-md" />
             </div>
         );
     }
 
     return (
-        <div className="max-w-5xl mx-auto space-y-6">
-            <div className="flex items-center gap-4 mb-2">
-                <Link to="/mrf/management" className="p-2 bg-white rounded-xl border border-gray-100 shadow-sm text-gray-400 hover:text-primary-600 transition-all">
-                    <ArrowLeft className="w-5 h-5" />
-                </Link>
-                <div>
-                    <h1 className="text-3xl font-black text-gray-900 tracking-tight">
-                        {isEditMode ? 'Edit MRF Center' : 'Add New MRF Center'}
-                    </h1>
-                    <p className="text-gray-500 font-medium flex items-center gap-1.5 mt-1">
-                        {isEditMode ? 'Update existing facility details' : 'Register a new waste processing center'}
-                    </p>
+        <div className="space-y-6">
+            <div className="ds-page-header">
+                <div className="flex items-center gap-4">
+                    <Link to="/mrf/management" className="btn btn-ghost p-2" aria-label="Back">
+                        <ArrowLeft className="w-5 h-5" />
+                    </Link>
+                    <div>
+                        <h1 className="ds-page-title">
+                            {isEditMode ? 'Edit MRF Center' : 'Add New MRF Center'}
+                        </h1>
+                        <p className="ds-page-subtitle">
+                            {isEditMode ? 'Update existing facility details' : 'Register a new waste processing center'}
+                        </p>
+                    </div>
                 </div>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="form-grid gap-6 md:grid-cols-2">
                     {/* Basic Information */}
-                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden p-8 space-y-6">
-                        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 border-b border-gray-50 pb-4">
+                    <div className="card md:col-span-2">
+                        <h3 className="form-section-title flex items-center gap-2">
                             <Recycle className="w-5 h-5 text-primary-500" />
                             Basic Information
                         </h3>
 
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Center Name *</label>
-                            <input
-                                type="text"
-                                name="name"
-                                value={formData.name}
-                                onChange={handleChange}
-                                required
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all font-medium"
-                                placeholder="e.g., MRF Center South"
-                            />
-                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="label label-required">Center Name</label>
+                                <input
+                                    type="text"
+                                    name="name"
+                                    value={formData.name}
+                                    onChange={handleChange}
+                                    required
+                                    className="input"
+                                    placeholder="e.g., MRF Center South"
+                                />
+                            </div>
 
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Ward *</label>
-                            <select
-                                name="ward_id"
-                                value={formData.ward_id}
-                                onChange={handleChange}
-                                required
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all font-medium"
-                            >
+                            <div>
+                                <label className="label label-required">Ward</label>
+                                <select
+                                    name="ward_id"
+                                    value={formData.ward_id}
+                                    onChange={handleChange}
+                                    required
+                                    className="input"
+                                >
                                 <option value="">Select Ward</option>
                                 {(wards || []).map(ward => (
                                     <option key={ward.id} value={ward.id}>
@@ -195,56 +198,57 @@ const AddMRF = () => {
                             </select>
                         </div>
 
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Location *</label>
-                            <textarea
-                                name="location"
-                                value={formData.location}
-                                onChange={handleChange}
-                                required
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all font-medium h-24 resize-none"
-                                placeholder="Enter street address or descriptive location"
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Latitude</label>
-                                <input
-                                    type="number"
-                                    step="any"
-                                    name="latitude"
-                                    value={formData.latitude}
+                            <div>
+                                <label className="label label-required">Location</label>
+                                <textarea
+                                    name="location"
+                                    value={formData.location}
                                     onChange={handleChange}
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all font-medium"
-                                    placeholder="26.1234"
+                                    required
+                                    className="input h-24 resize-none"
+                                    placeholder="Enter street address or descriptive location"
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Longitude</label>
-                                <input
-                                    type="number"
-                                    step="any"
-                                    name="longitude"
-                                    value={formData.longitude}
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all font-medium"
-                                    placeholder="85.1234"
-                                />
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="label">Latitude</label>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        name="latitude"
+                                        value={formData.latitude}
+                                        onChange={handleChange}
+                                        className="input"
+                                        placeholder="26.1234"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="label">Longitude</label>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        name="longitude"
+                                        value={formData.longitude}
+                                        onChange={handleChange}
+                                        className="input"
+                                        placeholder="85.1234"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     {/* Operational Data */}
-                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden p-8 space-y-6">
-                        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 border-b border-gray-50 pb-4">
+                    <div className="card md:col-span-2">
+                        <h3 className="form-section-title flex items-center gap-2">
                             <Shield className="w-5 h-5 text-primary-500" />
                             Operational Data
                         </h3>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Capacity (TPD) *</label>
+                        <div className="form-grid gap-4">
+                            <div>
+                                <label className="label label-required">Capacity (TPD)</label>
                                 <input
                                     type="number"
                                     step="any"
@@ -252,30 +256,30 @@ const AddMRF = () => {
                                     value={formData.capacity}
                                     onChange={handleChange}
                                     required
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all font-medium"
+                                    className="input"
                                     placeholder="0.00"
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Operating Hours</label>
+                            <div>
+                                <label className="label">Operating Hours</label>
                                 <input
                                     type="text"
                                     name="operating_hours"
                                     value={formData.operating_hours}
                                     onChange={handleChange}
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all font-medium"
+                                    className="input"
                                     placeholder="9 AM - 6 PM"
                                 />
                             </div>
                         </div>
 
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Assign Supervisor</label>
+                        <div className="mt-4">
+                            <label className="label">Assign Supervisor</label>
                             <select
                                 name="supervisor_id"
                                 value={formData.supervisor_id}
                                 onChange={handleChange}
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all font-medium"
+                                className="input"
                             >
                                 <option value="">Select Supervisor</option>
                                 {supervisors.map(sup => (
@@ -286,39 +290,39 @@ const AddMRF = () => {
                             </select>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Contact Person</label>
+                        <div className="form-grid gap-4 mt-4">
+                            <div>
+                                <label className="label">Contact Person</label>
                                 <input
                                     type="text"
                                     name="contact_person"
                                     value={formData.contact_person}
                                     onChange={handleChange}
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all font-medium"
+                                    className="input"
                                     placeholder="Name"
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Contact Number</label>
+                            <div>
+                                <label className="label">Contact Number</label>
                                 <input
                                     type="text"
                                     name="contact_number"
                                     value={formData.contact_number}
                                     onChange={handleChange}
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all font-medium"
+                                    className="input"
                                     placeholder="Phone/Mobile"
                                 />
                             </div>
                         </div>
 
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Status *</label>
+                        <div className="mt-4">
+                            <label className="label label-required">Status</label>
                             <select
                                 name="status"
                                 value={formData.status}
                                 onChange={handleChange}
                                 required
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all font-medium"
+                                className="input"
                             >
                                 <option value="active">Active</option>
                                 <option value="maintenance">Maintenance</option>
@@ -326,17 +330,17 @@ const AddMRF = () => {
                             </select>
                         </div>
 
-                        <div className="space-y-3">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Waste Types Handled</label>
-                            <div className="flex flex-wrap gap-2">
+                        <div className="mt-4">
+                            <label className="label">Waste Types Handled</label>
+                            <div className="flex flex-wrap gap-2 mt-2">
                                 {wasteTypeOptions.map((type) => (
                                     <button
                                         key={type}
                                         type="button"
                                         onClick={() => toggleWasteType(type)}
-                                        className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all border ${formData.waste_types.includes(type)
-                                            ? 'bg-primary-50 border-primary-200 text-primary-600 shadow-sm'
-                                            : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'
+                                        className={`btn btn-sm ${formData.waste_types.includes(type)
+                                            ? 'btn-primary'
+                                            : 'btn-secondary'
                                             }`}
                                     >
                                         {type}
@@ -348,27 +352,20 @@ const AddMRF = () => {
                 </div>
 
                 {/* Form Actions */}
-                <div className="flex items-center justify-end gap-4 p-8 bg-white rounded-2xl border border-gray-100 shadow-sm">
-                    <Link
-                        to="/mrf/management"
-                        className="px-6 py-3 text-sm font-bold text-gray-500 uppercase tracking-widest hover:text-gray-900 transition-colors"
-                    >
+                <div className="form-actions">
+                    <Link to="/mrf/management" className="btn btn-secondary">
                         Cancel
                     </Link>
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="px-12 py-4 bg-gray-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-primary-600 transition-all shadow-lg hover:shadow-primary-500/25 active:scale-[0.98] flex items-center gap-3 disabled:opacity-50"
-                    >
+                    <button type="submit" disabled={loading} className="btn btn-primary">
                         <Save className="h-4 w-4" />
-                        {loading ? 'Saving center...' : 'Save MRF Center'}
+                        {loading ? 'Saving...' : 'Save MRF Center'}
                     </button>
                 </div>
             </form>
 
-            <div className="p-4 bg-primary-50 rounded-2xl border border-primary-100 flex gap-3">
+            <div className="card-flat flex gap-3 bg-primary-50/50 border-primary-100">
                 <Shield className="w-5 h-5 text-primary-600 shrink-0" />
-                <p className="text-xs text-primary-800 leading-relaxed font-medium">
+                <p className="text-sm text-primary-800 leading-relaxed">
                     <strong>Production Note:</strong> Ensure the facility capacity and coordinate data are accurate as they directly impact logistics planning and monthly performance reports.
                 </p>
             </div>

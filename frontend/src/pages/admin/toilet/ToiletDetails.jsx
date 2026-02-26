@@ -98,16 +98,16 @@ const ToiletDetails = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <div className="spinner spinner-md" />
       </div>
     );
   }
 
   if (!toilet) {
     return (
-      <div className="text-center py-12 bg-white rounded-2xl border border-gray-100 shadow-sm">
-        <p className="text-gray-500">Toilet facility not found</p>
-        <Link to="/toilet-management/facilities" className="text-primary-600 font-bold underline mt-4 inline-block">
+      <div className="empty-state">
+        <p className="empty-state-text">Toilet facility not found</p>
+        <Link to="/toilet-management/facilities" className="btn btn-primary mt-4">
           Back to Facilities
         </Link>
       </div>
@@ -115,30 +115,23 @@ const ToiletDetails = () => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      {/* Header Container */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
-        <div className="space-y-1">
+    <div className="space-y-6">
+      <div className="ds-page-header">
+        <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-black text-gray-900 tracking-tight">{toilet.name}</h1>
+            <h1 className="ds-page-title">{toilet.name}</h1>
             {getStatusBadge(toilet.status)}
           </div>
-          <p className="text-gray-500 font-medium flex items-center gap-1.5">
+          <p className="ds-page-subtitle flex items-center gap-1.5">
             <MapPin className="w-4 h-4 text-primary-500" />
             {toilet.location} <span className="text-gray-300">•</span> {toilet.ward}
           </p>
         </div>
-        <div className="flex gap-3">
-          <Link
-            to={`/toilet-management/facilities/${id}/edit`}
-            className="px-5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-50 shadow-sm transition-all flex items-center gap-2"
-          >
+        <div className="flex flex-wrap gap-2">
+          <Link to={`/toilet-management/facilities/${id}/edit`} className="btn btn-secondary">
             <Edit className="h-4 w-4" /> Edit Facility
           </Link>
-          <Link
-            to={`/toilet-management/facilities/${id}/staff`}
-            className="px-5 py-2.5 bg-primary-600 rounded-xl text-sm font-bold text-white hover:bg-primary-700 shadow-lg shadow-primary-600/20 transition-all flex items-center gap-2"
-          >
+          <Link to={`/toilet-management/facilities/${id}/staff`} className="btn btn-primary">
             <UserPlus className="h-4 w-4" /> Staffing
           </Link>
         </div>
@@ -147,11 +140,11 @@ const ToiletDetails = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           {/* Main Info Card */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-10">
+          <div className="card overflow-hidden p-0">
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <h3 className="form-section-title flex items-center gap-2 mb-4">
                     <Info className="w-4 h-4 text-primary-600" /> Facility DNA
                   </h3>
                   <dl className="grid grid-cols-2 gap-y-4 gap-x-6">
@@ -221,12 +214,12 @@ const ToiletDetails = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Recent Inspections */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
-              <div className="flex justify-between items-center border-b border-gray-50 pb-3">
-                <h2 className="text-xs font-bold text-gray-900 uppercase tracking-widest flex items-center gap-2">
+            <div className="card">
+              <div className="flex justify-between items-center border-b border-gray-200 pb-3 mb-4">
+                <h2 className="form-section-title flex items-center gap-2 mb-0">
                   <ClipboardCheck className="w-4 h-4 text-primary-600" /> Audit Logs
                 </h2>
-                <Link to="/toilet-management/inspections" className="text-[10px] font-bold text-primary-600 uppercase underline">All</Link>
+                <Link to="/toilet-management/inspections" className="text-sm font-medium text-primary-600 hover:text-primary-700">All</Link>
               </div>
               <div className="space-y-3">
                 {inspections.slice(0, 3).map((inspection) => (
@@ -248,21 +241,18 @@ const ToiletDetails = () => {
                 ))}
                 {inspections.length === 0 && <p className="text-xs text-gray-400 italic text-center py-4">No inspection history found</p>}
               </div>
-              <Link
-                to={`/toilet-management/inspections/new?facilityId=${id}`}
-                className="w-full py-2 bg-gray-900 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-black transition-colors"
-              >
+              <Link to={`/toilet-management/inspections/new?facilityId=${id}`} className="btn btn-primary w-full justify-center mt-4">
                 <PlusCircle className="w-3.5 h-3.5" /> New Inspection
               </Link>
             </div>
 
             {/* Maintenance History */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
-              <div className="flex justify-between items-center border-b border-gray-50 pb-3">
-                <h2 className="text-xs font-bold text-gray-900 uppercase tracking-widest flex items-center gap-2">
+            <div className="card">
+              <div className="flex justify-between items-center border-b border-gray-200 pb-3 mb-4">
+                <h2 className="form-section-title flex items-center gap-2 mb-0">
                   <Wrench className="w-4 h-4 text-primary-600" /> Maintenance
                 </h2>
-                <Link to="/toilet-management/maintenance" className="text-[10px] font-bold text-primary-600 uppercase underline">All</Link>
+                <Link to="/toilet-management/maintenance" className="text-sm font-medium text-primary-600 hover:text-primary-700">All</Link>
               </div>
               <div className="space-y-3">
                 {maintenance.slice(0, 3).map((item) => (
@@ -281,10 +271,7 @@ const ToiletDetails = () => {
                 ))}
                 {maintenance.length === 0 && <p className="text-xs text-gray-400 italic text-center py-4">No maintenance history found</p>}
               </div>
-              <Link
-                to={`/toilet-management/maintenance/new?facilityId=${id}`}
-                className="w-full py-2 bg-gray-900 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-black transition-colors"
-              >
+              <Link to={`/toilet-management/maintenance/new?facilityId=${id}`} className="btn btn-primary w-full justify-center mt-4">
                 <PlusCircle className="w-3.5 h-3.5" /> Schedule Activity
               </Link>
             </div>
@@ -293,25 +280,25 @@ const ToiletDetails = () => {
 
         <div className="space-y-6">
           {/* Photo Gallery */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
-            <h3 className="text-xs font-bold text-gray-900 uppercase tracking-widest flex items-center gap-2 border-b border-gray-50 pb-3">
+          <div className="card">
+            <h3 className="form-section-title flex items-center gap-2 border-b border-gray-200 pb-3 mb-4">
               <Camera className="w-4 h-4 text-primary-600" /> Visual Register
             </h3>
             {toilet.photos?.length > 0 ? (
               <div className="grid grid-cols-2 gap-3">
                 {toilet.photos.map((p, idx) => (
-                  <div key={idx} className="aspect-square rounded-xl overflow-hidden border border-gray-100 shadow-inner group">
-                    <img src={p} alt={`facility-${idx}`} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                  <div key={idx} className="aspect-square rounded-ds overflow-hidden border border-gray-200 group">
+                    <img src={p} alt={`facility-${idx}`} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="py-10 text-center border-2 border-dashed border-gray-100 rounded-2xl">
-                <Camera className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">No Photos Recorded</p>
+              <div className="py-10 text-center border-2 border-dashed border-gray-200 rounded-ds-lg">
+                <Camera className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">No Photos Recorded</p>
               </div>
             )}
-            <Link to={`/toilet-management/facilities/${id}/edit`} className="w-full py-2 bg-gray-50 text-gray-700 rounded-xl text-[10px] font-black uppercase text-center block hover:bg-gray-100 transition-colors">
+            <Link to={`/toilet-management/facilities/${id}/edit`} className="btn btn-secondary w-full justify-center mt-4">
               Manage Media
             </Link>
           </div>
@@ -344,23 +331,17 @@ const ToiletDetails = () => {
             </Link>
           </div> */}
 
-          {/* System Telemetry */}
-          <div className="p-6 bg-gray-900 rounded-2xl text-white shadow-xl shadow-gray-900/10">
-            <h3 className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-4 tracking-hero">System Logs</h3>
-            <div className="space-y-4">
-              <div className="flex gap-3">
-                <div className="h-1.5 w-1.5 rounded-full bg-primary-400 mt-2"></div>
-                <div>
-                  <p className="text-[10px] font-bold text-white/50 uppercase">Registered</p>
-                  <p className="text-[11px] font-medium">{new Date(toilet.createdAt).toLocaleString()}</p>
-                </div>
+          {/* System Logs - light card (no dark section) */}
+          <div className="card">
+            <h3 className="form-section-title">System Logs</h3>
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase">Registered</p>
+                <p className="text-sm font-medium text-gray-900 mt-0.5">{new Date(toilet.createdAt).toLocaleString()}</p>
               </div>
-              <div className="flex gap-3">
-                <div className="h-1.5 w-1.5 rounded-full bg-primary-400 mt-2"></div>
-                <div>
-                  <p className="text-[10px] font-bold text-white/50 uppercase">Synchronized</p>
-                  <p className="text-[11px] font-medium">{new Date(toilet.updatedAt).toLocaleString()}</p>
-                </div>
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase">Last Updated</p>
+                <p className="text-sm font-medium text-gray-900 mt-0.5">{new Date(toilet.updatedAt).toLocaleString()}</p>
               </div>
             </div>
           </div>

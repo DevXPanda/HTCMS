@@ -242,7 +242,7 @@ const PropertyApplications = () => {
                           onChange={(e) => setOfficerRemarks(e.target.value)}
                           placeholder={`Enter remarks for ${decision.toLowerCase()} decision...`}
                           rows={3}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                         />
                       </div>
                     )}

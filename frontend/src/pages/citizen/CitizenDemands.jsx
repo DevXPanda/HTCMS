@@ -83,7 +83,7 @@ const CitizenDemands = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">My Demands</h1>
+        <h1 className="ds-page-title">My Demands</h1>
         <div className="flex gap-2">
           <button
             onClick={() => handleServiceTypeFilter('all')}

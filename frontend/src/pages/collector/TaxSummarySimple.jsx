@@ -296,7 +296,7 @@ const TaxSummarySimple = () => {
                 <select
                   value={paymentForm.paymentMode}
                   onChange={(e) => handleFormChange('paymentMode', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="CASH">Cash</option>
                   <option value="CHEQUE">Cheque</option>
@@ -318,7 +318,7 @@ const TaxSummarySimple = () => {
                   value={paymentForm.amount}
                   onChange={(e) => handleFormChange('amount', e.target.value)}
                   placeholder="0.00"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
                 {formErrors.amount && (
                   <p className="text-red-500 text-sm mt-1">{formErrors.amount}</p>
@@ -334,7 +334,7 @@ const TaxSummarySimple = () => {
                   value={paymentForm.accountHolderName}
                   onChange={(e) => handleFormChange('accountHolderName', e.target.value)}
                   placeholder="Enter account holder name"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
                 {formErrors.accountHolderName && (
                   <p className="text-red-500 text-sm mt-1">{formErrors.accountHolderName}</p>
@@ -351,7 +351,7 @@ const TaxSummarySimple = () => {
                       type="text"
                       value={paymentForm.chequeNumber}
                       onChange={(e) => handleFormChange('chequeNumber', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                     {formErrors.chequeNumber && (
                       <p className="text-red-500 text-sm mt-1">{formErrors.chequeNumber}</p>
@@ -366,7 +366,7 @@ const TaxSummarySimple = () => {
                       type="date"
                       value={paymentForm.chequeDate}
                       onChange={(e) => handleFormChange('chequeDate', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                     {formErrors.chequeDate && (
                       <p className="text-red-500 text-sm mt-1">{formErrors.chequeDate}</p>
@@ -381,7 +381,7 @@ const TaxSummarySimple = () => {
                       type="text"
                       value={paymentForm.bankName}
                       onChange={(e) => handleFormChange('bankName', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                     {formErrors.bankName && (
                       <p className="text-red-500 text-sm mt-1">{formErrors.bankName}</p>
@@ -399,7 +399,7 @@ const TaxSummarySimple = () => {
                     type="text"
                     value={paymentForm.transactionId}
                     onChange={(e) => handleFormChange('transactionId', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   {formErrors.transactionId && (
                     <p className="text-red-500 text-sm mt-1">{formErrors.transactionId}</p>

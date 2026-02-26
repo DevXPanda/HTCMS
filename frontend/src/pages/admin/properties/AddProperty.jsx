@@ -148,7 +148,7 @@ const AddProperty = () => {
           <Link to="/properties" className="mr-4 text-primary-600 hover:text-primary-700">
             <ArrowLeft className="w-5 h-5" />
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900">Add New Property</h1>
+          <h1 className="ds-page-title">Add New Property</h1>
         </div>
       </div>
 

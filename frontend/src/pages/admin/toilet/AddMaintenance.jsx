@@ -172,15 +172,15 @@ const AddMaintenance = () => {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+                <div className="spinner spinner-md" />
             </div>
         );
     }
 
     return (
-        <div className="space-y-6 max-w-4xl mx-auto">
+        <div className="space-y-6">
             <div>
-                <h1 className="text-2xl font-bold text-gray-900">
+                <h1 className="ds-page-title">
                     {isEditMode ? 'Edit Maintenance Record' : 'Schedule Maintenance'}
                 </h1>
                 <p className="text-gray-600 text-sm">Manage repairs and routine maintenance for toilet facilities</p>
@@ -456,7 +456,7 @@ const AddMaintenance = () => {
                         className="px-6 py-2 text-sm font-semibold bg-primary-600 text-white hover:bg-primary-700 rounded-lg shadow-sm flex items-center gap-2 disabled:opacity-50"
                     >
                         {saving ? (
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                         ) : (
                             <Save className="w-4 h-4" />
                         )}

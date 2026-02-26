@@ -66,26 +66,19 @@ const FieldVisitDetailsModal = ({ visitId, isOpen, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+    <div className="modal-overlay">
+      <div className="modal-panel modal-panel-lg max-w-4xl">
+        <div className="modal-header">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Field Visit Details</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Visit Number: {visitDetails?.visitNumber || 'Loading...'}
-            </p>
+            <h2 className="modal-title">Field Visit Details</h2>
+            <p className="text-sm text-gray-500 mt-0.5">Visit Number: {visitDetails?.visitNumber || 'Loading...'}</p>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X className="w-6 h-6" />
+          <button type="button" onClick={onClose} className="modal-close" aria-label="Close">
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-6">
+        <div className="modal-body">
           {loading ? (
             <Loading />
           ) : visitDetails ? (

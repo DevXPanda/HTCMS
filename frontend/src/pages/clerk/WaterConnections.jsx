@@ -101,7 +101,7 @@ const WaterConnections = () => {
     <div>
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Water Connection Requests</h1>
+          <h1 className="ds-page-title">Water Connection Requests</h1>
           <p className="text-gray-600 mt-1">
             Managing water connection requests in your assigned ward
             {user?.ward_ids && user.ward_ids.length > 0 && ` (Ward ID: ${user.ward_ids[0]})`}

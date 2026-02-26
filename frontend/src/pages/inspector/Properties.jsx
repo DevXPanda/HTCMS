@@ -177,7 +177,7 @@ const InspectorProperties = () => {
       {/* Page Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Ward Properties</h1>
+          <h1 className="ds-page-title">Ward Properties</h1>
           <p className="text-gray-600 mt-1">View all properties in your assigned wards</p>
         </div>
       </div>
@@ -235,7 +235,7 @@ const InspectorProperties = () => {
               placeholder="Search by number, address, owner..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
           </div>
 
@@ -243,7 +243,7 @@ const InspectorProperties = () => {
           <select
             value={propertyTypeFilter}
             onChange={(e) => setPropertyTypeFilter(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           >
             <option value="">All Types</option>
             <option value="residential">Residential</option>
@@ -257,7 +257,7 @@ const InspectorProperties = () => {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           >
             <option value="">All Status</option>
             <option value="active">Active</option>
@@ -344,7 +344,7 @@ const InspectorProperties = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <Link
                         to={`/inspector/properties/${property.id}`}
-                        className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                       >
                         <Eye className="h-3 w-3 mr-1" />
                         View

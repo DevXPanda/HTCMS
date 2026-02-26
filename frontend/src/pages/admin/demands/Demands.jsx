@@ -126,9 +126,9 @@ const Demands = () => {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Tax Demands</h1>
-        <div className="flex gap-2">
+      <div className="ds-page-header">
+        <h1 className="ds-page-title">Tax Demands</h1>
+        <div className="flex flex-wrap gap-2">
           {isAdmin && (
             <Link to={`${basePath}/demands/generate`} className="btn btn-primary flex items-center">
               <Zap className="w-4 h-4 mr-2" />
@@ -247,7 +247,7 @@ const Demands = () => {
         </div>
       )}
 
-      <div className="card overflow-x-auto">
+      <div className="table-wrap">
         <table className="table">
           <thead>
             <tr>

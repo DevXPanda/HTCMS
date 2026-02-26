@@ -104,7 +104,7 @@ const CitizenWaterConnections = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">My Water Connections</h1>
+        <h1 className="ds-page-title">My Water Connections</h1>
         <Link
           to="/citizen/water-connection-request"
           className="btn btn-primary bg-primary-600 hover:bg-primary-700"

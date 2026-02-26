@@ -139,7 +139,7 @@ const Reports = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Reports & Analytics</h1>
+        <h1 className="ds-page-title">Reports & Analytics</h1>
         <button
           onClick={() => setShowFilters(!showFilters)}
           className="btn btn-secondary flex items-center"

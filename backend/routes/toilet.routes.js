@@ -12,6 +12,7 @@ import {
     updateInspection,
     getAllMaintenanceRecords,
     createMaintenanceRecord,
+    getMaintenanceRecordById,
     getAllComplaints,
     createComplaint,
     updateComplaint,
@@ -57,6 +58,7 @@ router.put('/inspections/:id', authorize('admin', 'inspector'), updateInspection
 
 // Maintenance
 router.get('/maintenance', getAllMaintenanceRecords);
+router.get('/maintenance/:id', getMaintenanceRecordById);
 router.post('/maintenance', authorize('admin'), createMaintenanceRecord);
 
 // Complaints

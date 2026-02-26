@@ -4,10 +4,6 @@ import { Shield, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-// Get background image path that works in both dev and production
-// Use absolute path for public assets - Vite serves public folder from root
-const backgroundImageUrl = '/background.png';
-
 const EmployeeChangePassword = () => {
   const [formData, setFormData] = useState({
     currentPassword: '',
@@ -124,37 +120,18 @@ const EmployeeChangePassword = () => {
   );
 
   return (
-    <div 
-      className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative"
-        style={{
-          backgroundImage: `url(${backgroundImageUrl})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          backgroundAttachment: 'fixed',
-          minHeight: '100vh',
-          width: '100%'
-        }}
-    >
-      {/* Dark overlay for better text readability */}
-      <div 
-        className="absolute inset-0 bg-black opacity-45"
-        style={{ zIndex: 0 }}
-      />
-      <div className="max-w-md w-full space-y-8 relative" style={{ zIndex: 1 }}>
+    <div className="auth-page-bg min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative">
+      <div className="absolute inset-0 bg-black opacity-45 z-0" />
+      <div className="max-w-md w-full space-y-8 relative z-10">
         <div className="text-center">
-          <div className="mx-auto h-16 w-16 bg-blue-600 rounded-full flex items-center justify-center">
+          <div className="mx-auto h-16 w-16 bg-primary-600 rounded-full flex items-center justify-center">
             <Shield className="h-8 w-8 text-white" />
           </div>
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-            Change Password
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Set a new password for your account
-          </p>
+          <h2 className="mt-6 ds-page-title">Change Password</h2>
+          <p className="mt-2 text-sm text-gray-600">Set a new password for your account</p>
         </div>
 
-        <div className="bg-white shadow-xl rounded-lg p-8">
+        <div className="card">
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700 mb-1">
@@ -168,7 +145,7 @@ const EmployeeChangePassword = () => {
                   required
                   value={formData.currentPassword}
                   onChange={handleChange}
-                  className="appearance-none relative block w-full px-3 py-3 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="appearance-none relative block w-full px-3 py-3 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-blue-500 sm:text-sm"
                   placeholder="Enter current password"
                 />
                 <button
@@ -197,7 +174,7 @@ const EmployeeChangePassword = () => {
                   required
                   value={formData.newPassword}
                   onChange={handleChange}
-                  className="appearance-none relative block w-full px-3 py-3 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="appearance-none relative block w-full px-3 py-3 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-blue-500 sm:text-sm"
                   placeholder="Enter new password"
                 />
                 <button
@@ -226,7 +203,7 @@ const EmployeeChangePassword = () => {
                   required
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className="appearance-none relative block w-full px-3 py-3 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="appearance-none relative block w-full px-3 py-3 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-blue-500 sm:text-sm"
                   placeholder="Confirm new password"
                 />
                 <button
@@ -261,7 +238,7 @@ const EmployeeChangePassword = () => {
               <button
                 type="submit"
                 disabled={loading || !isFormValid()}
-                className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <div className="flex items-center">

@@ -95,7 +95,7 @@ const Attendance = () => {
     <div>
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">My Attendance</h1>
+          <h1 className="ds-page-title">My Attendance</h1>
           <p className="text-gray-600 mt-1">View your attendance history</p>
         </div>
         <button

@@ -131,9 +131,9 @@ const Notices = () => {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Notices & Enforcement</h1>
-        <div className="flex gap-2">
+      <div className="ds-page-header">
+        <h1 className="ds-page-title">Notices & Enforcement</h1>
+        <div className="flex flex-wrap gap-2">
           {(isAdmin || isAssessor) && (
             <button
               onClick={() => setShowGenerateModal(true)}

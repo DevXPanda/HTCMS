@@ -93,49 +93,40 @@ const ToiletComplaints = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <div className="spinner spinner-md" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="ds-page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Toilet Complaints</h1>
-          <p className="text-gray-500 text-sm">Manage citizen reports and track resolution progress</p>
+          <h1 className="ds-page-title">Toilet Complaints</h1>
+          <p className="ds-page-subtitle">Manage citizen reports and track resolution progress</p>
         </div>
       </div>
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Total Reports</div>
-          <div className="text-2xl font-bold text-gray-900">{complaints.length}</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="stat-card">
+          <div className="stat-card-title"><span>Total Reports</span></div>
+          <p className="stat-card-value">{complaints.length}</p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 border-l-4 border-amber-500">
-          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Pending</div>
-          <div className="text-2xl font-bold text-amber-600">
-            {complaints.filter(c => c.status?.toLowerCase() === 'pending').length}
-          </div>
+        <div className="stat-card border-l-4 border-amber-500">
+          <div className="stat-card-title"><span>Pending</span></div>
+          <p className="stat-card-value text-amber-600">{complaints.filter(c => c.status?.toLowerCase() === 'pending').length}</p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 border-l-4 border-blue-500">
-          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">In Progress</div>
-          <div className="text-2xl font-bold text-blue-600">
-            {complaints.filter(c => c.status?.toLowerCase() === 'in progress').length}
-          </div>
+        <div className="stat-card border-l-4 border-blue-500">
+          <div className="stat-card-title"><span>In Progress</span></div>
+          <p className="stat-card-value text-blue-600">{complaints.filter(c => c.status?.toLowerCase() === 'in progress').length}</p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 border-l-4 border-green-500">
-          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Resolved</div>
-          <div className="text-2xl font-bold text-green-600">
-            {complaints.filter(c => c.status?.toLowerCase() === 'resolved').length}
-          </div>
+        <div className="stat-card border-l-4 border-green-500">
+          <div className="stat-card-title"><span>Resolved</span></div>
+          <p className="stat-card-value text-green-600">{complaints.filter(c => c.status?.toLowerCase() === 'resolved').length}</p>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+      <div className="card">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />

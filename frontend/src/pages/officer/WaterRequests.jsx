@@ -249,7 +249,7 @@ const WaterRequests = () => {
                           onChange={(e) => setOfficerRemarks(e.target.value)}
                           placeholder={`Enter remarks for ${decision.toLowerCase()} decision...`}
                           rows={3}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
                         />
                       </div>
                     )}

@@ -54,7 +54,7 @@ const ToiletReports = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <div className="spinner spinner-md" />
       </div>
     );
   }
@@ -73,96 +73,84 @@ const ToiletReports = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="ds-page-header flex flex-wrap justify-between items-start gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Reports & Analytics</h1>
-          <p className="text-gray-600 text-sm">View comprehensive reports and analytics</p>
+          <h1 className="ds-page-title">Reports & Analytics</h1>
+          <p className="ds-page-subtitle">View comprehensive reports and analytics</p>
         </div>
         <div className="flex gap-2">
           <input
             type="date"
             value={dateRange.start}
             onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="input"
           />
           <input
             type="date"
             value={dateRange.end}
             onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="input"
           />
         </div>
       </div>
 
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Total Facilities</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalFacilities}</p>
-            </div>
-            <BarChart3 className="w-8 h-8 text-primary-600" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="stat-card">
+          <div className="stat-card-title flex items-center justify-between">
+            <span>Total Facilities</span>
+            <BarChart3 className="w-6 h-6 text-primary-600" />
           </div>
-          <div className="mt-4 flex items-center text-sm">
+          <p className="stat-card-value">{stats.totalFacilities}</p>
+          <div className="mt-2 flex items-center text-sm text-gray-500">
             <span className="text-green-600 font-medium">{stats.activeFacilities} Active</span>
-            <span className="text-gray-400 mx-2">•</span>
+            <span className="mx-2">•</span>
             <span className="text-yellow-600 font-medium">{stats.maintenanceFacilities} Maintenance</span>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Inspection Rate</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{inspectionRate}%</p>
-            </div>
-            <CheckCircle className="w-8 h-8 text-green-600" />
+        <div className="stat-card">
+          <div className="stat-card-title flex items-center justify-between">
+            <span>Inspection Rate</span>
+            <CheckCircle className="w-6 h-6 text-green-600" />
           </div>
-          <div className="mt-4 flex items-center text-sm">
+          <p className="stat-card-value">{inspectionRate}%</p>
+          <div className="mt-2 flex items-center text-sm text-gray-500">
             <span className="text-green-600 font-medium">{stats.passedInspections} Passed</span>
-            <span className="text-gray-400 mx-2">•</span>
+            <span className="mx-2">•</span>
             <span className="text-red-600 font-medium">{stats.failedInspections} Failed</span>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Complaint Resolution</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{complaintResolutionRate}%</p>
-            </div>
-            <AlertCircle className="w-8 h-8 text-blue-600" />
+        <div className="stat-card">
+          <div className="stat-card-title flex items-center justify-between">
+            <span>Complaint Resolution</span>
+            <AlertCircle className="w-6 h-6 text-blue-600" />
           </div>
-          <div className="mt-4 flex items-center text-sm">
+          <p className="stat-card-value">{complaintResolutionRate}%</p>
+          <div className="mt-2 flex items-center text-sm text-gray-500">
             <span className="text-green-600 font-medium">{stats.resolvedComplaints} Resolved</span>
-            <span className="text-gray-400 mx-2">•</span>
+            <span className="mx-2">•</span>
             <span className="text-yellow-600 font-medium">{stats.pendingComplaints} Pending</span>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Maintenance Completion</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{maintenanceCompletionRate}%</p>
-            </div>
-            <TrendingUp className="w-8 h-8 text-purple-600" />
+        <div className="stat-card">
+          <div className="stat-card-title flex items-center justify-between">
+            <span>Maintenance Completion</span>
+            <TrendingUp className="w-6 h-6 text-purple-600" />
           </div>
-          <div className="mt-4 flex items-center text-sm">
+          <p className="stat-card-value">{maintenanceCompletionRate}%</p>
+          <div className="mt-2 flex items-center text-sm text-gray-500">
             <span className="text-green-600 font-medium">{stats.completedMaintenance} Completed</span>
-            <span className="text-gray-400 mx-2">•</span>
+            <span className="mx-2">•</span>
             <span className="text-blue-600 font-medium">{stats.scheduledMaintenance} Scheduled</span>
           </div>
         </div>
       </div>
 
-      {/* Detailed Statistics */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Inspections Breakdown */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Inspections Overview</h2>
+        <div className="card">
+          <h2 className="ds-section-title mb-4">Inspections Overview</h2>
           <div className="space-y-4">
             <div>
               <div className="flex justify-between text-sm mb-2">
@@ -203,9 +191,8 @@ const ToiletReports = () => {
           </div>
         </div>
 
-        {/* Complaints Breakdown */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Complaints Overview</h2>
+        <div className="card">
+          <h2 className="ds-section-title mb-4">Complaints Overview</h2>
           <div className="space-y-4">
             <div>
               <div className="flex justify-between text-sm mb-2">
@@ -247,22 +234,21 @@ const ToiletReports = () => {
         </div>
       </div>
 
-      {/* Maintenance Overview */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Maintenance Overview</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="border border-gray-200 rounded-lg p-4">
-            <div className="text-sm text-gray-500">Total Maintenance</div>
-            <div className="text-2xl font-bold text-gray-900 mt-2">{stats.totalMaintenance}</div>
+      <div className="card">
+        <h2 className="ds-section-title mb-4">Maintenance Overview</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="stat-card">
+            <div className="stat-card-title"><span>Total Maintenance</span></div>
+            <p className="stat-card-value">{stats.totalMaintenance}</p>
           </div>
-          <div className="border border-gray-200 rounded-lg p-4">
-            <div className="text-sm text-gray-500">Completed</div>
-            <div className="text-2xl font-bold text-green-600 mt-2">{stats.completedMaintenance}</div>
-            <div className="text-xs text-gray-500 mt-1">{maintenanceCompletionRate}% completion rate</div>
+          <div className="stat-card">
+            <div className="stat-card-title"><span>Completed</span></div>
+            <p className="stat-card-value text-green-600">{stats.completedMaintenance}</p>
+            <p className="text-xs text-gray-500 mt-1">{maintenanceCompletionRate}% completion rate</p>
           </div>
-          <div className="border border-gray-200 rounded-lg p-4">
-            <div className="text-sm text-gray-500">Scheduled</div>
-            <div className="text-2xl font-bold text-blue-600 mt-2">{stats.scheduledMaintenance}</div>
+          <div className="stat-card">
+            <div className="stat-card-title"><span>Scheduled</span></div>
+            <p className="stat-card-value text-blue-600">{stats.scheduledMaintenance}</p>
           </div>
         </div>
       </div>

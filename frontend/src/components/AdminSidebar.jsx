@@ -75,7 +75,7 @@ const AdminSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
     { path: '/field-worker-monitoring', label: 'Field Worker Monitoring', icon: LayoutDashboard },
     { path: '/admin-field-worker-monitoring', label: 'Admin Field Monitoring', icon: Users },
     { path: '/toilet-management', label: 'Toilet Management', icon: Bath },
-    { path: '/mrf/management', label: 'MRF Management', icon: Recycle },
+    { path: '/mrf', label: 'MRF Management', icon: Recycle },
     { path: '/gaushala/management', label: 'Gaushala Management', icon: Beef },
     { path: '/reports', label: 'Reports', icon: BarChart3 },
     { path: '/audit-logs', label: 'Audit Logs', icon: Shield }

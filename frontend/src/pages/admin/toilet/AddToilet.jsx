@@ -169,55 +169,52 @@ const AddToilet = () => {
   if (loading && isEditMode) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <div className="spinner spinner-md" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-end">
+    <div className="space-y-6">
+      <div className="ds-page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="ds-page-title">
             {isEditMode ? 'Edit Facility' : 'New Toilet Facility'}
           </h1>
-          <p className="text-gray-500 text-sm mt-1">
-            Register and manage public sanitation facilities
-          </p>
+          <p className="ds-page-subtitle">Register and manage public sanitation facilities</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           {/* Basic Info */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
-            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-gray-50 pb-3 flex items-center gap-2">
+          <div className="card">
+            <h2 className="form-section-title flex items-center gap-2">
               <Info className="w-4 h-4 text-primary-600" /> General Identification
             </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="form-grid gap-4">
               <div className="md:col-span-2">
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5">Facility Name *</label>
+                <label className="label label-required">Facility Name</label>
                 <input
                   type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
+                  className="input"
                   placeholder="e.g., Pink Toilet - Central Market"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5">Ward Selection *</label>
+                <label className="label label-required">Ward Selection</label>
                 <select
                   name="wardId"
                   value={formData.wardId}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
+                  className="input"
                 >
                   <option value="">Choose Ward</option>
                   {wards.map(ward => (
@@ -227,13 +224,13 @@ const AddToilet = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5">Facility Type *</label>
+                <label className="label label-required">Facility Type</label>
                 <select
                   name="type"
                   value={formData.type}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
+                  className="input"
                 >
                   <option value="Public">Public (PT)</option>
                   <option value="Community">Community (CT)</option>
@@ -243,7 +240,7 @@ const AddToilet = () => {
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5">Location Address *</label>
+                <label className="label label-required">Location Address</label>
                 <div className="relative">
                   <MapPin className="absolute left-3.5 top-3 w-4 h-4 text-gray-400" />
                   <input
@@ -252,7 +249,7 @@ const AddToilet = () => {
                     value={formData.location}
                     onChange={handleChange}
                     required
-                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
+                    className="input pl-10"
                     placeholder="Full landmark or area details"
                   />
                 </div>
@@ -261,41 +258,41 @@ const AddToilet = () => {
           </div>
 
           {/* Operational Details */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
-            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-gray-50 pb-3 flex items-center gap-2">
+          <div className="card">
+            <h2 className="form-section-title flex items-center gap-2">
               <Clock className="w-4 h-4 text-primary-600" /> Operations & Capacity
             </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="form-grid gap-4">
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5">Daily Capacity</label>
+                <label className="label">Daily Capacity</label>
                 <input
                   type="number"
                   name="capacity"
                   value={formData.capacity}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
+                  className="input"
                   placeholder="Avg users"
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5">Operating Hours</label>
+                <label className="label">Operating Hours</label>
                 <input
                   type="text"
                   name="openingHours"
                   value={formData.openingHours}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
+                  className="input"
                   placeholder="6:00 AM - 10:00 PM"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5">Status *</label>
+                <label className="label label-required">Status</label>
                 <select
                   name="status"
                   value={formData.status}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
+                  className="input"
                 >
                   <option value="active">Active</option>
                   <option value="maintenance">Maintenance</option>
@@ -303,31 +300,31 @@ const AddToilet = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5">Contact Name</label>
+                <label className="label">Contact Name</label>
                 <input
                   type="text"
                   name="contactPerson"
                   value={formData.contactPerson}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
+                  className="input"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5">Contact Number</label>
+                <label className="label">Contact Number</label>
                 <input
                   type="tel"
                   name="contactNumber"
                   value={formData.contactNumber}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
+                  className="input"
                 />
               </div>
             </div>
           </div>
 
           {/* Amenities Checklist */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
-            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-gray-50 pb-3 flex items-center gap-2">
+          <div className="card">
+            <h2 className="form-section-title flex items-center gap-2">
               <Check className="w-4 h-4 text-green-600" /> Amenities & Features
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -351,10 +348,10 @@ const AddToilet = () => {
 
         <div className="space-y-6">
           {/* Photos */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
-            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
+          <div className="card">
+            <h2 className="form-section-title flex items-center justify-between">
               Photos Area
-              <span className="text-[10px] opacity-60">Max 5</span>
+              <span className="text-xs opacity-60 font-normal">Max 5</span>
             </h2>
 
             <div className="grid grid-cols-2 gap-3">
@@ -381,30 +378,30 @@ const AddToilet = () => {
           </div>
 
           {/* Coordinates */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
-            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Geo Coordinates</h2>
+          <div className="card">
+            <h2 className="form-section-title">Geo Coordinates</h2>
             <div className="space-y-3">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Latitude</label>
+                <label className="label">Latitude</label>
                 <input
                   type="number"
                   name="latitude"
                   value={formData.latitude}
                   onChange={handleChange}
                   step="any"
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg text-xs"
+                  className="input"
                   placeholder="28.6139..."
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Longitude</label>
+                <label className="label">Longitude</label>
                 <input
                   type="number"
                   name="longitude"
                   value={formData.longitude}
                   onChange={handleChange}
                   step="any"
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg text-xs"
+                  className="input"
                   placeholder="77.2090..."
                 />
               </div>
@@ -412,25 +409,25 @@ const AddToilet = () => {
           </div>
 
           {/* Additional Notes */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Internal Notes</h2>
+          <div className="card">
+            <h2 className="form-section-title mb-3">Internal Notes</h2>
             <textarea
               name="notes"
               value={formData.notes}
               onChange={handleChange}
-              className="w-full h-24 p-3 bg-gray-50 border border-gray-100 rounded-xl text-xs outline-none focus:ring-1 focus:ring-primary-200 resize-none"
+              className="input h-24 resize-none"
               placeholder="Additional details for administrative use..."
             />
           </div>
 
           {/* Final Actions */}
-          <div className="pt-2">
+          <div className="form-actions pt-2">
             <button
               type="submit"
               disabled={loading || uploading}
-              className="w-full btn btn-primary py-3 rounded-2xl flex items-center justify-center gap-3 font-bold text-sm shadow-xl shadow-primary-500/20"
+              className="w-full btn btn-primary flex items-center justify-center gap-2"
             >
-              <Save className="w-5 h-5" />
+              {loading ? <span className="spinner spinner-sm" /> : <Save className="w-5 h-5" />}
               {loading ? 'Saving...' : (isEditMode ? 'Update Facility' : 'Create Facility')}
             </button>
           </div>
