@@ -25,99 +25,20 @@ const CitizenDashboard = () => {
 
   if (loading) return <Loading />;
 
-  const statCards = [
-    {
-      title: 'My Properties',
-      value: dashboard?.properties || 0,
-      icon: Home,
-      color: 'bg-blue-500',
-      link: '/citizen/properties'
-    },
-    {
-      title: 'Pending House Tax',
-      value: dashboard?.pendingHouseTaxDemands || 0,
-      icon: FileText,
-      color: 'bg-orange-500',
-      link: '/citizen/demands?serviceType=HOUSE_TAX'
-    },
-    {
-      title: 'Pending Water Tax',
-      value: dashboard?.pendingWaterTaxDemands || 0,
-      icon: FileText,
-      color: 'bg-cyan-500',
-      link: '/citizen/demands?serviceType=WATER_TAX'
-    },
-    {
-      title: 'Pending D2DC',
-      value: dashboard?.pendingD2dcDemands || 0,
-      icon: FileText,
-      color: 'bg-green-500',
-      link: '/citizen/demands?serviceType=D2DC'
-    },
-    {
-      title: 'Pending Shop Tax',
-      value: dashboard?.pendingShopTaxDemands || 0,
-      icon: Store,
-      color: 'bg-amber-500',
-      link: '/citizen/demands?serviceType=SHOP_TAX'
-    },
-    {
-      title: 'Active Notices',
-      value: dashboard?.activeNotices || 0,
-      icon: Bell,
-      color: 'bg-yellow-500',
-      link: '/citizen/notices',
-      badge: dashboard?.activeNotices > 0 ? 'badge-danger' : ''
-    },
-    {
-      title: 'Total Outstanding',
-      value: `₹${(dashboard?.totalOutstanding || 0).toLocaleString('en-IN')}`,
-      icon: DollarSign,
-      color: 'bg-red-500',
-      link: '/citizen/demands'
-    },
-    {
-      title: 'House Tax Outstanding',
-      value: `₹${(dashboard?.houseTaxOutstanding || 0).toLocaleString('en-IN')}`,
-      icon: DollarSign,
-      color: 'bg-orange-600',
-      link: '/citizen/demands?serviceType=HOUSE_TAX'
-    },
-    {
-      title: 'Water Tax Outstanding',
-      value: `₹${(dashboard?.waterTaxOutstanding || 0).toLocaleString('en-IN')}`,
-      icon: DollarSign,
-      color: 'bg-cyan-600',
-      link: '/citizen/demands?serviceType=WATER_TAX'
-    },
-    {
-      title: 'D2DC Outstanding',
-      value: `₹${(dashboard?.d2dcOutstanding || 0).toLocaleString('en-IN')}`,
-      icon: DollarSign,
-      color: 'bg-green-600',
-      link: '/citizen/demands?serviceType=D2DC'
-    },
-    {
-      title: 'Shop Tax Outstanding',
-      value: `₹${(dashboard?.shopTaxOutstanding || 0).toLocaleString('en-IN')}`,
-      icon: DollarSign,
-      color: 'bg-amber-600',
-      link: '/citizen/demands?serviceType=SHOP_TAX'
-    },
-    {
-      title: 'My Shops',
-      value: dashboard?.shops || 0,
-      icon: Store,
-      color: 'bg-amber-500',
-      link: '/citizen/shops'
-    },
-    {
-      title: 'Recent Payments',
-      value: dashboard?.recentPayments?.length || 0,
-      icon: CreditCard,
-      color: 'bg-green-500',
-      link: '/citizen/payments'
-    }
+  const formatAmount = (num) =>
+    `₹${Number(num || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  // Summary: 9 cards in 3x3 grid (same UI as Clerk/Officer dashboards)
+  const summaryCards = [
+    { title: 'My Properties', value: dashboard?.properties ?? 0, icon: Home, color: 'bg-blue-500', link: '/citizen/properties' },
+    { title: 'Pending House Tax', value: dashboard?.pendingHouseTaxDemands || 0, icon: FileText, color: 'bg-orange-500', link: '/citizen/demands?serviceType=HOUSE_TAX' },
+    { title: 'Pending Water Tax', value: dashboard?.pendingWaterTaxDemands || 0, icon: FileText, color: 'bg-cyan-500', link: '/citizen/demands?serviceType=WATER_TAX' },
+    { title: 'Pending D2DC', value: dashboard?.pendingD2dcDemands || 0, icon: FileText, color: 'bg-green-500', link: '/citizen/demands?serviceType=D2DC' },
+    { title: 'Pending Shop Tax', value: dashboard?.pendingShopTaxDemands || 0, icon: Store, color: 'bg-amber-500', link: '/citizen/demands?serviceType=SHOP_TAX' },
+    { title: 'Active Notices', value: dashboard?.activeNotices || 0, icon: Bell, color: 'bg-yellow-500', link: '/citizen/notices', badge: dashboard?.activeNotices > 0 },
+    { title: 'Total Outstanding', value: formatAmount(dashboard?.totalOutstanding), icon: DollarSign, color: 'bg-red-500', link: '/citizen/demands' },
+    { title: 'My Shops', value: dashboard?.shops || 0, icon: Store, color: 'bg-amber-500', link: '/citizen/shops' },
+    { title: 'Recent Payments', value: dashboard?.recentPayments?.length || 0, icon: CreditCard, color: 'bg-green-500', link: '/citizen/payments' }
   ];
 
   // Quick Actions - All sidebar navigation items
@@ -136,18 +57,47 @@ const CitizenDashboard = () => {
   ];
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Page Header - match other dashboards */}
+      <div className="ds-page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Citizen Dashboard</h1>
-          <p className="text-gray-500 text-sm">My Services & Information</p>
+          <h1 className="ds-page-title">Citizen Dashboard</h1>
+          <p className="ds-page-subtitle">My Services & Information</p>
         </div>
       </div>
 
+      {/* Summary Section - 3x3 grid, same UI as Clerk/Officer */}
+      <section>
+        <h2 className="form-section-title flex items-center mb-4">
+          <TrendingUp className="w-5 h-5 mr-2 text-primary-600" />
+          Summary
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+          {summaryCards.map((stat, index) => {
+            const Icon = stat.icon;
+            return (
+              <Link key={index} to={stat.link} className="stat-card card-hover">
+                <div className="stat-card-title">
+                  <span>{stat.title}</span>
+                  <div className={`${stat.color} p-2 rounded-full relative`}>
+                    <Icon className="w-5 h-5 text-white" />
+                    {stat.badge && typeof stat.value === 'number' && stat.value > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-xs font-bold rounded-full min-w-[1.25rem] h-5 flex items-center justify-center px-1">
+                        {stat.value}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <p className="stat-card-value">{stat.value}</p>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
       {/* Quick Actions Section */}
       <section>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+        <h2 className="form-section-title flex items-center mb-4">
           <TrendingUp className="w-5 h-5 mr-2 text-primary-600" />
           Quick Actions
         </h2>
@@ -166,30 +116,6 @@ const CitizenDashboard = () => {
           ))}
         </div>
       </section>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {statCards.map((stat, index) => {
-          const Icon = stat.icon;
-          return (
-            <Link key={index} to={stat.link} className="bg-white rounded-lg border border-gray-100 p-6 hover:shadow-lg transition-shadow relative">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">{stat.title}</p>
-                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                </div>
-                <div className={`${stat.color} p-3 rounded-lg relative`}>
-                  <Icon className="w-6 h-6 text-white" />
-                  {stat.badge && stat.value > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                      {stat.value}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </Link>
-          );
-        })}
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-lg border border-gray-100 p-6">
@@ -216,7 +142,7 @@ const CitizenDashboard = () => {
                       </span>
                     </div>
                     <p className="text-sm text-gray-600">
-                      Balance: ₹{parseFloat(demand.balanceAmount).toLocaleString('en-IN')}
+                      Balance: {formatAmount(demand.balanceAmount)}
                     </p>
                     <p className="text-xs text-gray-500">
                       Due: {new Date(demand.dueDate).toLocaleDateString()}
@@ -254,7 +180,7 @@ const CitizenDashboard = () => {
                       </span>
                     </div>
                     <p className="text-sm text-green-600">
-                      ₹{parseFloat(payment.amount).toLocaleString('en-IN')}
+                      {formatAmount(payment.amount)}
                     </p>
                     <p className="text-xs text-gray-500">
                       {new Date(payment.paymentDate).toLocaleDateString()}

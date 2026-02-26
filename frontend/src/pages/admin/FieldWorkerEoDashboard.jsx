@@ -7,7 +7,6 @@ import {
   CheckSquare,
   AlertTriangle,
   Percent,
-  ArrowLeft,
   Calendar
 } from 'lucide-react';
 import { fieldWorkerMonitoringAPI } from '../../services/api';
@@ -74,14 +73,6 @@ const FieldWorkerEoDashboard = () => {
   return (
     <div className="p-6">
       <div className="flex items-center gap-4 mb-6">
-        <button
-          type="button"
-          onClick={() => navigate('/field-worker-monitoring')}
-          className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back
-        </button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-gray-900">EO Dashboard</h1>
           {data?.eo && (

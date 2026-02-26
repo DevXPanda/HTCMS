@@ -4,7 +4,6 @@ import { useForm } from 'react-hook-form';
 import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
 import { shopTaxAssessmentsAPI, shopsAPI } from '../../../services/api';
 import toast from 'react-hot-toast';
-import { ArrowLeft } from 'lucide-react';
 
 const AddShopAssessment = () => {
   const navigate = useNavigate();
@@ -72,12 +71,7 @@ const AddShopAssessment = () => {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center">
-          <Link to={`${basePath}/shop-tax/assessments`} className="mr-4 text-primary-600 hover:text-primary-700">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <h1 className="text-3xl font-bold text-gray-900">Create Shop Tax Assessment</h1>
-        </div>
+        <h1 className="ds-page-title">Create Shop Tax Assessment</h1>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="card space-y-6">

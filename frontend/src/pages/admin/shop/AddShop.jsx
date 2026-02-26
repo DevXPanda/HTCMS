@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { shopsAPI, propertyAPI, wardAPI, userAPI } from '../../../services/api';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Save } from 'lucide-react';
+import { Save } from 'lucide-react';
 import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
 
 const AddShop = () => {
@@ -99,11 +99,6 @@ const AddShop = () => {
 
   return (
     <div>
-      <Link to={`${basePath}/shop-tax/shops`} className="flex items-center text-primary-600 mb-4">
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to Shops
-      </Link>
-
       <div className="flex justify-between items-center mb-6">
         <h1 className="ds-page-title">Add New Shop</h1>
       </div>

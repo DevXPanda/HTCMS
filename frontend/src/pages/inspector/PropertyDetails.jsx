@@ -9,7 +9,6 @@ import {
   FileText,
   Droplet,
   Eye,
-  ArrowLeft,
   AlertCircle,
   CheckCircle,
   XCircle,
@@ -185,17 +184,9 @@ const InspectorPropertyDetails = () => {
     <div className="space-y-6">
       {/* Page Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center">
-          <Link
-            to="/inspector/properties"
-            className="mr-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Property Details</h1>
-            <p className="text-gray-600 mt-1">View property information for inspection context</p>
-          </div>
+        <div>
+          <h1 className="ds-page-title">Property Details</h1>
+          <p className="ds-page-subtitle">View property information for inspection context</p>
         </div>
       </div>
 

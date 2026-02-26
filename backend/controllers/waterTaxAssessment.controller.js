@@ -1,3 +1,6 @@
+import { Op } from 'sequelize';
+import { WaterTaxAssessment, Property, WaterConnection, User, Ward } from '../models/index.js';
+import { validatePropertyId } from '../utils/queryHelpers.js';
 import { generateAssessmentId } from '../services/uniqueIdService.js';
 
 /**

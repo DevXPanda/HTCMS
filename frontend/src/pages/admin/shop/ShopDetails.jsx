@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { shopsAPI, shopTaxAssessmentsAPI, demandAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Edit, Store, FileText, Receipt } from 'lucide-react';
+import { Edit, Store, FileText, Receipt } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
 
@@ -59,11 +59,6 @@ const ShopDetails = () => {
 
   return (
     <div>
-      <Link to={`${basePath}/shop-tax/shops`} className="flex items-center text-primary-600 mb-4">
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to Shops
-      </Link>
-
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Shop Details</h1>
         {(isAdmin || isAssessor || basePath === '/clerk') && (

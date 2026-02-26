@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
-    ArrowLeft,
     Recycle,
     MapPin,
     CheckCircle,
@@ -133,9 +132,6 @@ const MRFDetails = () => {
             {/* Page Header */}
             <div className="ds-page-header">
                 <div className="flex items-center gap-4">
-                    <button type="button" onClick={() => navigate('/mrf/management')} className="btn btn-ghost p-2" aria-label="Back">
-                        <ArrowLeft className="w-5 h-5" />
-                    </button>
                     <div>
                         <div className="flex items-center gap-3">
                             <h1 className="ds-page-title">{facility.name}</h1>

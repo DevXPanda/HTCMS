@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { shopTaxAssessmentsAPI, generateShopDemand } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Edit, CheckCircle, XCircle, Send, Store, FileText } from 'lucide-react';
+import { Edit, CheckCircle, XCircle, Send, Store, FileText } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
 
@@ -113,11 +113,6 @@ const ShopAssessmentDetails = () => {
 
   return (
     <div>
-      <Link to={`${basePath}/shop-tax/assessments`} className="flex items-center text-primary-600 mb-4">
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to Shop Assessments
-      </Link>
-
       <div className="flex justify-between items-center mb-6">
         <h1 className="ds-page-title">Shop Tax Assessment Details</h1>
         <div className="flex gap-2">

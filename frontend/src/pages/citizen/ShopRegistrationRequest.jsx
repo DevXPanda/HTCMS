@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { citizenAPI, uploadAPI } from '../../services/api';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Store, CheckCircle, XCircle, Clock, MapPin, Calendar, User, Upload, X, FileText } from 'lucide-react';
+import { Store, CheckCircle, XCircle, Clock, MapPin, Calendar, User, Upload, X, FileText } from 'lucide-react';
 
 const ShopRegistrationRequest = () => {
   const navigate = useNavigate();
@@ -206,14 +206,6 @@ const ShopRegistrationRequest = () => {
   if (viewMode) {
     return (
       <div>
-        <button
-          onClick={() => navigate('/citizen/shop-registration-requests')}
-          className="flex items-center text-primary-600 mb-4 hover:text-primary-700"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Requests
-        </button>
-
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
@@ -368,14 +360,6 @@ const ShopRegistrationRequest = () => {
 
   return (
     <div>
-      <button
-        onClick={() => navigate('/citizen/shop-registration-requests')}
-        className="flex items-center text-primary-600 mb-4 hover:text-primary-700"
-      >
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to Shop Registration Requests
-      </button>
-
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
           <Store className="w-8 h-8" />

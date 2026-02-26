@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Save, MapPin, Recycle, Shield } from 'lucide-react';
+import { Save, MapPin, Recycle, Shield } from 'lucide-react';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
 
@@ -143,9 +143,6 @@ const AddMRF = () => {
         <div className="space-y-6">
             <div className="ds-page-header">
                 <div className="flex items-center gap-4">
-                    <Link to="/mrf/management" className="btn btn-ghost p-2" aria-label="Back">
-                        <ArrowLeft className="w-5 h-5" />
-                    </Link>
                     <div>
                         <h1 className="ds-page-title">
                             {isEditMode ? 'Edit MRF Center' : 'Add New MRF Center'}

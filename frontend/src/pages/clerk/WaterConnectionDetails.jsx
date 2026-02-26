@@ -4,7 +4,7 @@ import { clerkAPI } from '../../services/api';
 import { useStaffAuth } from '../../contexts/StaffAuthContext';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
-import { ArrowLeft, FileText, Download, Droplet, Home, MapPin } from 'lucide-react';
+import { FileText, Download, Droplet, Home, MapPin } from 'lucide-react';
 
 const DOCUMENT_TYPE_LABELS = {
   APPLICATION_FORM: 'Application Form',
@@ -78,11 +78,6 @@ const WaterConnectionDetails = () => {
 
   return (
     <div>
-      <Link to="/clerk/water-connections" className="flex items-center text-primary-600 mb-4">
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to Water Connections
-      </Link>
-
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Water Connection Details</h1>
       </div>

@@ -1,12 +1,12 @@
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { User, LogOut, X, ArrowLeft, Home } from 'lucide-react';
+import { User, LogOut, X, Home } from 'lucide-react';
 import { useState } from 'react';
+import Breadcrumbs from './Breadcrumbs';
 
 const AdminLayout = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [showProfileModal, setShowProfileModal] = useState(false);
 
   const handleLogout = async () => {
@@ -16,9 +16,6 @@ const AdminLayout = () => {
 
   const userData = user || JSON.parse(localStorage.getItem('user') || 'null');
 
-  // Check if we are on the dashboard
-  const isDashboard = location.pathname === '/dashboard' || location.pathname === '/admin/dashboard';
-
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Top bar */}
@@ -26,15 +23,6 @@ const AdminLayout = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center gap-4">
-              {!isDashboard && (
-                <button
-                  onClick={() => navigate(-1)}
-                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
-                  title="Go Back"
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                </button>
-              )}
               <h1 className="text-xl font-bold text-primary-600">ULB System</h1>
             </div>
             <div className="flex items-center space-x-4">
@@ -78,9 +66,14 @@ const AdminLayout = () => {
         </div>
       </header>
 
-      {/* Page content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <Outlet />
+      {/* Page content - breadcrumb inside main with dashboard background */}
+      <main className="flex-1 bg-gray-50">
+        <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <Breadcrumbs />
+        </div>
+        <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pb-6">
+          <Outlet />
+        </div>
       </main>
 
       {/* Profile Modal */}

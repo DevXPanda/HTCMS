@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { assessmentAPI, propertyAPI } from '../../../services/api';
 import toast from 'react-hot-toast';
 import Loading from '../../../components/Loading';
-import { ArrowLeft, Save, Calculator } from 'lucide-react';
+import { Save, Calculator } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 
 const EditAssessment = () => {
@@ -117,12 +117,7 @@ const EditAssessment = () => {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center">
-          <Link to={`/assessments/${id}`} className="mr-4 text-primary-600 hover:text-primary-700">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <h1 className="text-3xl font-bold text-gray-900">Edit Tax Assessment</h1>
-        </div>
+        <h1 className="ds-page-title">Edit Tax Assessment</h1>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="card space-y-6">

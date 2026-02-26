@@ -160,7 +160,7 @@ export const getCitizenProperties = async (req, res, next) => {
 export const getCitizenDemands = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { status } = req.query;
+    const { status, serviceType } = req.query;
 
     const properties = await Property.findAll({
       where: { ownerId: userId },
@@ -172,6 +172,7 @@ export const getCitizenDemands = async (req, res, next) => {
       propertyId: { [Op.in]: propertyIds }
     };
     if (status) where.status = status;
+    if (serviceType) where.serviceType = serviceType;
 
     const demands = await Demand.findAll({
       where,

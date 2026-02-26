@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { paymentAPI } from '../../services/api';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Download, Printer } from 'lucide-react';
+import { Download, Printer } from 'lucide-react';
 
 const PaymentDetails = () => {
   const { id } = useParams();
@@ -30,11 +30,6 @@ const PaymentDetails = () => {
 
   return (
     <div>
-      <Link to="/citizen/payments" className="flex items-center text-primary-600 mb-4">
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to Payments
-      </Link>
-
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Payment Receipt</h1>
         <div className="flex gap-2">

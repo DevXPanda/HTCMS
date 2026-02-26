@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Truck, User, LogOut, X, Home, FileText } from 'lucide-react';
+import { Truck, User, LogOut, X, Home, FileText } from 'lucide-react';
 import D2DCLayout from './D2DCLayout';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useStaffAuth } from '../../../contexts/StaffAuthContext';
@@ -32,13 +32,6 @@ const D2DCModule = () => {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between h-16">
                         <div className="flex items-center gap-4">
-                            <button
-                                onClick={() => navigate(-1)}
-                                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
-                                title="Go Back"
-                            >
-                                <ArrowLeft className="w-5 h-5" />
-                            </button>
                             <h1 className="text-xl font-bold text-primary-600">Bizwoke Management System</h1>
                         </div>
                         <div className="flex items-center space-x-4">
@@ -129,16 +122,8 @@ const D2DCModule = () => {
                     {/* D2DC Module Header */}
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div>
-                            <div className="flex items-center gap-2 mb-1">
-                                <button
-                                    onClick={() => navigate('/tax-management')}
-                                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                                >
-                                    <ArrowLeft className="w-5 h-5" />
-                                </button>
-                                <h1 className="text-2xl font-bold text-gray-900">D2DC Module</h1>
-                            </div>
-                            <p className="text-gray-500 text-sm ml-7">Door-to-door collection and field monitoring</p>
+                            <h1 className="ds-page-title">D2DC Module</h1>
+                            <p className="ds-page-subtitle">Door-to-door collection and field monitoring</p>
                         </div>
                         <div className="flex items-center gap-3">
                             <Link

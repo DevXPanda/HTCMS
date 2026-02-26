@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { clerkAPI, propertyAPI } from '../../services/api';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Save, Send, Upload, CheckCircle } from 'lucide-react';
+import { Save, Send, Upload, CheckCircle } from 'lucide-react';
 
 const NewWaterApplication = () => {
     const navigate = useNavigate();
@@ -147,15 +147,8 @@ const NewWaterApplication = () => {
     return (
         <div>
             <div className="mb-6">
-                <button
-                    onClick={() => navigate('/clerk/water-applications')}
-                    className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
-                >
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back to Water Applications
-                </button>
-                <h1 className="text-3xl font-bold text-gray-900">New Water Connection Application</h1>
-                <p className="text-gray-600 mt-1">Create a new water connection request</p>
+                <h1 className="ds-page-title">New Water Connection Application</h1>
+                <p className="ds-page-subtitle">Create a new water connection request</p>
             </div>
 
             <form onSubmit={(e) => handleSubmit(e, false)} className="bg-white rounded-lg shadow p-6">

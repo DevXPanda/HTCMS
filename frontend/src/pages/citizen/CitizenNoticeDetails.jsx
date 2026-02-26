@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { citizenAPI } from '../../services/api';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
-import { ArrowLeft, FileText, User, Home, Receipt, Calendar } from 'lucide-react';
+import { FileText, User, Home, Receipt, Calendar } from 'lucide-react';
 
 const CitizenNoticeDetails = () => {
   const { id } = useParams();
@@ -55,15 +55,9 @@ const CitizenNoticeDetails = () => {
   return (
     <div>
       <div className="flex items-center gap-4 mb-6">
-        <button
-          onClick={() => navigate('/citizen/notices')}
-          className="text-gray-600 hover:text-gray-900"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Notice Details</h1>
-          <p className="text-gray-600 mt-1">{notice.noticeNumber}</p>
+          <h1 className="ds-page-title">Notice Details</h1>
+          <p className="ds-page-subtitle">{notice.noticeNumber}</p>
         </div>
       </div>
 

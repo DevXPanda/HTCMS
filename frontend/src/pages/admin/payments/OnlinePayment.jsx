@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
 import { paymentAPI, demandAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { ArrowLeft, CreditCard, CheckCircle, XCircle } from 'lucide-react';
+import { CreditCard, CheckCircle, XCircle } from 'lucide-react';
 
 const OnlinePayment = () => {
     const { demandId } = useParams();
@@ -173,12 +173,7 @@ const OnlinePayment = () => {
     return (
         <div>
             <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center">
-                    <Link to={`/demands/${demandId}`} className="mr-4 text-primary-600 hover:text-primary-700">
-                        <ArrowLeft className="w-5 h-5" />
-                    </Link>
-                    <h1 className="text-3xl font-bold text-gray-900">Online Payment</h1>
-                </div>
+                <h1 className="ds-page-title">Online Payment</h1>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

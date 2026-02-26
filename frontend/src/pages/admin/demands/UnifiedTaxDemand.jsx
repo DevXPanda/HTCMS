@@ -1,23 +1,25 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { demandAPI, propertyAPI, assessmentAPI, waterTaxAssessmentAPI } from '../../../services/api';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Zap, AlertCircle, CheckCircle2, Building2, Droplet, Truck, FileText } from 'lucide-react';
+import { Zap, CheckCircle2, Building2, Droplet, Truck, FileText, Search, X } from 'lucide-react';
 import Loading from '../../../components/Loading';
 
 const UnifiedTaxDemand = () => {
-    const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
+    const [propertySearchQuery, setPropertySearchQuery] = useState('');
+    const [propertySearchResults, setPropertySearchResults] = useState([]);
+    const [propertySearching, setPropertySearching] = useState(false);
+    const [showPropertyDropdown, setShowPropertyDropdown] = useState(false);
+    const propertyDropdownRef = useRef(null);
     const [generating, setGenerating] = useState(false);
     const [result, setResult] = useState(null);
-    const [properties, setProperties] = useState([]);
     const [selectedProperty, setSelectedProperty] = useState(null);
     const [assessments, setAssessments] = useState([]);
     const [waterTaxAssessments, setWaterTaxAssessments] = useState([]);
     const [propertyDemands, setPropertyDemands] = useState([]);
     const [loadingDemands, setLoadingDemands] = useState(false);
-    const [loadingProperties, setLoadingProperties] = useState(false);
     const [unifiedHistory, setUnifiedHistory] = useState([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
 
@@ -44,8 +46,52 @@ const UnifiedTaxDemand = () => {
     });
 
     useEffect(() => {
-        fetchProperties();
         fetchUnifiedHistory();
+    }, []);
+
+    // Search properties by number or ID (debounced)
+    useEffect(() => {
+        if (!propertySearchQuery.trim()) {
+            setPropertySearchResults([]);
+            setShowPropertyDropdown(false);
+            return;
+        }
+        const t = setTimeout(async () => {
+            setPropertySearching(true);
+            try {
+                const query = propertySearchQuery.trim();
+                const isNumericId = /^\d+$/.test(query);
+                let results = [];
+                if (isNumericId) {
+                    try {
+                        const res = await propertyAPI.getById(parseInt(query, 10));
+                        if (res.data?.data?.property) results = [res.data.data.property];
+                    } catch (_) {}
+                }
+                if (results.length === 0) {
+                    const res = await propertyAPI.search({ propertyNumber: query, limit: 20 });
+                    results = res.data?.data?.properties || [];
+                }
+                setPropertySearchResults(results);
+                setShowPropertyDropdown(true);
+            } catch (err) {
+                console.error('Property search failed', err);
+                setPropertySearchResults([]);
+            } finally {
+                setPropertySearching(false);
+            }
+        }, 300);
+        return () => clearTimeout(t);
+    }, [propertySearchQuery]);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (propertyDropdownRef.current && !propertyDropdownRef.current.contains(e.target)) {
+                setShowPropertyDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
     useEffect(() => {
@@ -93,18 +139,6 @@ const UnifiedTaxDemand = () => {
             console.error('Failed to fetch unified history:', error);
         } finally {
             setLoadingHistory(false);
-        }
-    };
-
-    const fetchProperties = async () => {
-        try {
-            setLoadingProperties(true);
-            const response = await propertyAPI.getAll({ limit: 1000, isActive: true });
-            setProperties(response.data.data.properties || []);
-        } catch (error) {
-            toast.error('Failed to fetch properties');
-        } finally {
-            setLoadingProperties(false);
         }
     };
 
@@ -287,55 +321,99 @@ const UnifiedTaxDemand = () => {
         }
     };
 
+    const clearPropertySelection = () => {
+        setSelectedProperty(null);
+        setPropertySearchQuery('');
+        setPropertySearchResults([]);
+        setShowPropertyDropdown(false);
+    };
+
     return (
-        <div className="w-full">
-            <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center">
-                    <Link to="/tax-management" className="mr-5 p-2 bg-white rounded-xl shadow-sm border border-gray-200 text-gray-400 hover:text-primary-600 hover:border-primary-100 transition-all">
-                        <ArrowLeft className="w-5 h-5" />
-                    </Link>
-                    <div>
-                        <h1 className="ds-page-title">Unified Tax Demand</h1>
-                        <p className="text-gray-500 mt-1 font-medium">Generate Property, Water, and D2DC demands in one go</p>
-                    </div>
-                </div>
+        <div className="w-full max-w-7xl mx-auto space-y-6">
+            <div>
+                <h1 className="ds-page-title">Unified Tax Demand</h1>
+                <p className="ds-page-subtitle">Generate Property, Water, and D2DC demands in one go</p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Left Column: Property Selection & Forms */}
                 <div className="lg:col-span-2 space-y-6">
 
-                    {/* Property Selection */}
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                            <span className="bg-blue-100 p-2 rounded-lg mr-3 text-blue-600">1</span>
-                            Select Property
+                    {/* Property Search */}
+                    <div className="card" ref={propertyDropdownRef}>
+                        <h2 className="form-section-title flex items-center">
+                            <span className="bg-primary-100 text-primary-700 p-2 rounded-ds mr-3 text-sm font-semibold">1</span>
+                            Search Property
                         </h2>
+                        <p className="text-sm text-gray-500 mb-3">Search by property number or property ID</p>
 
-                        {loadingProperties ? (
-                            <Loading />
+                        {selectedProperty ? (
+                            <div className="p-4 bg-gray-50 rounded-ds border border-gray-200 flex items-center justify-between">
+                                <div>
+                                    <p className="font-semibold text-gray-900">{selectedProperty.propertyNumber}</p>
+                                    <p className="text-sm text-gray-600">{selectedProperty.address}</p>
+                                    {selectedProperty.ward && (
+                                        <p className="text-xs text-gray-500 mt-0.5">Ward: {selectedProperty.ward.wardName}</p>
+                                    )}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={clearPropertySelection}
+                                    className="btn btn-ghost btn-sm"
+                                >
+                                    <X className="w-4 h-4 mr-1" /> Change
+                                </button>
+                            </div>
                         ) : (
-                            <select
-                                value={selectedProperty?.id || ''}
-                                onChange={(e) => {
-                                    const prop = properties.find(p => p.id === parseInt(e.target.value));
-                                    setSelectedProperty(prop);
-                                }}
-                                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
-                            >
-                                <option value="">-- Search or Select Property --</option>
-                                {properties.map(property => (
-                                    <option key={property.id} value={property.id}>
-                                        {property.propertyNumber} - {property.address} ({property.ward?.wardName || 'N/A'})
-                                    </option>
-                                ))}
-                            </select>
+                            <div className="relative">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        value={propertySearchQuery}
+                                        onChange={(e) => setPropertySearchQuery(e.target.value)}
+                                        onFocus={() => propertySearchQuery && setShowPropertyDropdown(true)}
+                                        placeholder="Type property number or ID..."
+                                        className="input pl-10 pr-4 py-3"
+                                        autoComplete="off"
+                                    />
+                                </div>
+                                {showPropertyDropdown && (
+                                    <ul className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-ds shadow-lg max-h-60 overflow-y-auto">
+                                        {propertySearching ? (
+                                            <li className="px-4 py-3 text-sm text-gray-500">Searching...</li>
+                                        ) : propertySearchResults.length === 0 ? (
+                                            <li className="px-4 py-3 text-sm text-gray-500">No properties found. Try another number or ID.</li>
+                                        ) : (
+                                            propertySearchResults.map((prop) => (
+                                                <li key={prop.id}>
+                                                    <button
+                                                        type="button"
+                                                        className="w-full text-left px-4 py-3 hover:bg-primary-50 border-b border-gray-100 last:border-b-0 flex items-center gap-2"
+                                                        onClick={() => {
+                                                            setSelectedProperty(prop);
+                                                            setPropertySearchQuery('');
+                                                            setShowPropertyDropdown(false);
+                                                        }}
+                                                    >
+                                                        <Building2 className="w-4 h-4 text-gray-400 shrink-0" />
+                                                        <div>
+                                                            <span className="font-medium text-gray-900">{prop.propertyNumber}</span>
+                                                            <span className="text-gray-500 text-sm block truncate">{prop.address}</span>
+                                                        </div>
+                                                    </button>
+                                                </li>
+                                            ))
+                                        )}
+                                    </ul>
+                                )}
+                            </div>
                         )}
 
                         {selectedProperty && (
-                            <div className="mt-4 p-4 bg-gray-50 rounded-lg flex items-center justify-between text-sm">
+                            <div className="mt-4 p-4 bg-gray-50 rounded-ds flex items-center justify-between text-sm">
                                 <div>
-                                    <span className="block text-gray-500">Assessments Available:</span>
+                                    <span className="label text-gray-500">Assessments Available</span>
                                     <div className="flex gap-4 mt-1">
                                         <span className={`font-medium ${assessments.length ? 'text-green-600' : 'text-red-500'}`}>
                                             {assessments.length} Property Tax
@@ -350,32 +428,26 @@ const UnifiedTaxDemand = () => {
                     </div>
 
                     {selectedProperty && (
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                                <span className="bg-purple-100 p-2 rounded-lg mr-3 text-purple-600">2</span>
+                        <div className="card">
+                            <h2 className="form-section-title flex items-center">
+                                <span className="bg-purple-100 text-purple-700 p-2 rounded-ds mr-3 text-sm font-semibold">2</span>
                                 Select Services
                             </h2>
 
                             {/* Unified Option */}
-                            <div className="mb-6 p-4 bg-gradient-to-r from-primary-50 to-indigo-50 rounded-xl border border-primary-100 transition-all hover:shadow-md">
+                            <div className="mb-6 p-4 bg-primary-50 rounded-ds-lg border border-primary-100 transition-colors hover:shadow-ds">
                                 <label className="flex items-start cursor-pointer">
                                     <div className="flex items-center h-5">
                                         <input
                                             type="checkbox"
                                             checked={generateUnified}
-                                            onChange={(e) => {
-                                                setGenerateUnified(e.target.checked);
-                                                if (!e.target.checked) {
-                                                    // Optional: Delselect others when unchecked? Maybe keep them.
-                                                    // Requirement says logic for buttons, but UX is better if explicit.
-                                                }
-                                            }}
+                                            onChange={(e) => setGenerateUnified(e.target.checked)}
                                             className="w-5 h-5 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                                         />
                                     </div>
                                     <div className="ml-3">
-                                        <span className="block text-base font-bold text-primary-900">Generate Full Unified Tax Demand ⚡</span>
-                                        <span className="block text-sm text-primary-700 mt-1">
+                                        <span className="block text-ds-section text-primary-900 font-semibold">Generate Full Unified Tax Demand ⚡</span>
+                                        <span className="block text-sm text-gray-600 mt-1">
                                             Use this to generate demand using existing approved assessments.
                                             Creates unified demand (Property + Water) with optional Shop and D2DC demands.
                                         </span>
@@ -384,9 +456,9 @@ const UnifiedTaxDemand = () => {
                             </div>
 
                             <div className="space-y-3 pl-2">
-                                <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-2">Individual Services</h3>
+                                <h3 className="ds-section-title-muted">Individual Services</h3>
 
-                                <label className="flex items-center p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
+                                <label className="flex items-center p-3 rounded-ds border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
                                     <input
                                         type="checkbox"
                                         checked={generateHouseTax}
@@ -394,15 +466,14 @@ const UnifiedTaxDemand = () => {
                                             setGenerateHouseTax(e.target.checked);
                                             if (!e.target.checked) setGenerateUnified(false);
                                         }}
-                                        disabled={generateUnified} // Lock if unified is selected? Or allow manual toggle?
-                                        // UX: If Unified is checked, these should visually imply they are included.
-                                        className="w-4 h-4 text-blue-600 rounded focus:ring-primary-500"
+                                        disabled={generateUnified}
+                                        className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
                                     />
-                                    <Building2 className="w-5 h-5 text-blue-500 mx-3" />
-                                    <span className="font-medium text-gray-700">Property Tax</span>
+                                    <Building2 className="w-5 h-5 text-primary-500 mx-3 shrink-0" />
+                                    <span className="label mb-0 text-gray-700">Property Tax</span>
                                 </label>
 
-                                <label className="flex items-center p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
+                                <label className="flex items-center p-3 rounded-ds border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
                                     <input
                                         type="checkbox"
                                         checked={generateWaterTax}
@@ -413,11 +484,11 @@ const UnifiedTaxDemand = () => {
                                         disabled={generateUnified}
                                         className="w-4 h-4 text-cyan-600 rounded focus:ring-cyan-500"
                                     />
-                                    <Droplet className="w-5 h-5 text-cyan-500 mx-3" />
-                                    <span className="font-medium text-gray-700">Water Tax</span>
+                                    <Droplet className="w-5 h-5 text-cyan-500 mx-3 shrink-0" />
+                                    <span className="label mb-0 text-gray-700">Water Tax</span>
                                 </label>
 
-                                <label className="flex items-center p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
+                                <label className="flex items-center p-3 rounded-ds border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
                                     <input
                                         type="checkbox"
                                         checked={generateD2DC}
@@ -428,21 +499,21 @@ const UnifiedTaxDemand = () => {
                                         disabled={generateUnified}
                                         className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
                                     />
-                                    <Truck className="w-5 h-5 text-purple-500 mx-3" />
-                                    <span className="font-medium text-gray-700">D2DC (Garbage Collection)</span>
+                                    <Truck className="w-5 h-5 text-purple-500 mx-3 shrink-0" />
+                                    <span className="label mb-0 text-gray-700">D2DC (Garbage Collection)</span>
                                 </label>
 
                                 {generateUnified && (
                                     <>
-                                        <label className="flex items-center p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors mt-3 bg-yellow-50">
+                                        <label className="flex items-center p-3 rounded-ds border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors mt-3 bg-amber-50">
                                             <input
                                                 type="checkbox"
                                                 checked={includeShopDemands}
                                                 onChange={(e) => setIncludeShopDemands(e.target.checked)}
-                                                className="w-4 h-4 text-yellow-600 rounded focus:ring-yellow-500"
+                                                className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
                                             />
-                                            <FileText className="w-5 h-5 text-yellow-600 mx-3" />
-                                            <span className="font-medium text-gray-700">Include Shop Demands (optional)</span>
+                                            <FileText className="w-5 h-5 text-amber-600 mx-3 shrink-0" />
+                                            <span className="label mb-0 text-gray-700">Include Shop Demands (optional)</span>
                                         </label>
                                         {generateD2DC && (
                                             <div className="mt-2 ml-7 text-xs text-gray-600">
@@ -459,34 +530,34 @@ const UnifiedTaxDemand = () => {
 
                 {/* Right Column: Configuration & Action */}
                 <div className="space-y-6">
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-6">
-                        <h2 className="text-lg font-semibold text-gray-900 mb-6">Configuration</h2>
+                    <div className="card sticky top-6">
+                        <h2 className="form-section-title">Configuration</h2>
 
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Financial Year</label>
+                                <label className="label">Financial Year</label>
                                 <input
                                     type="text"
                                     {...register('financialYear', { required: true })}
-                                    className="w-full rounded-lg border-gray-300 focus:ring-primary-500 focus:border-primary-500"
+                                    className="input"
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                                <label className="label">Due Date</label>
                                 <input
                                     type="date"
                                     {...register('dueDate', { required: true })}
-                                    className="w-full rounded-lg border-gray-300 focus:ring-primary-500 focus:border-primary-500"
+                                    className="input"
                                 />
                             </div>
 
                             {(generateD2DC || (generateUnified && generateD2DC)) && (
                                 <div className="pt-4 border-t border-gray-200 mt-4">
-                                    <p className="text-sm font-medium text-purple-700 mb-3">D2DC Specifics</p>
+                                    <p className="ds-section-title-muted text-purple-700">D2DC Specifics</p>
                                     <div className="space-y-3">
                                         <div>
-                                            <label className="block text-xs font-medium text-gray-500 mb-1">Month (YYYY-MM)</label>
+                                            <label className="label">Month (YYYY-MM)</label>
                                             <input
                                                 type="text"
                                                 {...register('month', {
@@ -497,15 +568,15 @@ const UnifiedTaxDemand = () => {
                                                     }
                                                 })}
                                                 placeholder="2024-01"
-                                                className="w-full text-sm rounded-lg border-gray-300"
+                                                className="input"
                                             />
                                             {errors.month && (
-                                                <span className="text-xs text-red-500">{errors.month.message}</span>
+                                                <span className="text-xs text-red-500 mt-1 block">{errors.month.message}</span>
                                             )}
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-medium text-gray-500 mb-1">Base Amount (₹)</label>
-                                            <input type="number" {...register('d2dcBaseAmount')} className="w-full text-sm rounded-lg border-gray-300" />
+                                            <label className="label">Base Amount (₹)</label>
+                                            <input type="number" {...register('d2dcBaseAmount')} className="input" />
                                         </div>
                                     </div>
                                 </div>
@@ -516,23 +587,16 @@ const UnifiedTaxDemand = () => {
                             <button
                                 onClick={handleSubmit(onSubmit)}
                                 disabled={generating || !selectedProperty || (!generateHouseTax && !generateWaterTax && !generateD2DC)}
-                                className={`w-full py-3 px-4 rounded-lg flex items-center justify-center font-bold text-white shadow-lg transition-all ${generating || !selectedProperty
-                                    ? 'bg-gray-400 cursor-not-allowed'
-                                    : 'bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-700 hover:to-indigo-700 hover:shadow-xl transform hover:-translate-y-0.5'
-                                    }`}
+                                className="btn btn-primary w-full btn-lg"
                             >
-                                {generating ? (
-                                    <>Processing...</>
-                                ) : (
-                                    <> Generate Demands <Zap className="ml-2 w-5 h-5" /> </>
-                                )}
+                                {generating ? 'Processing...' : <><Zap className="w-5 h-5" /> Generate Demands</>}
                             </button>
                         </div>
 
                         {/* Status Feedback */}
                         {result && (
-                            <div className="mt-6 p-4 rounded-lg bg-gray-50 border border-gray-200">
-                                <h3 className="font-semibold text-gray-900 mb-2">Generation Results</h3>
+                            <div className="mt-6 p-4 rounded-ds bg-gray-50 border border-gray-200">
+                                <h3 className="form-section-title">Generation Results</h3>
 
                                 {result.unified && (
                                     <>
@@ -611,10 +675,10 @@ const UnifiedTaxDemand = () => {
 
             {/* Generated Demands List for Selected Property */}
             {selectedProperty && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-8">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center justify-between">
+                <div className="card mt-8">
+                    <h2 className="form-section-title flex items-center justify-between flex-wrap gap-2">
                         <span>Existing Demands for {selectedProperty.propertyNumber}</span>
-                        <span className="text-sm font-normal text-gray-500">{propertyDemands.length} found</span>
+                        <span className="text-sm font-medium text-gray-500">{propertyDemands.length} found</span>
                     </h2>
 
                     {loadingDemands ? (
@@ -622,29 +686,28 @@ const UnifiedTaxDemand = () => {
                     ) : propertyDemands.length > 0 ? (
                         <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
                             {propertyDemands.map((demand) => (
-                                <div key={demand.id} className="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                                <div key={demand.id} className="p-3 border border-gray-200 rounded-ds hover:bg-gray-50 transition-colors">
                                     <div className="flex justify-between items-start mb-1">
-                                        <span className={`px-2 py-0.5 rounded text-xs font-semibold ${demand.serviceType === 'HOUSE_TAX' ? 'bg-blue-100 text-blue-700' :
-                                            demand.serviceType === 'WATER_TAX' ? 'bg-cyan-100 text-cyan-700' :
-                                                demand.serviceType === 'D2DC' ? 'bg-purple-100 text-purple-700' :
-                                                    'bg-gray-100 text-gray-700'
-                                            }`}>
+                                        <span className={`badge ${demand.serviceType === 'HOUSE_TAX' ? 'badge-info' :
+                                            demand.serviceType === 'WATER_TAX' ? 'bg-cyan-100 text-cyan-800' :
+                                                demand.serviceType === 'D2DC' ? 'bg-purple-100 text-purple-800' :
+                                                    'badge-neutral'
+                                        }`}>
                                             {demand.serviceType.replace('_', ' ')}
                                         </span>
-                                        <span className={`text-xs font-medium ${demand.status === 'paid' ? 'text-green-600' :
-                                            demand.status === 'partially_paid' ? 'text-yellow-600' :
-                                                'text-red-600'
-                                            }`}>
-                                            {demand.status.toUpperCase()}
+                                        <span className={`badge text-xs font-medium ${demand.status === 'paid' ? 'badge-success' :
+                                            demand.status === 'partially_paid' ? 'badge-warning' : 'badge-danger'
+                                        }`}>
+                                            {demand.status}
                                         </span>
                                     </div>
                                     <div className="flex justify-between items-center text-sm">
-                                        <span className="font-medium text-gray-900">{demand.demandNumber}</span>
-                                        <span className="font-bold text-gray-900">₹{parseFloat(demand.totalAmount).toLocaleString('en-IN')}</span>
+                                        <span className="font-semibold text-gray-900">{demand.demandNumber}</span>
+                                        <span className="stat-card-value text-base">₹{parseFloat(demand.totalAmount).toLocaleString('en-IN')}</span>
                                     </div>
                                     <div className="flex justify-between items-center mt-1 text-xs text-gray-500">
                                         <span>FY: {demand.financialYear}</span>
-                                        <Link to={`/demands/${demand.id}`} className="text-primary-600 hover:text-primary-800 hover:underline flex items-center">
+                                        <Link to={`/demands/${demand.id}`} className="text-primary-600 hover:underline flex items-center text-sm font-medium">
                                             View Details <FileText className="w-3 h-3 ml-1" />
                                         </Link>
                                     </div>
@@ -652,20 +715,18 @@ const UnifiedTaxDemand = () => {
                             ))}
                         </div>
                     ) : (
-                        <p className="text-sm text-gray-500 text-center py-4">No demands generated yet.</p>
+                        <p className="empty-state-text text-center py-4">No demands generated yet.</p>
                     )}
                 </div>
             )}
 
             {/* Global Unified History */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-8">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center justify-between">
-                    <div className="flex items-center">
-                        <span className="bg-indigo-100 p-2 rounded-lg mr-3 text-indigo-600">
-                            <Zap className="w-5 h-5" />
-                        </span>
-                        <span>Recent Unified Generations</span>
-                    </div>
+            <div className="card mt-8">
+                <h2 className="form-section-title flex items-center">
+                    <span className="bg-primary-100 text-primary-700 p-2 rounded-ds mr-3">
+                        <Zap className="w-5 h-5" />
+                    </span>
+                    Recent Unified Generations
                 </h2>
 
                 {loadingHistory ? (
@@ -673,52 +734,51 @@ const UnifiedTaxDemand = () => {
                 ) : unifiedHistory.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {unifiedHistory.map((demand) => (
-                            <div key={demand.id} className="p-4 border border-gray-100 rounded-xl bg-gray-50/50 hover:bg-white hover:shadow-md transition-all duration-300 group">
+                            <div key={demand.id} className="stat-card card-hover group">
                                 <div className="flex justify-between items-start mb-3">
                                     <div className="flex flex-col">
-                                        <span className="text-sm font-bold text-gray-900 group-hover:text-primary-600 transition-colors">
+                                        <span className="text-ds-section font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">
                                             {demand.demandNumber}
                                         </span>
-                                        <span className="text-xs text-gray-500 mt-0.5">
+                                        <span className="ds-page-subtitle mt-0.5">
                                             FY: {demand.financialYear}
                                         </span>
                                     </div>
-                                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${demand.status === 'paid' ? 'bg-green-100 text-green-700' :
-                                        demand.status === 'partially_paid' ? 'bg-yellow-100 text-yellow-700' :
-                                            'bg-red-100 text-red-700'
-                                        }`}>
+                                    <span className={`badge capitalize ${demand.status === 'paid' ? 'badge-success' :
+                                        demand.status === 'partially_paid' ? 'badge-warning' : 'badge-danger'
+                                    }`}>
                                         {demand.status}
                                     </span>
                                 </div>
 
                                 <div className="flex items-center text-sm text-gray-600 mb-3">
-                                    <Building2 className="w-4 h-4 mr-2 text-gray-400" />
+                                    <Building2 className="w-4 h-4 mr-2 text-gray-400 shrink-0" />
                                     <span className="truncate">
-                                        {demand.property?.propertyNumber || 'Property Demand'} - {demand.property?.address || 'System Wide'}
+                                        {demand.property?.propertyNumber || 'Property Demand'} — {demand.property?.address || 'System Wide'}
                                     </span>
                                 </div>
 
                                 <div className="flex justify-between items-center pt-3 border-t border-gray-100">
                                     <div className="flex flex-col">
-                                        <span className="text-xs text-gray-400">Total Amount</span>
-                                        <span className="text-lg font-black text-gray-900">
+                                        <span className="stat-card-title mb-0">Total Amount</span>
+                                        <span className="stat-card-value">
                                             ₹{parseFloat(demand.totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                         </span>
                                     </div>
                                     <Link
                                         to={`/demands/${demand.id}`}
-                                        className="inline-flex items-center px-3 py-1.5 bg-white border border-gray-200 text-xs font-semibold text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-600 hover:border-primary-200 transition-all shadow-sm"
+                                        className="btn btn-ghost btn-sm"
                                     >
-                                        Details <ArrowLeft className="w-3 h-3 ml-1 transform rotate-180" />
+                                        Details
                                     </Link>
                                 </div>
                             </div>
                         ))}
                     </div>
                 ) : (
-                    <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-300">
-                        <Zap className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                        <p className="text-gray-500">No unified demands found in system records.</p>
+                    <div className="empty-state">
+                        <Zap className="empty-state-icon" />
+                        <p className="empty-state-text">No unified demands found in system records.</p>
                     </div>
                 )}
             </div>

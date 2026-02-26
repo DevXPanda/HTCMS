@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { shopsAPI, shopTaxAssessmentsAPI, demandAPI } from '../../services/api';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Store, FileText, Receipt } from 'lucide-react';
+import { Store, FileText, Receipt } from 'lucide-react';
 
 const CitizenShopDetails = () => {
   const { id } = useParams();
@@ -55,11 +55,6 @@ const CitizenShopDetails = () => {
 
   return (
     <div>
-      <Link to="/citizen/shops" className="flex items-center text-primary-600 mb-4">
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to My Shops
-      </Link>
-
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 flex items-center">
           <Store className="w-8 h-8 mr-3 text-amber-600" />

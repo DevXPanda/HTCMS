@@ -30,7 +30,7 @@ const WaterTaxAssessments = () => {
         ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''))
       };
       const response = await waterTaxAssessmentAPI.getAll(params);
-      setAssessments(response.data.data.assessments);
+      setAssessments(response.data?.data?.assessments ?? []);
     } catch (error) {
       toast.error('Failed to fetch water tax assessments');
     } finally {

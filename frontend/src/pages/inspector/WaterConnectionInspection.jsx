@@ -13,7 +13,6 @@ import {
   XCircle,
   RotateCcw,
   AlertTriangle,
-  ArrowLeft,
   Save,
   Image as ImageIcon
 } from 'lucide-react';
@@ -127,19 +126,9 @@ const WaterConnectionInspection = () => {
     <div className="space-y-6">
       {/* Page Header */}
       <div className="flex justify-between items-center">
-        <div className="flex items-center">
-          <button
-            onClick={() => navigate('/inspector/water-connections')}
-            className="mr-4 p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Water Connection Inspection</h1>
-            <p className="text-gray-600 mt-1">
-              Request: {request.requestNumber}
-            </p>
-          </div>
+        <div>
+          <h1 className="ds-page-title">Water Connection Inspection</h1>
+          <p className="ds-page-subtitle">Request: {request.requestNumber}</p>
         </div>
         <div className="flex items-center space-x-4">
           <span className={`px-3 py-1 rounded-full text-sm font-medium ${request.status === 'SUBMITTED'

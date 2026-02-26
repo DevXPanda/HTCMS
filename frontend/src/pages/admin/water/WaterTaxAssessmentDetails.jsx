@@ -3,7 +3,10 @@ import { useParams, Link } from 'react-router-dom';
 import { waterTaxAssessmentAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { ArrowLeft, FileText } from 'lucide-react';
+import { FileText, Droplet, Home, Hash, Calendar, Wallet } from 'lucide-react';
+import DetailPageLayout, { DetailRow } from '../../../components/DetailPageLayout';
+
+const formatAmt = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const WaterTaxAssessmentDetails = () => {
   const { id } = useParams();
@@ -36,164 +39,152 @@ const WaterTaxAssessmentDetails = () => {
   };
 
   if (loading) return <Loading />;
-  if (!assessment) return <div>Assessment not found</div>;
+  if (!assessment) return <div>Water tax assessment not found</div>;
+
+  const summarySection = (
+    <>
+      <h2 className="form-section-title">Summary</h2>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="stat-card">
+          <Hash className="w-5 h-5 text-gray-500" />
+          <span className="stat-card-label">Assessment Number</span>
+          <span className="stat-card-value">{assessment.assessmentNumber}</span>
+        </div>
+        <div className="stat-card">
+          <Wallet className="w-5 h-5 text-gray-500" />
+          <span className="stat-card-label">Rate</span>
+          <span className="stat-card-value text-green-600">{formatAmt(assessment.rate)}</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-card-label">Status</span>
+          <span className={`badge ${getStatusBadge(assessment.status)} capitalize`}>{assessment.status}</span>
+        </div>
+        <div className="stat-card">
+          <Calendar className="w-5 h-5 text-gray-500" />
+          <span className="stat-card-label">Assessment Year</span>
+          <span className="stat-card-value">{assessment.assessmentYear}</span>
+        </div>
+      </div>
+    </>
+  );
 
   return (
-    <div>
-      <Link to="/water/assessments" className="flex items-center text-primary-600 mb-4">
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to Water Tax Assessments
-      </Link>
-
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Water Tax Assessment Details</h1>
-      </div>
-
+    <DetailPageLayout
+      title="Water Tax Assessment Details"
+      subtitle={assessment.assessmentNumber}
+      summarySection={summarySection}
+    >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card">
-          <h2 className="text-xl font-semibold mb-4 flex items-center">
+          <h2 className="form-section-title flex items-center">
             <FileText className="w-5 h-5 mr-2" />
             Assessment Information
           </h2>
-          <dl className="space-y-3">
-            <div>
-              <dt className="text-sm font-medium text-gray-500">Assessment Number</dt>
-              <dd className="text-lg font-semibold">{assessment.assessmentNumber}</dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-gray-500">Assessment Year</dt>
-              <dd>{assessment.assessmentYear}</dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-gray-500">Assessment Type</dt>
-              <dd>
-                <span className="badge badge-info">
-                  {assessment.assessmentType}
-                </span>
-              </dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-gray-500">Rate</dt>
-              <dd className="text-lg font-semibold">
-                ₹{parseFloat(assessment.rate || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-gray-500">Status</dt>
-              <dd>
+          <div className="space-y-0">
+            <DetailRow label="Assessment Number" value={assessment.assessmentNumber} />
+            <DetailRow label="Assessment Year" value={assessment.assessmentYear} />
+            <DetailRow
+              label="Assessment Type"
+              value={<span className="badge badge-info">{assessment.assessmentType}</span>}
+            />
+            <DetailRow label="Rate" value={<span className="font-semibold">{formatAmt(assessment.rate)}</span>} />
+            <DetailRow
+              label="Status"
+              value={
                 <span className={`badge ${getStatusBadge(assessment.status)} capitalize`}>
                   {assessment.status}
                 </span>
-              </dd>
-            </div>
+              }
+            />
             {assessment.remarks && (
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Remarks</dt>
-                <dd className="text-sm text-gray-700">{assessment.remarks}</dd>
-              </div>
+              <DetailRow label="Remarks" value={assessment.remarks} />
             )}
-          </dl>
+          </div>
         </div>
 
         <div className="card">
-          <h2 className="text-xl font-semibold mb-4">Property & Connection</h2>
-          <dl className="space-y-3">
+          <h2 className="form-section-title flex items-center">
+            <Droplet className="w-5 h-5 mr-2" />
+            Property & Connection
+          </h2>
+          <div className="space-y-0">
             {assessment.property && (
               <>
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">Property Number</dt>
-                  <dd>
-                    <Link 
-                      to={`/properties/${assessment.propertyId}`} 
-                      className="text-primary-600 hover:underline"
-                    >
-                      {assessment.property.propertyNumber}
-                    </Link>
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">Address</dt>
-                  <dd>{assessment.property.address}</dd>
-                </div>
+                <DetailRow
+                  label="Property Number"
+                  value={
+                    assessment.propertyId ? (
+                      <Link to={`/properties/${assessment.propertyId}`} className="text-primary-600 hover:underline">
+                        {assessment.property.propertyNumber}
+                      </Link>
+                    ) : assessment.property.propertyNumber
+                  }
+                />
+                <DetailRow label="Address" value={assessment.property.address} />
                 {assessment.property.ward && (
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500">Ward</dt>
-                    <dd>{assessment.property.ward.wardName}</dd>
-                  </div>
+                  <DetailRow label="Ward" value={assessment.property.ward.wardName} />
                 )}
               </>
             )}
             {assessment.waterConnection && (
               <>
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">Connection Number</dt>
-                  <dd>
-                    <Link 
-                      to={`/water/connections?propertyId=${assessment.propertyId}`} 
+                <DetailRow
+                  label="Connection Number"
+                  value={
+                    <Link
+                      to={`/water/connections?propertyId=${assessment.propertyId}`}
                       className="text-primary-600 hover:underline"
                     >
                       {assessment.waterConnection.connectionNumber}
                     </Link>
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">Connection Type</dt>
-                  <dd className="capitalize">{assessment.waterConnection.connectionType}</dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">Meter Type</dt>
-                  <dd>{assessment.waterConnection.isMetered ? 'Metered' : 'Non-metered'}</dd>
-                </div>
+                  }
+                />
+                <DetailRow label="Connection Type" value={assessment.waterConnection.connectionType} />
+                <DetailRow
+                  label="Meter Type"
+                  value={assessment.waterConnection.isMetered ? 'Metered' : 'Non-metered'}
+                />
                 {assessment.waterConnection.meterNumber && (
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500">Meter Number</dt>
-                    <dd>{assessment.waterConnection.meterNumber}</dd>
-                  </div>
+                  <DetailRow label="Meter Number" value={assessment.waterConnection.meterNumber} />
                 )}
               </>
             )}
-          </dl>
+          </div>
         </div>
 
-        {(assessment.assessor || assessment.approver) && (
+        {(assessment.assessor || assessment.approver || assessment.createdAt || assessment.updatedAt) && (
           <div className="card lg:col-span-2">
-            <h2 className="text-xl font-semibold mb-4">Assessment History</h2>
-            <dl className="space-y-3">
+            <h2 className="form-section-title flex items-center">
+              <Home className="w-5 h-5 mr-2" />
+              Assessment History
+            </h2>
+            <div className="space-y-0">
               {assessment.assessor && (
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">Assessed By</dt>
-                  <dd>
-                    {assessment.assessor.firstName} {assessment.assessor.lastName}
-                  </dd>
-                </div>
+                <DetailRow
+                  label="Assessed By"
+                  value={`${assessment.assessor.firstName} ${assessment.assessor.lastName}`}
+                />
               )}
               {assessment.approver && (
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">Approved By</dt>
-                  <dd>
-                    {assessment.approver.firstName} {assessment.approver.lastName}
-                  </dd>
-                </div>
+                <DetailRow
+                  label="Approved By"
+                  value={`${assessment.approver.firstName} ${assessment.approver.lastName}`}
+                />
               )}
               {assessment.approvalDate && (
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">Approval Date</dt>
-                  <dd>{new Date(assessment.approvalDate).toLocaleDateString()}</dd>
-                </div>
+                <DetailRow label="Approval Date" value={new Date(assessment.approvalDate).toLocaleDateString()} />
               )}
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Created At</dt>
-                <dd>{new Date(assessment.createdAt).toLocaleString()}</dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Last Updated</dt>
-                <dd>{new Date(assessment.updatedAt).toLocaleString()}</dd>
-              </div>
-            </dl>
+              {assessment.createdAt && (
+                <DetailRow label="Created At" value={new Date(assessment.createdAt).toLocaleString()} />
+              )}
+              {assessment.updatedAt && (
+                <DetailRow label="Last Updated" value={new Date(assessment.updatedAt).toLocaleString()} />
+              )}
+            </div>
           </div>
         )}
       </div>
-    </div>
+    </DetailPageLayout>
   );
 };
 

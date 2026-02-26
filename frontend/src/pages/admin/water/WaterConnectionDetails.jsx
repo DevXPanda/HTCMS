@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { waterConnectionAPI, waterConnectionDocumentAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { ArrowLeft, FileText, Upload, Trash2, Download, AlertCircle, CheckCircle, Power } from 'lucide-react';
+import { FileText, Upload, Trash2, Download, AlertCircle, CheckCircle, Power } from 'lucide-react';
 import DocumentUploadModal from './DocumentUploadModal';
 
 const DOCUMENT_TYPE_LABELS = {
@@ -119,11 +119,6 @@ const WaterConnectionDetails = () => {
 
   return (
     <div>
-      <Link to="/water/connections" className="flex items-center text-primary-600 mb-4">
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to Water Connections
-      </Link>
-
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Water Connection Details</h1>
         <div className="flex items-center space-x-3">

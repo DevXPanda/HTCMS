@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { clerkAPI } from '../../services/api';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Edit, Send, FileText, MapPin, Home, Calendar } from 'lucide-react';
+import { Edit, Send, FileText, MapPin, Home, Calendar } from 'lucide-react';
 
 const PropertyApplicationDetails = () => {
     const { id } = useParams();
@@ -69,13 +69,6 @@ const PropertyApplicationDetails = () => {
     return (
         <div>
             <div className="mb-6">
-                <button
-                    onClick={() => navigate('/clerk/property-applications')}
-                    className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
-                >
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back to Applications
-                </button>
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900">Property Application Details</h1>

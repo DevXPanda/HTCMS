@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { shopsAPI, propertyAPI, wardAPI, userAPI } from '../../../services/api';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Save } from 'lucide-react';
+import { Save } from 'lucide-react';
 import Loading from '../../../components/Loading';
 import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -124,13 +124,8 @@ const EditShop = () => {
 
   return (
     <div>
-      <Link to={`${basePath}/shop-tax/shops/${id}`} className="flex items-center text-primary-600 mb-4">
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to Shop Details
-      </Link>
-
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Edit Shop</h1>
+        <h1 className="ds-page-title">Edit Shop</h1>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="card">

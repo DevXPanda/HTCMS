@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { assessmentAPI, propertyAPI } from '../../../services/api';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Save, Calculator } from 'lucide-react';
+import { Save, Calculator } from 'lucide-react';
 
 const AddAssessment = () => {
   const navigate = useNavigate();
@@ -104,12 +104,7 @@ const AddAssessment = () => {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center">
-          <Link to="/assessments" className="mr-4 text-primary-600 hover:text-primary-700">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <h1 className="ds-page-title">Create New Tax Assessment</h1>
-        </div>
+        <h1 className="ds-page-title">Create New Tax Assessment</h1>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="card space-y-6">

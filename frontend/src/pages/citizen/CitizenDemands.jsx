@@ -9,18 +9,23 @@ const CitizenDemands = () => {
   const [demands, setDemands] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchParams, setSearchParams] = useSearchParams();
-  const [serviceTypeFilter, setServiceTypeFilter] = useState(searchParams.get('serviceType') || 'all');
+  const [serviceTypeFilter, setServiceTypeFilter] = useState(() => searchParams.get('serviceType') || 'all');
+
+  // Sync filter from URL (e.g. browser back or initial load with ?serviceType=)
+  useEffect(() => {
+    const type = searchParams.get('serviceType') || 'all';
+    setServiceTypeFilter(type);
+  }, [searchParams]);
 
   useEffect(() => {
     fetchDemands();
-  }, [serviceTypeFilter]);
+  }, []);
 
   const fetchDemands = async () => {
     try {
       setLoading(true);
-      const params = serviceTypeFilter !== 'all' ? { serviceType: serviceTypeFilter } : {};
-      const response = await citizenAPI.getDemands(params);
-      setDemands(response.data.data.demands);
+      const response = await citizenAPI.getDemands({});
+      setDemands(response.data.data.demands || []);
     } catch (error) {
       toast.error('Failed to fetch demands');
     } finally {
@@ -37,11 +42,15 @@ const CitizenDemands = () => {
     }
   };
 
-  // Group demands by serviceType
+  // Tab counts from full list; displayed rows filtered by selected tab
   const houseTaxDemands = demands.filter(d => d.serviceType === 'HOUSE_TAX');
   const waterTaxDemands = demands.filter(d => d.serviceType === 'WATER_TAX');
   const d2dcDemands = demands.filter(d => d.serviceType === 'D2DC');
   const shopTaxDemands = demands.filter(d => d.serviceType === 'SHOP_TAX');
+  const displayedDemands =
+    serviceTypeFilter === 'all'
+      ? demands
+      : demands.filter(d => d.serviceType === serviceTypeFilter);
 
   // Group demands by property and financial year for combined view
   const groupedDemands = demands.reduce((acc, demand) => {
@@ -87,51 +96,46 @@ const CitizenDemands = () => {
         <div className="flex gap-2">
           <button
             onClick={() => handleServiceTypeFilter('all')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium ${
-              serviceTypeFilter === 'all'
+            className={`px-4 py-2 rounded-lg text-sm font-medium ${serviceTypeFilter === 'all'
                 ? 'bg-primary-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+              }`}
           >
             All ({demands.length})
           </button>
           <button
             onClick={() => handleServiceTypeFilter('HOUSE_TAX')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium ${
-              serviceTypeFilter === 'HOUSE_TAX'
+            className={`px-4 py-2 rounded-lg text-sm font-medium ${serviceTypeFilter === 'HOUSE_TAX'
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+              }`}
           >
             House Tax ({houseTaxDemands.length})
           </button>
           <button
             onClick={() => handleServiceTypeFilter('WATER_TAX')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium ${
-              serviceTypeFilter === 'WATER_TAX'
+            className={`px-4 py-2 rounded-lg text-sm font-medium ${serviceTypeFilter === 'WATER_TAX'
                 ? 'bg-cyan-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+              }`}
           >
             Water Tax ({waterTaxDemands.length})
           </button>
           <button
             onClick={() => handleServiceTypeFilter('D2DC')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium ${
-              serviceTypeFilter === 'D2DC'
+            className={`px-4 py-2 rounded-lg text-sm font-medium ${serviceTypeFilter === 'D2DC'
                 ? 'bg-green-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+              }`}
           >
             D2DC ({d2dcDemands.length})
           </button>
           <button
             onClick={() => handleServiceTypeFilter('SHOP_TAX')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium ${
-              serviceTypeFilter === 'SHOP_TAX'
+            className={`px-4 py-2 rounded-lg text-sm font-medium ${serviceTypeFilter === 'SHOP_TAX'
                 ? 'bg-amber-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+              }`}
           >
             Shop Tax ({shopTaxDemands.length})
           </button>
@@ -155,30 +159,29 @@ const CitizenDemands = () => {
             </tr>
           </thead>
           <tbody>
-            {demands.length === 0 ? (
+            {displayedDemands.length === 0 ? (
               <tr>
                 <td colSpan="10" className="text-center py-8 text-gray-500">
-                  No demands found
+                  {demands.length === 0 ? 'No demands found' : `No ${serviceTypeFilter.replace('_', ' ').toLowerCase()} demands`}
                 </td>
               </tr>
             ) : (
-              demands.map((demand) => {
+              displayedDemands.map((demand) => {
                 const isOverdue = new Date(demand.dueDate) < new Date() && demand.balanceAmount > 0;
                 const isD2DC = demand.serviceType === 'D2DC';
                 const isWaterTax = demand.serviceType === 'WATER_TAX';
                 const isShopTax = demand.serviceType === 'SHOP_TAX';
                 return (
                   <tr key={demand.id} className={isOverdue ? 'bg-red-50' : ''}>
-                    <td>
-                      <span className={`px-2 py-1 text-xs font-semibold rounded ${
-                        isD2DC 
+                    <td className="whitespace-nowrap">
+                      <span className={`inline-block px-2 py-1 text-xs font-semibold rounded ${isD2DC
                           ? 'bg-green-100 text-green-800 border border-green-300'
                           : isWaterTax
-                          ? 'bg-cyan-100 text-cyan-800 border border-cyan-300'
-                          : isShopTax
-                          ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                          : 'bg-blue-100 text-blue-800 border border-blue-300'
-                      }`}>
+                            ? 'bg-cyan-100 text-cyan-800 border border-cyan-300'
+                            : isShopTax
+                              ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                              : 'bg-blue-100 text-blue-800 border border-blue-300'
+                        }`}>
                         {isD2DC ? 'D2DC' : isWaterTax ? 'Water Tax' : isShopTax ? 'Shop Tax' : 'House Tax'}
                       </span>
                     </td>

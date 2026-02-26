@@ -11,7 +11,6 @@ import {
   MapPin,
   Home,
   AlertTriangle,
-  ArrowLeft
 } from 'lucide-react';
 import api from '../../services/api';
 import { toast } from 'react-hot-toast';
@@ -106,16 +105,9 @@ const WaterRequestDetails = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <button
-          onClick={() => navigate('/officer/water-requests')}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Requests
-        </button>
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Water Connection Request Details</h1>
-          <p className="text-gray-600 mt-2">Review and make final decision on this escalated request</p>
+          <h1 className="ds-page-title">Water Connection Request Details</h1>
+          <p className="ds-page-subtitle">Review and make final decision on this escalated request</p>
         </div>
       </div>
 

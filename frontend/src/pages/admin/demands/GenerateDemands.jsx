@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { demandAPI, propertyAPI, assessmentAPI, waterTaxAssessmentAPI } from '../../../services/api';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Zap, AlertCircle, Trash2, Plus, Store } from 'lucide-react';
+import { Zap, AlertCircle, Trash2, Plus, Store } from 'lucide-react';
 import Loading from '../../../components/Loading';
 import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
 
@@ -361,12 +361,7 @@ const GenerateDemands = () => {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center">
-          <Link to={`${basePath}/demands`} className="mr-4 text-primary-600 hover:text-primary-700">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <h1 className="text-3xl font-bold text-gray-900">Generate Demands</h1>
-        </div>
+        <h1 className="ds-page-title">Generate Demands</h1>
       </div>
 
       {/* Mode Selection */}

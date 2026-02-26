@@ -7,7 +7,6 @@ import {
     AlertCircle,
     Calendar,
     User,
-    ArrowLeft,
     Save,
     Trash2,
     MapPin,
@@ -135,13 +134,8 @@ const ComplaintDetails = () => {
         <div className="space-y-6 text-left">
             <div className="ds-page-header flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <div className="flex items-center gap-2 mb-1">
-                        <button onClick={() => navigate(-1)} className="p-1 hover:bg-gray-100 rounded-lg transition-colors" aria-label="Go back">
-                            <ArrowLeft className="w-5 h-5 text-gray-500" />
-                        </button>
-                        <h1 className="ds-page-title">Complaint Details</h1>
-                    </div>
-                    <p className="ds-page-subtitle ml-9">Ref: #COMP-{complaint.id} | Reported on {new Date(complaint.createdAt).toLocaleString()}</p>
+                    <h1 className="ds-page-title">Complaint Details</h1>
+                    <p className="ds-page-subtitle">Ref: #COMP-{complaint.id} | Reported on {new Date(complaint.createdAt).toLocaleString()}</p>
                 </div>
                 <div className="flex gap-2">
                     <button

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { demandAPI, penaltyWaiverAPI, propertyAPI, waterConnectionAPI, shopsAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Search, Shield, IndianRupee, FileText, Calendar, History, Download, CheckCircle, Printer } from 'lucide-react';
+import { Search, Shield, IndianRupee, FileText, Calendar, History, Download, CheckCircle, Printer } from 'lucide-react';
 import { getDemandOriginalAmount, getDemandPenaltyAmount, calculatePenaltyWaiver, calculateFinalAmount } from '../../../utils/financialCalculations';
 
 const MODULE_OPTIONS = [
@@ -433,14 +433,9 @@ const PenaltyWaiverManagement = () => {
   return (
     <div className="space-y-8 max-w-7xl mx-auto px-2">
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-2">
-          <Link to="/tax-management" className="text-gray-400 hover:text-gray-600 transition-colors">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Penalty Waiver Management</h1>
-            <p className="text-gray-500 text-sm">Manual penalty or late fee relief management</p>
-          </div>
+        <div>
+          <h1 className="ds-page-title">Penalty Waiver Management</h1>
+          <p className="ds-page-subtitle">Manual penalty or late fee relief management</p>
         </div>
       </div>
 

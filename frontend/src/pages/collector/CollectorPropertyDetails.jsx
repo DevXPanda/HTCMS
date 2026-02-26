@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { propertyAPI } from '../../services/api';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
-import { ArrowLeft, MapPin, Camera } from 'lucide-react';
+import { MapPin, Camera } from 'lucide-react';
 
 const CollectorPropertyDetails = () => {
   const { id } = useParams();
@@ -30,11 +30,6 @@ const CollectorPropertyDetails = () => {
 
   return (
     <div>
-      <Link to="/collector/properties" className="flex items-center text-primary-600 mb-4">
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to Property List
-      </Link>
-
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Property Details</h1>
       </div>

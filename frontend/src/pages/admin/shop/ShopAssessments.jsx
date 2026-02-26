@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { shopTaxAssessmentsAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { Plus, Eye, Edit, Filter, X, CheckCircle, XCircle, Send, ArrowLeft, Download } from 'lucide-react';
+import { Plus, Eye, Edit, Filter, X, CheckCircle, XCircle, Send, Download } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
 import { exportToCSV } from '../../../utils/exportCSV';
@@ -115,11 +115,8 @@ const ShopAssessments = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-2">
-          <Link to={`${basePath}/shop-tax`} className="text-primary-600 hover:text-primary-700">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <h1 className="text-3xl font-bold text-gray-900">Shop Tax Assessments</h1>
+        <div>
+          <h1 className="ds-page-title">Shop Tax Assessments</h1>
         </div>
         <div className="flex gap-2">
           {(isAdmin || isAssessor || basePath === '/clerk') && (

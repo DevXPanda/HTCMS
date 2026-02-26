@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { fieldVisitAPI, uploadAPI } from '../../services/api';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
-import { ArrowLeft, MapPin, User, DollarSign, Calendar, FileText, AlertCircle, CheckCircle, Upload, X, Image as ImageIcon, RefreshCw } from 'lucide-react';
+import { MapPin, User, DollarSign, Calendar, FileText, AlertCircle, CheckCircle, Upload, X, Image as ImageIcon, RefreshCw } from 'lucide-react';
 
 const RecordFieldVisit = () => {
   const navigate = useNavigate();
@@ -370,17 +370,9 @@ const RecordFieldVisit = () => {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center">
-          <button
-            onClick={() => navigate('/collector/tasks')}
-            className="mr-4 text-gray-600 hover:text-gray-900"
-          >
-            <ArrowLeft className="w-6 h-6" />
-          </button>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Record Field Visit</h1>
-            <p className="text-gray-600 mt-1">Record your field visit with complete details</p>
-          </div>
+        <div>
+          <h1 className="ds-page-title">Record Field Visit</h1>
+          <p className="ds-page-subtitle">Record your field visit with complete details</p>
         </div>
         <button
           type="button"

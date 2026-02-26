@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { propertyAPI, wardAPI, uploadAPI } from '../../../services/api';
 import toast from 'react-hot-toast';
 import Loading from '../../../components/Loading';
-import { ArrowLeft, Save, Upload, X, Image as ImageIcon } from 'lucide-react';
+import { Save, Upload, X, Image as ImageIcon } from 'lucide-react';
 
 const EditProperty = () => {
   const { id } = useParams();
@@ -139,12 +139,7 @@ const EditProperty = () => {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center">
-          <Link to={`/properties/${id}`} className="mr-4 text-primary-600 hover:text-primary-700">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <h1 className="text-3xl font-bold text-gray-900">Edit Property</h1>
-        </div>
+        <h1 className="ds-page-title">Edit Property</h1>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="card space-y-6">

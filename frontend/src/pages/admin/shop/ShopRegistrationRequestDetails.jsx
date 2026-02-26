@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { shopRegistrationRequestAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Store, CheckCircle, XCircle, Clock, MapPin, Calendar, User, FileText, Download, ExternalLink } from 'lucide-react';
+import { Store, CheckCircle, XCircle, Clock, MapPin, Calendar, User, FileText, Download, ExternalLink } from 'lucide-react';
 
 const ShopRegistrationRequestDetails = () => {
   const { id } = useParams();
@@ -102,13 +102,7 @@ const ShopRegistrationRequestDetails = () => {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <button
-          onClick={() => navigate(isClerkRoute ? '/clerk/shop-registration-requests' : '/shop-registration-requests')}
-          className="flex items-center text-primary-600 hover:text-primary-700"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Requests
-        </button>
+        <div />
         {request.status === 'pending' && (
           <div className="flex gap-2">
             <button

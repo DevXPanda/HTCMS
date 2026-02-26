@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { User, LogOut, Home, LayoutDashboard, ArrowLeft } from 'lucide-react';
+import { User, LogOut, Home, LayoutDashboard, X } from 'lucide-react';
 import { useStaffAuth } from '../contexts/StaffAuthContext';
-import { useNavigation } from '../contexts/NavigationContext';
 
 const SupervisorLayout = () => {
   const { user, logout } = useStaffAuth();
   const [showProfileModal, setShowProfileModal] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { backTo } = useNavigation();
   const isDashboard = location.pathname === '/supervisor/dashboard';
 
   const handleLogout = async () => {
@@ -26,15 +24,6 @@ const SupervisorLayout = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16">
               <div className="flex items-center gap-4">
-                {backTo && (
-                  <button
-                    onClick={() => navigate(backTo)}
-                    className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
-                    title="Go Back"
-                  >
-                    <ArrowLeft className="w-5 h-5" />
-                  </button>
-                )}
                 <h1 className="text-xl font-bold text-primary-600">Supervisor Portal</h1>
                 <nav className="flex gap-2">
                   <button

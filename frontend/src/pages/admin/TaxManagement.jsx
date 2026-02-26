@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, Droplet, Store, Truck, ArrowLeft, Zap, Percent, ShieldAlert, TrendingUp, AlertCircle, IndianRupee, FileText } from 'lucide-react';
+import { Building2, Droplet, Store, Truck, Zap, Percent, ShieldAlert, TrendingUp, AlertCircle, IndianRupee, FileText } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
 
@@ -105,13 +105,8 @@ const TaxManagement = () => {
             {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <div className="flex items-center gap-2 mb-1">
-                        <Link to="/dashboard" className="text-gray-400 hover:text-gray-600 transition-colors">
-                            <ArrowLeft className="w-5 h-5" />
-                        </Link>
-                        <h1 className="text-2xl font-bold text-gray-900">Tax Management</h1>
-                    </div>
-                    <p className="text-gray-500 text-sm ml-7">Select a tax module to proceed</p>
+                    <h1 className="ds-page-title">Tax Management</h1>
+                    <p className="ds-page-subtitle">Select a tax module to proceed</p>
                 </div>
             </div>
 

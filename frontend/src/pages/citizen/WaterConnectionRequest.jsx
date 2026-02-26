@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { citizenAPI, propertyAPI } from '../../services/api';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
-import { ArrowLeft, MapPin } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 
 const WaterConnectionRequest = () => {
   const navigate = useNavigate();
@@ -73,14 +73,6 @@ const WaterConnectionRequest = () => {
 
   return (
     <div>
-      <button
-        onClick={() => navigate('/citizen/water-connections')}
-        className="flex items-center text-primary-600 mb-4 hover:text-primary-700"
-      >
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to Water Connections
-      </button>
-
       <div className="mb-6">
         <h1 className="ds-page-title">Request Water Connection</h1>
         <p className="text-gray-600 mt-2">Submit a request for a new water connection</p>
