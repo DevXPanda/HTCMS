@@ -29,6 +29,15 @@ api.interceptors.request.use(
   }
 );
 
+// User-facing message for server/technical errors (never show "Internal server error" etc.)
+const getUserFacingMessage = (msg) => {
+  if (!msg || typeof msg !== 'string') return null;
+  const t = msg.toLowerCase();
+  if (t.includes('internal server error') || t === 'internal server error') return 'Something went wrong. Please try again later.';
+  if (t.includes('authentication failed') && t.includes('razorpay')) return 'Payment gateway is not configured. Please pay at the office or try again later.';
+  return null;
+};
+
 // Response interceptor to handle errors
 api.interceptors.response.use(
   (response) => {
@@ -53,9 +62,20 @@ api.interceptors.response.use(
       // don't clear token - it's still valid, just insufficient permissions
       // The component should handle these errors gracefully
     }
+    // Replace technical/dev error messages with user-friendly text for all consumers
+    const data = error.response?.data;
+    if (data && (data.message || data.error)) {
+      const msg = data.message || data.error;
+      const safe = getUserFacingMessage(msg);
+      if (safe) {
+        error.response.data = { ...data, message: safe, error: safe };
+      }
+    }
     return Promise.reject(error);
   }
 );
+
+export { getUserFacingMessage };
 
 // Auth API
 export const authAPI = {
@@ -129,6 +149,8 @@ export const demandAPI = {
   createD2DC: (data) => api.post('/demands/d2dc', data),
   generateBulk: (data) => api.post('/demands/generate-bulk', data),
   generateBulkShop: (data) => api.post('/demands/generate-bulk-shop', data),
+  generateBulkWater: (data) => api.post('/demands/generate-bulk-water', data),
+  generatePropertyShop: (data) => api.post('/demands/generate-property-shop', data),
   generateCombined: (data) => api.post('/demands/generate-combined', data),
   generateUnified: (data) => api.post('/demands/generate-unified', data),
   calculatePenalty: (id, data) => api.put(`/demands/${id}/calculate-penalty`, data),

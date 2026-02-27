@@ -5,14 +5,17 @@ import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { Plus, Eye, Search, Filter, X, Zap, Calculator, Download } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useConfirm } from '../../../components/ConfirmModal';
 import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
 import { exportToCSV } from '../../../utils/exportCSV';
+import { isRecentDate, sortByCreatedDesc } from '../../../utils/dateUtils';
 
 const Demands = () => {
   const [searchParams] = useSearchParams();
   const moduleFromUrl = searchParams.get('module') || '';
   const basePath = useShopTaxBasePath();
   const { isAdmin, isAssessor } = useAuth();
+  const { confirm } = useConfirm();
   const [demands, setDemands] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -42,7 +45,8 @@ const Demands = () => {
       }
       const response = await demandAPI.getAll(params);
       const data = response.data?.data ?? {};
-      setDemands(Array.isArray(data.demands) ? data.demands : []);
+      const list = Array.isArray(data.demands) ? data.demands : [];
+      setDemands([...list].sort(sortByCreatedDesc));
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to fetch tax demands');
     } finally {
@@ -65,7 +69,8 @@ const Demands = () => {
   };
 
   const handleCalculatePenalty = async (demandId) => {
-    if (!window.confirm('Calculate penalty and interest for this overdue tax demand?')) return;
+    const ok = await confirm({ title: 'Calculate penalty', message: 'Calculate penalty and interest for this overdue tax demand?', confirmLabel: 'Calculate' });
+    if (!ok) return;
     try {
       await demandAPI.calculatePenalty(demandId, {
         penaltyRate: 5, // 5%
@@ -129,12 +134,12 @@ const Demands = () => {
       <div className="ds-page-header">
         <h1 className="ds-page-title">Tax Demands</h1>
         <div className="flex flex-wrap gap-2">
-          {isAdmin && (
+          {/* {isAdmin && (
             <Link to={`${basePath}/demands/generate`} className="btn btn-primary flex items-center">
               <Zap className="w-4 h-4 mr-2" />
               Generate Tax Demands
             </Link>
-          )}
+          )} */}
           <button
             onClick={() => setShowFilters(!showFilters)}
             className="btn btn-secondary flex items-center"
@@ -247,6 +252,12 @@ const Demands = () => {
         </div>
       )}
 
+      {demands.some(d => isRecentDate(d.createdAt || d.generatedDate)) && (
+        <p className="text-sm text-gray-500 mb-2 flex items-center gap-2">
+          <span className="inline-block w-2.5 h-2.5 rounded-full bg-green-500" />
+          <span>Green dot = demand generated in the last 24 hours</span>
+        </p>
+      )}
       <div className="table-wrap">
         <table className="table">
           <thead>
@@ -303,9 +314,23 @@ const Demands = () => {
                           {demand.property.propertyNumber}
                         </Link>
                       ) : 'N/A');
+                const isRecent = isRecentDate(demand.createdAt || demand.generatedDate);
                 return (
                   <tr key={demand.id} className={overdue ? 'bg-red-50' : ''}>
-                    <td className="font-medium">{demand.demandNumber}</td>
+                    <td className="font-medium">
+                      <span className="inline-flex items-center gap-1.5">
+                        {isRecent && (
+                          <span
+                            className="inline-block w-2.5 h-2.5 rounded-full bg-green-500 shrink-0"
+                            title="Recently generated demand"
+                          />
+                        )}
+                        {demand.demandNumber}
+                        {isRecent && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Recent</span>
+                        )}
+                      </span>
+                    </td>
                     {hasShopTaxInList ? (
                       <>
                         {isShopTax ? (

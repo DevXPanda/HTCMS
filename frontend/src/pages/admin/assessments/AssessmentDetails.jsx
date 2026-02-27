@@ -5,6 +5,7 @@ import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { Edit, CheckCircle, XCircle, Send, FileText, Droplet, Home, Calculator, Hash, Calendar, Wallet } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useConfirm } from '../../../components/ConfirmModal';
 import DetailPageLayout, { DetailRow } from '../../../components/DetailPageLayout';
 
 const formatAmt = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -12,6 +13,7 @@ const formatAmt = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumF
 const AssessmentDetails = () => {
   const { id } = useParams();
   const { isAdmin, isAssessor } = useAuth();
+  const { confirm } = useConfirm();
   const [assessment, setAssessment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -56,7 +58,8 @@ const AssessmentDetails = () => {
   };
 
   const handleSubmit = async () => {
-    if (!window.confirm('Submit this tax assessment for approval?')) return;
+    const ok = await confirm({ title: 'Submit for approval', message: 'Submit this tax assessment for approval?', confirmLabel: 'Submit' });
+    if (!ok) return;
     try {
       setActionLoading(true);
       await assessmentAPI.submit(id);
@@ -70,7 +73,8 @@ const AssessmentDetails = () => {
   };
 
   const handleApprove = async () => {
-    if (!window.confirm('Approve this tax assessment?')) return;
+    const ok = await confirm({ title: 'Approve assessment', message: 'Approve this tax assessment?', confirmLabel: 'Approve' });
+    if (!ok) return;
     try {
       setActionLoading(true);
       await assessmentAPI.approve(id);

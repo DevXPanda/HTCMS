@@ -5,6 +5,7 @@ import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { Plus, Search, Eye, Filter, X, Download } from 'lucide-react';
 import { exportToCSV } from '../../../utils/exportCSV';
+import { isRecentDate, sortByCreatedDesc } from '../../../utils/dateUtils';
 
 const WaterTaxAssessments = () => {
   const [assessments, setAssessments] = useState([]);
@@ -30,7 +31,8 @@ const WaterTaxAssessments = () => {
         ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''))
       };
       const response = await waterTaxAssessmentAPI.getAll(params);
-      setAssessments(response.data?.data?.assessments ?? []);
+      const list = response.data?.data?.assessments ?? [];
+      setAssessments([...list].sort(sortByCreatedDesc));
     } catch (error) {
       toast.error('Failed to fetch water tax assessments');
     } finally {
@@ -205,7 +207,14 @@ const WaterTaxAssessments = () => {
             ) : (
               assessments.map((assessment) => (
                 <tr key={assessment.id}>
-                  <td className="font-medium">{assessment.assessmentNumber}</td>
+                  <td className="font-medium">
+                    <span className="inline-flex items-center gap-1.5">
+                      {assessment.assessmentNumber}
+                      {isRecentDate(assessment.createdAt) && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Recent</span>
+                      )}
+                    </span>
+                  </td>
                   <td>
                     {assessment.property ? (
                       <Link

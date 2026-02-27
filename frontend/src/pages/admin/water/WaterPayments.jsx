@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { paymentAPI } from '../../../services/api';
+import { waterPaymentAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { Plus, Eye, Search, Filter, X, Download, Receipt } from 'lucide-react';
+import { Plus, Eye, Search, Filter, X } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { isRecentWithinMinutes, sortByCreatedDesc } from '../../../utils/dateUtils';
 
-const Payments = () => {
+const WaterPayments = () => {
   const { isAdmin, isCashier } = useAuth();
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -17,9 +17,7 @@ const Payments = () => {
     paymentMode: '',
     status: '',
     startDate: '',
-    endDate: '',
-    minAmount: '',
-    maxAmount: ''
+    endDate: ''
   });
 
   useEffect(() => {
@@ -34,11 +32,11 @@ const Payments = () => {
         limit: 10000,
         ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''))
       };
-      const response = await paymentAPI.getAll(params);
-      const list = response.data.data.payments || [];
+      const response = await waterPaymentAPI.getAll(params);
+      const list = response.data?.data?.waterPayments || [];
       setPayments([...list].sort(sortByCreatedDesc));
     } catch (error) {
-      toast.error('Failed to fetch payments');
+      toast.error(error.response?.data?.message || 'Failed to fetch water payments');
     } finally {
       setLoading(false);
     }
@@ -53,9 +51,7 @@ const Payments = () => {
       paymentMode: '',
       status: '',
       startDate: '',
-      endDate: '',
-      minAmount: '',
-      maxAmount: ''
+      endDate: ''
     });
   };
 
@@ -64,12 +60,12 @@ const Payments = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="ds-page-title">Payments</h1>
+        <h1 className="ds-page-title">Water Payments</h1>
         <div className="flex gap-2">
           {(isAdmin || isCashier) && (
             <Link to="/payments/new" className="btn btn-primary flex items-center">
               <Plus className="w-4 h-4 mr-2" />
-              Record Payment
+              Record Water Payment
             </Link>
           )}
           <button
@@ -82,7 +78,6 @@ const Payments = () => {
         </div>
       </div>
 
-      {/* Search */}
       <form onSubmit={(e) => { e.preventDefault(); fetchPayments(); }} className="mb-6">
         <div className="flex gap-2">
           <div className="flex-1 relative">
@@ -91,7 +86,7 @@ const Payments = () => {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by receipt number or payment number..."
+              placeholder="Search by receipt number, payment number or transaction ID..."
               className="input pl-10"
             />
           </div>
@@ -101,7 +96,6 @@ const Payments = () => {
         </div>
       </form>
 
-      {/* Filters */}
       {showFilters && (
         <div className="card mb-6">
           <div className="flex justify-between items-center mb-4">
@@ -114,7 +108,7 @@ const Payments = () => {
               Clear All
             </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="label">Payment Mode</label>
               <select
@@ -128,9 +122,9 @@ const Payments = () => {
                 <option value="dd">DD</option>
                 <option value="card">Card</option>
                 <option value="online">Online</option>
+                <option value="upi">UPI</option>
               </select>
             </div>
-
             <div>
               <label className="label">Status</label>
               <select
@@ -145,7 +139,6 @@ const Payments = () => {
                 <option value="cancelled">Cancelled</option>
               </select>
             </div>
-
             <div>
               <label className="label">Start Date</label>
               <input
@@ -155,7 +148,6 @@ const Payments = () => {
                 className="input"
               />
             </div>
-
             <div>
               <label className="label">End Date</label>
               <input
@@ -163,28 +155,6 @@ const Payments = () => {
                 value={filters.endDate}
                 onChange={(e) => handleFilterChange('endDate', e.target.value)}
                 className="input"
-              />
-            </div>
-
-            <div>
-              <label className="label">Min Amount (₹)</label>
-              <input
-                type="number"
-                value={filters.minAmount}
-                onChange={(e) => handleFilterChange('minAmount', e.target.value)}
-                className="input"
-                placeholder="0"
-              />
-            </div>
-
-            <div>
-              <label className="label">Max Amount (₹)</label>
-              <input
-                type="number"
-                value={filters.maxAmount}
-                onChange={(e) => handleFilterChange('maxAmount', e.target.value)}
-                className="input"
-                placeholder="0"
               />
             </div>
           </div>
@@ -196,8 +166,8 @@ const Payments = () => {
           <thead>
             <tr>
               <th>Receipt Number</th>
-              <th>Property</th>
-              <th>Demand</th>
+              <th>Connection / Property</th>
+              <th>Bill</th>
               <th>Amount</th>
               <th>Payment Mode</th>
               <th>Date</th>
@@ -210,7 +180,7 @@ const Payments = () => {
             {payments.length === 0 ? (
               <tr>
                 <td colSpan="9" className="text-center py-8 text-gray-500">
-                  No payments found
+                  No water payments found
                 </td>
               </tr>
             ) : (
@@ -225,44 +195,57 @@ const Payments = () => {
                     </span>
                   </td>
                   <td>
-                    <Link to={`/properties/${payment.propertyId}`} className="text-primary-600 hover:underline">
-                      {payment.property?.propertyNumber || 'N/A'}
-                    </Link>
+                    {payment.waterConnection?.property ? (
+                      <Link to={`/properties/${payment.waterConnection.property.id}`} className="text-primary-600 hover:underline">
+                        {payment.waterConnection.connectionNumber}
+                      </Link>
+                    ) : (
+                      payment.waterConnection?.connectionNumber || 'N/A'
+                    )}
+                    {payment.waterConnection?.property?.propertyNumber && (
+                      <span className="text-gray-500 text-sm block">{payment.waterConnection.property.propertyNumber}</span>
+                    )}
                   </td>
                   <td>
-                    <Link to={`/demands/${payment.demandId}`} className="text-primary-600 hover:underline">
-                      {payment.demand?.demandNumber || 'N/A'}
-                    </Link>
+                    {payment.waterBillId ? (
+                      <Link to={`/water/bills/${payment.waterBillId}`} className="text-primary-600 hover:underline">
+                        {payment.waterBill?.billNumber || `Bill #${payment.waterBillId}`}
+                      </Link>
+                    ) : (
+                      '—'
+                    )}
+                    {payment.waterBill?.billingPeriod && (
+                      <span className="text-gray-500 text-sm block">{payment.waterBill.billingPeriod}</span>
+                    )}
                   </td>
                   <td className="font-semibold text-green-600">
                     ₹{parseFloat(payment.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </td>
                   <td className="capitalize">{payment.paymentMode}</td>
-                  <td>{new Date(payment.paymentDate).toLocaleDateString()}</td>
+                  <td>{payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : '—'}</td>
                   <td>
-                    {payment.cashier ?
-                      `${payment.cashier.firstName} ${payment.cashier.lastName}` :
-                      'N/A'}
+                    {payment.cashier
+                      ? `${payment.cashier.firstName || ''} ${payment.cashier.lastName || ''}`.trim()
+                      : 'N/A'}
                   </td>
                   <td>
                     <span className={`badge ${payment.status === 'completed' ? 'badge-success' :
-                        payment.status === 'pending' ? 'badge-warning' :
-                          payment.status === 'failed' ? 'badge-danger' :
-                            'badge-info'
-                      } capitalize`}>
+                      payment.status === 'pending' ? 'badge-warning' :
+                        payment.status === 'failed' ? 'badge-danger' :
+                          'badge-info'
+                    } capitalize`}>
                       {payment.status}
                     </span>
                   </td>
                   <td>
-                    <div className="flex items-center space-x-2">
-                      <Link
-                        to={`/payments/${payment.id}`}
-                        className="text-primary-600 hover:text-primary-700"
-                        title="View Receipt"
-                      >
-                        <Receipt className="w-4 h-4" />
-                      </Link>
-                    </div>
+                    <Link
+                      to={`/water/payments/${payment.id}`}
+                      className="text-primary-600 hover:text-primary-700 inline-flex items-center"
+                      title="View details"
+                    >
+                      <Eye className="w-4 h-4 mr-1" />
+                      View
+                    </Link>
                   </td>
                 </tr>
               ))
@@ -270,10 +253,8 @@ const Payments = () => {
           </tbody>
         </table>
       </div>
-
-      {/* Pagination removed */}
     </div>
   );
 };
 
-export default Payments;
+export default WaterPayments;

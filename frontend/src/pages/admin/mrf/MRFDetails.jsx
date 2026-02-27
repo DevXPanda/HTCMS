@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
+import { useConfirm } from '../../../components/ConfirmModal';
 import MrfSalesLedger from './MrfSalesLedger';
 import MrfWasteLogs from './MrfWasteLogs';
 import MrfWorkerAssignment from './MrfWorkerAssignment';
@@ -30,6 +31,7 @@ import MrfLinkedComplaints from './MrfLinkedComplaints';
 const MRFDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { confirm } = useConfirm();
     const [searchParams] = useSearchParams();
     const tabFromUrl = searchParams.get('tab');
     const [facility, setFacility] = useState(null);
@@ -74,15 +76,15 @@ const MRFDetails = () => {
     };
 
     const handleDelete = async () => {
-        if (window.confirm('Are you sure you want to deactivate this MRF facility?')) {
-            try {
-                await api.delete(`/mrf/facilities/${id}`);
-                toast.success('Facility deactivated successfully');
-                navigate('/mrf/management');
-            } catch (error) {
-                console.error('Failed to delete facility:', error);
-                toast.error('Failed to deactivate facility');
-            }
+        const ok = await confirm({ title: 'Deactivate facility', message: 'Are you sure you want to deactivate this MRF facility?', confirmLabel: 'Deactivate', variant: 'danger' });
+        if (!ok) return;
+        try {
+            await api.delete(`/mrf/facilities/${id}`);
+            toast.success('Facility deactivated successfully');
+            navigate('/mrf/management');
+        } catch (error) {
+            console.error('Failed to delete facility:', error);
+            toast.error('Failed to deactivate facility');
         }
     };
 

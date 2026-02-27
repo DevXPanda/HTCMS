@@ -5,12 +5,15 @@ import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { Plus, Eye, Edit, Filter, X, CheckCircle, XCircle, Send, Download } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useConfirm } from '../../../components/ConfirmModal';
 import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
 import { exportToCSV } from '../../../utils/exportCSV';
+import { isRecentDate, sortByCreatedDesc } from '../../../utils/dateUtils';
 
 const ShopAssessments = () => {
   const basePath = useShopTaxBasePath();
   const { isAdmin, isAssessor } = useAuth();
+  const { confirm } = useConfirm();
   const [assessments, setAssessments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
@@ -31,7 +34,8 @@ const ShopAssessments = () => {
         ...Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== ''))
       };
       const response = await shopTaxAssessmentsAPI.getAll(params);
-      setAssessments(response.data.data.assessments || []);
+      const list = response.data.data.assessments || [];
+      setAssessments([...list].sort(sortByCreatedDesc));
     } catch (error) {
       toast.error('Failed to fetch shop tax assessments');
     } finally {
@@ -58,7 +62,8 @@ const ShopAssessments = () => {
   };
 
   const handleApprove = async (assessmentId) => {
-    if (!window.confirm('Approve this shop tax assessment?')) return;
+    const ok = await confirm({ title: 'Approve assessment', message: 'Approve this shop tax assessment?', confirmLabel: 'Approve' });
+    if (!ok) return;
     try {
       await shopTaxAssessmentsAPI.approve(assessmentId);
       toast.success('Assessment approved');
@@ -206,7 +211,14 @@ const ShopAssessments = () => {
             ) : (
               assessments.map((assessment) => (
                 <tr key={assessment.id}>
-                  <td className="font-medium">{assessment.assessmentNumber}</td>
+                  <td className="font-medium">
+                    <span className="inline-flex items-center gap-1.5">
+                      {assessment.assessmentNumber}
+                      {isRecentDate(assessment.createdAt) && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Recent</span>
+                      )}
+                    </span>
+                  </td>
                   <td>
                     {assessment.shop
                       ? `${assessment.shop.shopNumber} - ${assessment.shop.shopName}`

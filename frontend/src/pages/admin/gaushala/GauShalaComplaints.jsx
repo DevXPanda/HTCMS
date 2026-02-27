@@ -19,8 +19,11 @@ import {
     FileText
 } from 'lucide-react';
 import api from '../../../services/api';
+import toast from 'react-hot-toast';
+import { useConfirm } from '../../../components/ConfirmModal';
 
 const GauShalaComplaints = () => {
+    const { confirm } = useConfirm();
     useBackTo('/gaushala/management');
     const [complaints, setComplaints] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -76,21 +79,21 @@ const GauShalaComplaints = () => {
             fetchComplaints();
         } catch (error) {
             console.error('Failed to update complaint:', error);
-            alert('Failed to update complaint.');
+            toast.error('Failed to update complaint.');
         } finally {
             setSaving(false);
         }
     };
 
     const handleDelete = async (complaintId) => {
-        if (window.confirm('Are you sure you want to delete this complaint?')) {
-            try {
-                await api.delete(`/gaushala/complaints/${complaintId}`);
-                fetchComplaints();
-            } catch (error) {
-                console.error('Failed to delete complaint:', error);
-                alert('Failed to delete complaint.');
-            }
+        const ok = await confirm({ title: 'Delete complaint', message: 'Are you sure you want to delete this complaint?', confirmLabel: 'Delete', variant: 'danger' });
+        if (!ok) return;
+        try {
+            await api.delete(`/gaushala/complaints/${complaintId}`);
+            fetchComplaints();
+        } catch (error) {
+            console.error('Failed to delete complaint:', error);
+            toast.error('Failed to delete complaint.');
         }
     };
 

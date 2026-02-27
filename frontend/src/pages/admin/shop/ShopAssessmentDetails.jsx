@@ -1,32 +1,28 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { shopTaxAssessmentsAPI, generateShopDemand } from '../../../services/api';
+import { shopTaxAssessmentsAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { Edit, CheckCircle, XCircle, Send, Store, FileText } from 'lucide-react';
+import { Edit, CheckCircle, XCircle, Send, Store, TrendingUp, Calculator } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useConfirm } from '../../../components/ConfirmModal';
 import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
+import DetailPageLayout, { DetailRow } from '../../../components/DetailPageLayout';
+
+const formatAmt = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const ShopAssessmentDetails = () => {
   const { id } = useParams();
   const basePath = useShopTaxBasePath();
   const { isAdmin, isAssessor } = useAuth();
+  const { confirm } = useConfirm();
   const [assessment, setAssessment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [showGenerateForm, setShowGenerateForm] = useState(false);
-  const [generateFinancialYear, setGenerateFinancialYear] = useState('');
-  const [generateDueDate, setGenerateDueDate] = useState('');
-  const [generateLoading, setGenerateLoading] = useState(false);
-  const [lastGeneratedDemandId, setLastGeneratedDemandId] = useState(null);
 
   useEffect(() => {
     fetchAssessment();
   }, [id]);
-
-  useEffect(() => {
-    if (assessment?.financialYear) setGenerateFinancialYear(assessment.financialYear);
-  }, [assessment?.financialYear]);
 
   const fetchAssessment = async () => {
     try {
@@ -40,7 +36,8 @@ const ShopAssessmentDetails = () => {
   };
 
   const handleSubmit = async () => {
-    if (!window.confirm('Submit this shop tax assessment for approval?')) return;
+    const ok = await confirm({ title: 'Submit for approval', message: 'Submit this shop tax assessment for approval?', confirmLabel: 'Submit' });
+    if (!ok) return;
     try {
       setActionLoading(true);
       await shopTaxAssessmentsAPI.submit(id);
@@ -54,7 +51,8 @@ const ShopAssessmentDetails = () => {
   };
 
   const handleApprove = async () => {
-    if (!window.confirm('Approve this shop tax assessment?')) return;
+    const ok = await confirm({ title: 'Approve assessment', message: 'Approve this shop tax assessment?', confirmLabel: 'Approve' });
+    if (!ok) return;
     try {
       setActionLoading(true);
       await shopTaxAssessmentsAPI.approve(id);
@@ -82,266 +80,179 @@ const ShopAssessmentDetails = () => {
     }
   };
 
-  const handleGenerateDemand = async (e) => {
-    e.preventDefault();
-    const fy = (generateFinancialYear || '').trim();
-    if (!fy) {
-      toast.error('Financial year is required');
-      return;
-    }
-    try {
-      setGenerateLoading(true);
-      const { data } = await generateShopDemand({
-        shopTaxAssessmentId: Number(id),
-        financialYear: fy,
-        ...(generateDueDate ? { dueDate: generateDueDate } : {})
-      });
-      const demand = data?.data?.demand;
-      const alreadyExisted = data?.data?.alreadyExisted === true;
-      if (demand?.id) setLastGeneratedDemandId(demand.id);
-      toast.success(alreadyExisted ? 'Demand already exists for this assessment and financial year.' : 'Demand generated successfully.');
-      setShowGenerateForm(false);
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to generate demand');
-    } finally {
-      setGenerateLoading(false);
-    }
-  };
-
   if (loading) return <Loading />;
   if (!assessment) return <div>Shop tax assessment not found</div>;
 
-  return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="ds-page-title">Shop Tax Assessment Details</h1>
-        <div className="flex gap-2">
-          {(isAdmin || isAssessor || basePath === '/clerk') && assessment?.status === 'draft' && (
-            <>
-              <Link
-                to={`${basePath}/shop-tax/assessments/${id}/edit`}
-                className="btn btn-primary flex items-center"
-              >
-                <Edit className="w-4 h-4 mr-2" />
-                Edit
-              </Link>
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={actionLoading}
-                className="btn btn-secondary flex items-center"
-              >
-                <Send className="w-4 h-4 mr-2" />
-                Submit
-              </button>
-            </>
-          )}
-          {isAdmin && assessment?.status === 'pending' && (
-            <>
-              <button
-                type="button"
-                onClick={handleApprove}
-                disabled={actionLoading}
-                className="btn btn-success flex items-center"
-              >
-                <CheckCircle className="w-4 h-4 mr-2" />
-                Approve
-              </button>
-              <button
-                type="button"
-                onClick={handleReject}
-                disabled={actionLoading}
-                className="btn btn-danger flex items-center"
-              >
-                <XCircle className="w-4 h-4 mr-2" />
-                Reject
-              </button>
-            </>
-          )}
-          {(isAdmin || isAssessor || basePath === '/clerk') && assessment?.status === 'approved' && (
-            <button
-              type="button"
-              onClick={() => setShowGenerateForm((v) => !v)}
-              className="btn btn-primary flex items-center"
-            >
-              <FileText className="w-4 h-4 mr-2" />
-              Generate demand
-            </button>
-          )}
-        </div>
-      </div>
+  const statusBadgeClass = () => {
+    const s = (assessment.status || '').toLowerCase();
+    if (s === 'approved') return 'badge-success';
+    if (s === 'pending') return 'badge-warning';
+    if (s === 'rejected') return 'badge-danger';
+    return 'badge-info';
+  };
 
-      {assessment?.status === 'approved' && showGenerateForm && (
-        <div className="card mb-6">
-          <h2 className="text-lg font-semibold mb-4">Generate shop tax demand</h2>
-          <form onSubmit={handleGenerateDemand} className="space-y-4 max-w-md">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Financial year *</label>
-              <input
-                type="text"
-                value={generateFinancialYear}
-                onChange={(e) => setGenerateFinancialYear(e.target.value)}
-                placeholder="e.g. 2024-25"
-                className="input w-full"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Due date (optional)</label>
-              <input
-                type="date"
-                value={generateDueDate}
-                onChange={(e) => setGenerateDueDate(e.target.value)}
-                className="input w-full"
-              />
-            </div>
-            <div className="flex gap-2">
-              <button type="submit" disabled={generateLoading} className="btn btn-primary">
-                {generateLoading ? 'Generating…' : 'Generate'}
-              </button>
-              <button type="button" onClick={() => setShowGenerateForm(false)} className="btn btn-secondary">
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+  const shopStatusBadgeClass = () => {
+    const s = (assessment.shop?.status || '').toLowerCase();
+    if (s === 'active') return 'badge-success';
+    if (s === 'closed') return 'badge-danger';
+    return 'badge-warning';
+  };
 
-      {lastGeneratedDemandId && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-          <Link to={`${basePath}/demands/${lastGeneratedDemandId}`} className="text-primary-600 hover:underline font-medium flex items-center">
-            <FileText className="w-4 h-4 mr-2" />
-            View generated demand
+  const actionButtons = (
+    <div className="flex gap-2">
+      {(isAdmin || isAssessor || basePath === '/clerk') && assessment?.status === 'draft' && (
+        <>
+          <Link
+            to={`${basePath}/shop-tax/assessments/${id}/edit`}
+            className="btn btn-primary flex items-center"
+          >
+            <Edit className="w-4 h-4 mr-2" />
+            Edit
           </Link>
-        </div>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={actionLoading}
+            className="btn btn-secondary flex items-center"
+          >
+            <Send className="w-4 h-4 mr-2" />
+            Submit
+          </button>
+        </>
       )}
+      {isAdmin && assessment?.status === 'pending' && (
+        <>
+          <button
+            type="button"
+            onClick={handleApprove}
+            disabled={actionLoading}
+            className="btn btn-success flex items-center"
+          >
+            <CheckCircle className="w-4 h-4 mr-2" />
+            Approve
+          </button>
+          <button
+            type="button"
+            onClick={handleReject}
+            disabled={actionLoading}
+            className="btn btn-danger flex items-center"
+          >
+            <XCircle className="w-4 h-4 mr-2" />
+            Reject
+          </button>
+        </>
+      )}
+    </div>
+  );
 
+  return (
+    <DetailPageLayout
+      backTo={`${basePath}/shop-tax/assessments`}
+      backLabel="Back to Shop Tax Assessments"
+      showBackLink={false}
+      title="Shop Tax Assessment Details"
+      subtitle={assessment.assessmentNumber}
+      actionButtons={actionButtons}
+      summarySection={
+        <>
+          <h2 className="form-section-title flex items-center">
+            <TrendingUp className="w-5 h-5 mr-2 text-primary-600" />
+            Summary
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="stat-card">
+              <div className="stat-card-title"><span>Assessment Number</span></div>
+              <p className="stat-card-value text-lg font-bold text-primary-600">{assessment.assessmentNumber}</p>
+            </div>
+            <div className="stat-card">
+              <div className="stat-card-title"><span>Status</span></div>
+              <p className="stat-card-value text-base">
+                <span className={`badge capitalize ${statusBadgeClass()}`}>{assessment.status}</span>
+              </p>
+            </div>
+            <div className="stat-card">
+              <div className="stat-card-title"><span>Annual Tax Amount</span></div>
+              <p className="stat-card-value text-lg font-bold text-green-600">{formatAmt(assessment.annualTaxAmount)}</p>
+            </div>
+            <div className="stat-card">
+              <div className="stat-card-title"><span>Assessment Year</span></div>
+              <p className="stat-card-value text-lg font-bold">{assessment.assessmentYear}</p>
+            </div>
+          </div>
+        </>
+      }
+    >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card">
-          <h2 className="text-xl font-semibold mb-4">Assessment Information</h2>
-          <dl className="space-y-3">
-            <div>
-              <dt className="text-sm font-medium text-gray-500">Assessment Number</dt>
-              <dd className="text-lg font-semibold">{assessment.assessmentNumber}</dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-gray-500">Assessment Year</dt>
-              <dd>{assessment.assessmentYear}</dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-gray-500">Financial Year</dt>
-              <dd>{assessment.financialYear || '—'}</dd>
-            </div>
-            {(assessment.assessedValue != null || assessment.rate != null) && (
-              <>
-                {assessment.assessedValue != null && (
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500">Assessed Value</dt>
-                    <dd>₹{parseFloat(assessment.assessedValue).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</dd>
-                  </div>
-                )}
-                {assessment.rate != null && (
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500">Rate</dt>
-                    <dd>₹{parseFloat(assessment.rate).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</dd>
-                  </div>
-                )}
-              </>
-            )}
-            <div>
-              <dt className="text-sm font-medium text-gray-500">Annual Tax Amount</dt>
-              <dd className="text-lg font-semibold text-green-600">
-                ₹{parseFloat(assessment.annualTaxAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-gray-500">Status</dt>
-              <dd>
-                <span className={`badge ${
-                  assessment.status === 'approved' ? 'badge-success' :
-                  assessment.status === 'pending' ? 'badge-warning' :
-                  assessment.status === 'rejected' ? 'badge-danger' :
-                  'badge-info'
-                } capitalize`}>
-                  {assessment.status}
-                </span>
-              </dd>
-            </div>
-            {assessment.assessor && (
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Assessed By</dt>
-                <dd>{assessment.assessor.firstName} {assessment.assessor.lastName}</dd>
-              </div>
-            )}
-            {assessment.approver && (
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Approved By</dt>
-                <dd>{assessment.approver.firstName} {assessment.approver.lastName}</dd>
-              </div>
-            )}
-            {assessment.approvalDate && (
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Approval Date</dt>
-                <dd>{new Date(assessment.approvalDate).toLocaleDateString()}</dd>
-              </div>
-            )}
-            {assessment.remarks && (
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Remarks</dt>
-                <dd className="text-sm text-gray-700">{assessment.remarks}</dd>
-              </div>
-            )}
+          <h2 className="form-section-title flex items-center">
+            <Calculator className="w-5 h-5 mr-2 text-primary-600" />
+            Assessment Information
+          </h2>
+          <dl>
+            <DetailRow label="Assessment Number" value={assessment.assessmentNumber} valueClass="font-semibold" />
+            <DetailRow label="Assessment Year" value={assessment.assessmentYear} />
+            <DetailRow label="Financial Year" value={assessment.financialYear} />
+            <DetailRow label="Assessed Value" value={assessment.assessedValue != null ? formatAmt(assessment.assessedValue) : null} valueClass="text-primary-600" />
+            <DetailRow label="Rate" value={assessment.rate != null ? formatAmt(assessment.rate) : null} />
+            <DetailRow label="Annual Tax Amount" value={formatAmt(assessment.annualTaxAmount)} valueClass="font-semibold text-green-600" />
+            <DetailRow
+              label="Status"
+              value={<span className={`badge capitalize ${statusBadgeClass()}`}>{assessment.status}</span>}
+            />
+            <DetailRow label="Assessed By" value={assessment.assessor ? `${assessment.assessor.firstName} ${assessment.assessor.lastName}` : null} />
+            <DetailRow label="Approved By" value={assessment.approver ? `${assessment.approver.firstName} ${assessment.approver.lastName}` : null} />
+            <DetailRow label="Approval Date" value={assessment.approvalDate ? new Date(assessment.approvalDate).toLocaleDateString() : null} />
+            <DetailRow label="Remarks" value={assessment.remarks} valueClass="text-sm text-gray-700" />
           </dl>
         </div>
 
         <div className="card">
-          <h2 className="text-xl font-semibold mb-4 flex items-center">
-            <Store className="w-5 h-5 mr-2" />
+          <h2 className="form-section-title flex items-center">
+            <Store className="w-5 h-5 mr-2 text-primary-600" />
             Shop Information
           </h2>
           {assessment.shop ? (
-            <dl className="space-y-3">
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Shop Number</dt>
-                <dd className="font-medium">{assessment.shop.shopNumber}</dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Shop Name</dt>
-                <dd>{assessment.shop.shopName}</dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Type</dt>
-                <dd className="capitalize">{assessment.shop.shopType || '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Status</dt>
-                <dd>
-                  <span className={`badge ${assessment.shop.status === 'active' ? 'badge-success' : assessment.shop.status === 'closed' ? 'badge-danger' : 'badge-warning'} capitalize`}>
-                    {assessment.shop.status}
-                  </span>
-                </dd>
-              </div>
+            <dl>
+              <DetailRow
+                label="Shop Number"
+                value={
+                  assessment.shop.id ? (
+                    <Link to={`${basePath}/shop-tax/shops/${assessment.shop.id}`} className="text-primary-600 hover:underline font-medium">
+                      {assessment.shop.shopNumber}
+                    </Link>
+                  ) : (
+                    assessment.shop.shopNumber
+                  )
+                }
+              />
+              <DetailRow label="Shop Name" value={assessment.shop.shopName} />
+              <DetailRow label="Type" value={assessment.shop.shopType} valueClass="capitalize" />
+              <DetailRow
+                label="Status"
+                value={<span className={`badge capitalize ${shopStatusBadgeClass()}`}>{assessment.shop.status}</span>}
+              />
               {assessment.shop.property && (
-                <>
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500">Property</dt>
-                    <dd>{assessment.shop.property.propertyNumber} – {assessment.shop.property.address}</dd>
-                  </div>
-                  {assessment.shop.ward && (
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Ward</dt>
-                      <dd>{assessment.shop.ward.wardName}</dd>
-                    </div>
-                  )}
-                </>
+                <DetailRow
+                  label="Property"
+                  value={
+                    assessment.shop.propertyId ? (
+                      <Link to={`${basePath}/properties/${assessment.shop.propertyId}`} className="text-primary-600 hover:underline">
+                        {assessment.shop.property.propertyNumber} – {assessment.shop.property.address}
+                      </Link>
+                    ) : (
+                      `${assessment.shop.property.propertyNumber} – ${assessment.shop.property.address}`
+                    )
+                  }
+                />
               )}
+              <DetailRow label="Ward" value={assessment.shop.ward?.wardName} />
             </dl>
           ) : (
-            <p className="text-gray-500">Shop details not loaded</p>
+            <p className="text-gray-500 text-sm">Shop details not loaded</p>
           )}
         </div>
       </div>
-    </div>
+    </DetailPageLayout>
   );
 };
 

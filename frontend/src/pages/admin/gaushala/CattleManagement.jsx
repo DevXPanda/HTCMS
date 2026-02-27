@@ -15,8 +15,11 @@ import {
     X
 } from 'lucide-react';
 import api from '../../../services/api';
+import toast from 'react-hot-toast';
+import { useConfirm } from '../../../components/ConfirmModal';
 
 const CattleManagement = () => {
+    const { confirm } = useConfirm();
     const { id } = useParams();
     const navigate = useNavigate();
     useBackTo(`/gaushala/facilities/${id}`);
@@ -84,7 +87,7 @@ const CattleManagement = () => {
             fetchData();
         } catch (error) {
             console.error('Failed to save animal:', error);
-            alert('Failed to save animal record.');
+            toast.error('Failed to save animal record.');
         }
     };
 
@@ -98,13 +101,14 @@ const CattleManagement = () => {
     };
 
     const handleDelete = async (animalId) => {
-        if (window.confirm('Are you sure you want to delete this cattle record?')) {
-            try {
-                await api.delete(`/gaushala/cattle/${animalId}`);
-                fetchData();
-            } catch (error) {
-                console.error('Failed to delete cattle:', error);
-            }
+        const ok = await confirm({ title: 'Delete cattle record', message: 'Are you sure you want to delete this cattle record?', confirmLabel: 'Delete', variant: 'danger' });
+        if (!ok) return;
+        try {
+            await api.delete(`/gaushala/cattle/${animalId}`);
+            fetchData();
+        } catch (error) {
+            console.error('Failed to delete cattle:', error);
+            toast.error('Failed to delete cattle record.');
         }
     };
 

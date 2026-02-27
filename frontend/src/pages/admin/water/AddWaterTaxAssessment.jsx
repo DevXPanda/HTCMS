@@ -1,17 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { waterTaxAssessmentAPI, propertyAPI, waterConnectionAPI } from '../../../services/api';
 import toast from 'react-hot-toast';
-import { Save } from 'lucide-react';
+import { Save, Search } from 'lucide-react';
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 const AddWaterTaxAssessment = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [properties, setProperties] = useState([]);
   const [waterConnections, setWaterConnections] = useState([]);
-  const [loadingProperties, setLoadingProperties] = useState(true);
   const [loadingConnections, setLoadingConnections] = useState(false);
+  const [propertySearchQuery, setPropertySearchQuery] = useState('');
+  const [propertySearchResults, setPropertySearchResults] = useState([]);
+  const [propertySearching, setPropertySearching] = useState(false);
+  const [selectedProperty, setSelectedProperty] = useState(null);
+  const [showPropertyDropdown, setShowPropertyDropdown] = useState(false);
 
   const {
     register,
@@ -30,9 +35,30 @@ const AddWaterTaxAssessment = () => {
   const selectedPropertyId = watch('propertyId');
   const selectedAssessmentType = watch('assessmentType');
 
-  useEffect(() => {
-    fetchProperties();
+  const searchProperties = useCallback(async (query) => {
+    const q = String(query).trim();
+    if (!q) {
+      setPropertySearchResults([]);
+      return;
+    }
+    try {
+      setPropertySearching(true);
+      const response = await propertyAPI.getAll({ search: q, limit: 20, status: 'active' });
+      setPropertySearchResults(response.data?.data?.properties ?? []);
+    } catch {
+      setPropertySearchResults([]);
+    } finally {
+      setPropertySearching(false);
+    }
   }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (selectedProperty) return;
+      searchProperties(propertySearchQuery);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [propertySearchQuery, selectedProperty, searchProperties]);
 
   useEffect(() => {
     if (selectedPropertyId) {
@@ -43,16 +69,22 @@ const AddWaterTaxAssessment = () => {
     }
   }, [selectedPropertyId, setValue]);
 
-  const fetchProperties = async () => {
-    try {
-      setLoadingProperties(true);
-      const response = await propertyAPI.getAll({ limit: 1000, isActive: true });
-      setProperties(response.data.data.properties || []);
-    } catch (error) {
-      toast.error('Failed to load properties');
-    } finally {
-      setLoadingProperties(false);
-    }
+  const onSelectProperty = (property) => {
+    setSelectedProperty(property);
+    setValue('propertyId', property.id.toString());
+    setPropertySearchQuery('');
+    setPropertySearchResults([]);
+    setShowPropertyDropdown(false);
+  };
+
+  const clearProperty = () => {
+    setSelectedProperty(null);
+    setValue('propertyId', '');
+    setPropertySearchQuery('');
+    setPropertySearchResults([]);
+    setShowPropertyDropdown(false);
+    setWaterConnections([]);
+    setValue('waterConnectionId', '');
   };
 
   const fetchWaterConnections = async (propertyId) => {
@@ -99,14 +131,6 @@ const AddWaterTaxAssessment = () => {
     }
   };
 
-  if (loadingProperties) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-      </div>
-    );
-  }
-
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -114,26 +138,73 @@ const AddWaterTaxAssessment = () => {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="card space-y-6">
-        {/* Property Selection */}
+        {/* Property Search */}
         <div>
           <h2 className="text-xl font-semibold mb-4">Property Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
+            <div className="md:col-span-2 relative">
               <label className="label">
                 Property <span className="text-red-500">*</span>
               </label>
-              <select
-                {...register('propertyId', { required: 'Property is required' })}
-                className="input"
-              >
-                <option value="">Select Property</option>
-                {properties.map(property => (
-                  <option key={property.id} value={property.id}>
-                    {property.propertyNumber} - {property.address} 
-                    {property.ward?.wardName ? ` (${property.ward.wardName})` : ''}
-                  </option>
-                ))}
-              </select>
+              {selectedProperty ? (
+                <div className="input flex items-center justify-between bg-gray-50">
+                  <span>
+                    ID: {selectedProperty.id} · {selectedProperty.propertyNumber} – {selectedProperty.address}
+                    {selectedProperty.ward?.wardName ? ` (${selectedProperty.ward.wardName})` : ''}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={clearProperty}
+                    className="text-gray-500 hover:text-red-600 text-sm font-medium"
+                  >
+                    Change
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      value={propertySearchQuery}
+                      onChange={(e) => {
+                        setPropertySearchQuery(e.target.value);
+                        setShowPropertyDropdown(true);
+                      }}
+                      onFocus={() => setShowPropertyDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowPropertyDropdown(false), 200)}
+                      className="input pl-10"
+                      placeholder="Search by Property ID or Property Number..."
+                    />
+                    {propertySearching && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-600 border-t-transparent" />
+                      </div>
+                    )}
+                  </div>
+                  {showPropertyDropdown && (propertySearchResults.length > 0 || propertySearchQuery.trim()) && (
+                    <ul className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+                      {propertySearchResults.length === 0 ? (
+                        <li className="px-4 py-3 text-gray-500 text-sm">No properties found</li>
+                      ) : (
+                        propertySearchResults.map((property) => (
+                          <li
+                            key={property.id}
+                            className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-0"
+                            onMouseDown={(e) => { e.preventDefault(); onSelectProperty(property); }}
+                          >
+                            <span className="font-medium">ID: {property.id}</span>
+                            <span className="text-gray-600"> · {property.propertyNumber}</span>
+                            {property.address && <span className="text-gray-500"> – {property.address}</span>}
+                            {property.ward?.wardName && <span className="text-gray-400"> ({property.ward.wardName})</span>}
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  )}
+                </>
+              )}
+              <input type="hidden" {...register('propertyId', { required: 'Property is required' })} />
               {errors.propertyId && (
                 <p className="text-red-500 text-sm mt-1">{errors.propertyId.message}</p>
               )}

@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Users, Search, Filter, Edit, Trash2, Eye, RefreshCw, Shield, CheckSquare, Square } from 'lucide-react';
 import api from '../../services/api';
+import toast from 'react-hot-toast';
+import { useConfirm } from '../../components/ConfirmModal';
 
 const AdminManagement = () => {
+  const { confirm } = useConfirm();
   const [employees, setEmployees] = useState([]);
   const [wards, setWards] = useState([]);
   const [allWards, setAllWards] = useState([]); // Store all wards for filtering
@@ -302,7 +305,7 @@ const AdminManagement = () => {
       console.error('❌ Error adding employee:', error);
       console.error('❌ Error response:', error.response?.data);
       console.error('❌ Error status:', error.response?.status);
-      alert(error.response?.data?.message || 'Error adding employee');
+      toast.error(error.response?.data?.message || 'Error adding employee');
     }
   };
 
@@ -373,9 +376,9 @@ const AdminManagement = () => {
 
       // Show success message
       if (formData.password && formData.password.trim() !== '') {
-        alert('Employee updated successfully! Password has been changed.');
+        toast.success('Employee updated successfully! Password has been changed.');
       } else {
-        alert('Employee updated successfully!');
+        toast.success('Employee updated successfully!');
       }
 
       setShowEditModal(false);
@@ -396,15 +399,16 @@ const AdminManagement = () => {
       // Show detailed error message
       if (error.response?.data?.errors) {
         const errorMessages = error.response.data.errors.map(err => err.msg).join('\n');
-        alert(`Validation failed:\n${errorMessages}`);
+        toast.error(errorMessages);
       } else {
-        alert(error.response?.data?.message || 'Error updating employee');
+        toast.error(error.response?.data?.message || 'Error updating employee');
       }
     }
   };
 
   const handleDeleteEmployee = async (employeeId) => {
-    if (!confirm('Are you sure you want to delete this employee?')) return;
+    const ok = await confirm({ title: 'Delete employee', message: 'Are you sure you want to delete this employee?', confirmLabel: 'Delete', variant: 'danger' });
+    if (!ok) return;
 
     try {
       await api.delete(`/admin-management/employees/${employeeId}`);
@@ -413,21 +417,22 @@ const AdminManagement = () => {
       fetchStatistics();
     } catch (error) {
       console.error('Error deleting employee:', error);
-      alert(error.response?.data?.message || 'Error deleting employee');
+      toast.error(error.response?.data?.message || 'Error deleting employee');
     }
   };
 
   const handleResetPassword = async (employeeId) => {
-    if (!confirm('Are you sure you want to reset this employee\'s password?')) return;
+    const ok = await confirm({ title: 'Reset password', message: 'Are you sure you want to reset this employee\'s password?', confirmLabel: 'Reset' });
+    if (!ok) return;
 
     try {
       const response = await api.post(`/admin-management/employees/${employeeId}/reset-password`, {});
 
-      alert(`Password reset successful!\n\nNew Password: ${response.data.new_password}\n\nSave this password securely.`);
+      toast.success(`Password reset successful. New password: ${response.data.new_password}. Save it securely.`);
       fetchEmployees();
     } catch (error) {
       console.error('Error resetting password:', error);
-      alert(error.response?.data?.message || 'Error resetting password');
+      toast.error(error.response?.data?.message || 'Error resetting password');
     }
   };
 
@@ -531,7 +536,8 @@ const AdminManagement = () => {
   const handleBulkDelete = async () => {
     if (selectedEmployees.length === 0) return;
 
-    if (!confirm(`Are you sure you want to delete ${selectedEmployees.length} staff member(s)?`)) return;
+    const ok = await confirm({ title: 'Delete staff', message: `Are you sure you want to delete ${selectedEmployees.length} staff member(s)?`, confirmLabel: 'Delete', variant: 'danger' });
+    if (!ok) return;
 
     try {
       await api.post('/admin-management/employees/bulk-delete', { employeeIds: selectedEmployees });
@@ -542,14 +548,15 @@ const AdminManagement = () => {
       fetchStatistics();
     } catch (error) {
       console.error('Error bulk deleting employees:', error);
-      alert(error.response?.data?.message || 'Error deleting employees');
+      toast.error(error.response?.data?.message || 'Error deleting employees');
     }
   };
 
   const handleBulkStatusChange = async (status) => {
     if (selectedEmployees.length === 0) return;
 
-    if (!confirm(`Are you sure you want to ${status} ${selectedEmployees.length} staff member(s)?`)) return;
+    const ok = await confirm({ title: 'Update status', message: `Are you sure you want to ${status} ${selectedEmployees.length} staff member(s)?`, confirmLabel: 'Update' });
+    if (!ok) return;
 
     try {
       await api.post('/admin-management/employees/bulk-status-update', { employeeIds: selectedEmployees, status });
@@ -560,7 +567,7 @@ const AdminManagement = () => {
       fetchStatistics();
     } catch (error) {
       console.error('Error bulk updating employee status:', error);
-      alert(error.response?.data?.message || 'Error updating employee status');
+      toast.error(error.response?.data?.message || 'Error updating employee status');
     }
   };
 

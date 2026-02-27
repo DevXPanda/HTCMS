@@ -5,10 +5,13 @@ import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { Plus, Search, Eye, Edit, Filter, X, CheckCircle, XCircle, Send, Download } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useConfirm } from '../../../components/ConfirmModal';
 import { exportToCSV } from '../../../utils/exportCSV';
+import { isRecentDate, sortByCreatedDesc } from '../../../utils/dateUtils';
 
 const Assessments = () => {
   const { isAdmin, isAssessor } = useAuth();
+  const { confirm } = useConfirm();
   const [assessments, setAssessments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -33,7 +36,8 @@ const Assessments = () => {
         ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''))
       };
       const response = await assessmentAPI.getAll(params);
-      setAssessments(response.data.data.assessments);
+      const list = response.data.data.assessments || [];
+      setAssessments([...list].sort(sortByCreatedDesc));
     } catch (error) {
       toast.error('Failed to fetch tax assessments');
     } finally {
@@ -65,7 +69,8 @@ const Assessments = () => {
   };
 
   const handleApprove = async (assessmentId) => {
-    if (!window.confirm('Are you sure you want to approve this tax assessment?')) return;
+    const ok = await confirm({ title: 'Approve assessment', message: 'Are you sure you want to approve this tax assessment?', confirmLabel: 'Approve' });
+    if (!ok) return;
     try {
       await assessmentAPI.approve(assessmentId);
       toast.success('Tax Assessment approved');
@@ -251,7 +256,14 @@ const Assessments = () => {
             ) : (
               assessments.map((assessment) => (
                 <tr key={assessment.id}>
-                  <td className="font-medium">{assessment.assessmentNumber}</td>
+                  <td className="font-medium">
+                    <span className="inline-flex items-center gap-1.5">
+                      {assessment.assessmentNumber}
+                      {isRecentDate(assessment.createdAt) && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Recent</span>
+                      )}
+                    </span>
+                  </td>
                   <td>
                     <Link to={`/properties/${assessment.propertyId}`} className="text-primary-600 hover:underline">
                       {assessment.property?.propertyNumber || 'N/A'}

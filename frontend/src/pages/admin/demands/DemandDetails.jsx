@@ -34,10 +34,12 @@ const DemandDetails = () => {
   const fetchDemand = async () => {
     try {
       const response = await demandAPI.getById(id);
-      if (response.data.success && response.data.data.demand) {
-        setDemand(response.data.data.demand);
+      const data = response.data?.data ?? response.data;
+      const demandObj = data?.demand ?? data;
+      if (response.data?.success && demandObj) {
+        setDemand(demandObj);
       } else {
-        toast.error(response.data.message || 'Failed to fetch tax demand details');
+        toast.error(response.data?.message || 'Failed to fetch tax demand details');
       }
     } catch (error) {
       toast.error(error.response?.data?.message || error.message || 'Failed to fetch tax demand details');
@@ -123,6 +125,7 @@ const DemandDetails = () => {
     >
       {demand.taxDiscounts && demand.taxDiscounts.length > 0 && (() => {
         const discount = demand.taxDiscounts[0];
+        if (!discount) return null;
         const finalPayable = demand.finalAmount ?? calculateFinalAmount(demand, { discountAmount: parseFloat(discount.discountAmount || 0), waiverAmount: parseFloat(demand.penaltyWaived || 0) }).finalAmount;
         return (
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -160,7 +163,7 @@ const DemandDetails = () => {
         );
       })()}
 
-      {breakdown?.demand?.property?.waterConnections && breakdown.demand.property.waterConnections.length > 0 && (
+      {(breakdown?.demand?.property?.waterConnections?.length ?? 0) > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/80">
             <h2 className="font-semibold text-gray-900 flex items-center">
@@ -169,7 +172,7 @@ const DemandDetails = () => {
             </h2>
           </div>
           <div className="p-5 space-y-3">
-            {breakdown.demand.property.waterConnections.map((connection) => (
+            {(breakdown?.demand?.property?.waterConnections ?? []).map((connection) => (
               <div key={connection.id} className="bg-gray-50 p-3 rounded-lg flex justify-between items-start">
                 <div>
                   <p className="font-medium">{connection.connectionNumber}</p>

@@ -87,7 +87,7 @@ const TaxManagement = () => {
         }] : []),
         {
             name: 'Unified Tax Demand',
-            description: 'Generate Property, Water & D2DC demands in one go',
+            description: 'Generate Property, Water, Shop & D2DC demands in one go',
             icon: Zap,
             link: '/demands/unified',
             color: 'bg-gradient-to-r from-indigo-600 to-purple-600',

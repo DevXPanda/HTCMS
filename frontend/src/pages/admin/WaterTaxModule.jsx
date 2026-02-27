@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Droplet, FileText, Receipt, ClipboardList, CreditCard, PlusCircle, TrendingUp, AlertCircle } from 'lucide-react';
+import { Droplet, FileText, Receipt, ClipboardList, CreditCard, PlusCircle, TrendingUp, AlertCircle, Zap } from 'lucide-react';
 import api from '../../services/api';
 
 const WaterTaxModule = () => {
@@ -50,6 +50,13 @@ const WaterTaxModule = () => {
             icon: Receipt,
             link: '/demands?module=WATER',
             color: 'bg-amber-500'
+        },
+        {
+            title: 'Generate Water Tax Demands',
+            description: 'Bulk generate water tax demands only',
+            icon: Zap,
+            link: '/demands/generate/water',
+            color: 'bg-cyan-600'
         },
         {
             title: 'Connection Requests',

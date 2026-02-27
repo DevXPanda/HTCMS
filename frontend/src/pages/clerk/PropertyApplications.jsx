@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { clerkAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import { FileText, Plus, Eye, Edit, Trash2, Send } from 'lucide-react';
+import { useConfirm } from '../../components/ConfirmModal';
 
 const PropertyApplications = () => {
     const [applications, setApplications] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('ALL');
     const navigate = useNavigate();
+    const { confirm } = useConfirm();
 
     useEffect(() => {
         fetchApplications();
@@ -28,7 +30,8 @@ const PropertyApplications = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this application?')) return;
+        const ok = await confirm({ title: 'Delete application', message: 'Are you sure you want to delete this application?', confirmLabel: 'Delete', variant: 'danger' });
+        if (!ok) return;
 
         try {
             await clerkAPI.deletePropertyApplication(id);
@@ -40,7 +43,8 @@ const PropertyApplications = () => {
     };
 
     const handleSubmit = async (id) => {
-        if (!window.confirm('Submit this application for inspection?')) return;
+        const ok = await confirm({ title: 'Submit for inspection', message: 'Submit this application for inspection?', confirmLabel: 'Submit' });
+        if (!ok) return;
 
         try {
             await clerkAPI.submitPropertyApplication(id);

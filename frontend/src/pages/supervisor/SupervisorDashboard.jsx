@@ -21,8 +21,10 @@ import { Link } from 'react-router-dom';
 import { useStaffAuth } from '../../contexts/StaffAuthContext';
 import { fieldWorkerMonitoringAPI, workerTaskAPI, attendanceAPI, toiletComplaintAPI } from '../../services/api';
 import toast from 'react-hot-toast';
+import { useConfirm } from '../../components/ConfirmModal';
 
 const SupervisorDashboard = () => {
+  const { confirm } = useConfirm();
   const { user } = useStaffAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -178,9 +180,8 @@ const SupervisorDashboard = () => {
   };
 
   const handleMarkAllPresent = async () => {
-    if (!confirm('Are you sure you want to mark all workers as present?')) {
-      return;
-    }
+    const ok = await confirm({ title: 'Mark all present', message: 'Are you sure you want to mark all workers as present?', confirmLabel: 'Yes' });
+    if (!ok) return;
 
     try {
       setMarkingAll(true);

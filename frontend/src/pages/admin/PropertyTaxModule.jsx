@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Home, FileText, Receipt, Bell, CreditCard, PlusCircle, TrendingUp, AlertCircle, IndianRupee, CheckCircle } from 'lucide-react';
+import { Home, FileText, Receipt, Bell, CreditCard, PlusCircle, TrendingUp, AlertCircle, IndianRupee, CheckCircle, Zap } from 'lucide-react';
 import api from '../../services/api';
 
 const PropertyTaxModule = () => {
@@ -43,6 +43,13 @@ const PropertyTaxModule = () => {
             icon: Receipt,
             link: '/demands?module=PROPERTY',
             color: 'bg-yellow-500'
+        },
+        {
+            title: 'Generate Property Tax Demands',
+            description: 'Bulk generate property (house) tax demands only',
+            icon: Zap,
+            link: '/demands/generate/property',
+            color: 'bg-indigo-500'
         },
         {
             title: 'Notices',

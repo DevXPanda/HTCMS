@@ -8,6 +8,7 @@ import { generatePaymentReceiptPdf } from '../utils/pdfHelpers.js';
 import { auditLogger, createAuditLog } from '../utils/auditLogger.js';
 import { distributePaymentAcrossItems, validatePaymentDistributionIntegrity } from '../services/paymentService.js';
 import { validateAuditAction } from '../utils/auditHelpers.js';
+import { generatePaymentId } from '../services/uniqueIdService.js';
 
 /**
  * Validate payment amount against demand balance to prevent overpayment
@@ -143,7 +144,7 @@ export const getAllPayments = async (req, res, next) => {
       ],
       limit: parseInt(limit),
       offset,
-      order: [['paymentDate', 'DESC']]
+      order: [['createdAt', 'DESC']]
     });
 
     res.json({
@@ -254,15 +255,8 @@ export const createPayment = async (req, res, next) => {
       remarks
     } = req.body;
 
-    // Get demand with row-level lock to prevent race conditions
+    // Get demand with row-level lock (no includes - avoids "FOR UPDATE on nullable side of outer join")
     const demand = await Demand.findByPk(demandId, {
-      include: [
-        {
-          model: Property,
-          as: 'property',
-          include: [{ model: Ward, as: 'ward' }]
-        }
-      ],
       lock: transaction.LOCK.UPDATE,
       transaction
     });
@@ -275,6 +269,13 @@ export const createPayment = async (req, res, next) => {
       });
     }
 
+    // Load property and ward for access check (separate query avoids FOR UPDATE on join)
+    const property = await Property.findByPk(demand.propertyId, {
+      include: [{ model: Ward, as: 'ward' }],
+      transaction
+    });
+    demand.property = property;
+
     // Verify collector has access to this property's ward (using ward_ids from JWT)
     if (req.user.role === 'collector' || req.user.role === 'tax_collector') {
       const collectorWardIds = req.user.ward_ids || req.user.dataValues?.ward_ids;
@@ -286,7 +287,7 @@ export const createPayment = async (req, res, next) => {
         });
       }
       const wardIdsArray = Array.isArray(collectorWardIds) ? collectorWardIds : [collectorWardIds];
-      if (!wardIdsArray.includes(demand.property.wardId)) {
+      if (!property || !wardIdsArray.includes(property.wardId)) {
         await transaction.rollback();
         return res.status(403).json({
           success: false,
@@ -751,8 +752,17 @@ export const createOnlinePaymentOrder = async (req, res, next) => {
 
     const order = await razorpay.orders.create(options);
 
-    // Create pending payment record with structured payment number
-    const wardId = demand.wardId || demand.property?.wardId;
+    // Resolve wardId for payment number (works for all modules: property, water, shop, D2DC, unified)
+    let wardId = demand.property?.wardId ?? demand.wardId;
+    if (wardId == null && demand.propertyId) {
+      const prop = await Property.findByPk(demand.propertyId, { attributes: ['wardId'] });
+      wardId = prop?.wardId;
+    }
+    if (wardId == null) {
+      const firstWard = await Ward.findOne({ order: [['id', 'ASC']], attributes: ['id'] });
+      wardId = firstWard?.id ?? 1;
+    }
+
     const paymentNumber = await generatePaymentNumber(wardId);
     const payment = await Payment.create({
       paymentNumber,
@@ -779,7 +789,29 @@ export const createOnlinePaymentOrder = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Razorpay order creation error:', error);
-    next(error);
+    // Razorpay SDK uses axios; errors can be error.response.status or error.statusCode
+    const statusCode = error.response?.status ?? error.response?.data?.statusCode ?? error.statusCode ?? error.status;
+    const desc = error.response?.data?.error?.description ?? error.error?.description ?? error.description ?? error.message ?? '';
+    const description = String(desc || '');
+    if (statusCode === 401 || (description && description.toLowerCase().includes('authentication failed'))) {
+      return res.status(503).json({
+        success: false,
+        message: 'Payment gateway keys are invalid or expired. Please check Razorpay key and secret in server settings.'
+      });
+    }
+    if (statusCode === 400 && description.toLowerCase().includes('amount')) {
+      const isMaxAmount = description.toLowerCase().includes('maximum amount');
+      return res.status(400).json({
+        success: false,
+        message: isMaxAmount
+          ? 'This amount exceeds the maximum allowed for online payment. Please pay in parts (enter a smaller amount and pay multiple times) or pay the full amount at the office.'
+          : 'Payment amount is not allowed by the payment gateway. Try a smaller amount or pay at the office.'
+      });
+    }
+    return res.status(503).json({
+      success: false,
+      message: 'Unable to start payment. Please try again later or pay at the office.'
+    });
   }
 };
 
@@ -803,9 +835,8 @@ export const verifyOnlinePayment = async (req, res, next) => {
 
     const { paymentId, razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
 
-    // Get payment record with lock
+    // Get payment record with lock (no includes - avoids FOR UPDATE on nullable side of outer join)
     const payment = await Payment.findByPk(paymentId, {
-      include: [{ model: Demand, as: 'demand' }],
       lock: transaction.LOCK.UPDATE,
       transaction
     });
@@ -1094,17 +1125,8 @@ export const createFieldCollectionPayment = async (req, res, next) => {
       remarks
     } = req.body;
 
-    // Get demand with property details and row-level lock
+    // Get demand with row-level lock (no includes - avoids "FOR UPDATE on nullable side of outer join")
     const demand = await Demand.findByPk(demandId, {
-      include: [
-        {
-          model: Property,
-          as: 'property',
-          include: [
-            { model: Ward, as: 'ward' }
-          ]
-        }
-      ],
       lock: transaction.LOCK.UPDATE,
       transaction
     });
@@ -1116,6 +1138,13 @@ export const createFieldCollectionPayment = async (req, res, next) => {
         message: 'Tax Demand not found'
       });
     }
+
+    // Load property and ward for access check
+    const property = await Property.findByPk(demand.propertyId, {
+      include: [{ model: Ward, as: 'ward' }],
+      transaction
+    });
+    demand.property = property;
 
     // Verify collector has access to this property's ward (using ward_ids from JWT)
     const user = req.user;
@@ -1129,7 +1158,7 @@ export const createFieldCollectionPayment = async (req, res, next) => {
         });
       }
       const wardIdsArray = Array.isArray(collectorWardIds) ? collectorWardIds : [collectorWardIds];
-      if (!wardIdsArray.includes(demand.property.wardId)) {
+      if (!property || !wardIdsArray.includes(property.wardId)) {
         await transaction.rollback();
         return res.status(403).json({
           success: false,

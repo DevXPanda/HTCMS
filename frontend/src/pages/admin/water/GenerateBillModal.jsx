@@ -1,14 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { waterBillAPI, propertyAPI, waterConnectionAPI } from '../../../services/api';
 import toast from 'react-hot-toast';
-import { X } from 'lucide-react';
+import { X, Search } from 'lucide-react';
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 const GenerateBillModal = ({ onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
-  const [properties, setProperties] = useState([]);
   const [connections, setConnections] = useState([]);
   const [loadingConnections, setLoadingConnections] = useState(false);
+  const [propertySearchQuery, setPropertySearchQuery] = useState('');
+  const [propertySearchResults, setPropertySearchResults] = useState([]);
+  const [propertySearching, setPropertySearching] = useState(false);
+  const [selectedProperty, setSelectedProperty] = useState(null);
+  const [showPropertyDropdown, setShowPropertyDropdown] = useState(false);
   const {
     register,
     handleSubmit,
@@ -27,13 +33,33 @@ const GenerateBillModal = ({ onClose, onSuccess }) => {
   });
 
   const selectedPropertyId = watch('propertyId');
-  const selectedConnectionId = watch('waterConnectionId');
   const year = watch('year');
   const month = watch('month');
 
-  useEffect(() => {
-    fetchProperties();
+  const searchProperties = useCallback(async (query) => {
+    const q = String(query).trim();
+    if (!q) {
+      setPropertySearchResults([]);
+      return;
+    }
+    try {
+      setPropertySearching(true);
+      const response = await propertyAPI.getAll({ search: q, limit: 20, status: 'active' });
+      setPropertySearchResults(response.data?.data?.properties ?? []);
+    } catch {
+      setPropertySearchResults([]);
+    } finally {
+      setPropertySearching(false);
+    }
   }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (selectedProperty) return;
+      searchProperties(propertySearchQuery);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [propertySearchQuery, selectedProperty, searchProperties]);
 
   useEffect(() => {
     if (selectedPropertyId) {
@@ -52,13 +78,22 @@ const GenerateBillModal = ({ onClose, onSuccess }) => {
     }
   }, [year, month, setValue]);
 
-  const fetchProperties = async () => {
-    try {
-      const response = await propertyAPI.getAll({ limit: 1000, isActive: true });
-      setProperties(response.data.data.properties || []);
-    } catch (error) {
-      toast.error('Failed to fetch properties');
-    }
+  const onSelectProperty = (property) => {
+    setSelectedProperty(property);
+    setValue('propertyId', property.id.toString());
+    setPropertySearchQuery('');
+    setPropertySearchResults([]);
+    setShowPropertyDropdown(false);
+  };
+
+  const clearProperty = () => {
+    setSelectedProperty(null);
+    setValue('propertyId', '');
+    setPropertySearchQuery('');
+    setPropertySearchResults([]);
+    setShowPropertyDropdown(false);
+    setConnections([]);
+    setValue('waterConnectionId', '');
   };
 
   const fetchConnections = async (propertyId) => {
@@ -138,23 +173,62 @@ const GenerateBillModal = ({ onClose, onSuccess }) => {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
-          {/* Property Selection */}
-          <div>
+          {/* Property Search */}
+          <div className="relative">
             <label className="label">
               Property <span className="text-red-500">*</span>
             </label>
-            <select
-              {...register('propertyId', { required: 'Property is required' })}
-              className="input"
-            >
-              <option value="">Select Property</option>
-              {properties.map(property => (
-                <option key={property.id} value={property.id}>
-                  {property.propertyNumber} - {property.address}
-                  {property.ward?.wardName ? ` (${property.ward.wardName})` : ''}
-                </option>
-              ))}
-            </select>
+            {selectedProperty ? (
+              <div className="flex items-center gap-2">
+                <div className="input flex-1 bg-gray-50">
+                  ID: {selectedProperty.id} · {selectedProperty.propertyNumber}
+                  {selectedProperty.address ? ` – ${selectedProperty.address}` : ''}
+                  {selectedProperty.ward?.wardName ? ` (${selectedProperty.ward.wardName})` : ''}
+                </div>
+                <button type="button" onClick={clearProperty} className="btn btn-secondary shrink-0">Change</button>
+              </div>
+            ) : (
+              <>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={propertySearchQuery}
+                    onChange={(e) => { setPropertySearchQuery(e.target.value); setShowPropertyDropdown(true); }}
+                    onFocus={() => setShowPropertyDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowPropertyDropdown(false), 200)}
+                    className="input w-full pl-10"
+                    placeholder="Search by Property ID or Property Number..."
+                  />
+                  {propertySearching && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-600 border-t-transparent" />
+                    </div>
+                  )}
+                </div>
+                {showPropertyDropdown && (propertySearchResults.length > 0 || propertySearchQuery.trim()) && (
+                  <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+                    {propertySearchResults.length === 0 ? (
+                      <li className="px-4 py-3 text-gray-500 text-sm">No properties found</li>
+                    ) : (
+                      propertySearchResults.map((property) => (
+                        <li
+                          key={property.id}
+                          className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-0"
+                          onMouseDown={(e) => { e.preventDefault(); onSelectProperty(property); }}
+                        >
+                          <span className="font-medium">ID: {property.id}</span>
+                          <span className="text-gray-600"> · {property.propertyNumber}</span>
+                          {property.address && <span className="text-gray-500"> – {property.address}</span>}
+                          {property.ward?.wardName && <span className="text-gray-400"> ({property.ward.wardName})</span>}
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                )}
+                <input type="hidden" {...register('propertyId', { required: 'Property is required' })} />
+              </>
+            )}
             {errors.propertyId && (
               <p className="text-red-500 text-sm mt-1">{errors.propertyId.message}</p>
             )}

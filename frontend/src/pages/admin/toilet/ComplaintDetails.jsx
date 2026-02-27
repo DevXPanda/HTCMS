@@ -19,11 +19,13 @@ import {
 } from 'lucide-react';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
+import { useConfirm } from '../../../components/ConfirmModal';
 
 const ComplaintDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     useBackTo('/toilet-management/complaints');
+    const { confirm } = useConfirm();
 
     const [complaint, setComplaint] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -92,7 +94,8 @@ const ComplaintDetails = () => {
     };
 
     const handleDelete = async () => {
-        if (!window.confirm('Are you sure you want to delete this complaint? This will soft-delete the record.')) return;
+        const ok = await confirm({ title: 'Delete complaint', message: 'Are you sure you want to delete this complaint? This will soft-delete the record.', confirmLabel: 'Delete', variant: 'danger' });
+        if (!ok) return;
 
         try {
             const response = await api.delete(`/toilet/complaints/${id}`);

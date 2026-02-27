@@ -9,6 +9,7 @@ import {
     X
 } from 'lucide-react';
 import api from '../../../services/api';
+import toast from 'react-hot-toast';
 
 const GauShalaFeeding = () => {
     useBackTo('/gaushala/management');
@@ -59,11 +60,11 @@ const GauShalaFeeding = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!formData.gau_shala_facility_id || !formData.record_date || !formData.fodder_type) {
-            alert('Please fill in all required fields.');
+            toast.error('Please fill in all required fields.');
             return;
         }
         if (formData.quantity && (isNaN(formData.quantity) || Number(formData.quantity) <= 0)) {
-            alert('Quantity must be a positive number.');
+            toast.error('Quantity must be a positive number.');
             return;
         }
         try {
@@ -89,7 +90,7 @@ const GauShalaFeeding = () => {
             }
         } catch (error) {
             console.error('Failed to create feeding record:', error);
-            alert(error.response?.data?.message || 'Failed to create feeding record');
+            toast.error(error.response?.data?.message || 'Failed to create feeding record');
         } finally {
             setSubmitting(false);
         }

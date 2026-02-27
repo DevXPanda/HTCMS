@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { demandAPI, propertyAPI, assessmentAPI, waterTaxAssessmentAPI } from '../../../services/api';
 import toast from 'react-hot-toast';
-import { Zap, CheckCircle2, Building2, Droplet, Truck, FileText, Search, X } from 'lucide-react';
+import { Zap, CheckCircle2, Building2, Droplet, Truck, FileText, Search, X, Store } from 'lucide-react';
 import Loading from '../../../components/Loading';
 
 const UnifiedTaxDemand = () => {
@@ -26,6 +26,7 @@ const UnifiedTaxDemand = () => {
     // Selection states
     const [generateHouseTax, setGenerateHouseTax] = useState(false);
     const [generateWaterTax, setGenerateWaterTax] = useState(false);
+    const [generateShopTax, setGenerateShopTax] = useState(false);
     const [generateD2DC, setGenerateD2DC] = useState(false);
     const [generateUnified, setGenerateUnified] = useState(false);
     const [includeShopDemands, setIncludeShopDemands] = useState(false);
@@ -111,6 +112,7 @@ const UnifiedTaxDemand = () => {
             setGenerateHouseTax(true);
             setGenerateWaterTax(true);
             setGenerateD2DC(true);
+            setIncludeShopDemands(true);
         }
     }, [generateUnified]);
 
@@ -173,7 +175,7 @@ const UnifiedTaxDemand = () => {
             return;
         }
 
-        if (!generateHouseTax && !generateWaterTax && !generateD2DC) {
+        if (!generateHouseTax && !generateWaterTax && !generateShopTax && !generateD2DC) {
             toast.error('Please select at least one service to generate');
             return;
         }
@@ -241,6 +243,7 @@ const UnifiedTaxDemand = () => {
                 unified: unifiedData,
                 houseTax: null,
                 waterTax: null,
+                shopDemands: null,
                 d2dc: null,
                 errors: []
             };
@@ -284,6 +287,23 @@ const UnifiedTaxDemand = () => {
                         } catch (e) {
                             results.errors.push({ type: 'WATER_TAX', message: e.response?.data?.message || 'Failed' });
                         }
+                    }
+                }
+
+                if (generateShopTax) {
+                    try {
+                        const response = await demandAPI.generatePropertyShop({
+                            propertyId: selectedProperty.id,
+                            financialYear: data.financialYear,
+                            dueDate: data.dueDate
+                        });
+                        results.shopDemands = response.data.data?.shopDemands ?? [];
+                        const created = response.data.data?.createdCount ?? 0;
+                        const skipped = response.data.data?.skippedCount ?? 0;
+                        toast.success(`Shop demands: ${created} created, ${skipped} already existed`);
+                    } catch (e) {
+                        results.errors.push({ type: 'SHOP_TAX', message: e.response?.data?.message || 'Failed' });
+                        toast.error(e.response?.data?.message || 'Failed to generate shop demands');
                     }
                 }
             }
@@ -332,7 +352,7 @@ const UnifiedTaxDemand = () => {
         <div className="w-full max-w-7xl mx-auto space-y-6">
             <div>
                 <h1 className="ds-page-title">Unified Tax Demand</h1>
-                <p className="ds-page-subtitle">Generate Property, Water, and D2DC demands in one go</p>
+                <p className="ds-page-subtitle">Generate Property, Water, Shop, and D2DC demands in one go</p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -449,7 +469,7 @@ const UnifiedTaxDemand = () => {
                                         <span className="block text-ds-section text-primary-900 font-semibold">Generate Full Unified Tax Demand ⚡</span>
                                         <span className="block text-sm text-gray-600 mt-1">
                                             Use this to generate demand using existing approved assessments.
-                                            Creates unified demand (Property + Water) with optional Shop and D2DC demands.
+                                            Creates unified demand (Property + Water + Shop) with optional D2DC demands.
                                         </span>
                                     </div>
                                 </label>
@@ -486,6 +506,21 @@ const UnifiedTaxDemand = () => {
                                     />
                                     <Droplet className="w-5 h-5 text-cyan-500 mx-3 shrink-0" />
                                     <span className="label mb-0 text-gray-700">Water Tax</span>
+                                </label>
+
+                                <label className="flex items-center p-3 rounded-ds border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
+                                    <input
+                                        type="checkbox"
+                                        checked={generateShopTax}
+                                        onChange={(e) => {
+                                            setGenerateShopTax(e.target.checked);
+                                            if (!e.target.checked) setGenerateUnified(false);
+                                        }}
+                                        disabled={generateUnified}
+                                        className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
+                                    />
+                                    <Store className="w-5 h-5 text-amber-500 mx-3 shrink-0" />
+                                    <span className="label mb-0 text-gray-700">Shop Tax</span>
                                 </label>
 
                                 <label className="flex items-center p-3 rounded-ds border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
@@ -586,7 +621,7 @@ const UnifiedTaxDemand = () => {
                         <div className="mt-8">
                             <button
                                 onClick={handleSubmit(onSubmit)}
-                                disabled={generating || !selectedProperty || (!generateHouseTax && !generateWaterTax && !generateD2DC)}
+                                disabled={generating || !selectedProperty || (!generateUnified && !generateHouseTax && !generateWaterTax && !generateShopTax && !generateD2DC)}
                                 className="btn btn-primary w-full btn-lg"
                             >
                                 {generating ? 'Processing...' : <><Zap className="w-5 h-5" /> Generate Demands</>}
@@ -648,6 +683,13 @@ const UnifiedTaxDemand = () => {
                                     <div className="flex items-center text-sm text-cyan-700 mb-2">
                                         <CheckCircle2 className="w-4 h-4 mr-2" />
                                         Water Tax: {result.waterTax.demandNumber}
+                                    </div>
+                                )}
+
+                                {result.shopDemands && result.shopDemands.length > 0 && (
+                                    <div className="flex items-center text-sm text-amber-700 mb-2">
+                                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                                        Shop Tax: {result.shopDemands.length} demand(s) — {result.shopDemands.map((d) => d.demandNumber).filter(Boolean).join(', ') || 'Created'}
                                     </div>
                                 )}
 

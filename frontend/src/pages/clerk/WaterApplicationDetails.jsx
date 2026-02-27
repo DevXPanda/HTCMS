@@ -3,10 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { clerkAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import { Edit, Send, Droplet, MapPin, Calendar } from 'lucide-react';
+import { useConfirm } from '../../components/ConfirmModal';
 
 const WaterApplicationDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { confirm } = useConfirm();
     const [application, setApplication] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -28,7 +30,8 @@ const WaterApplicationDetails = () => {
     };
 
     const handleSubmit = async () => {
-        if (!window.confirm('Submit this water application for inspection?')) return;
+        const ok = await confirm({ title: 'Submit for inspection', message: 'Submit this water application for inspection?', confirmLabel: 'Submit' });
+        if (!ok) return;
 
         try {
             await clerkAPI.submitWaterApplication(id);

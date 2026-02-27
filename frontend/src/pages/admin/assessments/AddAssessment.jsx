@@ -1,15 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { assessmentAPI, propertyAPI } from '../../../services/api';
 import toast from 'react-hot-toast';
-import { Save, Calculator } from 'lucide-react';
+import { Save, Calculator, Search } from 'lucide-react';
+import { useConfirm } from '../../../components/ConfirmModal';
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 const AddAssessment = () => {
   const navigate = useNavigate();
+  const { confirm } = useConfirm();
   const [loading, setLoading] = useState(false);
-  const [properties, setProperties] = useState([]);
-  const [loadingProperties, setLoadingProperties] = useState(true);
+  const [propertySearchQuery, setPropertySearchQuery] = useState('');
+  const [propertySearchResults, setPropertySearchResults] = useState([]);
+  const [propertySearching, setPropertySearching] = useState(false);
+  const [selectedProperty, setSelectedProperty] = useState(null);
+  const [showPropertyDropdown, setShowPropertyDropdown] = useState(false);
   const [calculatedTax, setCalculatedTax] = useState(0);
 
   const {
@@ -32,9 +39,30 @@ const AddAssessment = () => {
   const watchedDepreciation = watch('depreciation');
   const watchedExemption = watch('exemptionAmount');
 
-  useEffect(() => {
-    fetchProperties();
+  const searchProperties = useCallback(async (query) => {
+    const q = String(query).trim();
+    if (!q) {
+      setPropertySearchResults([]);
+      return;
+    }
+    try {
+      setPropertySearching(true);
+      const response = await propertyAPI.getAll({ search: q, limit: 20, status: 'active' });
+      setPropertySearchResults(response.data?.data?.properties ?? []);
+    } catch {
+      setPropertySearchResults([]);
+    } finally {
+      setPropertySearching(false);
+    }
   }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (selectedProperty) return;
+      searchProperties(propertySearchQuery);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [propertySearchQuery, selectedProperty, searchProperties]);
 
   useEffect(() => {
     // Calculate tax amount when values change
@@ -49,16 +77,20 @@ const AddAssessment = () => {
     }
   }, [watchedAssessedValue, watchedTaxRate, watchedDepreciation, watchedExemption]);
 
-  const fetchProperties = async () => {
-    try {
-      setLoadingProperties(true);
-      const response = await propertyAPI.getAll({ limit: 1000, status: 'active' });
-      setProperties(response.data.data.properties);
-    } catch (error) {
-      toast.error('Failed to load properties');
-    } finally {
-      setLoadingProperties(false);
-    }
+  const onSelectProperty = (property) => {
+    setSelectedProperty(property);
+    setValue('propertyId', property.id);
+    setPropertySearchQuery('');
+    setPropertySearchResults([]);
+    setShowPropertyDropdown(false);
+  };
+
+  const clearProperty = () => {
+    setSelectedProperty(null);
+    setValue('propertyId', '');
+    setPropertySearchQuery('');
+    setPropertySearchResults([]);
+    setShowPropertyDropdown(false);
   };
 
   const onSubmit = async (data) => {
@@ -93,14 +125,6 @@ const AddAssessment = () => {
     }
   };
 
-  if (loadingProperties) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-      </div>
-    );
-  }
-
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -108,25 +132,73 @@ const AddAssessment = () => {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="card space-y-6">
-        {/* Property Selection */}
+        {/* Property Search */}
         <div>
           <h2 className="text-xl font-semibold mb-4">Property Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
+            <div className="md:col-span-2 relative">
               <label className="label">
                 Property <span className="text-red-500">*</span>
               </label>
-              <select
-                {...register('propertyId', { required: 'Property is required' })}
-                className="input"
-              >
-                <option value="">Select Property</option>
-                {properties.map(property => (
-                  <option key={property.id} value={property.id}>
-                    {property.propertyNumber} - {property.address} ({property.ward?.wardName || 'N/A'})
-                  </option>
-                ))}
-              </select>
+              {selectedProperty ? (
+                <div className="input flex items-center justify-between bg-gray-50">
+                  <span>
+                    ID: {selectedProperty.id} · {selectedProperty.propertyNumber} – {selectedProperty.address}
+                    {selectedProperty.ward?.wardName ? ` (${selectedProperty.ward.wardName})` : ''}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={clearProperty}
+                    className="text-gray-500 hover:text-red-600 text-sm font-medium"
+                  >
+                    Change
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      value={propertySearchQuery}
+                      onChange={(e) => {
+                        setPropertySearchQuery(e.target.value);
+                        setShowPropertyDropdown(true);
+                      }}
+                      onFocus={() => setShowPropertyDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowPropertyDropdown(false), 200)}
+                      className="input pl-10"
+                      placeholder="Search by Property ID or Property Number..."
+                    />
+                    {propertySearching && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-600 border-t-transparent" />
+                      </div>
+                    )}
+                  </div>
+                  {showPropertyDropdown && (propertySearchResults.length > 0 || propertySearchQuery.trim()) && (
+                    <ul className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+                      {propertySearchResults.length === 0 ? (
+                        <li className="px-4 py-3 text-gray-500 text-sm">No properties found</li>
+                      ) : (
+                        propertySearchResults.map((property) => (
+                          <li
+                            key={property.id}
+                            className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-0"
+                            onMouseDown={(e) => { e.preventDefault(); onSelectProperty(property); }}
+                          >
+                            <span className="font-medium">ID: {property.id}</span>
+                            <span className="text-gray-600"> · {property.propertyNumber}</span>
+                            {property.address && <span className="text-gray-500"> – {property.address}</span>}
+                            {property.ward?.wardName && <span className="text-gray-400"> ({property.ward.wardName})</span>}
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  )}
+                </>
+              )}
+              <input type="hidden" {...register('propertyId', { required: 'Property is required' })} />
               {errors.propertyId && (
                 <p className="text-red-500 text-sm mt-1">{errors.propertyId.message}</p>
               )}
@@ -347,19 +419,13 @@ const AddAssessment = () => {
               }
               const currentYear = new Date().getFullYear();
               const financialYear = `${currentYear}-${String(currentYear + 1).slice(-2)}`;
-              
-              if (!window.confirm(
-                `Generate Unified Tax Assessment and Demand?\n\n` +
-                `This will:\n` +
-                `1. Create Property Tax Assessment (if not exists)\n` +
-                `2. Create Water Tax Assessments for all active connections (if not exist)\n` +
-                `3. Generate ONE unified demand containing both taxes\n\n` +
-                `Property: ${properties.find(p => p.id === parseInt(formData.propertyId))?.propertyNumber || 'N/A'}\n` +
-                `Assessment Year: ${formData.assessmentYear}\n` +
-                `Financial Year: ${financialYear}`
-              )) {
-                return;
-              }
+              const propNum = selectedProperty?.propertyNumber || 'N/A';
+              const ok = await confirm({
+                title: 'Generate unified assessment',
+                message: `Generate Unified Tax Assessment and Demand? This will create Property Tax Assessment (if not exists), Water Tax Assessments for all active connections (if not exist), and one unified demand. Property: ${propNum}, Assessment Year: ${formData.assessmentYear}, Financial Year: ${financialYear}.`,
+                confirmLabel: 'Generate'
+              });
+              if (!ok) return;
 
               try {
                 setLoading(true);

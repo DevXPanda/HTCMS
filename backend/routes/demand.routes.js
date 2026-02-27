@@ -9,6 +9,8 @@ import {
   generateShopDemand,
   generateBulkDemands,
   generateBulkShopDemands,
+  generateBulkWaterDemands,
+  generatePropertyShopDemands,
   generateCombinedDemands,
   generateUnifiedDemand,
   calculatePenalty,
@@ -50,6 +52,12 @@ router.post('/generate-bulk', authorize('admin'), generateBulkDemands);
 
 // Generate bulk shop tax demands (Admin, Assessor, Clerk)
 router.post('/generate-bulk-shop', authorize('admin', 'assessor', 'clerk'), generateBulkShopDemands);
+
+// Generate bulk water tax demands (Admin, Assessor)
+router.post('/generate-bulk-water', authorize('admin', 'assessor'), generateBulkWaterDemands);
+
+// Generate shop demands for a single property (Admin, Assessor)
+router.post('/generate-property-shop', authorize('admin', 'assessor'), generatePropertyShopDemands);
 
 // Generate combined demands (Property Tax + Water Tax) (Admin, Assessor)
 router.post('/generate-combined', authorize('admin', 'assessor'), generateCombinedDemands);

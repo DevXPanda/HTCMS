@@ -5,10 +5,12 @@ import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { Plus, Eye, Search, Filter, X, Send, ArrowUp } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useConfirm } from '../../../components/ConfirmModal';
 import GenerateNoticeModal from './GenerateNoticeModal';
 
 const Notices = () => {
   const { isAdmin, isAssessor } = useAuth();
+  const { confirm } = useConfirm();
   const [notices, setNotices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -85,7 +87,13 @@ const Notices = () => {
       return;
     }
 
-    if (!window.confirm(`Escalate this notice to ${nextType} notice?`)) return;
+    const ok = await confirm({
+      title: 'Escalate notice',
+      message: `Escalate this notice to ${nextType} notice?`,
+      confirmLabel: 'Escalate',
+      cancelLabel: 'Cancel'
+    });
+    if (!ok) return;
 
     try {
       await noticeAPI.escalate(noticeId, { noticeType: nextType });
@@ -279,7 +287,7 @@ const Notices = () => {
               notices.map((notice) => (
                 <tr key={notice.id}>
                   <td className="font-medium">{notice.noticeNumber}</td>
-                  <td>
+                  <td className="whitespace-nowrap">
                     <span className={`px-2 py-1 rounded text-xs font-medium ${getNoticeTypeBadge(notice.noticeType)}`}>
                       {getNoticeTypeLabel(notice.noticeType)}
                     </span>

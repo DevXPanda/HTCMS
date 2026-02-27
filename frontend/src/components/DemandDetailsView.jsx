@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Receipt, CreditCard, TrendingUp, Calendar, Wallet, Banknote } from 'lucide-react';
+import { Receipt, CreditCard, TrendingUp, Calendar, Wallet, Banknote, Home } from 'lucide-react';
 
 const formatAmount = (n) =>
   `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -41,8 +41,9 @@ export default function DemandDetailsView({
 }) {
   if (!demand) return null;
 
-  const isOverdue = new Date(demand.dueDate) < new Date() && parseFloat(demand.balanceAmount || 0) > 0;
-  const payments = demand.payments || [];
+  const dueDate = demand.dueDate ? new Date(demand.dueDate) : null;
+  const isOverdue = dueDate && dueDate.getTime && !isNaN(dueDate.getTime()) && dueDate < new Date() && parseFloat(demand.balanceAmount || 0) > 0;
+  const payments = Array.isArray(demand.payments) ? demand.payments : [];
   const property = demand.property;
 
   return (
@@ -94,7 +95,7 @@ export default function DemandDetailsView({
               <Calendar className="w-5 h-5 text-gray-400" />
             </div>
             <p className={`stat-card-value text-lg font-bold ${isOverdue ? 'text-red-600' : 'text-gray-900'}`}>
-              {new Date(demand.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+              {demand.dueDate ? new Date(demand.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
               {isOverdue && <span className="block text-xs font-normal text-red-600 mt-0.5">Overdue</span>}
             </p>
           </div>

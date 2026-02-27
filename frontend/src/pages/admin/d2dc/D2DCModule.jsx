@@ -127,6 +127,12 @@ const D2DCModule = () => {
                         </div>
                         <div className="flex items-center gap-3">
                             <Link
+                                to="/demands/generate/d2dc"
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                            >
+                                Generate D2DC Demands
+                            </Link>
+                            <Link
                                 to="/demands?module=D2DC"
                                 className="inline-flex items-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors text-sm font-medium"
                             >

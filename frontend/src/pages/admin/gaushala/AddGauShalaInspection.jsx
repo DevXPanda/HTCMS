@@ -3,6 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useBackTo } from '../../../contexts/NavigationContext';
 import { Save, ClipboardCheck, AlertCircle, Calendar } from 'lucide-react';
 import api from '../../../services/api';
+import toast from 'react-hot-toast';
 
 const AddGauShalaInspection = () => {
     const navigate = useNavigate();
@@ -96,12 +97,12 @@ const AddGauShalaInspection = () => {
 
         // Validation logic
         if (formData.status === 'completed' && !formData.next_inspection_due) {
-            alert('Next inspection due date is required when status is Completed');
+            toast.error('Next inspection due date is required when status is Completed');
             return;
         }
 
         if (!formData.inspector_id) {
-            alert('Inspector is required');
+            toast.error('Inspector is required');
             return;
         }
 
@@ -118,15 +119,15 @@ const AddGauShalaInspection = () => {
         try {
             if (isEditMode) {
                 await api.put(`/gaushala/inspections/${id}`, submitData);
-                alert('Gaushala inspection updated successfully!');
+                toast.success('Gaushala inspection updated successfully!');
             } else {
                 await api.post('/gaushala/inspections', submitData);
-                alert('Gaushala inspection scheduled successfully!');
+                toast.success('Gaushala inspection scheduled successfully!');
             }
             navigate('/gaushala/inspections');
         } catch (error) {
             console.error('Failed to save inspection:', error);
-            alert('Failed to save inspection. Please check all fields.');
+            toast.error('Failed to save inspection. Please check all fields.');
         } finally {
             setSaving(false);
         }

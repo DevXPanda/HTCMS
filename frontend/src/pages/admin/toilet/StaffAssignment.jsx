@@ -3,9 +3,11 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, PlusCircle, Trash2, Shield, Clock, Users, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useConfirm } from '../../../components/ConfirmModal';
 import api from '../../../services/api';
 
 const StaffAssignment = () => {
+    const { confirm } = useConfirm();
     const { id } = useParams();
     const navigate = useNavigate();
     useBackTo(id ? `/toilet-management/facilities/${id}` : '/toilet-management/facilities');
@@ -64,7 +66,8 @@ const StaffAssignment = () => {
     };
 
     const handleRemoveAssignment = async (assignmentId) => {
-        if (!window.confirm('Are you sure you want to remove this staff assignment?')) return;
+        const ok = await confirm({ title: 'Remove assignment', message: 'Are you sure you want to remove this staff assignment?', confirmLabel: 'Remove', variant: 'danger' });
+        if (!ok) return;
 
         try {
             await api.delete(`/toilet/facilities/${id}/staff/${assignmentId}`);

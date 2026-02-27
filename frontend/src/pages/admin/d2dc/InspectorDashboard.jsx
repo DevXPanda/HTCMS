@@ -12,6 +12,7 @@ import {
     XCircle,
     Clock
 } from 'lucide-react';
+import { isRecentDate } from '../../../utils/dateUtils';
 
 const InspectorDashboard = () => {
     const { user } = useAuth();
@@ -246,7 +247,12 @@ const InspectorDashboard = () => {
                                 demands.map((demand) => (
                                     <tr key={demand.id}>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                            {demand.demandNumber}
+                                            <span className="inline-flex items-center gap-1.5">
+                                                {demand.demandNumber}
+                                                {isRecentDate(demand.createdAt || demand.generatedDate) && (
+                                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Recent</span>
+                                                )}
+                                            </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             {demand.property?.propertyNumber}
@@ -326,7 +332,12 @@ const InspectorDashboard = () => {
                                 payments.map((payment) => (
                                     <tr key={payment.id}>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                            {payment.receiptNumber}
+                                            <span className="inline-flex items-center gap-1.5">
+                                                {payment.receiptNumber}
+                                                {isRecentDate(payment.createdAt) && (
+                                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Recent</span>
+                                                )}
+                                            </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             {payment.property?.propertyNumber}

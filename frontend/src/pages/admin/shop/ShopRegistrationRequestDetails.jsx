@@ -3,7 +3,8 @@ import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { shopRegistrationRequestAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { Store, CheckCircle, XCircle, Clock, MapPin, Calendar, User, FileText, Download, ExternalLink } from 'lucide-react';
+import { Store, CheckCircle, XCircle, Clock, MapPin, Calendar, User, FileText, TrendingUp, ExternalLink } from 'lucide-react';
+import DetailPageLayout, { DetailRow } from '../../../components/DetailPageLayout';
 
 const ShopRegistrationRequestDetails = () => {
   const { id } = useParams();
@@ -14,10 +15,10 @@ const ShopRegistrationRequestDetails = () => {
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [adminRemarks, setAdminRemarks] = useState('');
-  
-  // Determine base path based on current route
+
   const isClerkRoute = location.pathname.startsWith('/clerk');
   const basePath = isClerkRoute ? '/clerk' : '';
+  const backToList = isClerkRoute ? '/clerk/shop-registration-requests' : '/shop-registration-requests';
 
   useEffect(() => {
     fetchRequest();
@@ -31,7 +32,7 @@ const ShopRegistrationRequestDetails = () => {
     } catch (error) {
       console.error('Error fetching request:', error);
       toast.error('Failed to load request details');
-      navigate(isClerkRoute ? '/clerk/shop-registration-requests' : '/shop-registration-requests');
+      navigate(backToList);
     } finally {
       setLoading(false);
     }
@@ -57,11 +58,8 @@ const ShopRegistrationRequestDetails = () => {
       toast.error('Please provide remarks for rejection');
       return;
     }
-
     try {
-      await shopRegistrationRequestAPI.reject(id, {
-        adminRemarks
-      });
+      await shopRegistrationRequestAPI.reject(id, { adminRemarks });
       toast.success('Shop registration request rejected');
       setShowRejectModal(false);
       setAdminRemarks('');
@@ -73,205 +71,171 @@ const ShopRegistrationRequestDetails = () => {
   };
 
   const getStatusBadge = (status) => {
-    const badges = {
-      pending: (
-        <span className="px-3 py-1 text-sm font-semibold rounded-full bg-yellow-100 text-yellow-800 flex items-center gap-2">
-          <Clock className="w-4 h-4" />
-          Pending
-        </span>
-      ),
-      approved: (
-        <span className="px-3 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-800 flex items-center gap-2">
-          <CheckCircle className="w-4 h-4" />
-          Approved
-        </span>
-      ),
-      rejected: (
-        <span className="px-3 py-1 text-sm font-semibold rounded-full bg-red-100 text-red-800 flex items-center gap-2">
-          <XCircle className="w-4 h-4" />
-          Rejected
-        </span>
-      )
-    };
-    return badges[status] || badges.pending;
+    const s = (status || 'pending').toLowerCase();
+    if (s === 'approved') return 'badge-success';
+    if (s === 'rejected') return 'badge-danger';
+    return 'badge-warning';
   };
+
+  const reviewedText = request?.reviewedAt
+    ? `${new Date(request.reviewedAt).toLocaleDateString()}${request?.reviewer ? ` by ${request.reviewer.firstName} ${request.reviewer.lastName}` : ''}`
+    : '—';
 
   if (loading) return <Loading />;
   if (!request) return null;
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <div />
-        {request.status === 'pending' && (
+    <DetailPageLayout
+      backTo={backToList}
+      backLabel="Back to Shop Registration Requests"
+      showBackLink={false}
+      title="Shop Registration Request Details"
+      subtitle={request.requestNumber}
+      actionButtons={
+        request.status === 'pending' && (
           <div className="flex gap-2">
             <button
               onClick={() => setShowApproveModal(true)}
-              className="btn bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
+              className="btn btn-success flex items-center gap-2"
             >
               <CheckCircle className="w-4 h-4" />
               Approve
             </button>
             <button
               onClick={() => setShowRejectModal(true)}
-              className="btn bg-red-600 hover:bg-red-700 text-white flex items-center gap-2"
+              className="btn btn-danger flex items-center gap-2"
             >
               <XCircle className="w-4 h-4" />
               Reject
             </button>
           </div>
-        )}
-      </div>
-
-      <div className="mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-              <Store className="w-8 h-8" />
-              Shop Registration Request Details
-            </h1>
-            <p className="text-gray-600 mt-2">Request Number: {request.requestNumber}</p>
+        )
+      }
+      summarySection={
+        <>
+          <h2 className="form-section-title flex items-center">
+            <TrendingUp className="w-5 h-5 mr-2 text-primary-600" />
+            Summary
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="stat-card">
+              <div className="stat-card-title"><span>Request Number</span></div>
+              <p className="stat-card-value text-lg font-bold text-primary-600">{request.requestNumber}</p>
+            </div>
+            <div className="stat-card">
+              <div className="stat-card-title"><span>Status</span></div>
+              <p className="stat-card-value text-base">
+                <span className={`badge capitalize flex items-center gap-1.5 w-fit ${getStatusBadge(request.status)}`}>
+                  {request.status === 'approved' && <CheckCircle className="w-4 h-4" />}
+                  {request.status === 'rejected' && <XCircle className="w-4 h-4" />}
+                  {request.status === 'pending' && <Clock className="w-4 h-4" />}
+                  {request.status}
+                </span>
+              </p>
+            </div>
+            <div className="stat-card">
+              <div className="stat-card-title"><span>Submitted</span></div>
+              <p className="stat-card-value text-lg">{new Date(request.createdAt).toLocaleDateString()}</p>
+            </div>
+            <div className="stat-card">
+              <div className="stat-card-title"><span>Reviewed</span></div>
+              <p className="stat-card-value text-sm">{reviewedText}</p>
+            </div>
           </div>
-          {getStatusBadge(request.status)}
-        </div>
-      </div>
-
+        </>
+      }
+    >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card">
-          <h2 className="text-xl font-semibold mb-4">Shop Information</h2>
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm text-gray-600">Shop Name</p>
-              <p className="font-medium text-gray-900">{request.shopName}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Shop Type</p>
-              <p className="font-medium text-gray-900 capitalize">{request.shopType}</p>
-            </div>
-            {request.category && (
-              <div>
-                <p className="text-sm text-gray-600">Category</p>
-                <p className="font-medium text-gray-900">{request.category}</p>
-              </div>
-            )}
-            {request.area && (
-              <div>
-                <p className="text-sm text-gray-600">Area</p>
-                <p className="font-medium text-gray-900">{request.area} sq. meters</p>
-              </div>
-            )}
-            {request.tradeLicenseNumber && (
-              <div>
-                <p className="text-sm text-gray-600">Trade License Number</p>
-                <p className="font-medium text-gray-900">{request.tradeLicenseNumber}</p>
-              </div>
-            )}
-            {request.address && (
-              <div>
-                <p className="text-sm text-gray-600">Shop Address</p>
-                <p className="font-medium text-gray-900">{request.address}</p>
-              </div>
-            )}
-          </div>
+          <h2 className="form-section-title flex items-center">
+            <Store className="w-5 h-5 mr-2 text-primary-600" />
+            Shop Information
+          </h2>
+          <dl>
+            <DetailRow label="Shop Name" value={request.shopName} />
+            <DetailRow label="Shop Type" value={request.shopType} valueClass="capitalize" />
+            <DetailRow label="Category" value={request.category} />
+            <DetailRow label="Area" value={request.area != null ? `${request.area} sq. meters` : null} />
+            <DetailRow label="Trade License Number" value={request.tradeLicenseNumber} />
+            <DetailRow label="Shop Address" value={request.address} />
+          </dl>
         </div>
 
         <div className="card">
-          <h2 className="text-xl font-semibold mb-4">Property & Applicant Information</h2>
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm text-gray-600 flex items-center gap-1">
-                <MapPin className="w-4 h-4" />
-                Property
-              </p>
-              <p className="font-medium text-gray-900">
-                {request.property?.propertyNumber || 'N/A'}
-              </p>
-              <p className="text-sm text-gray-500">{request.property?.address || 'N/A'}</p>
-              {request.property?.ward && (
-                <p className="text-sm text-gray-500">
-                  Ward: {request.property.ward.wardNumber && request.property.ward.wardNumber !== '0' 
-                    ? `${request.property.ward.wardNumber} - ` 
-                    : ''}{request.property.ward.wardName}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <p className="text-sm text-gray-600 flex items-center gap-1">
-                <User className="w-4 h-4" />
-                Applicant
-              </p>
-              <p className="font-medium text-gray-900">
-                {request.applicant?.firstName} {request.applicant?.lastName}
-              </p>
-              <p className="text-sm text-gray-500">{request.applicant?.email}</p>
-              {request.applicant?.phone && (
-                <p className="text-sm text-gray-500">{request.applicant.phone}</p>
-              )}
-            </div>
-
-            <div>
-              <p className="text-sm text-gray-600 flex items-center gap-1">
-                <Calendar className="w-4 h-4" />
-                Submitted
-              </p>
-              <p className="font-medium text-gray-900">
-                {new Date(request.createdAt).toLocaleDateString()}
-              </p>
-            </div>
-
-            {request.reviewedAt && (
-              <div>
-                <p className="text-sm text-gray-600">Reviewed</p>
-                <p className="font-medium text-gray-900">
-                  {new Date(request.reviewedAt).toLocaleDateString()}
-                </p>
-                {request.reviewer && (
-                  <p className="text-sm text-gray-500">
-                    by {request.reviewer.firstName} {request.reviewer.lastName}
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
+          <h2 className="form-section-title flex items-center">
+            <MapPin className="w-5 h-5 mr-2 text-primary-600" />
+            Property & Applicant
+          </h2>
+          <dl>
+            <DetailRow
+              label="Property"
+              value={
+                request.propertyId ? (
+                  <Link to={`${basePath}/properties/${request.propertyId}`} className="text-primary-600 hover:underline">
+                    {request.property?.propertyNumber || '—'}
+                  </Link>
+                ) : (
+                  request.property?.propertyNumber || '—'
+                )
+              }
+            />
+            <DetailRow label="Address" value={request.property?.address} />
+            <DetailRow
+              label="Ward"
+              value={
+                request.property?.ward
+                  ? `${request.property.ward.wardNumber && request.property.ward.wardNumber !== '0' ? `${request.property.ward.wardNumber} - ` : ''}${request.property.ward.wardName}`
+                  : null
+              }
+            />
+            <DetailRow
+              label="Applicant"
+              value={
+                request.applicant
+                  ? `${request.applicant.firstName || ''} ${request.applicant.lastName || ''}`.trim() || '—'
+                  : null
+              }
+            />
+            <DetailRow label="Email" value={request.applicant?.email} />
+            <DetailRow label="Phone" value={request.applicant?.phone} />
+            <DetailRow label="Submitted" value={request.createdAt ? new Date(request.createdAt).toLocaleDateString() : null} />
+            <DetailRow label="Reviewed" value={reviewedText !== '—' ? reviewedText : null} />
+          </dl>
         </div>
       </div>
 
       {request.remarks && (
         <div className="card mt-6">
-          <h2 className="text-xl font-semibold mb-4">Applicant Remarks</h2>
-          <p className="text-gray-900">{request.remarks}</p>
+          <h2 className="form-section-title">Applicant Remarks</h2>
+          <p className="text-gray-700 whitespace-pre-wrap text-sm">{request.remarks}</p>
         </div>
       )}
 
       {request.adminRemarks && (
-        <div className="card mt-6 bg-gray-50">
-          <h2 className="text-xl font-semibold mb-4">Review Remarks</h2>
-          <p className="text-gray-900">{request.adminRemarks}</p>
+        <div className="card mt-6">
+          <h2 className="form-section-title">Review Remarks</h2>
+          <p className="text-gray-700 whitespace-pre-wrap text-sm">{request.adminRemarks}</p>
         </div>
       )}
 
-      {/* Documents Section */}
       {request.documents && Array.isArray(request.documents) && request.documents.length > 0 && (
         <div className="card mt-6">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <FileText className="w-5 h-5" />
+          <h2 className="form-section-title flex items-center">
+            <FileText className="w-5 h-5 mr-2 text-primary-600" />
             Uploaded Documents
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {request.documents.map((doc, index) => (
               <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2 flex-1">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
                     <FileText className="w-5 h-5 text-gray-600 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-gray-900 truncate" title={doc.originalName || doc.fileName}>
                         {doc.originalName || doc.fileName}
                       </p>
                       {doc.size && (
-                        <p className="text-xs text-gray-500">
-                          {(doc.size / 1024).toFixed(2)} KB
-                        </p>
+                        <p className="text-xs text-gray-500">{(doc.size / 1024).toFixed(2)} KB</p>
                       )}
                     </div>
                   </div>
@@ -294,16 +258,19 @@ const ShopRegistrationRequestDetails = () => {
       )}
 
       {request.shop && (
-        <div className="card mt-6 bg-green-50">
-          <h2 className="text-xl font-semibold text-green-900 mb-2">Shop Created</h2>
-          <p className="text-green-900">
-            Shop Number: {request.shop.shopNumber} - {request.shop.shopName}
+        <div className="card mt-6 bg-green-50 border-green-200">
+          <h2 className="form-section-title text-green-900 flex items-center">
+            <CheckCircle className="w-5 h-5 mr-2 text-green-600" />
+            Shop Created
+          </h2>
+          <p className="text-gray-800 font-medium">
+            Shop Number: {request.shop.shopNumber} – {request.shop.shopName}
           </p>
           <Link
             to={isClerkRoute ? `${basePath}/shop-tax/shops/${request.shop.id}` : `/shop-tax/shops/${request.shop.id}`}
-            className="text-primary-600 hover:text-primary-900 mt-2 inline-block"
+            className="btn btn-primary mt-3 inline-flex items-center"
           >
-            View Shop Details →
+            View Shop Details
           </Link>
         </div>
       )}
@@ -385,7 +352,7 @@ const ShopRegistrationRequestDetails = () => {
           </div>
         </div>
       )}
-    </div>
+    </DetailPageLayout>
   );
 };
 

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { clerkAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import { Droplet, Plus, Eye, Edit, Trash2, Send, ArrowRight, X } from 'lucide-react';
+import { useConfirm } from '../../components/ConfirmModal';
 
 const WaterApplications = () => {
     const [applications, setApplications] = useState([]);
@@ -13,6 +14,7 @@ const WaterApplications = () => {
     const [processAction, setProcessAction] = useState('forward');
     const [processRemarks, setProcessRemarks] = useState('');
     const navigate = useNavigate();
+    const { confirm } = useConfirm();
 
     useEffect(() => {
         fetchApplications();
@@ -37,7 +39,8 @@ const WaterApplications = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this water application?')) return;
+        const ok = await confirm({ title: 'Delete application', message: 'Are you sure you want to delete this water application?', confirmLabel: 'Delete', variant: 'danger' });
+        if (!ok) return;
 
         try {
             await clerkAPI.deleteWaterApplication(id);
@@ -49,7 +52,8 @@ const WaterApplications = () => {
     };
 
     const handleSubmit = async (id) => {
-        if (!window.confirm('Submit this water application for inspection?')) return;
+        const ok = await confirm({ title: 'Submit for inspection', message: 'Submit this water application for inspection?', confirmLabel: 'Submit' });
+        if (!ok) return;
 
         try {
             await clerkAPI.submitWaterApplication(id);

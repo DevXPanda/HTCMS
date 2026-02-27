@@ -5,12 +5,14 @@ import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { Send, ArrowUp, FileText, User, Home, Receipt, TrendingUp } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useConfirm } from '../../../components/ConfirmModal';
 import DetailPageLayout, { DetailRow } from '../../../components/DetailPageLayout';
 
 const NoticeDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isAdmin, isAssessor } = useAuth();
+  const { confirm } = useConfirm();
   const [notice, setNotice] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -54,7 +56,13 @@ const NoticeDetails = () => {
       return;
     }
 
-    if (!window.confirm(`Escalate this notice to ${nextType} notice?`)) return;
+    const ok = await confirm({
+      title: 'Escalate notice',
+      message: `Escalate this notice to ${nextType} notice?`,
+      confirmLabel: 'Escalate',
+      cancelLabel: 'Cancel'
+    });
+    if (!ok) return;
 
     try {
       await noticeAPI.escalate(id, { noticeType: nextType });

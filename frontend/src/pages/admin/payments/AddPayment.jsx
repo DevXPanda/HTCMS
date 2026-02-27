@@ -16,6 +16,9 @@ const AddPayment = () => {
   const [loadingWaterBill, setLoadingWaterBill] = useState(false);
   const [unpaidWaterBills, setUnpaidWaterBills] = useState([]);
   const [loadingUnpaidBills, setLoadingUnpaidBills] = useState(false);
+  const [unifiedSearchInput, setUnifiedSearchInput] = useState('');
+  const [demandsByProperty, setDemandsByProperty] = useState([]);
+  const [loadingDemandsByProperty, setLoadingDemandsByProperty] = useState(false);
 
   const {
     register,
@@ -47,16 +50,12 @@ const AddPayment = () => {
       setWaterBill(null);
       setUnpaidWaterBills([]);
       setValue('waterBillId', '');
+      setDemandsByProperty([]);
+      setUnifiedSearchInput('');
     }
   }, [watchedPaymentType, setValue]);
 
-  useEffect(() => {
-    if (watchedDemandId && (watchedPaymentType === 'PROPERTY_TAX' || watchedPaymentType === 'SHOP_TAX')) {
-      fetchDemand(watchedDemandId);
-    } else {
-      setDemand(null);
-    }
-  }, [watchedDemandId, watchedPaymentType]);
+  // No auto-fetch on demandId change — fetch only on explicit "Load" to avoid 404s from partial input
 
   useEffect(() => {
     if (watchedWaterBillId && watchedPaymentType === 'WATER_TAX') {
@@ -118,14 +117,78 @@ const AddPayment = () => {
     }
   };
 
+  /** Unified search: try Demand ID / Demand Number first, then Property ID or Property Number */
+  const loadDemandOrProperty = async () => {
+    const value = (unifiedSearchInput || '').trim();
+    if (!value) {
+      toast.error('Enter Demand ID, Demand Number, or Property Number');
+      return;
+    }
+    setLoadingDemand(true);
+    setLoadingDemandsByProperty(true);
+    setDemandsByProperty([]);
+    setDemand(null);
+    setValue('demandId', '');
+
+    try {
+      // 1) Try as demand (ID or demand number e.g. DEM0230004)
+      try {
+        const res = await demandAPI.getById(value);
+        const d = res.data?.data?.demand;
+        if (d) {
+          setDemand(d);
+          setValue('demandId', d.id);
+          if (parseFloat(d.balanceAmount || 0) > 0) setValue('amount', d.balanceAmount);
+          toast.success('Demand loaded');
+          return;
+        }
+      } catch (err) {
+        if (err.response?.status !== 404) {
+          toast.error(err.response?.data?.message || 'Failed to load demand');
+          return;
+        }
+      }
+
+      // 2) Try as property (ID or property number e.g. PR0230443)
+      const propRes = await demandAPI.getByProperty(value);
+      const list = propRes.data?.data?.demands ?? [];
+      setDemandsByProperty(list);
+      if (list.length === 0) {
+        toast.error('No demand or property found for: ' + value);
+      } else if (list.length === 1) {
+        selectDemandFromProperty(list[0]);
+        toast.success('Demand loaded from property');
+      } else {
+        toast.success(`Found ${list.length} demands — select one below`);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'No demand or property found');
+    } finally {
+      setLoadingDemand(false);
+      setLoadingDemandsByProperty(false);
+    }
+  };
+
+  const selectDemandFromProperty = (d) => {
+    setDemand(d);
+    setValue('demandId', d.id);
+    if (parseFloat(d.balanceAmount || 0) > 0) setValue('amount', d.balanceAmount);
+  };
+
   const onSubmit = async (data) => {
     try {
       setLoading(true);
 
       if (data.paymentType === 'PROPERTY_TAX' || data.paymentType === 'SHOP_TAX') {
-        // Property Tax Payment
+        // Property Tax Payment — use resolved demand.id when we have it (supports demand number lookup)
+        const demandIdToSend = demand ? demand.id : parseInt(data.demandId, 10);
+        if (!demandIdToSend || isNaN(demandIdToSend)) {
+          toast.error('Please load a demand first (enter Demand ID or Demand Number, or select from Property)');
+          setLoading(false);
+          return;
+        }
         const paymentData = {
-          demandId: parseInt(data.demandId),
+          demandId: demandIdToSend,
           amount: parseFloat(data.amount),
           paymentMode: data.paymentMode,
           paymentDate: data.paymentDate || new Date().toISOString().split('T')[0],
@@ -225,30 +288,62 @@ const AddPayment = () => {
           </div>
         </div>
 
-        {/* Property Tax - Demand Selection */}
+        {/* Property Tax - Unified demand/property search */}
         {((watchedPaymentType === 'PROPERTY_TAX') || (watchedPaymentType === 'SHOP_TAX')) && (
           <div>
             <h2 className="text-xl font-semibold mb-4">Demand Information</h2>
-            <div>
-              <label className="label">
-                Demand ID <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                {...register('demandId', {
-                  required: (watchedPaymentType === 'PROPERTY_TAX' || watchedPaymentType === 'SHOP_TAX') ? 'Demand ID is required' : false,
-                  valueAsNumber: true
-                })}
-                className="input"
-                placeholder="Enter Demand ID"
-              />
-              {errors.demandId && (
-                <p className="text-red-500 text-sm mt-1">{errors.demandId.message}</p>
-              )}
-              <p className="text-sm text-gray-500 mt-1">
-                Enter the Demand ID to load demand details
-              </p>
+            <input type="hidden" {...register('demandId', { required: (watchedPaymentType === 'PROPERTY_TAX' || watchedPaymentType === 'SHOP_TAX') ? 'Load a demand first' : false })} />
+            <div className="flex flex-wrap gap-2 items-end">
+              <div className="flex-1 min-w-[200px]">
+                <label className="label">
+                  Demand ID, Demand Number, or Property Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={unifiedSearchInput}
+                  onChange={(e) => setUnifiedSearchInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), loadDemandOrProperty())}
+                  className="input"
+                  placeholder="e.g. 45, DEM0230004, or PR0230443"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={loadDemandOrProperty}
+                disabled={loadingDemand || loadingDemandsByProperty}
+                className="btn btn-primary"
+              >
+                {loadingDemand || loadingDemandsByProperty ? 'Loading...' : 'Load'}
+              </button>
             </div>
+            <p className="text-sm text-gray-500 mt-1">
+              Enter Demand ID, Demand Number (e.g. DEM0230004), or Property ID/Number (e.g. PR0230443) and click Load
+            </p>
+            {errors.demandId && (
+              <p className="text-red-500 text-sm mt-1">{errors.demandId.message}</p>
+            )}
+            {demandsByProperty.length > 1 && (
+              <div className="mt-3">
+                <label className="label text-xs">Select a demand</label>
+                <select
+                  className="input"
+                  onChange={(e) => {
+                    const id = e.target.value ? parseInt(e.target.value, 10) : 0;
+                    const d = demandsByProperty.find((x) => x.id === id);
+                    if (d) selectDemandFromProperty(d);
+                    else setDemand(null);
+                  }}
+                  value={demand?.id ?? ''}
+                >
+                  <option value="">— Select demand —</option>
+                  {demandsByProperty.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.demandNumber} — {d.financialYear} — {d.serviceType?.replace(/_/g, ' ')} — Bal: ₹{parseFloat(d.balanceAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {loadingDemand && (
               <div className="mt-4 p-4 bg-blue-50 rounded-lg">

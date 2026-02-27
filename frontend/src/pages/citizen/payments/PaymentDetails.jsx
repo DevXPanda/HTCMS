@@ -72,12 +72,11 @@ const PaymentDetails = () => {
             <div>
               <dt className="text-sm font-medium text-gray-500">Status</dt>
               <dd>
-                <span className={`badge ${
-                  payment.status === 'completed' ? 'badge-success' :
+                <span className={`badge ${payment.status === 'completed' ? 'badge-success' :
                   payment.status === 'pending' ? 'badge-warning' :
-                  payment.status === 'failed' ? 'badge-danger' :
-                  'badge-info'
-                } capitalize`}>
+                    payment.status === 'failed' ? 'badge-danger' :
+                      'badge-info'
+                  } capitalize`}>
                   {payment.status}
                 </span>
               </dd>
@@ -93,8 +92,8 @@ const PaymentDetails = () => {
             {(payment.chequeNumber || payment.transactionId) && (
               <div>
                 <dt className="text-sm font-medium text-gray-500">
-                  {payment.paymentMode === 'cheque' || payment.paymentMode === 'dd' ? 
-                    (payment.paymentMode === 'cheque' ? 'Cheque' : 'DD') + ' Number' : 
+                  {payment.paymentMode === 'cheque' || payment.paymentMode === 'dd' ?
+                    (payment.paymentMode === 'cheque' ? 'Cheque' : 'DD') + ' Number' :
                     'Transaction ID'}
                 </dt>
                 <dd>{payment.chequeNumber || payment.transactionId}</dd>
@@ -187,7 +186,7 @@ const PaymentDetails = () => {
             <h2 className="text-2xl font-bold">PAYMENT RECEIPT</h2>
             <p className="text-sm text-gray-600">House Tax Collection & Management System</p>
           </div>
-          
+
           <div className="grid grid-cols-2 gap-6 mb-6">
             <div>
               <p className="text-sm text-gray-600 mb-1">Receipt Number</p>
@@ -195,10 +194,10 @@ const PaymentDetails = () => {
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-600 mb-1">Date</p>
-              <p className="font-bold">{new Date(payment.paymentDate).toLocaleDateString('en-IN', { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
+              <p className="font-bold">{new Date(payment.paymentDate).toLocaleDateString('en-IN', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
               })}</p>
             </div>
           </div>

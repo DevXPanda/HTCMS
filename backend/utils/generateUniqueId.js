@@ -18,6 +18,7 @@ function generateUniqueId(type, wardNumber, serialNumber, serialLength = 4) {
     agricultural: 'PA',
     mixed: 'PC',
     water: 'WT',
+    water_bill: 'WB',
     shop: 'ST',
     d2dc: 'DC',
     assessment: 'ASS',
@@ -31,7 +32,11 @@ function generateUniqueId(type, wardNumber, serialNumber, serialLength = 4) {
     payment: 'PAY',
     receipt: 'RCP',
     water_payment: 'WPY',
-    water_receipt: 'WRC'
+    water_receipt: 'WRC',
+    notice_reminder: 'NTR',
+    notice_demand: 'NTD',
+    notice_penalty: 'NTP',
+    notice_final_warrant: 'NTF'
   };
 
   const prefix = PREFIX[String(type).toLowerCase()] || type.toUpperCase().substring(0, 3);

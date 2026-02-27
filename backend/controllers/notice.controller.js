@@ -2,30 +2,7 @@ import { Notice, Demand, Property, User, Payment, ShopTaxAssessment, Shop } from
 import { Op, Sequelize } from 'sequelize';
 import { auditLogger, createAuditLog } from '../utils/auditLogger.js';
 import { generateNoticePdfHelper } from '../utils/pdfHelpers.js';
-
-/**
- * Generate unique notice number
- */
-const generateNoticeNumber = async (noticeType) => {
-  const prefix = {
-    'reminder': 'REM',
-    'demand': 'DEM',
-    'penalty': 'PEN',
-    'final_warrant': 'FWR'
-  }[noticeType] || 'NOT';
-
-  const year = new Date().getFullYear();
-  const count = await Notice.count({
-    where: {
-      noticeNumber: {
-        [Op.like]: `${prefix}-${year}-%`
-      }
-    }
-  });
-
-  const sequence = String(count + 1).padStart(6, '0');
-  return `${prefix}-${year}-${sequence}`;
-};
+import { generateNoticeNumber } from '../services/uniqueIdService.js';
 
 /**
  * Validate escalation rules
@@ -205,8 +182,15 @@ export const generateNotice = async (req, res, next) => {
       ? parseFloat(demand.penaltyAmount) + parseFloat(demand.interestAmount)
       : 0;
 
-    // Generate notice number
-    const noticeNumber = await generateNoticeNumber(noticeType);
+    // Generate notice number (same unique ID format as rest of codebase: PREFIX+WARD+SERIAL)
+    const wardId = demand.property.wardId || demand.property.ward_id;
+    if (!wardId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Property ward not found. Cannot generate notice number.'
+      });
+    }
+    const noticeNumber = await generateNoticeNumber(wardId, noticeType);
 
     // Create notice
     const notice = await Notice.create({
@@ -365,7 +349,7 @@ export const getNoticeById = async (req, res, next) => {
           model: Property,
           as: 'property',
           include: [
-            { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email', 'phone', 'address'] }
+            { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email', 'phone'] }
           ]
         },
         {
@@ -555,14 +539,28 @@ export const escalateNotice = async (req, res, next) => {
       ]
     });
 
+    if (!demand || !demand.property) {
+      return res.status(400).json({
+        success: false,
+        message: 'Demand or property not found for this notice.'
+      });
+    }
+
     // Calculate amounts
     const amountDue = parseFloat(demand.balanceAmount);
     const penaltyAmount = noticeType === 'penalty' || noticeType === 'final_warrant'
       ? parseFloat(demand.penaltyAmount) + parseFloat(demand.interestAmount)
       : 0;
 
-    // Generate new notice
-    const noticeNumber = await generateNoticeNumber(noticeType);
+    // Generate new notice number (same unique ID format as codebase)
+    const wardId = demand.property.wardId || demand.property.ward_id;
+    if (!wardId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Property ward not found. Cannot generate notice number.'
+      });
+    }
+    const noticeNumber = await generateNoticeNumber(wardId, noticeType);
 
     const newNotice = await Notice.create({
       noticeNumber,

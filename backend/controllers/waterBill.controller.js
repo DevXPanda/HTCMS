@@ -2,22 +2,7 @@ import { WaterBill, WaterConnection, WaterMeterReading, Property, User } from '.
 import { Op } from 'sequelize';
 import { sequelize } from '../config/database.js';
 import { WATER_BILL_STATUS, WATER_CONNECTION_STATUS, getUnpaidBillStatuses } from '../constants/waterTaxStatuses.js';
-
-/**
- * Generate unique bill number
- */
-const generateBillNumber = async () => {
-  const year = new Date().getFullYear();
-  const count = await WaterBill.count({
-    where: {
-      billNumber: {
-        [Op.like]: `WB-${year}-%`
-      }
-    }
-  });
-  const sequence = String(count + 1).padStart(6, '0');
-  return `WB-${year}-${sequence}`;
-};
+import { generateWaterBillNumber } from '../services/uniqueIdService.js';
 
 /**
  * Format billing period (YYYY-MM)
@@ -117,7 +102,7 @@ export const generateWaterBill = async (req, res, next) => {
     const waterConnection = await WaterConnection.findOne({
       where: { id: normalizedWaterConnectionId },
       include: [
-        { model: Property, as: 'property', attributes: ['id', 'propertyNumber', 'address'] }
+        { model: Property, as: 'property', attributes: ['id', 'propertyNumber', 'address', 'wardId'] }
       ],
       transaction
     });
@@ -236,8 +221,16 @@ export const generateWaterBill = async (req, res, next) => {
       dueDateValue = new Date(dueDateValue);
     }
 
-    // Generate bill number
-    const billNumber = await generateBillNumber();
+    // Generate unique bill number (WB + ward(3) + serial(4), same format as Property/Connection codes)
+    const wardId = waterConnection?.property?.wardId;
+    if (!wardId) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'Property ward not found; cannot generate bill number'
+      });
+    }
+    const billNumber = await generateWaterBillNumber(wardId, transaction);
 
     // Create water bill
     const waterBill = await WaterBill.create({

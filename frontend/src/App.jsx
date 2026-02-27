@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import { ConfirmProvider } from './components/ConfirmModal';
 import { AuthProvider } from './contexts/AuthContext';
 import { StaffAuthProvider } from './contexts/StaffAuthContext';
 import { NavigationProvider } from './contexts/NavigationContext';
@@ -41,6 +42,10 @@ import EditAssessment from './pages/admin/assessments/EditAssessment';
 import Demands from './pages/admin/demands/Demands';
 import DemandDetails from './pages/admin/demands/DemandDetails';
 import GenerateDemands from './pages/admin/demands/GenerateDemands';
+import GeneratePropertyDemands from './pages/admin/demands/GeneratePropertyDemands';
+import GenerateShopDemands from './pages/admin/demands/GenerateShopDemands';
+import GenerateWaterDemands from './pages/admin/demands/GenerateWaterDemands';
+import GenerateD2DCDemands from './pages/admin/demands/GenerateD2DCDemands';
 import UnifiedTaxDemand from './pages/admin/demands/UnifiedTaxDemand';
 import Notices from './pages/admin/notices/Notices';
 import NoticeDetails from './pages/admin/notices/NoticeDetails';
@@ -64,10 +69,13 @@ import EOManagement from './pages/admin/EOManagement';
 import WaterConnections from './pages/admin/water/WaterConnections';
 import WaterConnectionDetails from './pages/admin/water/WaterConnectionDetails';
 import WaterBills from './pages/admin/water/WaterBills';
+import WaterBillDetails from './pages/admin/water/WaterBillDetails';
 import WaterTaxAssessments from './pages/admin/water/WaterTaxAssessments';
 import AddWaterTaxAssessment from './pages/admin/water/AddWaterTaxAssessment';
 import WaterTaxAssessmentDetails from './pages/admin/water/WaterTaxAssessmentDetails';
 import WaterConnectionRequests from './pages/admin/water/WaterConnectionRequests';
+import WaterPayments from './pages/admin/water/WaterPayments';
+import WaterPaymentDetails from './pages/admin/water/WaterPaymentDetails';
 import PropertyTaxModule from './pages/admin/PropertyTaxModule';
 import WaterTaxModule from './pages/admin/WaterTaxModule';
 import ShopTaxModule from './pages/admin/shop/ShopTaxModule';
@@ -202,8 +210,31 @@ function App() {
   return (
     <NavigationProvider>
       <AuthProvider>
-        <Router>
-          <Toaster position="top-right" />
+        <ConfirmProvider>
+        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <Toaster
+            position="top-right"
+            gutter={12}
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: '#1f2937',
+                color: '#f9fafb',
+                borderRadius: '0.5rem',
+                padding: '0.75rem 1rem',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+              },
+              success: {
+                iconTheme: { primary: '#10b981', secondary: '#fff' },
+                style: { background: '#065f46', color: '#ecfdf5' }
+              },
+              error: {
+                iconTheme: { primary: '#ef4444', secondary: '#fff' },
+                style: { background: '#7f1d1d', color: '#fef2f2' }
+              },
+              loading: { style: { background: '#374151', color: '#f9fafb' } }
+            }}
+          />
           <Routes>
             {/* Public Routes - Separate Login Pages */}
             <Route path="/admin/login" element={<AdminLogin />} />
@@ -322,6 +353,10 @@ function App() {
 
               {/* Demands */}
               <Route path="demands" element={<Demands />} />
+              <Route path="demands/generate/property" element={<GeneratePropertyDemands />} />
+              <Route path="demands/generate/water" element={<GenerateWaterDemands />} />
+              <Route path="demands/generate/shop" element={<GenerateShopDemands />} />
+              <Route path="demands/generate/d2dc" element={<GenerateD2DCDemands />} />
               <Route path="demands/generate" element={<GenerateDemands />} />
               <Route path="demands/unified" element={<UnifiedTaxDemand />} />
               <Route path="demands/:id" element={<DemandDetails />} />
@@ -374,8 +409,10 @@ function App() {
               <Route path="water/assessments" element={<WaterTaxAssessments />} />
               <Route path="water/assessments/new" element={<AddWaterTaxAssessment />} />
               <Route path="water/assessments/:id" element={<WaterTaxAssessmentDetails />} />
+              <Route path="water/bills/:id" element={<WaterBillDetails />} />
               <Route path="water/bills" element={<WaterBills />} />
-              <Route path="water/payments" element={<div className="p-6"><h1 className="text-2xl font-bold">Water Payments</h1><p className="text-gray-600 mt-2">Water payments management page - Coming soon</p></div>} />
+              <Route path="water/payments" element={<WaterPayments />} />
+              <Route path="water/payments/:id" element={<WaterPaymentDetails />} />
               <Route path="water/reports" element={<div className="p-6"><h1 className="text-2xl font-bold">Water Reports</h1><p className="text-gray-600 mt-2">Water reports page - Coming soon</p></div>} />
             </Route>
 
@@ -444,6 +481,10 @@ function App() {
                 <Route path="assessments/:id/edit" element={<EditShopAssessment />} />
               </Route>
               <Route path="demands" element={<ShopTaxBasePathProvider basePath="/clerk"><Demands /></ShopTaxBasePathProvider>} />
+              <Route path="demands/generate/property" element={<ShopTaxBasePathProvider basePath="/clerk"><GeneratePropertyDemands /></ShopTaxBasePathProvider>} />
+              <Route path="demands/generate/water" element={<ShopTaxBasePathProvider basePath="/clerk"><GenerateWaterDemands /></ShopTaxBasePathProvider>} />
+              <Route path="demands/generate/shop" element={<ShopTaxBasePathProvider basePath="/clerk"><GenerateShopDemands /></ShopTaxBasePathProvider>} />
+              <Route path="demands/generate/d2dc" element={<ShopTaxBasePathProvider basePath="/clerk"><GenerateD2DCDemands /></ShopTaxBasePathProvider>} />
               <Route path="demands/generate" element={<ShopTaxBasePathProvider basePath="/clerk"><GenerateDemands /></ShopTaxBasePathProvider>} />
               <Route path="demands/:id" element={<ShopTaxBasePathProvider basePath="/clerk"><DemandDetails /></ShopTaxBasePathProvider>} />
               <Route path="shop-registration-requests" element={<ShopRegistrationRequests />} />
@@ -576,6 +617,7 @@ function App() {
             <Route path="*" element={<RoleBasedRedirect />} />
           </Routes>
         </Router>
+        </ConfirmProvider>
       </AuthProvider>
     </NavigationProvider>
   );

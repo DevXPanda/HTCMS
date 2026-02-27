@@ -1,4 +1,4 @@
-import { Demand, TaxDiscount, WaterTaxAssessment, ShopTaxAssessment, Property, User, Ward, AdminManagement, Shop } from '../models/index.js';
+import { Demand, TaxDiscount, WaterTaxAssessment, ShopTaxAssessment, Property, User, Ward, AdminManagement, Shop, WaterConnection } from '../models/index.js';
 import { Op, fn, col, literal } from 'sequelize';
 import { sequelize } from '../config/database.js';
 import { auditLogger, createAuditLog } from '../utils/auditLogger.js';
@@ -66,7 +66,19 @@ export const createDiscount = async (req, res, next) => {
 
     const serviceType = MODULE_SERVICE_MAP[moduleType];
     // For UNIFIED, we allow either HOUSE_TAX or WATER_TAX serviceType if it's a unified demand
-    const isUnifiedDemand = demand.remarks && demand.remarks.includes('UNIFIED_DEMAND');
+    let isUnifiedDemand = false;
+    if (demand.remarks) {
+      if (typeof demand.remarks === 'string') {
+        try {
+          const parsed = JSON.parse(demand.remarks);
+          isUnifiedDemand = parsed && (parsed.type === 'UNIFIED_DEMAND' || (typeof parsed === 'string' && parsed.includes('UNIFIED_DEMAND')));
+        } catch {
+          isUnifiedDemand = demand.remarks.includes('UNIFIED_DEMAND');
+        }
+      } else if (typeof demand.remarks === 'object' && demand.remarks !== null) {
+        isUnifiedDemand = demand.remarks.type === 'UNIFIED_DEMAND';
+      }
+    }
 
     if (moduleType === 'UNIFIED') {
       if (!isUnifiedDemand) {
@@ -142,6 +154,13 @@ export const createDiscount = async (req, res, next) => {
     if (discountAmount <= 0) {
       await t.rollback();
       return res.status(400).json({ success: false, message: 'Discount amount must be greater than zero' });
+    }
+    if (discountAmount > balanceRemaining) {
+      await t.rollback();
+      return res.status(400).json({
+        success: false,
+        message: `Discount amount (₹${Number(discountAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}) cannot exceed the remaining balance (₹${Number(balanceRemaining).toLocaleString('en-IN', { minimumFractionDigits: 2 })}).`
+      });
     }
 
     const { finalAmount, remainingPenalty } = calculateFinalAmount(demand, {
@@ -305,26 +324,51 @@ export const getDiscountHistory = async (req, res, next) => {
     const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
     const list = await TaxDiscount.findAll({
       include: [
-        { model: Demand, as: 'demand', attributes: ['id', 'demandNumber', 'totalAmount', 'finalAmount', 'balanceAmount'] }
+        {
+          model: Demand,
+          as: 'demand',
+          attributes: ['id', 'demandNumber', 'totalAmount', 'finalAmount', 'balanceAmount', 'serviceType'],
+          include: [
+            { model: Property, as: 'property', required: false, attributes: ['id', 'propertyNumber', 'uniqueCode'] },
+            { model: WaterTaxAssessment, as: 'waterTaxAssessment', required: false, include: [{ model: Property, as: 'property', required: false, attributes: ['id', 'propertyNumber', 'uniqueCode'] }, { model: WaterConnection, as: 'waterConnection', required: false, attributes: ['id', 'connectionNumber'] }] },
+            { model: ShopTaxAssessment, as: 'shopTaxAssessment', required: false, include: [{ model: Shop, as: 'shop', attributes: ['id', 'shopNumber'] }] }
+          ]
+        }
       ],
       order: [['created_at', 'DESC']],
       limit
     });
-    const history = (list || []).map((d) => ({
-      id: d.id,
-      moduleType: d.moduleType,
-      entityId: d.entityId,
-      demandId: d.demandId,
-      demandNumber: d.demand?.demandNumber || null,
-      discountType: d.discountType,
-      discountValue: parseFloat(d.discountValue) || 0,
-      discountAmount: parseFloat(d.discountAmount) || 0,
-      reason: d.reason,
-      documentUrl: d.documentUrl,
-      approvedBy: d.approvedBy,
-      status: d.status,
-      createdAt: d.created_at
-    }));
+    const history = (list || []).map((d) => {
+      const demand = d.demand;
+      let entityLabel = null;
+      if (demand) {
+        if (demand.serviceType === 'SHOP_TAX' && demand.shopTaxAssessment?.shop) {
+          entityLabel = demand.shopTaxAssessment.shop.shopNumber;
+        } else if (demand.waterTaxAssessment?.waterConnection) {
+          entityLabel = demand.waterTaxAssessment.waterConnection.connectionNumber;
+        } else if (demand.waterTaxAssessment?.property) {
+          entityLabel = demand.waterTaxAssessment.property.propertyNumber || demand.waterTaxAssessment.property.uniqueCode;
+        } else if (demand.property) {
+          entityLabel = demand.property.propertyNumber || demand.property.uniqueCode;
+        }
+      }
+      return {
+        id: d.id,
+        moduleType: d.moduleType,
+        entityId: d.entityId,
+        entityLabel: entityLabel || (d.entityId != null ? `ID: ${d.entityId}` : null),
+        demandId: d.demandId,
+        demandNumber: d.demand?.demandNumber || null,
+        discountType: d.discountType,
+        discountValue: parseFloat(d.discountValue) || 0,
+        discountAmount: parseFloat(d.discountAmount) || 0,
+        reason: d.reason,
+        documentUrl: d.documentUrl,
+        approvedBy: d.approvedBy,
+        status: d.status,
+        createdAt: d.created_at
+      };
+    });
     return res.json({ success: true, data: { history } });
   } catch (error) {
     next(error);

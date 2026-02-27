@@ -3,6 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useBackTo } from '../../../contexts/NavigationContext';
 import { Save } from 'lucide-react';
 import api from '../../../services/api';
+import toast from 'react-hot-toast';
 
 const AddGauShala = () => {
     const navigate = useNavigate();
@@ -61,15 +62,15 @@ const AddGauShala = () => {
         try {
             if (isEditMode) {
                 await api.put(`/gaushala/facilities/${id}`, formData);
-                alert('Gaushala updated successfully!');
+                toast.success('Gaushala updated successfully!');
             } else {
                 await api.post('/gaushala/facilities', formData);
-                alert('Gaushala added successfully!');
+                toast.success('Gaushala added successfully!');
             }
             navigate('/gaushala/management');
         } catch (error) {
             console.error('Failed to save Gaushala:', error);
-            alert('Failed to save. Please try again.');
+            toast.error('Failed to save. Please try again.');
         } finally {
             setLoading(false);
         }

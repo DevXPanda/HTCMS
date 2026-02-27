@@ -13,8 +13,10 @@ import {
 } from 'lucide-react';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
+import { useConfirm } from '../../../components/ConfirmModal';
 
 const MrfWorkerAssignment = ({ facilityId, wardId }) => {
+    const { confirm } = useConfirm();
     const [assignments, setAssignments] = useState([]);
     const [availableWorkers, setAvailableWorkers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -90,7 +92,8 @@ const MrfWorkerAssignment = ({ facilityId, wardId }) => {
     };
 
     const handleDeactivate = async (assignmentId) => {
-        if (!window.confirm('Are you sure you want to deactivate this worker assignment?')) return;
+        const ok = await confirm({ title: 'Deactivate assignment', message: 'Are you sure you want to deactivate this worker assignment?', confirmLabel: 'Deactivate', variant: 'danger' });
+        if (!ok) return;
         try {
             const response = await api.patch(`/mrf/assignments/${assignmentId}/deactivate`);
             if (response.data.success) {

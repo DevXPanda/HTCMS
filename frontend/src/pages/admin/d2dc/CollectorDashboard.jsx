@@ -10,7 +10,6 @@ import {
     User,
     Calendar,
     Search,
-    Plus,
     X
 } from 'lucide-react';
 
@@ -26,13 +25,11 @@ const CollectorDashboard = () => {
     const [showSearchResults, setShowSearchResults] = useState(false);
 
     // Modals
-    const [showDemandModal, setShowDemandModal] = useState(false);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [selectedProperty, setSelectedProperty] = useState(null);
     const [selectedDemand, setSelectedDemand] = useState(null);
 
     // Form states
-    const [demandForm, setDemandForm] = useState({ remarks: '' });
     const [paymentForm, setPaymentForm] = useState({ amount: '', paymentMode: 'cash', remarks: '' });
 
     // Activity
@@ -99,14 +96,6 @@ const CollectorDashboard = () => {
         setShowSearchResults(false);
     };
 
-    const openDemandModal = () => {
-        if (!selectedProperty) {
-            toast.error('Please select a property first');
-            return;
-        }
-        setShowDemandModal(true);
-    };
-
     const openPaymentModal = () => {
         if (!selectedProperty) {
             toast.error('Please select a property first');
@@ -119,25 +108,6 @@ const CollectorDashboard = () => {
         setSelectedDemand(selectedProperty.demands[0]);
         setPaymentForm({ ...paymentForm, amount: selectedProperty.demands[0].balanceAmount });
         setShowPaymentModal(true);
-    };
-
-    const handleGenerateDemand = async (e) => {
-        e.preventDefault();
-        try {
-            const res = await api.post('/d2dc/demand/generate', {
-                propertyId: selectedProperty.id,
-                remarks: demandForm.remarks
-            });
-            toast.success(res.data.message || 'Demand generated successfully');
-            setShowDemandModal(false);
-            setDemandForm({ remarks: '' });
-            setSelectedProperty(null);
-            setSearchQuery('');
-            fetchStats();
-            fetchRecentActivity();
-        } catch (error) {
-            toast.error(error.response?.data?.message || 'Failed to generate demand');
-        }
     };
 
     const handleCollectPayment = async (e) => {
@@ -178,13 +148,6 @@ const CollectorDashboard = () => {
                     <p className="text-gray-600">Welcome back, {user?.firstName}</p>
                 </div>
                 <div className="flex space-x-3">
-                    <button
-                        onClick={openDemandModal}
-                        className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
-                    >
-                        <Plus className="w-4 h-4" />
-                        <span>New Demand</span>
-                    </button>
                     <button
                         onClick={openPaymentModal}
                         className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
@@ -333,57 +296,6 @@ const CollectorDashboard = () => {
                     </div>
                 </div>
             </div>
-
-            {/* Demand Generation Modal */}
-            {showDemandModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 overflow-hidden">
-                        <div className="flex justify-between items-center p-4 border-b">
-                            <h3 className="text-lg font-semibold text-gray-900">Generate D2DC Demand</h3>
-                            <button onClick={() => setShowDemandModal(false)} className="text-gray-400 hover:text-gray-500">
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-                        <form onSubmit={handleGenerateDemand} className="p-6 space-y-4">
-                            <div className="bg-gray-50 p-3 rounded border">
-                                <p className="text-sm font-medium text-gray-700">Property</p>
-                                <p className="font-semibold text-gray-900">{selectedProperty?.propertyNumber}</p>
-                                <p className="text-sm text-gray-600">{selectedProperty?.ownerName}</p>
-                            </div>
-                            <div className="bg-green-50 p-3 rounded border border-green-200">
-                                <p className="text-sm font-medium text-green-700">D2DC Standard Amount</p>
-                                <p className="text-2xl font-bold text-green-900">₹50</p>
-                                <p className="text-xs text-green-600">System-calculated amount</p>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Remarks (Optional)</label>
-                                <textarea
-                                    value={demandForm.remarks}
-                                    onChange={e => setDemandForm({ ...demandForm, remarks: e.target.value })}
-                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-                                    rows="2"
-                                    placeholder="Any additional notes..."
-                                />
-                            </div>
-                            <div className="flex justify-end gap-3 mt-4">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowDemandModal(false)}
-                                    className="px-4 py-2 border rounded-md text-gray-700 hover:bg-gray-50"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
-                                >
-                                    Generate Demand
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
 
             {/* Payment Collection Modal */}
             {showPaymentModal && (

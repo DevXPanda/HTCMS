@@ -39,7 +39,7 @@ export const getAllProperties = async (req, res, next) => {
     if (constructionType) where.constructionType = constructionType;
 
     if (search) {
-      where[Op.or] = [
+      const searchConditions = [
         { uniqueCode: { [Op.iLike]: `%${search}%` } },
         { propertyNumber: { [Op.iLike]: `%${search}%` } },
         { address: { [Op.iLike]: `%${search}%` } },
@@ -47,6 +47,11 @@ export const getAllProperties = async (req, res, next) => {
         { ownerName: { [Op.iLike]: `%${search}%` } },
         { ownerPhone: { [Op.iLike]: `%${search}%` } }
       ];
+      const numericId = parseInt(search, 10);
+      if (!Number.isNaN(numericId) && String(numericId) === String(search).trim()) {
+        searchConditions.push({ id: numericId });
+      }
+      where[Op.or] = searchConditions;
     }
 
     const offset = (parseInt(page) - 1) * parseInt(limit);

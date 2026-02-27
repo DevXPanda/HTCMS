@@ -5,6 +5,7 @@ import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { Search, Percent, IndianRupee, FileText, Calendar, History, Download, CheckCircle, Printer } from 'lucide-react';
 import { getDemandOriginalAmount, getDemandPenaltyAmount, calculateDiscount, calculateFinalAmount } from '../../../utils/financialCalculations';
+import { isRecentDate, sortByCreatedDesc } from '../../../utils/dateUtils';
 
 const MODULE_OPTIONS = [
   { value: 'PROPERTY', label: 'Property Tax' },
@@ -68,6 +69,7 @@ const DiscountManagement = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [detailDownloading, setDetailDownloading] = useState(false);
+  const [formMessage, setFormMessage] = useState(null);
 
   useEffect(() => {
     if (showSuccessModal || showDetailModal) {
@@ -100,6 +102,29 @@ const DiscountManagement = () => {
       .then((res) => setHistory(res.data?.data?.history || []))
       .catch(() => setHistory([]))
       .finally(() => setLoadingHistory(false));
+  };
+
+  const refreshEntityList = async () => {
+    if (!module) return;
+    setLoadingEntities(true);
+    try {
+      if (module === 'PROPERTY' || module === 'D2DC' || module === 'UNIFIED') {
+        const res = await propertyAPI.getAll({ limit: 500 });
+        setEntityList(res.data.data?.properties || []);
+      } else if (module === 'WATER') {
+        const res = await waterConnectionAPI.getAll({ limit: 500 });
+        setEntityList(res.data.data?.waterConnections || res.data.data?.data || []);
+      } else if (module === 'SHOP') {
+        const res = await shopsAPI.getAll({ limit: 500 });
+        setEntityList(res.data.data?.shops || res.data.data?.data || []);
+      } else {
+        setEntityList([]);
+      }
+    } catch (e) {
+      setEntityList([]);
+    } finally {
+      setLoadingEntities(false);
+    }
   };
 
   const handleDownloadPdf = async (id) => {
@@ -212,7 +237,8 @@ const DiscountManagement = () => {
     demandAPI
       .getByModuleEntity(module, entityId)
       .then((res) => {
-        setDemands(res.data.data?.demands || []);
+        const list = res.data.data?.demands || [];
+        setDemands([...list].sort(sortByCreatedDesc));
       })
       .catch(() => {
         toast.error('Failed to fetch demands');
@@ -261,6 +287,7 @@ const DiscountManagement = () => {
   const remainingPenalty = previewFinal ? previewFinal.remainingPenalty : penaltyAmount;
   const isDiscountFormDisabled = selectedDemand && originalAmount <= 0;
   const isFullyPaid = selectedDemand && remainingAmount <= 0;
+  const discountExceedsBalance = selectedDemand && remainingAmount > 0 && computedDiscount > remainingAmount;
 
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
@@ -303,10 +330,15 @@ const DiscountManagement = () => {
       return;
     }
     if (discountError || computedDiscount <= 0 || computedDiscount > originalAmount) {
-      toast.error(discountError || 'Invalid discount amount');
+      setFormMessage(discountError || 'Invalid discount amount');
+      return;
+    }
+    if (computedDiscount > remainingAmount) {
+      setFormMessage(`Discount amount (₹${computedDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}) cannot exceed the remaining balance (₹${remainingAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}).`);
       return;
     }
     setSubmitting(true);
+    setFormMessage(null);
     try {
       const res = await discountAPI.create({
         module_type: module,
@@ -339,7 +371,16 @@ const DiscountManagement = () => {
       });
       setShowSuccessModal(true);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to apply discount');
+      const msg = err.response?.data?.message || 'Failed to apply discount';
+      const isActiveAdjustmentMessage = typeof msg === 'string' && msg.toLowerCase().includes('active adjustment already exists');
+      const isGenericError = typeof msg === 'string' && (msg.includes('Something went wrong') || msg.includes('Please try again later'));
+      if (isActiveAdjustmentMessage) {
+        setFormMessage('This demand already has an active discount. Please revoke it from discount history before applying a new one.');
+      } else if (isGenericError) {
+        setFormMessage('Unable to apply discount at the moment. Please check the demand and try again, or contact support if it persists.');
+      } else {
+        setFormMessage(msg);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -353,7 +394,11 @@ const DiscountManagement = () => {
     setDiscountValue('');
     setReason('');
     setDocumentUrl('');
-    demandAPI.getByModuleEntity(module, entityId).then((res) => setDemands(res.data.data?.demands || []));
+    refreshEntityList();
+    demandAPI.getByModuleEntity(module, entityId).then((res) => {
+      const list = res.data.data?.demands || [];
+      setDemands([...list].sort(sortByCreatedDesc));
+    });
     discountAPI.getSummary().then((res) => res.data?.success && res.data?.data && setSummary(res.data.data));
     refreshHistory();
     toast.success('Adjustment recorded successfully');
@@ -371,7 +416,11 @@ const DiscountManagement = () => {
     setDiscountValue('');
     setReason('');
     setDocumentUrl('');
-    demandAPI.getByModuleEntity(module, entityId).then((res) => setDemands(res.data.data?.demands || []));
+    refreshEntityList();
+    demandAPI.getByModuleEntity(module, entityId).then((res) => {
+      const list = res.data.data?.demands || [];
+      setDemands([...list].sort(sortByCreatedDesc));
+    });
     discountAPI.getSummary().then((res) => res.data?.success && res.data?.data && setSummary(res.data.data));
     refreshHistory();
     toast.success('Adjustment recorded successfully');
@@ -426,6 +475,7 @@ const DiscountManagement = () => {
     documentUrl &&
     !isDiscountFormDisabled &&
     !isFullyPaid &&
+    !discountExceedsBalance &&
     computedDiscount > 0 &&
     computedDiscount <= originalAmount &&
     !discountError;
@@ -514,7 +564,7 @@ const DiscountManagement = () => {
                 <tr className="bg-gray-50 border-b border-gray-100">
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">Date</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">Demand No</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Module</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Module / Property</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">Type</th>
                   <th className="text-right py-3 px-4 font-semibold text-gray-700">Amount</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
@@ -532,7 +582,9 @@ const DiscountManagement = () => {
                     <tr key={row.id} className="border-b border-gray-50 hover:bg-gray-50/50">
                       <td className="py-3 px-4 text-gray-600">{formatDate(row.createdAt)}</td>
                       <td className="py-3 px-4 font-medium text-gray-900">{row.demandNumber || '—'}</td>
-                      <td className="py-3 px-4 text-gray-600">{row.moduleType || '—'}</td>
+                      <td className="py-3 px-4 text-gray-600">
+                        {row.entityLabel ? `${row.moduleType || '—'} (${row.entityLabel})` : (row.moduleType || '—')}
+                      </td>
                       <td className="py-3 px-4 text-gray-600">{row.discountType === 'PERCENTAGE' ? `${row.discountValue}%` : 'Fixed'}</td>
                       <td className={`py-3 px-4 text-right font-semibold ${amountClass.discount}`}>{formatCurrency(row.discountAmount)}</td>
                       <td className="py-3 px-4">
@@ -577,7 +629,7 @@ const DiscountManagement = () => {
             <dl className="space-y-2 text-sm">
               <div><dt className="text-gray-500">Date</dt><dd className="font-medium">{formatDate(viewModalRow.createdAt)}</dd></div>
               <div><dt className="text-gray-500">Demand No</dt><dd className="font-medium">{viewModalRow.demandNumber || '—'}</dd></div>
-              <div><dt className="text-gray-500">Module</dt><dd className="font-medium">{viewModalRow.moduleType || '—'}</dd></div>
+              <div><dt className="text-gray-500">Module / Property</dt><dd className="font-medium">{viewModalRow.entityLabel ? `${viewModalRow.moduleType || '—'} (${viewModalRow.entityLabel})` : (viewModalRow.moduleType || '—')}</dd></div>
               <div><dt className="text-gray-500">Type</dt><dd className="font-medium">{viewModalRow.discountType === 'PERCENTAGE' ? `${viewModalRow.discountValue}%` : 'Fixed'}</dd></div>
               <div><dt className="text-gray-500">Amount</dt><dd className="font-medium">{formatCurrency(viewModalRow.discountAmount)}</dd></div>
               <div><dt className="text-gray-500">Status</dt><dd><span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${viewModalRow.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}`}>{viewModalRow.status}</span></dd></div>
@@ -753,13 +805,20 @@ const DiscountManagement = () => {
                   <tbody>
                     {demands.map((d) => (
                       <tr key={d.id} className="border-t border-gray-100 hover:bg-gray-50/50">
-                        <td className="py-3 px-4 font-medium">{d.demandNumber}</td>
+                        <td className="py-3 px-4 font-medium">
+                          <span className="inline-flex items-center gap-1.5">
+                            {d.demandNumber}
+                            {isRecentDate(d.createdAt || d.generatedDate) && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Recent</span>
+                            )}
+                          </span>
+                        </td>
                         <td className={`py-3 px-4 text-right ${amountClass.original}`}>{formatCurrency(d.totalAmount)}</td>
                         <td className={`py-3 px-4 text-right ${amountClass.paid}`}>{formatCurrency(d.paidAmount)}</td>
                         <td className={`py-3 px-4 text-right ${amountClass.remaining(d.balanceAmount)}`}>{formatCurrency(d.balanceAmount)}</td>
                         <td className="py-3 px-4">
                           <label className="flex items-center gap-2 cursor-pointer">
-                            <input type="radio" name="demand" checked={selectedDemand?.id === d.id} onChange={() => setSelectedDemand(d)} />
+                            <input type="radio" name="demand" checked={selectedDemand?.id === d.id} onChange={() => { setFormMessage(null); setSelectedDemand(d); }} />
                             <span className="text-xs">Select</span>
                           </label>
                         </td>
@@ -778,8 +837,25 @@ const DiscountManagement = () => {
           <section className="pt-6 border-t border-gray-100">
             <p className="text-xs font-medium text-emerald-600 uppercase tracking-wide mb-4">Step 4 of 4</p>
             <h3 className="text-base font-medium text-gray-800 mb-4">Discount & documentation</h3>
+            {formMessage && (
+              <div className="mb-4 p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm flex items-start gap-3">
+                <span className="shrink-0 mt-0.5">ℹ️</span>
+                <div className="flex-1">
+                  <p className="font-medium">Cannot apply discount</p>
+                  <p className="mt-1">{formMessage}</p>
+                  <button type="button" onClick={() => setFormMessage(null)} className="mt-2 text-amber-700 underline hover:no-underline text-xs">
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            )}
             {isDiscountFormDisabled && <p className="text-sm text-amber-600 mb-3">Original amount is zero; discount cannot be applied.</p>}
             {isFullyPaid && <p className="text-sm text-amber-600 mb-3">Demand is fully paid.</p>}
+            {discountExceedsBalance && (
+              <p className="text-sm text-amber-600 mb-3">
+                Discount amount cannot exceed the remaining balance (₹{remainingAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}).
+              </p>
+            )}
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Discount type</label>

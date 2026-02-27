@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Store, FileText, Receipt, FileCheck, TrendingUp, DollarSign, AlertCircle } from 'lucide-react';
+import { Store, FileText, Receipt, FileCheck, TrendingUp, DollarSign, AlertCircle, Zap } from 'lucide-react';
 import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
 import api from '../../../services/api';
 
 const ShopTaxModule = () => {
   const basePath = useShopTaxBasePath();
   const demandsLink = basePath ? `${basePath}/demands?module=SHOP` : '/demands?module=SHOP';
+  const generateShopDemandsLink = basePath ? `${basePath}/demands/generate/shop` : '/demands/generate/shop';
   const registrationRequestsLink = basePath ? `${basePath}/shop-registration-requests` : '/shop-tax/registration-requests';
   const [stats, setStats] = useState({
     activeShops: 0,
@@ -54,10 +55,17 @@ const ShopTaxModule = () => {
     },
     {
       title: 'Shop Demands',
-      description: 'View and generate shop tax demands',
+      description: 'View and manage shop tax demands',
       icon: Receipt,
       link: demandsLink,
       color: 'bg-orange-500'
+    },
+    {
+      title: 'Generate Shop Tax Demands',
+      description: 'Bulk generate shop tax demands only',
+      icon: Zap,
+      link: generateShopDemandsLink,
+      color: 'bg-amber-600'
     },
     {
       title: 'Registration Requests',

@@ -213,10 +213,15 @@ app.use((err, req, res, next) => {
     });
   }
 
-  // Default error
-  res.status(err.status || 500).json({
+  // Default error - never send technical "Internal server error" to client
+  const status = err.status || 500;
+  const isServerError = status >= 500;
+  const message = isServerError
+    ? 'Something went wrong. Please try again later.'
+    : (err.message || 'Request failed');
+  res.status(status).json({
     success: false,
-    message: err.message || 'Internal server error',
+    message,
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
   });
 });

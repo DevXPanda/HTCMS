@@ -68,6 +68,7 @@ const PenaltyWaiverManagement = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [detailDownloading, setDetailDownloading] = useState(false);
+  const [formMessage, setFormMessage] = useState(null);
 
   useEffect(() => {
     if (showSuccessModal || showDetailModal) {
@@ -98,6 +99,29 @@ const PenaltyWaiverManagement = () => {
       .then((res) => setHistory(res.data?.data?.history || []))
       .catch(() => setHistory([]))
       .finally(() => setLoadingHistory(false));
+  };
+
+  const refreshEntityList = async () => {
+    if (!module) return;
+    setLoadingEntities(true);
+    try {
+      if (module === 'PROPERTY' || module === 'D2DC' || module === 'UNIFIED') {
+        const res = await propertyAPI.getAll({ limit: 500 });
+        setEntityList(res.data.data?.properties || []);
+      } else if (module === 'WATER') {
+        const res = await waterConnectionAPI.getAll({ limit: 500 });
+        setEntityList(res.data.data?.waterConnections || res.data.data?.data || []);
+      } else if (module === 'SHOP') {
+        const res = await shopsAPI.getAll({ limit: 500 });
+        setEntityList(res.data.data?.shops || res.data.data?.data || []);
+      } else {
+        setEntityList([]);
+      }
+    } catch (e) {
+      setEntityList([]);
+    } finally {
+      setLoadingEntities(false);
+    }
   };
 
   const handleDownloadPdf = async (id) => {
@@ -302,10 +326,11 @@ const PenaltyWaiverManagement = () => {
       return;
     }
     if (waiverError || computedWaiver <= 0 || computedWaiver > penaltyAmountTotal) {
-      toast.error(waiverError || 'Waiver amount must be greater than zero and cannot exceed penalty amount');
+      setFormMessage(waiverError || 'Waiver amount must be greater than zero and cannot exceed penalty amount');
       return;
     }
     setSubmitting(true);
+    setFormMessage(null);
     try {
       const res = await penaltyWaiverAPI.create({
         module_type: module,
@@ -322,6 +347,7 @@ const PenaltyWaiverManagement = () => {
       }
       const { waiver, demand: resDemand } = res.data.data;
       const origTax = parseFloat(resDemand?.totalAmount || 0) - (parseFloat(resDemand?.penaltyWaived ?? 0) || 0);
+      const waiverDate = waiver.createdAt ?? waiver.created_at;
       setCreatedAdjustment({
         id: waiver.id,
         moduleType: waiver.moduleType,
@@ -333,13 +359,22 @@ const PenaltyWaiverManagement = () => {
         type: waiver.waiverType === 'PERCENTAGE' ? `Percentage (${waiver.waiverValue}%)` : 'Fixed',
         finalAmount: resDemand?.finalAmount,
         approvedBy: waiver.approvedBy != null ? `ID ${waiver.approvedBy}` : '—',
-        date: waiver.createdAt,
+        date: waiverDate,
         reason: waiver.reason || '',
         documentUrl: waiver.documentUrl
       });
       setShowSuccessModal(true);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to apply penalty waiver');
+      const msg = err.response?.data?.message || 'Failed to apply penalty waiver';
+      const isActiveAdjustmentMessage = typeof msg === 'string' && msg.toLowerCase().includes('active adjustment already exists');
+      const isGenericError = typeof msg === 'string' && (msg.includes('Something went wrong') || msg.includes('Please try again later'));
+      if (isActiveAdjustmentMessage) {
+        setFormMessage('This demand already has an active penalty waiver. Please revoke it from waiver history before applying a new one.');
+      } else if (isGenericError) {
+        setFormMessage('Unable to apply waiver at the moment. Please check the demand and try again, or contact support if it persists.');
+      } else {
+        setFormMessage(msg);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -353,6 +388,7 @@ const PenaltyWaiverManagement = () => {
     setWaiverValue('');
     setReason('');
     setDocumentUrl('');
+    refreshEntityList();
     demandAPI.getByModuleEntity(module, entityId, { forPenaltyWaiver: '1' }).then((res) => setDemands(res.data.data?.demands || []));
     penaltyWaiverAPI.getSummary().then((res) => res.data?.success && res.data?.data && setSummary(res.data.data));
     refreshHistory();
@@ -371,6 +407,7 @@ const PenaltyWaiverManagement = () => {
     setWaiverValue('');
     setReason('');
     setDocumentUrl('');
+    refreshEntityList();
     demandAPI.getByModuleEntity(module, entityId, { forPenaltyWaiver: '1' }).then((res) => setDemands(res.data.data?.demands || []));
     penaltyWaiverAPI.getSummary().then((res) => res.data?.success && res.data?.data && setSummary(res.data.data));
     refreshHistory();
@@ -636,7 +673,7 @@ const PenaltyWaiverManagement = () => {
                 <div><dt className="text-gray-500">Type</dt><dd className="font-medium">{createdAdjustment.type}</dd></div>
                 <div><dt className="text-gray-500">Final Amount</dt><dd className={amountClass.finalPayable}>{formatCurrency(createdAdjustment.finalAmount)}</dd></div>
                 <div><dt className="text-gray-500">Approved By</dt><dd className="font-medium">{createdAdjustment.approvedBy}</dd></div>
-                <div><dt className="text-gray-500">Date</dt><dd className="font-medium">{formatDate(createdAdjustment.date)}</dd></div>
+                <div><dt className="text-gray-500">Date</dt><dd className="font-medium">{formatDate(createdAdjustment.date ?? createdAdjustment.createdAt)}</dd></div>
                 <div><dt className="text-gray-500">Reason</dt><dd className="text-gray-700">{createdAdjustment.reason || '—'}</dd></div>
                 {createdAdjustment.documentUrl && (
                   <div><dt className="text-gray-500">Attached Document</dt><dd><a href={createdAdjustment.documentUrl} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">View document</a></dd></div>
@@ -749,7 +786,7 @@ const PenaltyWaiverManagement = () => {
                         <td className={`py-3 px-4 text-right ${amountClass.remaining(d.balanceAmount)}`}>{formatCurrency(d.balanceAmount)}</td>
                         <td className="py-3 px-4">
                           <label className="flex items-center gap-2 cursor-pointer">
-                            <input type="radio" name="demand" checked={selectedDemand?.id === d.id} onChange={() => setSelectedDemand(d)} />
+                            <input type="radio" name="demand" checked={selectedDemand?.id === d.id} onChange={() => { setFormMessage(null); setSelectedDemand(d); }} />
                             <span className="text-xs">Select</span>
                           </label>
                         </td>
@@ -768,6 +805,18 @@ const PenaltyWaiverManagement = () => {
           <section className="pt-6 border-t border-gray-100">
             <p className="text-xs font-medium text-amber-600 uppercase tracking-wide mb-4">Step 4 of 4</p>
             <h3 className="text-base font-medium text-gray-800 mb-4">Waiver & documentation</h3>
+            {formMessage && (
+              <div className="mb-4 p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm flex items-start gap-3">
+                <span className="shrink-0 mt-0.5">ℹ️</span>
+                <div className="flex-1">
+                  <p className="font-medium">Cannot apply waiver</p>
+                  <p className="mt-1">{formMessage}</p>
+                  <button type="button" onClick={() => setFormMessage(null)} className="mt-2 text-amber-700 underline hover:no-underline text-xs">
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            )}
             {isWaiverFormDisabled && <p className="text-sm text-amber-600 mb-3">Demand has no penalty or interest.</p>}
             {isFullyPaid && <p className="text-sm text-amber-600 mb-3">Demand is fully paid.</p>}
             <form onSubmit={handleSubmit} className="space-y-5">

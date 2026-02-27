@@ -1,5 +1,5 @@
 import { generateUniqueId } from '../utils/generateUniqueId.js';
-import { Property, WaterConnection, Shop, D2DCRecord, Ward, Assessment, WaterTaxAssessment, ShopTaxAssessment, Demand, Payment, WaterPayment } from '../models/index.js';
+import { Property, WaterConnection, WaterBill, Shop, D2DCRecord, Ward, Assessment, WaterTaxAssessment, ShopTaxAssessment, Demand, Payment, WaterPayment, Notice } from '../models/index.js';
 import { Op } from 'sequelize';
 
 /** Property type to prefix (House Tax). */
@@ -76,6 +76,44 @@ export async function generateWaterConnectionId(wardId) {
     if (!exists) return candidate;
   }
   return generateUniqueId('water', wardNumDisplay, count + 3);
+}
+
+/**
+ * Water Bill: WB + ward(3) + serial(4). Same unique code format as Property (PR), Connection (WT).
+ * Counts bills for connections in this ward; ensures uniqueness with retry loop.
+ */
+export async function generateWaterBillNumber(wardId, transaction = null) {
+  const ward = await Ward.findByPk(wardId, { transaction });
+  const wardNumDisplay = ward ? ward.wardNumber : wardId;
+
+  const propertyIds = await Property.findAll({
+    where: { wardId },
+    attributes: ['id'],
+    transaction
+  }).then(rows => rows.map(r => r.id));
+  const connectionIds = propertyIds.length
+    ? await WaterConnection.findAll({
+        where: { propertyId: { [Op.in]: propertyIds } },
+        attributes: ['id'],
+        transaction
+      }).then(rows => rows.map(r => r.id))
+    : [];
+  const count = connectionIds.length
+    ? await WaterBill.count({
+        where: { waterConnectionId: { [Op.in]: connectionIds } },
+        transaction
+      })
+    : 0;
+
+  let nextNum = count + 1;
+  let candidate = generateUniqueId('water_bill', wardNumDisplay, nextNum);
+  let exists = await WaterBill.findOne({ where: { billNumber: candidate }, transaction });
+  while (exists) {
+    nextNum++;
+    candidate = generateUniqueId('water_bill', wardNumDisplay, nextNum);
+    exists = await WaterBill.findOne({ where: { billNumber: candidate }, transaction });
+  }
+  return candidate;
 }
 
 /**
@@ -200,4 +238,40 @@ export async function generatePaymentId(wardId, isReceipt = false, transaction =
 // Backward-compatible alias for property (used by controllers that pass wardId, propertyType only)
 export async function generatePropertyId(wardId, propertyType, _transaction = null) {
   return await generatePropertyUniqueId(wardId, propertyType, 0);
+}
+
+/** Notice number: same format as codebase (PREFIX + WARD(3) + SERIAL(4)), unique per notice. */
+const NOTICE_TYPE_PREFIX = {
+  reminder: 'notice_reminder',
+  demand: 'notice_demand',
+  penalty: 'notice_penalty',
+  final_warrant: 'notice_final_warrant'
+};
+
+export async function generateNoticeNumber(wardId, noticeType, transaction = null) {
+  const ward = await Ward.findByPk(wardId, { transaction });
+  const wardNumDisplay = ward ? ward.wardNumber : wardId;
+  const prefixKey = NOTICE_TYPE_PREFIX[String(noticeType).toLowerCase()] || 'notice_reminder';
+
+  const propertyIds = await Property.findAll({
+    where: { wardId },
+    attributes: ['id'],
+    transaction
+  }).then((r) => r.map((p) => p.id));
+  const count = propertyIds.length
+    ? await Notice.count({
+        where: { propertyId: { [Op.in]: propertyIds } },
+        transaction
+      })
+    : 0;
+
+  let nextNum = count + 1;
+  let candidate = generateUniqueId(prefixKey, wardNumDisplay, nextNum, 4);
+  let exists = await Notice.findOne({ where: { noticeNumber: candidate }, transaction });
+  while (exists) {
+    nextNum++;
+    candidate = generateUniqueId(prefixKey, wardNumDisplay, nextNum, 4);
+    exists = await Notice.findOne({ where: { noticeNumber: candidate }, transaction });
+  }
+  return candidate;
 }

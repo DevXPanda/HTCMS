@@ -3,7 +3,15 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { paymentAPI, demandAPI } from '../../services/api';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
-import { CreditCard, CheckCircle, XCircle } from 'lucide-react';
+import { CreditCard, CheckCircle, Landmark, Smartphone, Wallet, FileText, Calendar, Home, TrendingUp } from 'lucide-react';
+import DetailPageLayout from '../../components/DetailPageLayout';
+
+const PAYMENT_METHODS = [
+    { id: 'card', label: 'Credit/Debit Cards', icon: CreditCard },
+    { id: 'netbanking', label: 'Net Banking', icon: Landmark },
+    { id: 'upi', label: 'UPI (Google Pay, PhonePe, Paytm, etc.)', icon: Smartphone },
+    { id: 'wallet', label: 'Wallets', icon: Wallet }
+];
 
 const OnlinePayment = () => {
     const { demandId } = useParams();
@@ -14,6 +22,7 @@ const OnlinePayment = () => {
     const [paymentAmount, setPaymentAmount] = useState('');
     const [orderData, setOrderData] = useState(null);
     const [processing, setProcessing] = useState(false);
+    const [selectedMethod, setSelectedMethod] = useState(null);
 
     useEffect(() => {
         if (demandId) {
@@ -22,14 +31,19 @@ const OnlinePayment = () => {
     }, [demandId]);
 
     useEffect(() => {
-        // Load Razorpay script
+        if (window.Razorpay) return;
         const script = document.createElement('script');
         script.src = 'https://checkout.razorpay.com/v1/checkout.js';
         script.async = true;
+        script.crossOrigin = 'anonymous';
+        script.onerror = () => {
+            console.warn('Razorpay checkout script failed to load. If payment does not open, disable ad blocker for this site.');
+        };
         document.body.appendChild(script);
-
         return () => {
-            document.body.removeChild(script);
+            try {
+                if (script.parentNode) document.body.removeChild(script);
+            } catch (_) { }
         };
     }, []);
 
@@ -41,7 +55,7 @@ const OnlinePayment = () => {
             setPaymentAmount(response.data.data.demand.balanceAmount);
         } catch (error) {
             toast.error('Failed to load demand details');
-                navigate('/citizen/demands');
+            navigate('/citizen/demands');
         } finally {
             setLoadingDemand(false);
         }
@@ -82,31 +96,34 @@ const OnlinePayment = () => {
             return;
         }
 
+        const ownerName = [demand.property?.owner?.firstName, demand.property?.owner?.lastName].filter(Boolean).join(' ') || '';
         const options = {
             key: order.key,
             amount: order.amount,
             currency: order.currency,
-            name: 'House Tax Collection & Management System',
-            description: `Payment for Demand ${demand.demandNumber}`,
+            name: 'ULB Tax Payment',
+            description: `Demand ${demand.demandNumber}`,
             order_id: order.orderId,
             handler: async function (response) {
-                // Payment successful - verify payment
                 await verifyPayment(response, order.paymentId);
             },
             prefill: {
-                name: demand.property?.owner?.firstName + ' ' + demand.property?.owner?.lastName || '',
+                name: ownerName,
                 email: demand.property?.owner?.email || '',
-                contact: demand.property?.ownerPhone || ''
+                contact: demand.property?.ownerPhone || demand.property?.owner?.phone || ''
             },
             theme: {
-                color: '#2563eb'
+                color: '#2563eb',
+                backdrop_color: '#1e293b'
             },
             modal: {
                 ondismiss: function () {
                     toast.info('Payment cancelled');
+                    setProcessing(false);
                 }
             }
         };
+        if (selectedMethod) options.method = selectedMethod;
 
         const razorpay = new window.Razorpay(options);
         razorpay.on('payment.failed', function (response) {
@@ -133,7 +150,14 @@ const OnlinePayment = () => {
                 navigate(`/citizen/payments/${response.data.data.payment.id}`);
             }
         } catch (error) {
-            toast.error(error.response?.data?.error || error.response?.data?.message || 'Payment verification failed');
+            const msg = error.response?.data?.message || error.response?.data?.error || '';
+            const alreadyDone = typeof msg === 'string' && msg.toLowerCase().includes('already');
+            if (alreadyDone) {
+                toast.success('Payment already recorded.');
+                navigate(`/citizen/payments/${paymentId}`);
+            } else {
+                toast.error(msg || 'Payment verification failed');
+            }
             setProcessing(false);
         }
     };
@@ -166,122 +190,148 @@ const OnlinePayment = () => {
         );
     }
 
-    return (
-        <div>
-            <div className="flex items-center justify-between mb-6">
-                <h1 className="ds-page-title">Online Payment</h1>
-            </div>
+    const formatAmt = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Demand Information */}
-                <div className="card">
-                    <h2 className="text-xl font-semibold mb-4">Demand Information</h2>
-                    <dl className="space-y-3">
-                        <div>
-                            <dt className="text-sm font-medium text-gray-500">Demand Number</dt>
-                            <dd className="text-lg font-semibold">{demand.demandNumber}</dd>
+    return (
+        <DetailPageLayout
+            backTo="/citizen/payments"
+            backLabel="Back to Payments"
+            showBackLink={false}
+            title="Online Payment"
+            subtitle={demand.demandNumber}
+            summarySection={
+                <>
+                    <h2 className="form-section-title flex items-center">
+                        <TrendingUp className="w-5 h-5 mr-2 text-primary-600" />
+                        Demand Summary
+                    </h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="stat-card">
+                            <div className="stat-card-title"><span>Demand Number</span><FileText className="w-5 h-5 text-gray-400" /></div>
+                            <p className="stat-card-value text-lg">{demand.demandNumber}</p>
                         </div>
-                        <div>
-                            <dt className="text-sm font-medium text-gray-500">Financial Year</dt>
-                            <dd>{demand.financialYear}</dd>
+                        <div className="stat-card">
+                            <div className="stat-card-title"><span>Financial Year</span><Calendar className="w-5 h-5 text-gray-400" /></div>
+                            <p className="stat-card-value text-lg">{demand.financialYear}</p>
                         </div>
-                        <div>
-                            <dt className="text-sm font-medium text-gray-500">Property</dt>
-                            <dd>
-                                <Link to={`/properties/${demand.propertyId}`} className="text-primary-600 hover:underline">
+                        <div className="stat-card">
+                            <div className="stat-card-title"><span>Property</span><Home className="w-5 h-5 text-gray-400" /></div>
+                            <p className="stat-card-value text-lg">
+                                <Link to={`/citizen/properties/${demand.propertyId}`} className="text-primary-600 hover:underline">
                                     {demand.property?.propertyNumber}
                                 </Link>
-                            </dd>
-                        </div>
-                        <div>
-                            <dt className="text-sm font-medium text-gray-500">Total Amount</dt>
-                            <dd className="text-lg">
-                                ₹{parseFloat(demand.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            </dd>
-                        </div>
-                        <div>
-                            <dt className="text-sm font-medium text-gray-500">Paid Amount</dt>
-                            <dd className="text-green-600">
-                                ₹{parseFloat(demand.paidAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            </dd>
-                        </div>
-                        <div className="border-t pt-3">
-                            <dt className="text-sm font-medium text-gray-500">Balance Amount</dt>
-                            <dd className="text-2xl font-bold text-red-600">
-                                ₹{parseFloat(demand.balanceAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            </dd>
-                        </div>
-                    </dl>
-                </div>
-
-                {/* Payment Form */}
-                <div className="card">
-                    <h2 className="text-xl font-semibold mb-4 flex items-center">
-                        <CreditCard className="w-5 h-5 mr-2" />
-                        Payment Details
-                    </h2>
-
-                    <div className="space-y-4">
-                        <div>
-                            <label className="label">
-                                Payment Amount (₹) <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                                type="number"
-                                step="0.01"
-                                value={paymentAmount}
-                                onChange={(e) => setPaymentAmount(e.target.value)}
-                                className="input"
-                                placeholder="0.00"
-                                min="0.01"
-                                max={demand.balanceAmount}
-                                disabled={processing || loading}
-                            />
-                            <p className="text-sm text-gray-500 mt-1">
-                                Maximum: ₹{parseFloat(demand.balanceAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                             </p>
                         </div>
-
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                            <h3 className="font-semibold text-blue-800 mb-2">Payment Methods</h3>
-                            <ul className="text-sm text-blue-700 space-y-1">
-                                <li>• Credit/Debit Cards</li>
-                                <li>• Net Banking</li>
-                                <li>• UPI (Google Pay, PhonePe, Paytm, etc.)</li>
-                                <li>• Wallets</li>
-                            </ul>
+                        <div className="stat-card">
+                            <div className="stat-card-title"><span>Total Amount</span></div>
+                            <p className="stat-card-value text-lg">{formatAmt(demand.totalAmount)}</p>
                         </div>
-
-                        <button
-                            onClick={handleCreateOrder}
-                            disabled={loading || processing || !paymentAmount || parseFloat(paymentAmount) <= 0}
-                            className="btn btn-primary w-full flex items-center justify-center"
-                        >
-                            {loading ? (
-                                <>
-                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                    Processing...
-                                </>
-                            ) : processing ? (
-                                <>
-                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                    Verifying Payment...
-                                </>
-                            ) : (
-                                <>
-                                    <CreditCard className="w-4 h-4 mr-2" />
-                                    Pay ₹{parseFloat(paymentAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                </>
-                            )}
-                        </button>
-
-                        <p className="text-xs text-gray-500 text-center">
-                            Your payment is secured by Razorpay. We do not store your card details.
-                        </p>
+                        <div className="stat-card">
+                            <div className="stat-card-title"><span>Paid Amount</span></div>
+                            <p className="stat-card-value text-lg text-green-600">{formatAmt(demand.paidAmount)}</p>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-card-title"><span>Balance Amount</span></div>
+                            <p className="stat-card-value text-xl font-bold text-red-600">{formatAmt(demand.balanceAmount)}</p>
+                        </div>
                     </div>
+                </>
+            }
+        >
+            <div className="card">
+                <h2 className="form-section-title flex items-center">
+                    <CreditCard className="w-5 h-5 mr-2 text-primary-600" />
+                    Payment Details
+                </h2>
+                <p className="text-sm text-gray-500 mb-4">Enter amount and choose how you want to pay</p>
+
+                <div className="space-y-4">
+                    <div>
+                        <label className="label">
+                            Payment Amount (₹) <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="number"
+                            step="0.01"
+                            value={paymentAmount}
+                            onChange={(e) => setPaymentAmount(e.target.value)}
+                            className="input"
+                            placeholder="0.00"
+                            min="0.01"
+                            max={demand.balanceAmount}
+                            disabled={processing || loading}
+                        />
+                        <p className="text-sm text-gray-500 mt-1">Maximum: {formatAmt(demand.balanceAmount)}</p>
+                        {parseFloat(demand.balanceAmount || 0) > 100000 && (
+                            <p className="text-sm text-amber-600 mt-1">
+                                {/* Large amount? You can pay in parts by entering a smaller amount and paying multiple times, or pay the full amount at the office. */}
+                            </p>
+                        )}
+                    </div>
+
+                    <div className="space-y-2">
+                        <h3 className="form-section-title text-base">Payment Methods</h3>
+                        <p className="text-sm text-gray-500">Choose a method and click Pay, or click Pay to choose in the checkout.</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {PAYMENT_METHODS.map((method) => {
+                                const Icon = method.icon;
+                                const isSelected = selectedMethod === method.id;
+                                return (
+                                    <button
+                                        key={method.id}
+                                        type="button"
+                                        onClick={() => setSelectedMethod(isSelected ? null : method.id)}
+                                        className={`flex items-center gap-3 p-3 rounded-ds border-2 text-left transition-all ${isSelected
+                                            ? 'border-primary-600 bg-primary-50 text-primary-800'
+                                            : 'border-gray-200 bg-white hover:border-primary-300 hover:bg-gray-50 text-gray-700'
+                                            }`}
+                                    >
+                                        <Icon className={`w-5 h-5 shrink-0 ${isSelected ? 'text-primary-600' : 'text-gray-500'}`} />
+                                        <span className="text-sm font-medium">{method.label}</span>
+                                        {isSelected && <CheckCircle className="w-4 h-4 ml-auto text-primary-600 shrink-0" />}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={handleCreateOrder}
+                        disabled={loading || processing || !paymentAmount || parseFloat(paymentAmount) <= 0}
+                        className="btn btn-primary w-full flex items-center justify-center py-3"
+                    >
+                        {loading ? (
+                            <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                Processing...
+                            </>
+                        ) : processing ? (
+                            <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                Verifying Payment...
+                            </>
+                        ) : (
+                            <>
+                                <CreditCard className="w-4 h-4 mr-2" />
+                                Pay {formatAmt(paymentAmount)}
+                            </>
+                        )}
+                    </button>
+
+                    <div className="flex items-center justify-center gap-2 text-xs text-gray-500 pt-2">
+                        <span className="inline-flex items-center gap-1">
+                            <CheckCircle className="w-4 h-4 text-green-600" />
+                            Secured by Razorpay
+                        </span>
+                        <span>·</span>
+                        <span>We do not store card details</span>
+                    </div>
+                    <p className="text-xs text-amber-600 text-center mt-1">
+                        {/* If the payment window does not open, try disabling ad blocker for this site. */}
+                    </p>
                 </div>
             </div>
-        </div>
+        </DetailPageLayout>
     );
 };
 

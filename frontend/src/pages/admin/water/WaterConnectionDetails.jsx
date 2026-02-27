@@ -4,6 +4,7 @@ import { waterConnectionAPI, waterConnectionDocumentAPI } from '../../../service
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { FileText, Upload, Trash2, Download, AlertCircle, CheckCircle, Power } from 'lucide-react';
+import { useConfirm } from '../../../components/ConfirmModal';
 import DocumentUploadModal from './DocumentUploadModal';
 
 const DOCUMENT_TYPE_LABELS = {
@@ -21,6 +22,7 @@ const MANDATORY_DOCUMENT_TYPES = ['APPLICATION_FORM', 'ID_PROOF', 'ADDRESS_PROOF
 
 const WaterConnectionDetails = () => {
   const { id } = useParams();
+  const { confirm } = useConfirm();
   const [connection, setConnection] = useState(null);
   const [documents, setDocuments] = useState([]);
   const [mandatoryValidation, setMandatoryValidation] = useState({ isValid: false, missing: [] });
@@ -54,9 +56,8 @@ const WaterConnectionDetails = () => {
   };
 
   const handleDeleteDocument = async (documentId) => {
-    if (!window.confirm('Are you sure you want to delete this document?')) {
-      return;
-    }
+    const ok = await confirm({ title: 'Delete document', message: 'Are you sure you want to delete this document?', confirmLabel: 'Delete', variant: 'danger' });
+    if (!ok) return;
 
     try {
       await waterConnectionDocumentAPI.delete(documentId);
@@ -82,9 +83,8 @@ const WaterConnectionDetails = () => {
       return;
     }
 
-    if (!window.confirm('Are you sure you want to activate this water connection?')) {
-      return;
-    }
+    const ok = await confirm({ title: 'Activate connection', message: 'Are you sure you want to activate this water connection?', confirmLabel: 'Activate' });
+    if (!ok) return;
 
     try {
       await waterConnectionAPI.update(id, { status: 'ACTIVE' });

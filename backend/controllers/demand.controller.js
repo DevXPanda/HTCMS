@@ -5,6 +5,7 @@ import { generateDemandId } from '../services/uniqueIdService.js';
 import { auditLogger, createAuditLog } from '../utils/auditLogger.js';
 import { generateDemandNoticePdfBuffer, generateDemandSummaryReceiptPdfBuffer } from '../services/pdfGenerator.js';
 import { generateUnifiedTaxAssessmentAndDemand, getUnifiedDemandBreakdown, getUnifiedTaxSummary as getUnifiedTaxSummaryService } from '../services/unifiedTaxService.js';
+import { generateShopDemandsForProperty } from '../services/shopDemandService.js';
 
 /**
  * @route   GET /api/demands
@@ -259,62 +260,55 @@ export const getAllDemands = async (req, res, next) => {
  * @desc    Get demand by ID
  * @access  Private
  */
+const demandByIdIncludes = [
+  {
+    model: Property,
+    as: 'property',
+    required: false,
+    include: [
+      { model: User, as: 'owner', attributes: { exclude: ['password'] }, required: false },
+      { model: Ward, as: 'ward', required: false },
+      {
+        model: WaterConnection,
+        as: 'waterConnections',
+        where: { status: 'ACTIVE' },
+        required: false
+      }
+    ]
+  },
+  { model: Assessment, as: 'assessment', required: false },
+  { model: WaterTaxAssessment, as: 'waterTaxAssessment', required: false },
+  {
+    model: ShopTaxAssessment,
+    as: 'shopTaxAssessment',
+    required: false,
+    include: [{ model: Shop, as: 'shop', attributes: ['id', 'shopNumber', 'shopName', 'propertyId', 'wardId', 'status'] }]
+  },
+  {
+    model: DemandItem,
+    as: 'items',
+    include: [{ model: WaterConnection, as: 'waterConnection', required: false }],
+    order: [['taxType', 'ASC'], ['id', 'ASC']]
+  },
+  {
+    model: Payment,
+    as: 'payments',
+    include: [{ model: User, as: 'cashier', attributes: ['id', 'firstName', 'lastName'] }]
+  },
+  { model: TaxDiscount, as: 'taxDiscounts', required: false, where: { status: 'ACTIVE' } }
+];
+
 export const getDemandById = async (req, res, next) => {
   try {
     const { id } = req.params;
     const userRole = req.user?.role;
     const userId = req.user?.id;
 
-
-
-    const demand = await Demand.findByPk(id, {
-      include: [
-        {
-          model: Property,
-          as: 'property',
-          required: false, // Make property optional to handle edge cases (SHOP_TAX might have property via shop)
-          include: [
-            { model: User, as: 'owner', attributes: { exclude: ['password'] }, required: false },
-            { model: Ward, as: 'ward', required: false },
-            {
-              model: WaterConnection,
-              as: 'waterConnections',
-              where: { status: 'ACTIVE' },
-              required: false
-            }
-          ]
-        },
-        { model: Assessment, as: 'assessment', required: false }, // Optional for D2DC and WATER_TAX
-        { model: WaterTaxAssessment, as: 'waterTaxAssessment', required: false }, // Optional for HOUSE_TAX and D2DC
-        {
-          model: ShopTaxAssessment,
-          as: 'shopTaxAssessment',
-          required: false,
-          include: [{ model: Shop, as: 'shop', attributes: ['id', 'shopNumber', 'shopName', 'propertyId', 'wardId', 'status'] }]
-        },
-        {
-          model: DemandItem,
-          as: 'items',
-          include: [
-            { model: WaterConnection, as: 'waterConnection', required: false }
-          ],
-          order: [['taxType', 'ASC'], ['id', 'ASC']]
-        },
-        {
-          model: Payment,
-          as: 'payments',
-          include: [
-            { model: User, as: 'cashier', attributes: ['id', 'firstName', 'lastName'] }
-          ]
-        },
-        {
-          model: TaxDiscount,
-          as: 'taxDiscounts',
-          required: false,
-          where: { status: 'ACTIVE' }
-        }
-      ]
-    });
+    const opts = { include: demandByIdIncludes };
+    const isNumericId = /^\d+$/.test(String(id).trim());
+    const demand = isNumericId
+      ? await Demand.findByPk(id, opts)
+      : await Demand.findOne({ where: { demandNumber: String(id).trim() }, include: demandByIdIncludes });
 
     if (!demand) {
       return res.status(404).json({
@@ -326,6 +320,12 @@ export const getDemandById = async (req, res, next) => {
     // Check access for citizens
     if (req.user.role === 'citizen') {
       const property = await Property.findByPk(demand.propertyId);
+      if (!property) {
+        return res.status(404).json({
+          success: false,
+          message: 'Property not found for this demand'
+        });
+      }
       if (property.ownerId !== req.user.id) {
         return res.status(403).json({
           success: false,
@@ -359,15 +359,12 @@ export const getDemandById = async (req, res, next) => {
             });
             if (assignedWards.length > 0) {
               allowedWardIds = assignedWards.map(w => w.id);
-              console.log(`[getDemandById] Clerk ${req.user.id} - found wards via clerkId:`, allowedWardIds);
             }
           }
         } catch (dbError) {
           console.error(`[getDemandById] Error fetching clerk wards from DB:`, dbError.message);
         }
       }
-
-      console.log(`[getDemandById] Clerk ${req.user.id} - final allowedWardIds:`, allowedWardIds);
 
       if (allowedWardIds && (Array.isArray(allowedWardIds) ? allowedWardIds.length > 0 : allowedWardIds)) {
         // Normalize to array
@@ -379,23 +376,16 @@ export const getDemandById = async (req, res, next) => {
         // For SHOP_TAX: get from shop's wardId first, then fallback to property
         if (demand.serviceType === 'SHOP_TAX' && demand.shopTaxAssessment?.shop) {
           demandWardId = demand.shopTaxAssessment.shop.wardId;
-          console.log(`[getDemandById] SHOP_TAX demand ${id} - shop wardId: ${demandWardId}, shop:`, {
-            id: demand.shopTaxAssessment.shop.id,
-            shopNumber: demand.shopTaxAssessment.shop.shopNumber,
-            wardId: demand.shopTaxAssessment.shop.wardId
-          });
         }
 
         // Fallback to property wardId (for HOUSE_TAX, WATER_TAX, D2DC, or if shop wardId not available)
         if (!demandWardId && demand.property) {
           demandWardId = demand.property.wardId;
-          console.log(`[getDemandById] Using property wardId: ${demandWardId}, propertyId: ${demand.property.id}`);
         }
 
         // For WATER_TAX: also check waterTaxAssessment's property
         if (!demandWardId && demand.waterTaxAssessment?.property) {
           demandWardId = demand.waterTaxAssessment.property.wardId;
-          console.log(`[getDemandById] Using waterTaxAssessment property wardId: ${demandWardId}`);
         }
 
         // If we can't determine ward, deny access (safer than allowing)
@@ -417,22 +407,13 @@ export const getDemandById = async (req, res, next) => {
           .map(id => id ? parseInt(id) : null)
           .filter(id => id !== null && !isNaN(id));
 
-        console.log(`[getDemandById] Comparing - demand ward: ${demandWardIdNum} (type: ${typeof demandWardIdNum})`);
-        console.log(`[getDemandById] Comparing - clerk wards: [${wardIdsArrayNum.join(', ')}] (types: [${wardIdsArrayNum.map(id => typeof id).join(', ')}])`);
-
         // Check if demand's ward is in clerk's assigned wards
         if (demandWardIdNum === null || isNaN(demandWardIdNum) || !wardIdsArrayNum.includes(demandWardIdNum)) {
-          console.log(`[getDemandById] ❌ Clerk ${req.user.id} denied access to demand ${id}`);
-          console.log(`  - Demand ward: ${demandWardIdNum}`);
-          console.log(`  - Clerk wards: [${wardIdsArrayNum.join(', ')}]`);
-          console.log(`  - Match: ${wardIdsArrayNum.includes(demandWardIdNum)}`);
           return res.status(403).json({
             success: false,
             message: `Access denied: Demand is in ward ${demandWardIdNum}, but you only have access to wards [${wardIdsArrayNum.join(', ')}]`
           });
         }
-
-        console.log(`[getDemandById] ✅ Ward check passed - demand ward ${demandWardIdNum} is in clerk's wards [${wardIdsArrayNum.join(', ')}]`);
       } else {
         // Clerk has no assigned wards - deny access
         console.error(`[getDemandById] Clerk ${req.user.id} has no assigned wards`);
@@ -443,7 +424,6 @@ export const getDemandById = async (req, res, next) => {
       }
     }
 
-    console.log(`[getDemandById] Access granted for demand ${id} to ${userRole} (userId: ${userId})`);
     res.json({
       success: true,
       data: { demand }
@@ -1611,15 +1591,11 @@ export const generateBulkShopDemands = async (req, res, next) => {
     const skipped = [];
     const errorDetails = [];
 
-    console.log(`[generateBulkShopDemands] FY=${fy}, assessments to process=${assessments.length}`);
-
     for (const assessment of assessments) {
       const shop = assessment.shop;
       const assessmentId = assessment.id;
       const shopId = shop?.id;
       const assessmentStatus = assessment.status;
-
-      console.log(`[generateBulkShopDemands] assessmentId=${assessmentId}, status=${assessmentStatus}, shopId=${shopId}, financialYear=${assessment.financialYear || 'null'}`);
 
       if (!shop || !shop.propertyId) {
         const msg = 'Shop or property missing';
@@ -1637,7 +1613,6 @@ export const generateBulkShopDemands = async (req, res, next) => {
       });
 
       if (existingDemand) {
-        console.log(`[generateBulkShopDemands] assessmentId=${assessmentId} skipped (existing demand id=${existingDemand.id})`);
         skipped.push({ assessmentId, shopId, demandId: existingDemand.id });
         continue;
       }
@@ -1668,7 +1643,6 @@ export const generateBulkShopDemands = async (req, res, next) => {
           remarks: `Bulk generated for shop ${shop.shopNumber}`
         });
         created.push({ demandId: demand.id, shopId, assessmentId });
-        console.log(`[generateBulkShopDemands] assessmentId=${assessmentId} created demandId=${demand.id}`);
       } catch (err) {
         const isUnique = err.name === 'SequelizeUniqueConstraintError' || (err.parent && err.parent.code === '23505');
         if (isUnique) {
@@ -1676,7 +1650,6 @@ export const generateBulkShopDemands = async (req, res, next) => {
             where: { shopTaxAssessmentId: assessment.id, financialYear: fy, serviceType: 'SHOP_TAX' }
           });
           if (existing) {
-            console.log(`[generateBulkShopDemands] assessmentId=${assessmentId} skipped (duplicate constraint, demand id=${existing.id})`);
             skipped.push({ assessmentId, shopId, demandId: existing.id });
           } else {
             const msg = err.message || 'Duplicate demand';
@@ -1700,6 +1673,170 @@ export const generateBulkShopDemands = async (req, res, next) => {
       data: {
         createdCount,
         skippedCount,
+        errorDetails,
+        created,
+        skipped: skipped.length ? skipped : undefined
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   POST /api/demands/generate-property-shop
+ * @desc    Generate shop tax demands for a single property (all approved shop assessments at that property)
+ * @access  Private (Admin, Assessor)
+ */
+export const generatePropertyShopDemands = async (req, res, next) => {
+  try {
+    const { propertyId, financialYear, dueDate } = req.body;
+    if (!propertyId) {
+      return res.status(400).json({ success: false, message: 'propertyId is required' });
+    }
+    if (!financialYear || typeof financialYear !== 'string' || !/^\d{4}-\d{2}$/.test(financialYear.trim())) {
+      return res.status(400).json({
+        success: false,
+        message: 'financialYear is required (e.g. 2024-25)'
+      });
+    }
+    const fy = financialYear.trim();
+    const list = await generateShopDemandsForProperty(
+      parseInt(propertyId),
+      fy,
+      req.user.id,
+      dueDate ? new Date(dueDate) : null,
+      null
+    );
+    const created = list.filter((x) => x.created);
+    const skipped = list.filter((x) => !x.created);
+    res.status(201).json({
+      success: true,
+      message: `Shop demands: ${created.length} created, ${skipped.length} already existed`,
+      data: {
+        shopDemands: list.map((x) => x.demand),
+        createdCount: created.length,
+        skippedCount: skipped.length
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   POST /api/demands/generate-bulk-water
+ * @desc    Generate water tax demands in bulk for all approved water tax assessments (financial year)
+ * @access  Private (Admin, Assessor)
+ */
+export const generateBulkWaterDemands = async (req, res, next) => {
+  try {
+    const { financialYear, dueDate } = req.body;
+
+    if (!financialYear || typeof financialYear !== 'string' || !/^\d{4}-\d{2}$/.test(financialYear.trim())) {
+      return res.status(400).json({
+        success: false,
+        message: 'financialYear is required (e.g. 2024-25)'
+      });
+    }
+
+    const fy = financialYear.trim();
+    const dueDateResolved = dueDate ? new Date(dueDate) : new Date(`${fy.split('-')[1]}-03-31`);
+
+    const assessments = await WaterTaxAssessment.findAll({
+      where: { status: 'approved' },
+      include: [{ model: Property, as: 'property', attributes: ['id', 'wardId'] }]
+    });
+
+    const created = [];
+    const skipped = [];
+    const errorDetails = [];
+
+    for (const assessment of assessments) {
+      const propertyId = assessment.propertyId;
+      const property = assessment.property;
+
+      if (!propertyId || !property?.wardId) {
+        errorDetails.push({ assessmentId: assessment.id, errorMessage: 'Property or ward missing' });
+        continue;
+      }
+
+      const existingDemand = await Demand.findOne({
+        where: {
+          waterTaxAssessmentId: assessment.id,
+          financialYear: fy,
+          serviceType: 'WATER_TAX'
+        }
+      });
+
+      if (existingDemand) {
+        skipped.push({ assessmentId: assessment.id, demandId: existingDemand.id });
+        continue;
+      }
+
+      try {
+        let baseAmount;
+        if (assessment.assessmentType === 'FIXED') {
+          baseAmount = parseFloat(assessment.rate || 0) * 12;
+        } else {
+          const estimatedAnnualConsumption = 1000;
+          baseAmount = parseFloat(assessment.rate || 0) * estimatedAnnualConsumption;
+        }
+        baseAmount = Math.round(baseAmount * 100) / 100;
+
+        const previousDemands = await Demand.findAll({
+          where: {
+            propertyId,
+            serviceType: 'WATER_TAX',
+            financialYear: { [Op.ne]: fy },
+            status: { [Op.in]: ['pending', 'overdue', 'partially_paid'] }
+          }
+        });
+        const arrearsAmount = Math.round(previousDemands.reduce((sum, d) => sum + parseFloat(d.balanceAmount || 0), 0) * 100) / 100;
+        const totalAmount = Math.round((baseAmount + arrearsAmount) * 100) / 100;
+
+        const demandNumber = await generateDemandId(property.wardId, 'water');
+
+        const demand = await Demand.create({
+          demandNumber,
+          propertyId,
+          assessmentId: null,
+          waterTaxAssessmentId: assessment.id,
+          serviceType: 'WATER_TAX',
+          financialYear: fy,
+          baseAmount,
+          arrearsAmount,
+          penaltyAmount: 0,
+          interestAmount: 0,
+          totalAmount,
+          balanceAmount: totalAmount,
+          paidAmount: 0,
+          dueDate: dueDateResolved,
+          status: 'pending',
+          generatedBy: req.user.id,
+          remarks: 'Bulk generated water tax demand'
+        });
+        created.push({ demandId: demand.id, assessmentId: assessment.id });
+      } catch (err) {
+        const isUnique = err.name === 'SequelizeUniqueConstraintError' || (err.parent && err.parent.code === '23505');
+        if (isUnique) {
+          const existing = await Demand.findOne({
+            where: { waterTaxAssessmentId: assessment.id, financialYear: fy, serviceType: 'WATER_TAX' }
+          });
+          if (existing) skipped.push({ assessmentId: assessment.id, demandId: existing.id });
+          else errorDetails.push({ assessmentId: assessment.id, errorMessage: err.message || 'Duplicate demand' });
+        } else {
+          errorDetails.push({ assessmentId: assessment.id, errorMessage: err.message || String(err) });
+        }
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      message: `Water demands: ${created.length} created, ${skipped.length} already existed${errorDetails.length ? `, ${errorDetails.length} errors` : ''}`,
+      data: {
+        createdCount: created.length,
+        skippedCount: skipped.length,
         errorDetails,
         created,
         skipped: skipped.length ? skipped : undefined
@@ -1790,9 +1927,9 @@ export const getDemandsByModuleAndEntity = async (req, res, next) => {
     if (!entityIdNum || isNaN(entityIdNum)) {
       return res.status(400).json({ success: false, message: 'Invalid entity ID' });
     }
-    const validModules = ['PROPERTY', 'WATER', 'SHOP', 'D2DC'];
+    const validModules = ['PROPERTY', 'WATER', 'SHOP', 'D2DC', 'UNIFIED'];
     if (!validModules.includes(moduleType)) {
-      return res.status(400).json({ success: false, message: 'Invalid module. Use PROPERTY, WATER, SHOP, or D2DC.' });
+      return res.status(400).json({ success: false, message: 'Invalid module. Use PROPERTY, WATER, SHOP, D2DC, or UNIFIED.' });
     }
 
     const where = {
@@ -1811,6 +1948,9 @@ export const getDemandsByModuleAndEntity = async (req, res, next) => {
     if (moduleType === 'PROPERTY') {
       where.propertyId = entityIdNum;
       where.serviceType = 'HOUSE_TAX';
+    } else if (moduleType === 'UNIFIED') {
+      where.propertyId = entityIdNum;
+      where.remarks = { [Op.iLike]: '%UNIFIED_DEMAND%' };
     } else if (moduleType === 'D2DC') {
       where.propertyId = entityIdNum;
       where.serviceType = 'D2DC';
@@ -1821,9 +1961,6 @@ export const getDemandsByModuleAndEntity = async (req, res, next) => {
       });
       const assessmentIds = waterAssessments.map(a => a.id);
       if (assessmentIds.length === 0) {
-        if (forPenaltyWaiver) {
-          console.log('[getDemandsByModuleAndEntity] Penalty waiver: no water assessments for entity', entityIdNum, '- returning []');
-        }
         return res.json({ success: true, data: { demands: [] } });
       }
       where.waterTaxAssessmentId = { [Op.in]: assessmentIds };
@@ -1835,9 +1972,6 @@ export const getDemandsByModuleAndEntity = async (req, res, next) => {
       });
       const assessmentIds = shopAssessments.map(a => a.id);
       if (assessmentIds.length === 0) {
-        if (forPenaltyWaiver) {
-          console.log('[getDemandsByModuleAndEntity] Penalty waiver: no shop assessments for entity', entityIdNum, '- returning []');
-        }
         return res.json({ success: true, data: { demands: [] } });
       }
       where.shopTaxAssessmentId = { [Op.in]: assessmentIds };
@@ -1846,27 +1980,9 @@ export const getDemandsByModuleAndEntity = async (req, res, next) => {
 
     const demands = await Demand.findAll({
       where,
-      attributes: ['id', 'demandNumber', 'totalAmount', 'paidAmount', 'balanceAmount', 'penaltyAmount', 'interestAmount', 'penaltyWaived', 'finalAmount', 'status', 'financialYear', 'dueDate', 'serviceType'],
+      attributes: ['id', 'demandNumber', 'totalAmount', 'paidAmount', 'balanceAmount', 'penaltyAmount', 'interestAmount', 'penaltyWaived', 'finalAmount', 'status', 'financialYear', 'dueDate', 'serviceType', 'createdAt', 'generatedDate'],
       order: [['financialYear', 'DESC'], ['createdAt', 'DESC']]
     });
-
-    if (forPenaltyWaiver) {
-      console.log('[getDemandsByModuleAndEntity] Penalty waiver fetch:', {
-        module: moduleType,
-        entityId: entityIdNum,
-        forPenaltyWaiver: true,
-        count: demands.length,
-        demands: demands.map(d => ({
-          id: d.id,
-          demandNumber: d.demandNumber,
-          status: d.status,
-          penaltyAmount: d.penaltyAmount,
-          interestAmount: d.interestAmount,
-          totalAmount: d.totalAmount,
-          balanceAmount: d.balanceAmount
-        }))
-      });
-    }
 
     return res.json({
       success: true,
@@ -1885,11 +2001,34 @@ export const getDemandsByModuleAndEntity = async (req, res, next) => {
 export const getDemandsByProperty = async (req, res, next) => {
   try {
     const { propertyId } = req.params;
+    let resolvedPropertyId = propertyId;
+
+    if (!/^\d+$/.test(String(propertyId).trim())) {
+      const search = String(propertyId).trim();
+      const pattern = '%' + search.toLowerCase() + '%';
+      const prop = await Property.findOne({
+        where: Sequelize.or(
+          Sequelize.where(Sequelize.fn('LOWER', Sequelize.col('propertyNumber')), 'LIKE', pattern),
+          Sequelize.where(Sequelize.fn('LOWER', Sequelize.col('uniqueCode')), 'LIKE', pattern)
+        ),
+        attributes: ['id']
+      });
+      if (!prop) {
+        return res.status(404).json({
+          success: false,
+          message: 'Property not found'
+        });
+      }
+      resolvedPropertyId = prop.id;
+    } else {
+      resolvedPropertyId = parseInt(propertyId, 10);
+    }
 
     const demands = await Demand.findAll({
-      where: { propertyId },
+      where: { propertyId: resolvedPropertyId },
       include: [
-        { model: Assessment, as: 'assessment', required: false }, // Optional for D2DC
+        { model: Property, as: 'property', attributes: ['id', 'propertyNumber', 'address'] },
+        { model: Assessment, as: 'assessment', required: false },
         {
           model: Payment,
           as: 'payments',

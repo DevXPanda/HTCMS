@@ -62,7 +62,19 @@ export const createPenaltyWaiver = async (req, res, next) => {
     }
 
     const serviceType = MODULE_SERVICE_MAP[moduleType];
-    const isUnifiedDemand = demand.remarks && demand.remarks.includes('UNIFIED_DEMAND');
+    let isUnifiedDemand = false;
+    if (demand.remarks) {
+      if (typeof demand.remarks === 'string') {
+        try {
+          const parsed = JSON.parse(demand.remarks);
+          isUnifiedDemand = parsed && (parsed.type === 'UNIFIED_DEMAND' || (typeof parsed === 'string' && parsed.includes('UNIFIED_DEMAND')));
+        } catch {
+          isUnifiedDemand = demand.remarks.includes('UNIFIED_DEMAND');
+        }
+      } else if (typeof demand.remarks === 'object' && demand.remarks !== null) {
+        isUnifiedDemand = demand.remarks.type === 'UNIFIED_DEMAND';
+      }
+    }
 
     if (moduleType === 'UNIFIED') {
       if (!isUnifiedDemand) {
@@ -150,6 +162,11 @@ export const createPenaltyWaiver = async (req, res, next) => {
     });
     const newBalanceAmount = Math.max(0, Number((finalAmount - paidAmount).toFixed(2)));
 
+    const previousPenaltyWaived = parseFloat(demand.penaltyWaived || 0);
+    const previousFinalAmount = demand.finalAmount != null ? parseFloat(demand.finalAmount) : null;
+    const previousBalanceAmount = demand.balanceAmount != null ? parseFloat(demand.balanceAmount) : null;
+    const oldFinalAmount = previousFinalAmount ?? parseFloat(demand.totalAmount || 0);
+
     await demand.update({
       penaltyWaived: waiverAmount,
       finalAmount,
@@ -171,27 +188,30 @@ export const createPenaltyWaiver = async (req, res, next) => {
       status: 'ACTIVE'
     }, { transaction: t });
 
-    const oldFinalAmount = demand.finalAmount != null ? parseFloat(demand.finalAmount) : parseFloat(demand.totalAmount || 0);
-    await auditLogger.createAuditLog({
-      req,
-      user: req.user,
-      actionType: 'UPDATE',
-      entityType: 'Demand',
-      entityId: demandId,
-      previousData: { penaltyWaived: demand.penaltyWaived, finalAmount: demand.finalAmount, balanceAmount: demand.balanceAmount },
-      newData: {
-        penaltyWaived: waiverAmount,
-        finalAmount,
-        balanceAmount: newBalanceAmount,
-        penaltyWaiverId: waiverRecord.id,
-        oldFinalAmount,
-        newFinalAmount: finalAmount,
-        adjustmentType: 'PENALTY',
-        appliedValue: waiverAmount,
-        appliedBy: req.user?.id ?? req.user?.staff_id ?? null
-      },
-      description: 'Penalty waiver applied'
-    });
+    try {
+      await auditLogger.createAuditLog({
+        req,
+        user: req.user,
+        actionType: 'UPDATE',
+        entityType: 'Demand',
+        entityId: demandId,
+        previousData: { penaltyWaived: previousPenaltyWaived, finalAmount: previousFinalAmount, balanceAmount: previousBalanceAmount },
+        newData: {
+          penaltyWaived: waiverAmount,
+          finalAmount,
+          balanceAmount: newBalanceAmount,
+          penaltyWaiverId: waiverRecord.id,
+          oldFinalAmount,
+          newFinalAmount: finalAmount,
+          adjustmentType: 'PENALTY',
+          appliedValue: waiverAmount,
+          appliedBy: req.user?.id ?? req.user?.staff_id ?? null
+        },
+        description: 'Penalty waiver applied'
+      });
+    } catch (auditErr) {
+      console.error('[createPenaltyWaiver] Audit log failed:', auditErr);
+    }
 
     await t.commit();
 
@@ -211,7 +231,7 @@ export const createPenaltyWaiver = async (req, res, next) => {
           documentUrl: waiverRecord.documentUrl,
           approvedBy: waiverRecord.approvedBy,
           status: waiverRecord.status,
-          createdAt: waiverRecord.createdAt
+          createdAt: waiverRecord.createdAt ?? waiverRecord.dataValues?.created_at
         },
         demand: {
           id: demand.id,
