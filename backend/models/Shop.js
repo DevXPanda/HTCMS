@@ -91,6 +91,11 @@ export const Shop = sequelize.define('Shop', {
     allowNull: true,
     comment: 'License status: valid, expired, or suspended'
   },
+  licenseDocumentUrl: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+    comment: 'Path/URL to uploaded trade license document (image or PDF)'
+  },
   status: {
     type: DataTypes.ENUM('active', 'inactive', 'closed'),
     allowNull: false,

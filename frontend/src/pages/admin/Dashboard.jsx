@@ -4,13 +4,18 @@ import {
   AlertCircle, CheckCircle, Clock, Truck, Bath, MapPin,
   Shield, BarChart3, Droplet, UserCog, ClipboardList,
   Store, ScrollText, Filter, Percent, AlertTriangle,
-  Package, Zap
+  Package, Zap, Recycle, Heart
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
-import { fieldWorkerMonitoringAPI } from '../../services/api';
+import { fieldWorkerMonitoringAPI, reportAPI } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
+import { useSelectedUlb } from '../../contexts/SelectedUlbContext';
 
 const Dashboard = () => {
+  const { user } = useAuth();
+  const { selectedUlbId, setSelectedUlbId, isSuperAdmin, effectiveUlbId } = useSelectedUlb();
+
   const [stats, setStats] = useState({
     totalProperties: 0,
     totalAssessments: 0,
@@ -49,13 +54,38 @@ const Dashboard = () => {
     geo_violations: 0
   });
   const [ulbs, setUlbs] = useState([]);
-  const [selectedUlbId, setSelectedUlbId] = useState('');
   const [loadingFieldWorkers, setLoadingFieldWorkers] = useState(false);
+
+  const [mrfStats, setMrfStats] = useState(null);
+  const [toiletStats, setToiletStats] = useState(null);
+  const [gaushalaStats, setGaushalaStats] = useState(null);
+
+  useEffect(() => {
+    fetchULBs();
+  }, []);
 
   useEffect(() => {
     fetchDashboardData();
-    fetchULBs();
-  }, []);
+  }, [effectiveUlbId]);
+
+  useEffect(() => {
+    const fetchModuleSnapshots = async () => {
+      try {
+        const params = effectiveUlbId ? { ulb_id: effectiveUlbId } : {};
+        const [mrfRes, toiletRes, gaushalaRes] = await Promise.all([
+          reportAPI.getMrfStats(params).catch(() => ({ data: { data: null } })),
+          reportAPI.getToiletStats(params).catch(() => ({ data: { data: null } })),
+          reportAPI.getGaushalaStats(params).catch(() => ({ data: { data: null } }))
+        ]);
+        setMrfStats(mrfRes.data?.data ?? null);
+        setToiletStats(toiletRes.data?.data ?? null);
+        setGaushalaStats(gaushalaRes.data?.data ?? null);
+      } catch (_) {
+        // Non-blocking; snapshots show — if missing
+      }
+    };
+    fetchModuleSnapshots();
+  }, [effectiveUlbId]);
 
   useEffect(() => {
     fetchFieldWorkerAnalytics();
@@ -64,7 +94,8 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/reports/dashboard');
+      const params = effectiveUlbId ? { ulb_id: effectiveUlbId } : {};
+      const response = await api.get('/reports/dashboard', { params });
       setStats(response.data.data);
     } catch (err) {
       setError('Failed to load dashboard data');
@@ -162,7 +193,9 @@ const Dashboard = () => {
   // 3. Administration (Compact Secondary Navigation)
   const adminItems = [
     { name: 'Wards', icon: MapPin, link: '/wards' },
+    { name: 'ULB Management', icon: Building2, link: '/ulb-management' },
     { name: 'Citizen Management', icon: Users, link: '/users' },
+    { name: 'Admin Management', icon: Shield, link: '/admin-accounts' },
     { name: 'Staff Management', icon: UserCog, link: '/admin-management' },
     { name: 'Attendance', icon: Clock, link: '/attendance' },
     { name: 'Field Monitoring', icon: ClipboardList, link: '/field-monitoring' },
@@ -234,32 +267,40 @@ const Dashboard = () => {
         </button>
       </div>
 
-      {/* ULB Filter */}
+      {/* ULB Filter: Super Admin can choose all/specific ULB; others see only their assigned ULB */}
       <div className="card-flat">
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
             <Filter className="w-5 h-5 text-gray-500" />
             <label className="label mb-0">Filter by ULB:</label>
           </div>
-          <select
-            value={selectedUlbId}
-            onChange={(e) => setSelectedUlbId(e.target.value)}
-            className="input max-w-xs"
-          >
-            <option value="">All ULBs (Aggregated)</option>
-            {ulbs.map(ulb => (
-              <option key={ulb.id} value={ulb.id}>
-                {ulb.name}
-              </option>
-            ))}
-          </select>
-          {selectedUlbId && (
-            <button
-              onClick={() => setSelectedUlbId('')}
-              className="text-sm text-primary-600 hover:text-primary-700"
-            >
-              Clear Filter
-            </button>
+          {isSuperAdmin ? (
+            <>
+              <select
+                value={selectedUlbId}
+                onChange={(e) => setSelectedUlbId(e.target.value)}
+                className="input max-w-xs"
+              >
+                <option value="">All ULBs (Aggregated)</option>
+                {ulbs.map(ulb => (
+                  <option key={ulb.id} value={ulb.id}>
+                    {ulb.name}
+                  </option>
+                ))}
+              </select>
+              {selectedUlbId && (
+                <button
+                  onClick={() => setSelectedUlbId('')}
+                  className="text-sm text-primary-600 hover:text-primary-700"
+                >
+                  Clear Filter
+                </button>
+              )}
+            </>
+          ) : (
+            <span className="font-medium text-gray-700">
+              {ulbs.find(u => u.id === effectiveUlbId)?.name || (user?.ulb_id ? 'Your ULB' : '—')}
+            </span>
           )}
         </div>
       </div>
@@ -409,7 +450,7 @@ const Dashboard = () => {
       {/* 4. Snapshot / Water Tax Overview */}
       {/* 4. Module Snapshots */}
       <h2 className="ds-section-title-muted">Module Snapshots</h2>
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
 
         {/* Property Tax Snapshot */}
         <section className="card overflow-hidden p-0">
@@ -422,22 +463,22 @@ const Dashboard = () => {
               View <TrendingUp className="w-3 h-3 ml-1" />
             </Link>
           </div>
-          <div className="p-6 space-y-4">
-            <div className="flex justify-between items-center pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium">Properties</span>
-              <span className="text-lg font-bold text-gray-900">{stats.totalProperties.toLocaleString()}</span>
+          <div className="p-6 space-y-4 min-w-0 overflow-hidden">
+            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
+              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Properties</span>
+              <span className="text-lg font-bold text-gray-900 min-w-0 truncate text-right" title={String(stats.totalProperties)}>{stats.totalProperties.toLocaleString()}</span>
             </div>
-            <div className="flex justify-between items-center pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium">Assessments</span>
-              <span className="text-lg font-bold text-gray-700">{stats.totalAssessments.toLocaleString()}</span>
+            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
+              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Assessments</span>
+              <span className="text-lg font-bold text-gray-700 min-w-0 truncate text-right" title={String(stats.totalAssessments)}>{stats.totalAssessments.toLocaleString()}</span>
             </div>
-            <div className="flex justify-between items-center pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium">Revenue</span>
-              <span className="text-lg font-bold text-blue-600">₹{(stats.houseTaxRevenue || 0).toLocaleString()}</span>
+            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
+              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Revenue</span>
+              <span className="text-lg font-bold text-blue-600 min-w-0 truncate text-right" title={`₹${(stats.houseTaxRevenue || 0).toLocaleString()}`}>₹{(stats.houseTaxRevenue || 0).toLocaleString()}</span>
             </div>
-            <div className="flex justify-between items-center pt-1">
-              <span className="text-xs text-gray-500 uppercase font-medium">Outstanding</span>
-              <span className="text-lg font-bold text-red-500">₹{(stats.houseTaxOutstanding || 0).toLocaleString()}</span>
+            <div className="flex justify-between items-center gap-2 min-w-0 pt-1">
+              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Outstanding</span>
+              <span className="text-lg font-bold text-red-500 min-w-0 truncate text-right" title={`₹${(stats.houseTaxOutstanding || 0).toLocaleString()}`}>₹{(stats.houseTaxOutstanding || 0).toLocaleString()}</span>
             </div>
           </div>
         </section>
@@ -453,22 +494,22 @@ const Dashboard = () => {
               View <TrendingUp className="w-3 h-3 ml-1" />
             </Link>
           </div>
-          <div className="p-6 space-y-4">
-            <div className="flex justify-between items-center pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium">Connections</span>
-              <span className="text-lg font-bold text-gray-900">{stats.totalWaterConnections.toLocaleString()}</span>
+          <div className="p-6 space-y-4 min-w-0 overflow-hidden">
+            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
+              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Connections</span>
+              <span className="text-lg font-bold text-gray-900 min-w-0 truncate text-right">{stats.totalWaterConnections.toLocaleString()}</span>
             </div>
-            <div className="flex justify-between items-center pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium">Active</span>
-              <span className="text-lg font-bold text-gray-700">{stats.totalWaterConnections.toLocaleString()}</span>
+            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
+              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Active</span>
+              <span className="text-lg font-bold text-gray-700 min-w-0 truncate text-right">{stats.totalWaterConnections.toLocaleString()}</span>
             </div>
-            <div className="flex justify-between items-center pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium">Revenue</span>
-              <span className="text-lg font-bold text-cyan-600">₹{stats.totalWaterRevenue.toLocaleString()}</span>
+            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
+              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Revenue</span>
+              <span className="text-lg font-bold text-cyan-600 min-w-0 truncate text-right" title={`₹${stats.totalWaterRevenue.toLocaleString()}`}>₹{stats.totalWaterRevenue.toLocaleString()}</span>
             </div>
-            <div className="flex justify-between items-center pt-1">
-              <span className="text-xs text-gray-500 uppercase font-medium">Outstanding</span>
-              <span className="text-lg font-bold text-red-500">₹{stats.waterOutstanding.toLocaleString()}</span>
+            <div className="flex justify-between items-center gap-2 min-w-0 pt-1">
+              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Outstanding</span>
+              <span className="text-lg font-bold text-red-500 min-w-0 truncate text-right" title={`₹${stats.waterOutstanding.toLocaleString()}`}>₹{stats.waterOutstanding.toLocaleString()}</span>
             </div>
           </div>
         </section>
@@ -484,22 +525,22 @@ const Dashboard = () => {
               View <TrendingUp className="w-3 h-3 ml-1" />
             </Link>
           </div>
-          <div className="p-6 space-y-4">
-            <div className="flex justify-between items-center pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium">Demands Generated</span>
-              <span className="text-lg font-bold text-gray-900">{(stats.d2dcDemands || 0).toLocaleString()}</span>
+          <div className="p-6 space-y-4 min-w-0 overflow-hidden">
+            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
+              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Demands Generated</span>
+              <span className="text-lg font-bold text-gray-900 min-w-0 truncate text-right">{(stats.d2dcDemands || 0).toLocaleString()}</span>
             </div>
-            <div className="flex justify-between items-center pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium">Collection Rate</span>
-              <span className="text-lg font-bold text-gray-700">-</span>
+            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
+              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Collection Rate</span>
+              <span className="text-lg font-bold text-gray-700 min-w-0 truncate text-right">-</span>
             </div>
-            <div className="flex justify-between items-center pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium">Revenue</span>
-              <span className="text-lg font-bold text-purple-600">₹{(stats.d2dcRevenue || 0).toLocaleString()}</span>
+            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
+              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Revenue</span>
+              <span className="text-lg font-bold text-purple-600 min-w-0 truncate text-right" title={`₹${(stats.d2dcRevenue || 0).toLocaleString()}`}>₹{(stats.d2dcRevenue || 0).toLocaleString()}</span>
             </div>
-            <div className="flex justify-between items-center pt-1">
-              <span className="text-xs text-gray-500 uppercase font-medium">Outstanding</span>
-              <span className="text-lg font-bold text-red-500">₹{(stats.d2dcOutstanding || 0).toLocaleString()}</span>
+            <div className="flex justify-between items-center gap-2 min-w-0 pt-1">
+              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Outstanding</span>
+              <span className="text-lg font-bold text-red-500 min-w-0 truncate text-right" title={`₹${(stats.d2dcOutstanding || 0).toLocaleString()}`}>₹{(stats.d2dcOutstanding || 0).toLocaleString()}</span>
             </div>
           </div>
         </section>
@@ -515,22 +556,115 @@ const Dashboard = () => {
               View <TrendingUp className="w-3 h-3 ml-1" />
             </Link>
           </div>
-          <div className="p-6 space-y-4">
-            <div className="flex justify-between items-center pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium">Demands</span>
-              <span className="text-lg font-bold text-gray-900">{(stats.shopTaxDemands || 0).toLocaleString()}</span>
+          <div className="p-6 space-y-4 min-w-0 overflow-hidden">
+            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
+              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Demands</span>
+              <span className="text-lg font-bold text-gray-900 min-w-0 truncate text-right">{(stats.shopTaxDemands || 0).toLocaleString()}</span>
             </div>
-            <div className="flex justify-between items-center pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium">Active Shops</span>
-              <span className="text-lg font-bold text-gray-700">{(stats.activeShops ?? 0).toLocaleString()}</span>
+            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
+              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Active Shops</span>
+              <span className="text-lg font-bold text-gray-700 min-w-0 truncate text-right">{(stats.activeShops ?? 0).toLocaleString()}</span>
             </div>
-            <div className="flex justify-between items-center pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium">Revenue</span>
-              <span className="text-lg font-bold text-amber-600">₹{(stats.shopTaxRevenue || 0).toLocaleString()}</span>
+            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
+              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Revenue</span>
+              <span className="text-lg font-bold text-amber-600 min-w-0 truncate text-right" title={`₹${(stats.shopTaxRevenue || 0).toLocaleString()}`}>₹{(stats.shopTaxRevenue || 0).toLocaleString()}</span>
             </div>
-            <div className="flex justify-between items-center pt-1">
-              <span className="text-xs text-gray-500 uppercase font-medium">Outstanding</span>
-              <span className="text-lg font-bold text-red-500">₹{(stats.shopTaxOutstanding || 0).toLocaleString()}</span>
+            <div className="flex justify-between items-center gap-2 min-w-0 pt-1">
+              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Outstanding</span>
+              <span className="text-lg font-bold text-red-500 min-w-0 truncate text-right" title={`₹${(stats.shopTaxOutstanding || 0).toLocaleString()}`}>₹{(stats.shopTaxOutstanding || 0).toLocaleString()}</span>
+            </div>
+          </div>
+        </section>
+
+        {/* Toilet Snapshot */}
+        <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-teal-50/30">
+            <h3 className="text-sm font-semibold text-gray-900 uppercase flex items-center">
+              <Bath className="w-4 h-4 mr-2 text-teal-600" />
+              Toilet
+            </h3>
+            <Link to="/toilet-management" className="text-teal-600 text-xs font-medium hover:text-teal-700 flex items-center">
+              View <TrendingUp className="w-3 h-3 ml-1" />
+            </Link>
+          </div>
+          <div className="p-6 space-y-4 min-w-0 overflow-hidden">
+            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
+              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Facilities</span>
+              <span className="text-lg font-bold text-gray-900 min-w-0 truncate text-right">{(toiletStats?.totalFacilities ?? 0).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
+              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Active</span>
+              <span className="text-lg font-bold text-gray-700 min-w-0 truncate text-right">{(toiletStats?.activeFacilities ?? 0).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
+              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Inspections</span>
+              <span className="text-lg font-bold text-teal-600 min-w-0 truncate text-right">{(toiletStats?.totalInspections ?? 0).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between items-center gap-2 min-w-0 pt-1">
+              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Complaints</span>
+              <span className="text-lg font-bold text-gray-700 min-w-0 truncate text-right">{(toiletStats?.totalComplaints ?? 0).toLocaleString()}</span>
+            </div>
+          </div>
+        </section>
+
+        {/* MRF Snapshot */}
+        <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-emerald-50/30">
+            <h3 className="text-sm font-semibold text-gray-900 uppercase flex items-center">
+              <Recycle className="w-4 h-4 mr-2 text-emerald-600" />
+              MRF
+            </h3>
+            <Link to="/mrf" className="text-emerald-600 text-xs font-medium hover:text-emerald-700 flex items-center">
+              View <TrendingUp className="w-3 h-3 ml-1" />
+            </Link>
+          </div>
+          <div className="p-6 space-y-4 min-w-0 overflow-hidden">
+            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
+              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Facilities</span>
+              <span className="text-lg font-bold text-gray-900 min-w-0 truncate text-right">{(mrfStats?.totalFacilities ?? 0).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
+              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Active</span>
+              <span className="text-lg font-bold text-gray-700 min-w-0 truncate text-right">{(mrfStats?.activeFacilities ?? 0).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
+              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Processing (tons)</span>
+              <span className="text-lg font-bold text-emerald-600 min-w-0 truncate text-right">{(mrfStats?.totalProcessing ?? 0).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between items-center gap-2 min-w-0 pt-1">
+              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Efficiency</span>
+              <span className="text-lg font-bold text-gray-700 min-w-0 truncate text-right">{mrfStats?.efficiency != null ? `${mrfStats.efficiency}%` : '—'}</span>
+            </div>
+          </div>
+        </section>
+
+        {/* Gaushala Snapshot */}
+        <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-rose-50/30">
+            <h3 className="text-sm font-semibold text-gray-900 uppercase flex items-center">
+              <Heart className="w-4 h-4 mr-2 text-rose-600" />
+              Gaushala
+            </h3>
+            <Link to="/gaushala/management" className="text-rose-600 text-xs font-medium hover:text-rose-700 flex items-center">
+              View <TrendingUp className="w-3 h-3 ml-1" />
+            </Link>
+          </div>
+          <div className="p-6 space-y-4 min-w-0 overflow-hidden">
+            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
+              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Facilities</span>
+              <span className="text-lg font-bold text-gray-900 min-w-0 truncate text-right">{(gaushalaStats?.totalFacilities ?? 0).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
+              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Cattle</span>
+              <span className="text-lg font-bold text-gray-700 min-w-0 truncate text-right">{(gaushalaStats?.totalCattle ?? 0).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
+              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Inspections</span>
+              <span className="text-lg font-bold text-rose-600 min-w-0 truncate text-right">{(gaushalaStats?.totalInspections ?? 0).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between items-center gap-2 min-w-0 pt-1">
+              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Complaints</span>
+              <span className="text-lg font-bold text-gray-700 min-w-0 truncate text-right">{(gaushalaStats?.totalComplaints ?? 0).toLocaleString()}</span>
             </div>
           </div>
         </section>

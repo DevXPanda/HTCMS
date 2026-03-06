@@ -5,9 +5,11 @@ import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { Plus, Eye, Search, Filter, X, Download, Receipt } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 import { isRecentWithinMinutes, sortByCreatedDesc } from '../../../utils/dateUtils';
 
 const Payments = () => {
+  const { effectiveUlbId } = useSelectedUlb();
   const { isAdmin, isCashier } = useAuth();
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,7 +26,7 @@ const Payments = () => {
 
   useEffect(() => {
     fetchPayments();
-  }, [search, filters]);
+  }, [search, filters, effectiveUlbId]);
 
   const fetchPayments = async () => {
     try {
@@ -32,7 +34,8 @@ const Payments = () => {
       const params = {
         search,
         limit: 10000,
-        ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''))
+        ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== '')),
+        ...(effectiveUlbId ? { ulb_id: effectiveUlbId } : {})
       };
       const response = await paymentAPI.getAll(params);
       const list = response.data.data.payments || [];

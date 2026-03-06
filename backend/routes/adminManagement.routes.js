@@ -7,6 +7,8 @@ import {
   deleteEmployee,
   getAvailableWards,
   getAllULBs,
+  createULB,
+  updateULB,
   resetEmployeePassword,
   getEmployeeStatistics,
   bulkDeleteEmployees,
@@ -335,6 +337,8 @@ router.get('/employees/by-ulb', requireEoOrAdmin, getEmployeesByUlb); // EO can 
 router.get('/employees/statistics', getEmployeeStatistics);
 router.get('/employees/wards', getAvailableWards);
 router.get('/ulbs', getAllULBs);
+router.post('/ulbs', requireAdmin, createULB);
+router.put('/ulbs/:id', requireAdmin, updateULB);
 router.get('/employees/:id', getEmployeeById);
 
 router.post('/employees', createEmployeeValidation, validateRoleBasedFields, createEmployee);

@@ -2,12 +2,44 @@ import { MrfFacility, MrfSale, Ward, MrfWasteEntry, MrfWorkerAssignment, MrfTask
 import { Op, fn, col, literal } from 'sequelize';
 import { auditLogger } from '../utils/auditLogger.js';
 import { sequelize } from '../config/database.js';
+import { getEffectiveUlbForRequest, getWardIdsByUlbId } from '../utils/ulbAccessHelper.js';
 
 export const getAllFacilities = async (req, res, next) => {
     try {
         const { ward_id, status, search, page = 1, limit = 10 } = req.query;
         const where = {};
-        if (ward_id) where.ward_id = ward_id;
+
+        // Supervisors see only facilities they are assigned to
+        const isSupervisor = req.userType === 'admin_management' && (req.user.role || '').toString().toUpperCase() === 'SUPERVISOR';
+        if (isSupervisor) {
+            where.supervisor_id = req.user.id;
+        }
+
+        // ULB filter (users table admin/EO/staff; supervisors may have ulb_id too)
+        const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+        if (req.userType === 'user' && !isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied. You must be assigned to an ULB to view MRF facilities.'
+            });
+        }
+        let ulbWardIds = null;
+        if (effectiveUlbId) {
+            ulbWardIds = await getWardIdsByUlbId(effectiveUlbId);
+            if (!ulbWardIds || ulbWardIds.length === 0) {
+                return res.json({ success: true, data: { facilities: [], pagination: { total: 0, page: parseInt(page), limit: parseInt(limit), pages: 0 } } });
+            }
+            where.ward_id = { [Op.in]: ulbWardIds };
+        }
+
+        if (ward_id) {
+            const wId = parseInt(ward_id, 10);
+            if (ulbWardIds !== null && !ulbWardIds.includes(wId)) {
+                where.ward_id = { [Op.in]: [] };
+            } else {
+                where.ward_id = wId;
+            }
+        }
 
         // Ensure status is lowercase to match DB enum if applicable
         if (status) where.status = status.toLowerCase();
@@ -70,6 +102,12 @@ export const getFacilityById = async (req, res, next) => {
 
         if (!facility) {
             return res.status(404).json({ success: false, message: 'MRF facility not found' });
+        }
+
+        // Supervisors may only access facilities they are assigned to
+        const isSupervisor = req.userType === 'admin_management' && (req.user.role || '').toString().toUpperCase() === 'SUPERVISOR';
+        if (isSupervisor && facility.supervisor_id !== req.user.id) {
+            return res.status(403).json({ success: false, message: 'Access denied. You can only view facilities assigned to you.' });
         }
 
         const facilityIdNum = parseInt(id, 10);
@@ -184,6 +222,13 @@ export const getAssignments = async (req, res, next) => {
         if (Number.isNaN(targetFacilityId)) {
             return res.json({ success: true, data: { assignments: [] } });
         }
+        const isSupervisor = req.userType === 'admin_management' && (req.user.role || '').toString().toUpperCase() === 'SUPERVISOR';
+        if (isSupervisor) {
+            const facility = await MrfFacility.findByPk(targetFacilityId, { attributes: ['id', 'supervisor_id'] });
+            if (!facility || facility.supervisor_id !== req.user.id) {
+                return res.status(403).json({ success: false, message: 'You can only view workers for your assigned facilities.' });
+            }
+        }
         const assignments = await MrfWorkerAssignment.findAll({
             where: { mrf_facility_id: targetFacilityId, isActive: true },
             include: [{ model: Worker, as: 'worker', attributes: ['id', 'full_name', 'employee_code', 'worker_type'] }]
@@ -239,16 +284,41 @@ export const getTasks = async (req, res, next) => {
     try {
         const { facility_id, mrf_facility_id, status } = req.query;
         const targetFacilityId = mrf_facility_id || facility_id;
-        const where = { mrf_facility_id: targetFacilityId };
+        let where = {};
         if (status) where.status = status;
+
+        const isSupervisor = req.userType === 'admin_management' && (req.user.role || '').toString().toUpperCase() === 'SUPERVISOR';
+
+        if (targetFacilityId) {
+            where.mrf_facility_id = targetFacilityId;
+            if (isSupervisor) {
+                const facility = await MrfFacility.findByPk(targetFacilityId, { attributes: ['id', 'supervisor_id'] });
+                if (!facility || facility.supervisor_id !== req.user.id) {
+                    return res.status(403).json({ success: false, message: 'You can only view tasks for your assigned facilities.' });
+                }
+            }
+        } else if (isSupervisor) {
+            const myFacilities = await MrfFacility.findAll({
+                where: { supervisor_id: req.user.id },
+                attributes: ['id']
+            });
+            const facilityIds = myFacilities.map(f => f.id);
+            if (facilityIds.length === 0) {
+                return res.json({ success: true, data: { tasks: [] } });
+            }
+            where.mrf_facility_id = { [Op.in]: facilityIds };
+        } else {
+            return res.status(400).json({ success: false, message: 'facility_id or mrf_facility_id is required' });
+        }
 
         const tasks = await MrfTask.findAll({
             where,
             include: [
-                { model: Worker, as: 'worker', attributes: ['full_name'] },
-                { model: AdminManagement, as: 'supervisor', attributes: ['full_name'] }
+                { model: Worker, as: 'worker', attributes: ['id', 'full_name', 'employee_code'] },
+                { model: AdminManagement, as: 'supervisor', attributes: ['full_name'] },
+                { model: MrfFacility, as: 'facility', attributes: ['id', 'name'] }
             ],
-            order: [['assigned_date', 'DESC']]
+            order: [['assigned_date', 'DESC'], ['id', 'DESC']]
         });
         res.json({ success: true, data: { tasks } });
     } catch (error) {
@@ -258,6 +328,13 @@ export const getTasks = async (req, res, next) => {
 
 export const createTask = async (req, res, next) => {
     try {
+        const isSupervisor = req.userType === 'admin_management' && (req.user.role || '').toString().toUpperCase() === 'SUPERVISOR';
+        if (isSupervisor && req.body.mrf_facility_id) {
+            const facility = await MrfFacility.findByPk(req.body.mrf_facility_id, { attributes: ['id', 'supervisor_id'] });
+            if (!facility || facility.supervisor_id !== req.user.id) {
+                return res.status(403).json({ success: false, message: 'You can only assign tasks to your assigned facilities.' });
+            }
+        }
         const task = await MrfTask.create(req.body);
         await auditLogger.logCreate(req, req.user, 'MrfTask', task.id, task.toJSON(), `Created MRF task: ${task.task_type} for worker ${task.worker_id}`);
         res.status(201).json({ success: true, data: { task } });
@@ -270,13 +347,26 @@ export const updateTaskStatus = async (req, res, next) => {
     try {
         const { id } = req.params;
         const { status, remarks } = req.body;
-        const task = await MrfTask.findByPk(id);
+        const task = await MrfTask.findByPk(id, {
+            include: [{ model: MrfFacility, as: 'facility', attributes: ['id', 'supervisor_id'] }]
+        });
         if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+
+        // Non-admin: only facility's supervisor can update task status
+        const isAdmin = req.userType === 'user' && req.user.role === 'admin';
+        const isSupervisor = req.userType === 'admin_management' && (req.user.role || '').toString().toUpperCase() === 'SUPERVISOR';
+        if (!isAdmin && isSupervisor && task.facility?.supervisor_id !== req.user.id) {
+            return res.status(403).json({ success: false, message: 'Access denied. You can only update tasks for your assigned facilities.' });
+        }
+        if (!isAdmin && !isSupervisor) {
+            return res.status(403).json({ success: false, message: 'Only admin or facility supervisor can update task status.' });
+        }
 
         const previousStatus = task.status;
         task.status = status;
         if (remarks) task.remarks = remarks;
         if (status === 'Completed') task.completed_at = new Date();
+        if (req.body.proof && typeof req.body.proof === 'object') task.proof = req.body.proof;
 
         await task.save();
         await auditLogger.logUpdate(req, req.user, 'MrfTask', task.id, { status: previousStatus }, { status }, `Updated task ${id} status to ${status}`);
@@ -305,17 +395,43 @@ export const getLinkedComplaints = async (req, res, next) => {
 
 export const getReports = async (req, res, next) => {
     try {
+        const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+        if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied. You must be assigned to an ULB to view MRF stats.'
+            });
+        }
+        let facilityWhere = {};
+        if (effectiveUlbId) {
+            const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+            if (!wardIds || wardIds.length === 0) {
+                return res.json({
+                    success: true,
+                    data: { totalFacilities: 0, activeFacilities: 0, maintenanceFacilities: 0, totalProcessing: 0, efficiency: 0 }
+                });
+            }
+            facilityWhere.ward_id = { [Op.in]: wardIds };
+        }
         const [
             totalFacilities,
             activeFacilities,
             maintenanceFacilities,
-            totalWaste
+            facilityIds
         ] = await Promise.all([
-            MrfFacility.count(),
-            MrfFacility.count({ where: { status: 'active' } }),
-            MrfFacility.count({ where: { status: 'maintenance' } }),
-            MrfWasteEntry.sum('quantity_kg')
+            MrfFacility.count({ where: facilityWhere }),
+            MrfFacility.count({ where: { ...facilityWhere, status: 'active' } }),
+            MrfFacility.count({ where: { ...facilityWhere, status: 'maintenance' } }),
+            facilityWhere.ward_id ? MrfFacility.findAll({ where: facilityWhere, attributes: ['id'] }) : null
         ]);
+        let totalWaste = 0;
+        if (facilityIds && facilityIds.length > 0) {
+            totalWaste = await MrfWasteEntry.sum('quantity_kg', {
+                where: { mrf_facility_id: { [Op.in]: facilityIds.map(f => f.id) } }
+            });
+        } else if (!facilityWhere.ward_id) {
+            totalWaste = await MrfWasteEntry.sum('quantity_kg');
+        }
 
         res.json({
             success: true,

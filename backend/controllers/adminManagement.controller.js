@@ -1,5 +1,6 @@
 import { AdminManagement, User, Ward, ULB } from '../models/index.js';
 import { validationResult } from 'express-validator';
+import { getEffectiveUlbForRequest } from '../utils/ulbAccessHelper.js';
 
 /**
  * Get all employees managed by admin
@@ -8,6 +9,14 @@ export const getAllEmployees = async (req, res) => {
   try {
     const { role, status, search, page = 1, limit = 10 } = req.query;
     const offset = (page - 1) * limit;
+
+    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+    if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You must be assigned to an ULB to view staff.'
+      });
+    }
 
     // Build where clause - Only show staff roles (including field worker hierarchy)
     // Normalize role to uppercase for comparison, support multiple comma-separated roles
@@ -24,6 +33,9 @@ export const getAllEmployees = async (req, res) => {
         [AdminManagement.sequelize.Sequelize.Op.in]: requestedRoles.length > 0 ? requestedRoles : staffRoles
       }
     };
+    if (effectiveUlbId) {
+      whereClause.ulb_id = effectiveUlbId;
+    }
     if (status) whereClause.status = status;
 
     // Add search functionality
@@ -306,6 +318,9 @@ export const createEmployee = async (req, res) => {
         await Ward.update({ clerkId: null }, { where: { id: assignedWardIds[0] } });
       }
     }
+    if (role === 'COLLECTOR' && ward_id) {
+      assignedWardIds = [parseInt(ward_id)];
+    }
     const createPayload = {
       full_name,
       employee_id,
@@ -334,13 +349,9 @@ export const createEmployee = async (req, res) => {
     if (role === 'CLERK' && assignedWardIds.length > 0) {
       await Ward.update({ clerkId: employee.id }, { where: { id: assignedWardIds[0] } });
     }
-
-    // Log the creation
-    console.log(`Employee created by admin ${req.user.id}:`, {
-      employee_id: employee.employee_id,
-      role: employee.role,
-      email: employee.email
-    });
+    if (role === 'COLLECTOR' && assignedWardIds.length > 0) {
+      await Ward.update({ collectorId: employee.id }, { where: { id: assignedWardIds[0] } });
+    }
 
     // Return employee data with generated credentials (show password only once)
     const employeeData = employee.get({ plain: true });
@@ -407,17 +418,6 @@ export const updateEmployee = async (req, res) => {
 
     // Normalize role to uppercase to match database CHECK constraint
     const role = rawRole ? rawRole.toUpperCase().replace(/-/g, '_') : rawRole;
-
-    console.log('🔍 Debug - Update employee request data:', {
-      full_name,
-      role,
-      phone_number,
-      email,
-      ward_ids,
-      status,
-      password: password ? '***' : 'EMPTY',
-      passwordLength: password ? password.length : 0
-    });
 
     if (role && !normalizedStaffRoles.includes(role)) {
       return res.status(400).json({
@@ -527,6 +527,15 @@ export const updateEmployee = async (req, res) => {
       // Assign clerkId to the selected ward
       await Ward.update({ clerkId: employee.id }, { where: { id: assignedWardIds[0] } });
     }
+    // For collector, assign single ward and sync Ward.collectorId (form sends ward_ids for Clerk/Inspector/Officer/Collector)
+    if (currentRole === 'COLLECTOR') {
+      assignedWardIds = (ward_id ? [parseInt(ward_id)] : (Array.isArray(ward_ids) && ward_ids.length > 0 ? [ward_ids[0]] : []));
+      // Remove this collector from any previously assigned wards
+      await Ward.update({ collectorId: null }, { where: { collectorId: employee.id } });
+      if (assignedWardIds.length > 0) {
+        await Ward.update({ collectorId: employee.id }, { where: { id: assignedWardIds[0] } });
+      }
+    }
     const updateData = {
       full_name,
       role,
@@ -538,6 +547,9 @@ export const updateEmployee = async (req, res) => {
     if (assigned_ulb !== undefined) updateData.assigned_ulb = assigned_ulb || null;
     if (finalUlbId !== undefined) updateData.ulb_id = finalUlbId || null;
     if (ward_id !== undefined) updateData.ward_id = ward_id ? parseInt(ward_id) : null;
+    // For collector, keep ward_id in sync with ward_ids so Staff Management list shows the ward
+    if (currentRole === 'COLLECTOR' && assignedWardIds.length > 0) updateData.ward_id = assignedWardIds[0];
+    if (currentRole === 'COLLECTOR' && assignedWardIds.length === 0) updateData.ward_id = null;
     if (eo_id !== undefined) updateData.eo_id = eo_id ? parseInt(eo_id) : null;
     if (contractor_id !== undefined) updateData.contractor_id = contractor_id ? parseInt(contractor_id) : null;
     if (worker_type !== undefined) updateData.worker_type = worker_type || null;
@@ -549,12 +561,6 @@ export const updateEmployee = async (req, res) => {
       updateData.password_changed = true;
     }
     await employee.update(updateData);
-
-    // Log the update
-    console.log(`Employee updated by admin ${req.user.id}:`, {
-      employee_id: employee.employee_id,
-      changes: { full_name, role, phone_number, email, ward_ids, status, password_changed: !!password }
-    });
 
     const updatedEmployee = await AdminManagement.findByPk(id, {
       include: [
@@ -600,13 +606,6 @@ export const deleteEmployee = async (req, res) => {
       });
     }
 
-    // Log the deletion
-    console.log(`Employee deleted by admin ${req.user.id}:`, {
-      employee_id: employee.employee_id,
-      role: employee.role,
-      email: employee.email
-    });
-
     await employee.destroy();
 
     res.json({ message: 'Employee deleted successfully' });
@@ -642,13 +641,17 @@ export const getAvailableWards = async (req, res) => {
 };
 
 /**
- * Get all ULBs
+ * Get all ULBs (optionally include inactive for admin management)
  */
 export const getAllULBs = async (req, res) => {
   try {
+    const includeInactive = req.query.includeInactive === 'true';
+    const where = includeInactive ? {} : { status: 'ACTIVE' };
+    const attributes = includeInactive ? ['id', 'name', 'state', 'district', 'status', 'created_at'] : ['id', 'name', 'state', 'district'];
+
     const ulbs = await ULB.findAll({
-      where: { status: 'ACTIVE' },
-      attributes: ['id', 'name', 'state', 'district'],
+      where,
+      attributes,
       order: [['name', 'ASC']]
     });
 
@@ -656,6 +659,59 @@ export const getAllULBs = async (req, res) => {
   } catch (error) {
     console.error('Error fetching ULBs:', error);
     res.status(500).json({ message: 'Error fetching ULBs', error: error.message });
+  }
+};
+
+/**
+ * Create a new ULB (admin only)
+ */
+export const createULB = async (req, res) => {
+  try {
+    const { name, state, district, status } = req.body;
+    if (!name || !String(name).trim()) {
+      return res.status(400).json({ message: 'ULB name is required' });
+    }
+    const ulb = await ULB.create({
+      name: String(name).trim(),
+      state: state ? String(state).trim() : null,
+      district: district ? String(district).trim() : null,
+      status: status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE'
+    });
+    res.status(201).json({
+      success: true,
+      message: 'ULB created successfully',
+      data: { ulb: { id: ulb.id, name: ulb.name, state: ulb.state, district: ulb.district, status: ulb.status } }
+    });
+  } catch (error) {
+    console.error('Error creating ULB:', error);
+    res.status(500).json({ message: 'Error creating ULB', error: error.message });
+  }
+};
+
+/**
+ * Update an existing ULB (admin only)
+ */
+export const updateULB = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, state, district, status } = req.body;
+    const ulb = await ULB.findByPk(id);
+    if (!ulb) {
+      return res.status(404).json({ message: 'ULB not found' });
+    }
+    if (name !== undefined) ulb.name = String(name).trim() || ulb.name;
+    if (state !== undefined) ulb.state = state ? String(state).trim() : null;
+    if (district !== undefined) ulb.district = district ? String(district).trim() : null;
+    if (status !== undefined) ulb.status = status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    await ulb.save();
+    res.json({
+      success: true,
+      message: 'ULB updated successfully',
+      data: { ulb: { id: ulb.id, name: ulb.name, state: ulb.state, district: ulb.district, status: ulb.status } }
+    });
+  } catch (error) {
+    console.error('Error updating ULB:', error);
+    res.status(500).json({ message: 'Error updating ULB', error: error.message });
   }
 };
 
@@ -680,9 +736,6 @@ export const resetEmployeePassword = async (req, res) => {
       password_changed: false
     });
 
-    // Log the password reset
-    console.log(`Password reset for employee ${employee.employee_id} by admin ${req.user.id}`);
-
     res.json({
       message: 'Password reset successfully',
       employee_id: employee.employee_id,
@@ -701,6 +754,21 @@ export const resetEmployeePassword = async (req, res) => {
 export const getEmployeeStatistics = async (req, res) => {
   try {
     const staffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR'];
+    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+    const baseWhere = {
+      role: {
+        [AdminManagement.sequelize.Sequelize.Op.in]: staffRoles
+      }
+    };
+    if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You must be assigned to an ULB to view statistics.'
+      });
+    }
+    if (effectiveUlbId) {
+      baseWhere.ulb_id = effectiveUlbId;
+    }
 
     const stats = await AdminManagement.findAll({
       attributes: [
@@ -709,27 +777,17 @@ export const getEmployeeStatistics = async (req, res) => {
         [AdminManagement.sequelize.Sequelize.fn('COUNT', AdminManagement.sequelize.literal('CASE WHEN status = \'active\' THEN 1 END')), 'active_count'],
         [AdminManagement.sequelize.Sequelize.fn('COUNT', AdminManagement.sequelize.literal('CASE WHEN status = \'inactive\' THEN 1 END')), 'inactive_count']
       ],
-      where: {
-        role: {
-          [AdminManagement.sequelize.Sequelize.Op.in]: staffRoles
-        }
-      },
+      where: baseWhere,
       group: ['role']
     });
 
     const totalEmployees = await AdminManagement.count({
-      where: {
-        role: {
-          [AdminManagement.sequelize.Sequelize.Op.in]: staffRoles
-        }
-      }
+      where: baseWhere
     });
     const activeEmployees = await AdminManagement.count({
       where: {
-        status: 'active',
-        role: {
-          [AdminManagement.sequelize.Sequelize.Op.in]: staffRoles
-        }
+        ...baseWhere,
+        status: 'active'
       }
     });
     const inactiveEmployees = await AdminManagement.count({
@@ -789,8 +847,6 @@ export const bulkDeleteEmployees = async (req, res) => {
       }
     });
 
-    console.log(`Bulk deleted ${deletedCount} employees by admin ${req.user.id}`);
-
     res.json({
       message: `${deletedCount} employee(s) deleted successfully`,
       deletedCount
@@ -845,8 +901,6 @@ export const bulkUpdateEmployeeStatus = async (req, res) => {
         }
       }
     );
-
-    console.log(`Bulk updated status to ${newStatus} for ${updatedCount} employees by admin ${req.user.id}`);
 
     res.json({
       message: `${updatedCount} employee(s) ${status}d successfully`,

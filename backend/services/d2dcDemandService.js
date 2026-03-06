@@ -45,6 +45,7 @@ export const generateD2DCDemandForProperty = async (propertyId, month, assessorI
   const calculatedBaseAmount = parseFloat(baseAmount || 50);
   const totalAmount = Math.round((calculatedBaseAmount + arrearsAmount) * 100) / 100;
   const balanceAmount = Math.round(totalAmount * 100) / 100;
+  const originalAmount = totalAmount;
 
   const property = await Property.findByPk(propertyId, { transaction });
   const demandNumber = await generateDemandId(property?.wardId || propertyId, 'd2dc', transaction);
@@ -61,6 +62,8 @@ export const generateD2DCDemandForProperty = async (propertyId, month, assessorI
     penaltyAmount: 0,
     interestAmount: 0,
     totalAmount,
+    originalAmount,
+    finalAmount: totalAmount,
     balanceAmount,
     paidAmount: 0,
     dueDate: dueDate ? new Date(dueDate) : new Date(),

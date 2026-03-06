@@ -288,3 +288,22 @@
     background-attachment: fixed;
   }
 }
+
+/* ========== Print: receipt only, no UI ========== */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+  /* Minimize browser header/footer space so receipt is prominent */
+  @page {
+    margin: 1cm;
+  }
+  /* Receipt area: no extra shadow, clean border */
+  .receipt-print-area {
+    box-shadow: none !important;
+    border: 1px solid #000 !important;
+  }
+}

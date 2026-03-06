@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 import {
   Bath,
   Plus,
@@ -22,6 +23,7 @@ import { exportToCSV } from '../../../utils/exportCSV';
 
 const ToiletFacilities = () => {
   useBackTo('/toilet-management');
+  const { effectiveUlbId } = useSelectedUlb();
   const [toilets, setToilets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,11 +38,12 @@ const ToiletFacilities = () => {
   useEffect(() => {
     fetchToilets();
     fetchWards();
-  }, []);
+  }, [effectiveUlbId]);
 
   const fetchWards = async () => {
     try {
-      const response = await api.get('/wards');
+      const params = effectiveUlbId ? { ulb_id: effectiveUlbId } : {};
+      const response = await api.get('/wards', { params });
       if (response.data && response.data.success) {
         setWards(response.data.data.wards);
       }
@@ -53,7 +56,8 @@ const ToiletFacilities = () => {
   const fetchToilets = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/toilet/facilities');
+      const params = effectiveUlbId ? { ulb_id: effectiveUlbId } : {};
+      const response = await api.get('/toilet/facilities', { params });
       if (response.data && response.data.success) {
         const formattedData = response.data.data.facilities.map(t => ({
           ...t,

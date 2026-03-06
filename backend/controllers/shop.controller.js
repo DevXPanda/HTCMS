@@ -1,6 +1,7 @@
 import { Shop, Property, Ward, User } from '../models/index.js';
 import { Op } from 'sequelize';
 import { generateShopId } from '../services/uniqueIdService.js';
+import { getEffectiveUlbForRequest, getWardIdsByUlbId } from '../utils/ulbAccessHelper.js';
 
 /**
  * Apply ward filter to where clause for clerk/inspector/collector (from req.wardFilter set by requireWardAccess)
@@ -30,6 +31,7 @@ export const getAllShops = async (req, res, next) => {
   try {
     const { wardId, propertyId, status, shopType, search, page = 1, limit = 10 } = req.query;
     const where = {};
+    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
 
     if (wardId) where.wardId = wardId;
     if (propertyId) where.propertyId = propertyId;
@@ -44,6 +46,33 @@ export const getAllShops = async (req, res, next) => {
     }
 
     applyWardFilter(req, where);
+
+    // ULB filter for non-citizen (admin/assessor/cashier/clerk etc.)
+    if (req.user.role !== 'citizen') {
+      if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You must be assigned to an ULB to view shops.'
+        });
+      }
+      if (effectiveUlbId) {
+        const ulbWardIds = await getWardIdsByUlbId(effectiveUlbId);
+        if (!ulbWardIds || ulbWardIds.length === 0) {
+          return res.json({
+            success: true,
+            data: { shops: [], pagination: { total: 0, page: parseInt(page), limit: parseInt(limit), pages: 0 } }
+          });
+        }
+        const existingWardFilter = where.wardId;
+        if (existingWardFilter && (existingWardFilter[Op.in] || Array.isArray(existingWardFilter))) {
+          const existingIds = existingWardFilter[Op.in] ?? existingWardFilter;
+          const ids = Array.isArray(existingIds) ? existingIds : [existingIds];
+          where.wardId = { [Op.in]: ids.filter((id) => ulbWardIds.includes(Number(id))) };
+        } else {
+          where.wardId = { [Op.in]: ulbWardIds };
+        }
+      }
+    }
 
     // Citizen: only shops linked to their properties
     if (req.user.role === 'citizen') {
@@ -118,8 +147,22 @@ export const getShopById = async (req, res, next) => {
       }
     } else {
       const allowedWardIds = getAllowedWardIds(req);
-      if (allowedWardIds && !allowedWardIds.includes(shop.wardId)) {
-        return res.status(403).json({ success: false, message: 'Access denied to this ward' });
+      if (allowedWardIds && allowedWardIds.length > 0) {
+        if (!allowedWardIds.includes(shop.wardId)) {
+          return res.status(403).json({ success: false, message: 'Access denied to this ward' });
+        }
+      } else {
+        // ULB isolation: non–super-admin can only view shops in their assigned ULB
+        const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+        if (!isSuperAdmin && effectiveUlbId) {
+          const ward = shop.ward || await Ward.findByPk(shop.wardId, { attributes: ['ulb_id'] });
+          if (!ward || ward.ulb_id !== effectiveUlbId) {
+            return res.status(403).json({
+              success: false,
+              message: 'Access denied. Shop does not belong to your assigned ULB.'
+            });
+          }
+        }
       }
     }
 
@@ -136,6 +179,13 @@ export const getShopById = async (req, res, next) => {
  */
 export const createShop = async (req, res, next) => {
   try {
+    if (!req.file || !req.file.filename) {
+      return res.status(400).json({
+        success: false,
+        message: 'Trade license document (image or PDF) is required'
+      });
+    }
+
     const {
       propertyId,
       wardId,
@@ -177,6 +227,8 @@ export const createShop = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Property ward must match wardId' });
     }
 
+    const licenseDocumentUrl = `/uploads/shop-licenses/${req.file.filename}`;
+
     const shop = await Shop.create({
       shopNumber,
       propertyId,
@@ -193,6 +245,7 @@ export const createShop = async (req, res, next) => {
       licenseValidFrom: licenseValidFrom || null,
       licenseValidTo: licenseValidTo || null,
       licenseStatus: licenseStatus || null,
+      licenseDocumentUrl,
       status: 'active',
       isActive: true,
       remarks: remarks || null,
@@ -212,11 +265,18 @@ export const createShop = async (req, res, next) => {
       data: { shop: created }
     });
   } catch (error) {
+    console.error('Create shop error:', error?.message || error);
     if (error.name === 'SequelizeUniqueConstraintError' && error.fields && error.fields.shopNumber) {
       return res.status(409).json({
         success: false,
         message: 'Shop number already exists',
         code: 'DUPLICATE_SHOP_NUMBER'
+      });
+    }
+    if (error.name === 'SequelizeDatabaseError' || (error.original && String(error.original?.message || '').includes('does not exist'))) {
+      return res.status(503).json({
+        success: false,
+        message: 'Database schema may be out of date. Please run: node sync-db.js (from backend folder) and try again.'
       });
     }
     next(error);
@@ -241,7 +301,7 @@ export const updateShop = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Access denied to this ward' });
     }
 
-    const allowed = ['shopName', 'shopType', 'category', 'area', 'address', 'contactName', 'contactPhone', 'tradeLicenseNumber', 'licenseValidFrom', 'licenseValidTo', 'licenseStatus', 'status', 'isActive', 'remarks'];
+    const allowed = ['shopName', 'shopType', 'category', 'area', 'address', 'contactName', 'contactPhone', 'tradeLicenseNumber', 'licenseValidFrom', 'licenseValidTo', 'licenseStatus', 'licenseDocumentUrl', 'status', 'isActive', 'remarks'];
     const updates = {};
     allowed.forEach(f => {
       if (req.body[f] !== undefined) updates[f] = req.body[f];

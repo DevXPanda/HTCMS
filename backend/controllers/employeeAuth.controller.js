@@ -1,5 +1,5 @@
 import { AdminManagement } from '../models/AdminManagement.js';
-import { CollectorAttendance } from '../models/index.js';
+import { CollectorAttendance, Ward } from '../models/index.js';
 import jwt from 'jsonwebtoken';
 import { validationResult } from 'express-validator';
 import { parseDeviceInfo } from '../utils/deviceParser.js';
@@ -40,7 +40,7 @@ export const employeeLogout = async (req, res) => {
             console.error('Failed to create audit log for attendance punch out:', auditError);
             // Logout and attendance update are still successful
           }
-        } else {
+        } else if (process.env.NODE_ENV === 'development') {
           console.warn(`${employee.role} ${employee.id} logged out but no active attendance session found`);
         }
       } catch (attendanceError) {
@@ -134,8 +134,7 @@ export const employeeLogin = async (req, res) => {
           order: [['loginAt', 'DESC']]
         });
 
-        // If there's an active session, log it but don't create duplicate
-        if (activeSession) {
+        if (activeSession && process.env.NODE_ENV === 'development') {
           console.warn(`${employee.role} ${employee.id} logged in with existing active session. Previous session: ${activeSession.id}`);
         }
 
@@ -180,6 +179,23 @@ export const employeeLogin = async (req, res) => {
 
     const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: '24h' });
 
+    const wardIds = [...new Set([
+      ...(employee.ward_ids || []),
+      ...(employee.ward_id ? [employee.ward_id] : [])
+    ])].filter(Boolean);
+    let assigned_wards = [];
+    if (wardIds.length > 0) {
+      const wards = await Ward.findAll({
+        where: { id: wardIds },
+        attributes: ['id', 'wardNumber', 'wardName']
+      });
+      assigned_wards = wards.map((w) => ({
+        id: w.id,
+        wardNumber: w.wardNumber,
+        wardName: w.wardName
+      }));
+    }
+
     const employeeData = {
       id: employee.id,
       employee_id: employee.employee_id,
@@ -189,6 +205,7 @@ export const employeeLogin = async (req, res) => {
       phone_number: employee.phone_number,
       ward_ids: employee.ward_ids || [],
       ward_id: employee.ward_id || null,
+      assigned_wards,
       eo_id: employee.eo_id || null,
       supervisor_id: employee.supervisor_id || null,
       contractor_id: employee.contractor_id || null,
@@ -267,7 +284,7 @@ export const changeEmployeePassword = async (req, res) => {
 };
 
 /**
- * Get Employee Profile
+ * Get Employee Profile (includes assigned ward names/numbers for profile display)
  */
 export const getEmployeeProfile = async (req, res) => {
   try {
@@ -283,8 +300,27 @@ export const getEmployeeProfile = async (req, res) => {
       });
     }
 
+    const emp = employee.toJSON ? employee.toJSON() : employee;
+    const wardIds = [...new Set([
+      ...(emp.ward_ids || []),
+      ...(emp.ward_id ? [emp.ward_id] : [])
+    ])].filter(Boolean);
+
+    let assigned_wards = [];
+    if (wardIds.length > 0) {
+      const wards = await Ward.findAll({
+        where: { id: wardIds },
+        attributes: ['id', 'wardNumber', 'wardName']
+      });
+      assigned_wards = wards.map((w) => ({
+        id: w.id,
+        wardNumber: w.wardNumber,
+        wardName: w.wardName
+      }));
+    }
+
     res.json({
-      employee: employee
+      employee: { ...emp, assigned_wards }
     });
 
   } catch (error) {

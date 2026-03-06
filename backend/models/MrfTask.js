@@ -63,6 +63,12 @@ export const MrfTask = sequelize.define('MrfTask', {
         type: DataTypes.TEXT,
         allowNull: true,
         field: 'remarks'
+    },
+    proof: {
+        type: DataTypes.JSONB,
+        allowNull: true,
+        field: 'proof',
+        comment: 'Before/after photos with live location: { before: { photo_url, lat, lng, address }, after: { photo_url, lat, lng, address }, remarks }'
     }
 }, {
     tableName: 'mrf_tasks',

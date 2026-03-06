@@ -1,6 +1,7 @@
 import { Op } from 'sequelize';
 import { WaterTaxAssessment, Property, WaterConnection, User, Ward } from '../models/index.js';
 import { validatePropertyId } from '../utils/queryHelpers.js';
+import { getEffectiveUlbForRequest, getWardIdsByUlbId } from '../utils/ulbAccessHelper.js';
 import { generateAssessmentId } from '../services/uniqueIdService.js';
 
 /**
@@ -71,6 +72,28 @@ export const getAllWaterTaxAssessments = async (req, res, next) => {
             }
           }
         });
+      }
+    } else {
+      // ULB filter for non-citizen
+      const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+      if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You must be assigned to an ULB to view water tax assessments.'
+        });
+      }
+      if (effectiveUlbId) {
+        const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+        if (!wardIds || wardIds.length === 0) {
+          return res.json({
+            success: true,
+            data: {
+              assessments: [],
+              pagination: { total: 0, page: parseInt(page), limit: parseInt(limit), pages: 0 }
+            }
+          });
+        }
+        where['$property.wardId$'] = { [Op.in]: wardIds };
       }
     }
 

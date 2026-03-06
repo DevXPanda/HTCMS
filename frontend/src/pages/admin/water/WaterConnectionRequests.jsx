@@ -2,15 +2,20 @@ import { useState, useEffect } from 'react';
 import { waterConnectionRequestAPI, propertyAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { CheckCircle, XCircle, Eye, MapPin, Calendar, User } from 'lucide-react';
+import { CheckCircle, XCircle, Eye, MapPin, Calendar, User, Trash2 } from 'lucide-react';
+import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 
 const WaterConnectionRequests = () => {
+  const { effectiveUlbId } = useSelectedUlb();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [requestToDelete, setRequestToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const [formData, setFormData] = useState({
     connectionType: 'domestic',
     isMetered: false,
@@ -23,12 +28,12 @@ const WaterConnectionRequests = () => {
 
   useEffect(() => {
     fetchRequests();
-  }, [statusFilter]);
+  }, [statusFilter, effectiveUlbId]);
 
   const fetchRequests = async () => {
     try {
       setLoading(true);
-      const params = statusFilter !== 'all' ? { status: statusFilter } : {};
+      const params = { ...(statusFilter !== 'all' ? { status: statusFilter } : {}), ...(effectiveUlbId ? { ulb_id: effectiveUlbId } : {}) };
       const response = await waterConnectionRequestAPI.getAll(params);
       setRequests(response.data.data.requests || []);
     } catch (error) {
@@ -101,6 +106,22 @@ const WaterConnectionRequests = () => {
     setShowRejectModal(true);
   };
 
+  const handleDelete = async () => {
+    if (!requestToDelete) return;
+    try {
+      setDeleting(true);
+      await waterConnectionRequestAPI.delete(requestToDelete.id);
+      toast.success('Water connection request deleted');
+      setShowDeleteModal(false);
+      setRequestToDelete(null);
+      await fetchRequests();
+    } catch (error) {
+      toast.error(error.response?.data?.message || error.response?.data?.error || 'Failed to delete request');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const getStatusBadge = (status) => {
     const statusConfig = {
       PENDING: { color: 'bg-yellow-100 text-yellow-800 border-yellow-300', label: 'Pending' },
@@ -169,24 +190,33 @@ const WaterConnectionRequests = () => {
                     {getConnectionTypeBadge(request.connectionType)}
                   </div>
                 </div>
-                {request.status === 'PENDING' && (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => openApproveModal(request)}
-                      className="btn btn-sm bg-green-600 hover:bg-green-700 text-white"
-                    >
-                      <CheckCircle className="w-4 h-4 mr-1" />
-                      Approve
-                    </button>
-                    <button
-                      onClick={() => openRejectModal(request)}
-                      className="btn btn-sm bg-red-600 hover:bg-red-700 text-white"
-                    >
-                      <XCircle className="w-4 h-4 mr-1" />
-                      Reject
-                    </button>
-                  </div>
-                )}
+                <div className="flex gap-2 flex-wrap">
+                  {request.status === 'PENDING' && (
+                    <>
+                      <button
+                        onClick={() => openApproveModal(request)}
+                        className="btn btn-sm bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        <CheckCircle className="w-4 h-4 mr-1" />
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => openRejectModal(request)}
+                        className="btn btn-sm bg-red-600 hover:bg-red-700 text-white"
+                      >
+                        <XCircle className="w-4 h-4 mr-1" />
+                        Reject
+                      </button>
+                    </>
+                  )}
+                  <button
+                    onClick={() => { setRequestToDelete(request); setShowDeleteModal(true); }}
+                    className="btn btn-sm border border-red-300 text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Delete
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -427,6 +457,20 @@ const WaterConnectionRequests = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {showDeleteModal && requestToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Delete Water Connection Request</h2>
+            <p className="text-gray-600 mb-6">Are you sure you want to delete request {requestToDelete.requestNumber}? This action cannot be undone.</p>
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => { setShowDeleteModal(false); setRequestToDelete(null); }} className="btn btn-secondary">Cancel</button>
+              <button type="button" onClick={handleDelete} disabled={deleting} className="btn bg-red-600 hover:bg-red-700 text-white">{deleting ? 'Deleting...' : 'Delete'}</button>
+            </div>
           </div>
         </div>
       )}

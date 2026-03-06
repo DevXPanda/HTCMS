@@ -1,5 +1,6 @@
 import { Property, Demand, Payment, Assessment, Ward, Notice, WaterTaxAssessment, WaterConnection, WaterConnectionRequest, Shop, ShopTaxAssessment } from '../models/index.js';
 import { Op } from 'sequelize';
+import { generateWaterConnectionRequestNumber } from '../services/uniqueIdService.js';
 
 /**
  * @route   GET /api/citizen/dashboard
@@ -367,9 +368,15 @@ export const createWaterConnectionRequest = async (req, res, next) => {
       });
     }
 
-    // Generate request number
-    const requestCount = await WaterConnectionRequest.count();
-    const requestNumber = `WCR-${String(requestCount + 1).padStart(6, '0')}`;
+    // Generate request number (same format as WB, WT, PR: WCR + ward(3) + serial(4))
+    const wardId = property.wardId;
+    if (!wardId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Property ward not found; cannot generate request number'
+      });
+    }
+    const requestNumber = await generateWaterConnectionRequestNumber(wardId);
 
     // Create request with safe default status
     const requestData = {

@@ -5,9 +5,11 @@ import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { Plus, Search, Eye, Edit, Filter, X, Download } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 import { exportToCSV } from '../../../utils/exportCSV';
 
 const Properties = () => {
+  const { effectiveUlbId } = useSelectedUlb();
   const { isAdmin, isAssessor } = useAuth();
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,15 +26,16 @@ const Properties = () => {
 
   useEffect(() => {
     fetchWards();
-  }, []);
+  }, [effectiveUlbId]);
 
   useEffect(() => {
     fetchProperties();
-  }, [search, filters]);
+  }, [search, filters, effectiveUlbId]);
 
   const fetchWards = async () => {
     try {
-      const response = await wardAPI.getAll();
+      const params = effectiveUlbId ? { ulb_id: effectiveUlbId } : {};
+      const response = await wardAPI.getAll(params);
       setWards(response.data.data.wards);
     } catch (error) {
       console.error('Failed to fetch wards');
@@ -45,7 +48,8 @@ const Properties = () => {
       const params = {
         search,
         limit: 10000,
-        ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''))
+        ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== '')),
+        ...(effectiveUlbId ? { ulb_id: effectiveUlbId } : {})
       };
       const response = await propertyAPI.getAll(params);
       setProperties(response.data.data.properties);
@@ -81,7 +85,8 @@ const Properties = () => {
         page: 1,
         limit: 5000,
         search,
-        ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''))
+        ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== '')),
+        ...(effectiveUlbId ? { ulb_id: effectiveUlbId } : {})
       };
       const response = await propertyAPI.getAll(params);
       const list = response.data.data.properties || [];

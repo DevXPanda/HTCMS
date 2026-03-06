@@ -1,7 +1,8 @@
-import { User, Ward } from '../models/index.js';
+import { User, Ward, ULB } from '../models/index.js';
 import { AdminManagement } from '../models/AdminManagement.js';
 import { Op } from 'sequelize';
 import { auditLogger } from '../utils/auditLogger.js';
+import { getEffectiveUlbForRequest } from '../utils/ulbAccessHelper.js';
 
 /**
  * @route   GET /api/users
@@ -13,6 +14,17 @@ export const getAllUsers = async (req, res, next) => {
     const { role, isActive, search, page = 1, limit = 10 } = req.query;
 
     const where = {};
+
+    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+    if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You must be assigned to an ULB to view users.'
+      });
+    }
+    if (effectiveUlbId) {
+      where.ulb_id = effectiveUlbId;
+    }
 
     // Only allow citizen and admin roles in users table
     const allowedRoles = ['citizen', 'admin'];
@@ -34,7 +46,12 @@ export const getAllUsers = async (req, res, next) => {
       }
     }
 
-    if (isActive !== undefined) where.isActive = isActive === 'true';
+    // Default to active users only so "deleted" (deactivated) users don't appear in the list
+    if (isActive !== undefined) {
+      where.isActive = isActive === 'true';
+    } else {
+      where.isActive = true;
+    }
     if (search) {
       where[Op.or] = [
         { firstName: { [Op.iLike]: `%${search}%` } },
@@ -80,8 +97,8 @@ export const getUserById = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // Allow users to view their own profile
-    if (req.user.role !== 'admin' && req.user.id !== parseInt(id)) {
+    const isAdmin = (req.user.role || '').toString().toLowerCase() === 'admin';
+    if (!isAdmin && req.user.id !== parseInt(id)) {
       return res.status(403).json({
         success: false,
         message: 'Access denied'
@@ -119,9 +136,11 @@ export const getUserById = async (req, res, next) => {
  * @desc    Create new user (Admin only)
  * @access  Private (Admin only)
  */
+const rolesRequiringWards = ['collector', 'clerk', 'inspector', 'officer'];
+
 export const createUser = async (req, res, next) => {
   try {
-    const { username, email, password, firstName, lastName, phone, role, wardIds } = req.body;
+    const { username, email, password, firstName, lastName, phone, role, wardIds, isActive, ulb_id: bodyUlbId } = req.body;
 
     // Only allow citizen and admin roles in users table
     const validRoles = ['citizen', 'admin'];
@@ -148,18 +167,37 @@ export const createUser = async (req, res, next) => {
       });
     }
 
+    // createdBy must reference users.id; staff admins are in admin_management so use null
+    const creatorInUsers = await User.findByPk(req.user.id);
+    const createdById = creatorInUsers ? req.user.id : null;
+
+    // ulb_id: DB may have NOT NULL; use body, then staff admin's ULB, then first ULB
+    let ulbId = bodyUlbId || req.user?.ulb_id || null;
+    if (!ulbId) {
+      const firstUlb = await ULB.findOne({ attributes: ['id'], where: { status: 'ACTIVE' } });
+      ulbId = firstUlb?.id || null;
+    }
+    if (!ulbId) {
+      return res.status(400).json({
+        success: false,
+        message: 'No ULB available. Please add at least one ULB in the system before creating users.'
+      });
+    }
+
     const user = await User.create({
       username,
       email,
       password,
       firstName,
       lastName,
-      phone,
+      phone: phone || null,
       role: normalizedRole,
-      createdBy: req.user.id
+      isActive: isActive !== undefined ? !!isActive : true,
+      ulb_id: ulbId,
+      createdBy: createdById
     });
 
-    // Handle ward assignment for roles that require wards
+    // Handle ward assignment for roles that require wards (citizen/admin do not)
     if (rolesRequiringWards.includes(normalizedRole) && wardIds && Array.isArray(wardIds) && wardIds.length > 0) {
       try {
         // Determine which field to update based on role
@@ -200,15 +238,19 @@ export const createUser = async (req, res, next) => {
       }
     }
 
-    // Log user creation
-    await auditLogger.logCreate(
-      req,
-      req.user,
-      'User',
-      user.id,
-      { username: user.username, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role },
-      `Created user: ${user.firstName} ${user.lastName} (${user.email})`
-    );
+    // Log user creation (non-blocking)
+    try {
+      await auditLogger.logCreate(
+        req,
+        req.user,
+        'User',
+        user.id,
+        { username: user.username, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role },
+        `Created user: ${user.firstName} ${user.lastName} (${user.email})`
+      );
+    } catch (auditErr) {
+      console.error('Audit log failed for user create:', auditErr);
+    }
 
     res.status(201).json({
       success: true,
@@ -220,12 +262,39 @@ export const createUser = async (req, res, next) => {
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
+          phone: user.phone,
           role: user.role
         }
       }
     });
   } catch (error) {
-    next(error);
+    // Return clear messages so frontend does not show "Something went wrong"
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      const field = error.errors?.[0]?.path || error.fields?.[0] || 'email or username';
+      return res.status(400).json({
+        success: false,
+        message: `User with this ${typeof field === 'string' ? field : 'email or username'} already exists`
+      });
+    }
+    if (error.name === 'SequelizeValidationError') {
+      const first = error.errors?.[0];
+      const msg = first ? (first.message || `Validation failed: ${first.path}`) : 'Invalid user data. Please check the form.';
+      return res.status(400).json({ success: false, message: msg });
+    }
+    if (error.name === 'SequelizeDatabaseError' || error.name === 'SequelizeForeignKeyConstraintError') {
+      console.error('User create DB error:', error.message);
+      return res.status(400).json({
+        success: false,
+        message: 'Could not create user. Please check your input and try again.'
+      });
+    }
+    console.error('User create error:', error);
+    return res.status(500).json({
+      success: false,
+      message: error.message && !error.message.toLowerCase().includes('internal server error')
+        ? error.message
+        : 'Failed to create user. Please try again.'
+    });
   }
 };
 
@@ -237,10 +306,10 @@ export const createUser = async (req, res, next) => {
 export const updateUser = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { firstName, lastName, phone, role, isActive } = req.body;
+    const { firstName, lastName, phone, role, isActive, email, username, password } = req.body;
 
-    // Allow users to update their own profile (limited fields)
-    if (req.user.role !== 'admin' && req.user.id !== parseInt(id)) {
+    const isAdmin = (req.user.role || '').toString().toLowerCase() === 'admin';
+    if (!isAdmin && req.user.id !== parseInt(id)) {
       return res.status(403).json({
         success: false,
         message: 'Access denied'
@@ -265,7 +334,7 @@ export const updateUser = async (req, res, next) => {
     };
 
     // Non-admin users can only update limited fields
-    if (req.user.role !== 'admin') {
+    if (!isAdmin) {
       user.firstName = firstName || user.firstName;
       user.lastName = lastName || user.lastName;
       user.phone = phone || user.phone;
@@ -273,21 +342,26 @@ export const updateUser = async (req, res, next) => {
       // Admin can update all fields
       if (firstName) user.firstName = firstName;
       if (lastName) user.lastName = lastName;
-      if (phone) user.phone = phone;
+      if (phone !== undefined) user.phone = phone;
+      if (email) {
+        const existing = await User.findOne({ where: { email, id: { [Op.ne]: id } } });
+        if (existing) return res.status(400).json({ success: false, message: 'Another user already has this email.' });
+        user.email = email;
+      }
+      if (username) {
+        const existing = await User.findOne({ where: { username, id: { [Op.ne]: id } } });
+        if (existing) return res.status(400).json({ success: false, message: 'Another user already has this username.' });
+        user.username = username;
+      }
+      if (password && String(password).trim()) user.password = password; // will be hashed by model hook
       if (role) {
-        // Validate and normalize role
-        const validRoles = ['admin', 'assessor', 'cashier', 'collector', 'citizen', 'clerk'];
+        // Validate and normalize role - only citizen/admin for users table
+        const validRoles = ['admin', 'citizen'];
         let normalizedRole = role.toLowerCase().trim();
-
-        // Map 'tax_collector' to 'collector' for backward compatibility
-        if (normalizedRole === 'tax_collector') {
-          normalizedRole = 'collector';
-        }
-
         if (!validRoles.includes(normalizedRole)) {
           return res.status(400).json({
             success: false,
-            message: `Invalid role. Must be one of: ${validRoles.join(', ')}`
+            message: 'Invalid role. Must be citizen or admin.'
           });
         }
         user.role = normalizedRole;
@@ -325,6 +399,7 @@ export const updateUser = async (req, res, next) => {
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
+          phone: user.phone,
           role: user.role,
           isActive: user.isActive
         }
@@ -386,17 +461,22 @@ export const deleteUser = async (req, res, next) => {
 
 /**
  * @route   GET /api/users/collectors
- * @desc    Get all collectors from AdminManagement table
+ * @desc    Get all collectors from AdminManagement table (optional filter by ulb_id)
  * @access  Private (Admin only)
  */
 export const getCollectors = async (req, res, next) => {
   try {
+    const { ulb_id } = req.query;
+    const where = {
+      role: 'COLLECTOR',
+      status: 'active'
+    };
+    if (ulb_id) {
+      where.ulb_id = ulb_id;
+    }
     const collectors = await AdminManagement.findAll({
-      where: {
-        role: 'collector',
-        status: 'active'
-      },
-      attributes: ['id', 'full_name', 'email', 'phone_number', 'employee_id', 'role', 'status'],
+      where,
+      attributes: ['id', 'full_name', 'email', 'phone_number', 'employee_id', 'role', 'status', 'ulb_id'],
       order: [['full_name', 'ASC']]
     });
 

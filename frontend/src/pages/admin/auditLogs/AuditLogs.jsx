@@ -4,8 +4,10 @@ import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { Search, Filter, X, Eye, Calendar, User, FileText } from 'lucide-react';
 import AuditLogDetailsModal from './AuditLogDetailsModal';
+import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 
 const AuditLogs = () => {
+  const { effectiveUlbId } = useSelectedUlb();
   const [auditLogs, setAuditLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -21,7 +23,7 @@ const AuditLogs = () => {
 
   useEffect(() => {
     fetchAuditLogs();
-  }, [search, filters]);
+  }, [search, filters, effectiveUlbId]);
 
   const fetchAuditLogs = async () => {
     try {
@@ -33,6 +35,7 @@ const AuditLogs = () => {
         sortOrder: 'DESC',
         ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''))
       };
+      if (effectiveUlbId) params.ulb_id = effectiveUlbId;
       const response = await auditLogAPI.getAll(params);
       setAuditLogs(response.data.data.auditLogs);
     } catch (error) {
@@ -61,6 +64,7 @@ const AuditLogs = () => {
       CREATE: 'bg-green-100 text-green-800',
       UPDATE: 'bg-blue-100 text-blue-800',
       DELETE: 'bg-red-100 text-red-800',
+      VIEW: 'bg-slate-100 text-slate-800',
       APPROVE: 'bg-emerald-100 text-emerald-800',
       REJECT: 'bg-orange-100 text-orange-800',
       PAY: 'bg-purple-100 text-purple-800',
@@ -69,7 +73,9 @@ const AuditLogs = () => {
       ASSIGN: 'bg-yellow-100 text-yellow-800',
       ESCALATE: 'bg-pink-100 text-pink-800',
       SEND: 'bg-cyan-100 text-cyan-800',
-      RESOLVE: 'bg-teal-100 text-teal-800'
+      RESOLVE: 'bg-teal-100 text-teal-800',
+      FIELD_VISIT: 'bg-violet-100 text-violet-800',
+      TASK_COMPLETED: 'bg-lime-100 text-lime-800'
     };
     return badges[actionType] || 'bg-gray-100 text-gray-800';
   };
@@ -151,6 +157,14 @@ const AuditLogs = () => {
                 <option value="cashier">Cashier</option>
                 <option value="collector">Collector</option>
                 <option value="citizen">Citizen</option>
+                <option value="clerk">Clerk</option>
+                <option value="inspector">Inspector</option>
+                <option value="officer">Officer</option>
+                <option value="eo">EO</option>
+                <option value="supervisor">Supervisor</option>
+                <option value="field_worker">Field Worker</option>
+                <option value="contractor">Contractor</option>
+                <option value="system">System</option>
               </select>
             </div>
 
@@ -165,6 +179,7 @@ const AuditLogs = () => {
                 <option value="CREATE">Create</option>
                 <option value="UPDATE">Update</option>
                 <option value="DELETE">Delete</option>
+                <option value="VIEW">View</option>
                 <option value="APPROVE">Approve</option>
                 <option value="REJECT">Reject</option>
                 <option value="PAY">Pay</option>
@@ -174,6 +189,8 @@ const AuditLogs = () => {
                 <option value="ESCALATE">Escalate</option>
                 <option value="SEND">Send</option>
                 <option value="RESOLVE">Resolve</option>
+                <option value="FIELD_VISIT">Field Visit</option>
+                <option value="TASK_COMPLETED">Task Completed</option>
               </select>
             </div>
 
@@ -192,6 +209,11 @@ const AuditLogs = () => {
                 <option value="Payment">Payment</option>
                 <option value="Ward">Ward</option>
                 <option value="Notice">Notice</option>
+                <option value="FieldVisit">Field Visit</option>
+                <option value="FollowUp">Follow Up</option>
+                <option value="Attendance">Attendance</option>
+                <option value="D2DC">D2DC</option>
+                <option value="WaterConnectionRequest">Water Connection</option>
               </select>
             </div>
 
@@ -218,70 +240,80 @@ const AuditLogs = () => {
         </div>
       )}
 
-      <div className="card overflow-x-auto">
-        <table className="table">
-          <thead>
+      <div className="card overflow-x-auto p-0">
+        <table className="table w-full border-collapse text-left">
+          <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th>Timestamp</th>
-              <th>Actor</th>
-              <th>Role</th>
-              <th>Action</th>
-              <th>Entity</th>
-              <th>Entity ID</th>
-              <th>Description</th>
-              <th>IP Address</th>
-              <th>Actions</th>
+              <th className="px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
+              <th className="px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Actor</th>
+              <th className="px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+              <th className="px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+              <th className="px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Entity</th>
+              <th className="px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Entity ID</th>
+              <th className="px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+              <th className="px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">IP Address</th>
+              <th className="px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody>
             {auditLogs.length === 0 ? (
               <tr>
-                <td colSpan="9" className="text-center py-8 text-gray-500">
+                <td colSpan="9" className="text-center py-8 text-gray-500 px-4 py-3">
                   No audit logs found
                 </td>
               </tr>
             ) : (
               auditLogs.map((log) => (
-                <tr key={log.id}>
-                  <td>
-                    <div className="flex items-center">
-                      <Calendar className="w-4 h-4 mr-2 text-gray-400" />
-                      <span className="text-sm">
-                        {new Date(log.timestamp).toLocaleString()}
-                      </span>
-                    </div>
+                <tr key={log.id} className="border-b border-gray-100 hover:bg-gray-50/80">
+                  <td className="px-4 py-2 text-sm text-gray-900 border-b border-gray-100 align-top">
+                    {(log.timestamp || log.createdAt) ? (() => {
+                      const d = new Date(log.timestamp || log.createdAt);
+                      const dateStr = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+                      const timeStr = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+                      return (
+                        <div className="flex items-start gap-2" title={d.toISOString()}>
+                          <Calendar className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+                          <div className="leading-tight">
+                            <div className="tabular-nums whitespace-nowrap">{dateStr}</div>
+                            <div className="text-xs text-gray-500 tabular-nums">{timeStr}</div>
+                          </div>
+                        </div>
+                      );
+                    })() : (
+                      <span className="text-gray-400">—</span>
+                    )}
                   </td>
-                  <td>
+                  <td className="px-4 py-2 text-sm border-b border-gray-100 align-top">
                     {log.actor ? (
-                      <div className="flex items-center">
-                        <User className="w-4 h-4 mr-2 text-gray-400" />
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-gray-400 shrink-0" />
                         <span>{log.actor.firstName} {log.actor.lastName}</span>
                       </div>
                     ) : (
                       'System'
                     )}
                   </td>
-                  <td>
-                    <span className="px-2 py-1 rounded text-xs font-medium capitalize bg-gray-100 text-gray-800">
+                  <td className="px-4 py-2 border-b border-gray-100 align-top">
+                    <span className="px-2 py-0.5 rounded text-xs font-medium capitalize bg-gray-100 text-gray-800">
                       {log.actorRole}
                     </span>
                   </td>
-                  <td>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${getActionBadge(log.actionType)}`}>
+                  <td className="px-4 py-2 border-b border-gray-100 align-top">
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${getActionBadge(log.actionType)}`}>
                       {log.actionType}
                     </span>
                   </td>
-                  <td>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${getEntityBadge(log.entityType)}`}>
+                  <td className="px-4 py-2 border-b border-gray-100 align-top">
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${getEntityBadge(log.entityType)}`}>
                       {log.entityType}
                     </span>
                   </td>
-                  <td>{log.entityId || '-'}</td>
-                  <td className="max-w-xs truncate" title={log.description}>
+                  <td className="px-4 py-2 text-sm border-b border-gray-100 align-top">{log.entityId || '-'}</td>
+                  <td className="px-4 py-2 text-sm border-b border-gray-100 max-w-xs truncate align-top" title={log.description}>
                     {log.description || '-'}
                   </td>
-                  <td className="text-sm text-gray-500">{log.ipAddress || '-'}</td>
-                  <td>
+                  <td className="px-4 py-2 text-xs text-gray-500 border-b border-gray-100 align-top">{log.ipAddress || '-'}</td>
+                  <td className="px-4 py-2 border-b border-gray-100 align-top">
                     <button
                       onClick={() => setSelectedLog(log)}
                       className="text-primary-600 hover:text-primary-700"

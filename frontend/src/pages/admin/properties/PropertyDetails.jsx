@@ -1,17 +1,20 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { propertyAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { Edit, MapPin, Camera, Home, Building2, User, TrendingUp } from 'lucide-react';
+import { Edit, MapPin, Camera, Home, Building2, User, TrendingUp, Trash2 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import DetailPageLayout, { DetailRow } from '../../../components/DetailPageLayout';
 
 const PropertyDetails = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { isAdmin, isAssessor } = useAuth();
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchProperty();
@@ -28,6 +31,20 @@ const PropertyDetails = () => {
     }
   };
 
+  const handleDelete = async () => {
+    try {
+      setDeleting(true);
+      await propertyAPI.delete(id);
+      toast.success('Property deleted successfully');
+      navigate('/properties');
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Failed to delete property');
+    } finally {
+      setDeleting(false);
+      setShowDeleteModal(false);
+    }
+  };
+
   if (loading) return <Loading />;
   if (!property) return <div>Property not found</div>;
 
@@ -40,6 +57,7 @@ const PropertyDetails = () => {
   };
 
   return (
+    <>
     <DetailPageLayout
       backTo="/properties"
       backLabel="Back to Properties"
@@ -47,10 +65,22 @@ const PropertyDetails = () => {
       subtitle={property.propertyNumber}
       actionButtons={
         (isAdmin || isAssessor) && (
-          <Link to={`/properties/${id}/edit`} className="btn btn-primary flex items-center">
-            <Edit className="w-4 h-4 mr-2" />
-            Edit Property
-          </Link>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(true)}
+                className="btn bg-red-600 hover:bg-red-700 text-white flex items-center"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete
+              </button>
+            )}
+            <Link to={`/properties/${id}/edit`} className="btn btn-primary flex items-center">
+              <Edit className="w-4 h-4 mr-2" />
+              Edit Property
+            </Link>
+          </div>
         )
       }
       summarySection={
@@ -197,6 +227,24 @@ const PropertyDetails = () => {
         )}
       </div>
     </DetailPageLayout>
+
+    {showDeleteModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Property</h3>
+          <p className="text-gray-600 mb-6">
+            Are you sure you want to delete this property? This action cannot be undone.
+          </p>
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={() => setShowDeleteModal(false)} className="btn btn-secondary">Cancel</button>
+            <button type="button" onClick={handleDelete} disabled={deleting} className="btn bg-red-600 hover:bg-red-700 text-white">
+              {deleting ? 'Deleting...' : 'Delete'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+  </>
   );
 };
 

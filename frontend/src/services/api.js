@@ -13,9 +13,13 @@ const api = axios.create({
   }
 });
 
-// Request interceptor to add token
+// Request interceptor to add token and fix FormData uploads
 api.interceptors.request.use(
   (config) => {
+    // When sending FormData (e.g. file upload), do not set Content-Type so axios sets multipart/form-data with boundary
+    if (config.data && typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
     // Try staff token first (for staff routes)
     let token = localStorage.getItem('staffToken') || localStorage.getItem('token');
 
@@ -113,7 +117,7 @@ export const userAPI = {
   create: (data) => api.post('/users', data),
   update: (id, data) => api.put(`/users/${id}`, data),
   delete: (id) => api.delete(`/users/${id}`),
-  getCollectors: () => api.get('/users/collectors')
+  getCollectors: (params) => api.get('/users/collectors', { params })
 };
 
 // Property API
@@ -217,7 +221,10 @@ export const reportAPI = {
   getDashboard: (params) => api.get('/reports/dashboard', { params }),
   getRevenue: (params) => api.get('/reports/revenue', { params }),
   getOutstanding: (params) => api.get('/reports/outstanding', { params }),
-  getWardWise: (params) => api.get('/reports/ward-wise', { params })
+  getWardWise: (params) => api.get('/reports/ward-wise', { params }),
+  getMrfStats: (params) => api.get('/mrf/reports/stats', { params }),
+  getToiletStats: (params) => api.get('/toilet/reports/stats', { params }),
+  getGaushalaStats: (params) => api.get('/gaushala/reports/stats', { params })
 };
 
 // Citizen API
@@ -342,6 +349,13 @@ export const waterConnectionAPI = {
   create: (data) => api.post('/water-connections', data),
   update: (id, data) => api.put(`/water-connections/${id}`, data),
   getByProperty: (propertyId) => api.get(`/water-connections/property/${propertyId}`)
+};
+
+// Water Meter Reading API
+export const waterMeterReadingAPI = {
+  create: (data) => api.post('/water-meter-readings', data),
+  getByConnection: (connectionId) => api.get(`/water-meter-readings/connection/${connectionId}`),
+  getLast: (connectionId) => api.get(`/water-meter-readings/connection/${connectionId}/last`)
 };
 
 // Water Bill API
@@ -482,7 +496,7 @@ export const shopsAPI = {
   getAll: (params) => api.get('/shops', { params }),
   getById: (id) => api.get(`/shops/${id}`),
   getByProperty: (propertyId) => api.get(`/shops/property/${propertyId}`),
-  create: (data) => api.post('/shops', data),
+  create: (formData) => api.post('/shops', formData), // FormData: axios sets multipart/form-data with boundary
   update: (id, data) => api.put(`/shops/${id}`, data)
 };
 

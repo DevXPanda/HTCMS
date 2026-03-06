@@ -158,6 +158,21 @@ const ShopDetails = () => {
                   label="License Status"
                   value={shop.licenseStatus ? <span className={`badge capitalize ${licenseBadgeClass()}`}>{shop.licenseStatus}</span> : null}
                 />
+                {shop.licenseDocumentUrl && (
+                  <DetailRow
+                    label="License Document"
+                    value={
+                      <a
+                        href={shop.licenseDocumentUrl.startsWith('http') ? shop.licenseDocumentUrl : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${shop.licenseDocumentUrl}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary-600 hover:underline"
+                      >
+                        View / Download
+                      </a>
+                    }
+                  />
+                )}
               </>
             )}
             <DetailRow label="Remarks" value={shop.remarks} valueClass="text-sm text-gray-700" />

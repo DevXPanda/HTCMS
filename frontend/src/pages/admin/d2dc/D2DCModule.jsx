@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Truck, User, LogOut, X, Home, FileText } from 'lucide-react';
 import D2DCLayout from './D2DCLayout';
+import Breadcrumbs from '../../../components/Breadcrumbs';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useStaffAuth } from '../../../contexts/StaffAuthContext';
 
@@ -32,7 +33,7 @@ const D2DCModule = () => {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between h-16">
                         <div className="flex items-center gap-4">
-                            <h1 className="text-xl font-bold text-primary-600">Bizwoke Management System</h1>
+                            <h1 className="text-xl font-bold text-primary-600">ULB System</h1>
                         </div>
                         <div className="flex items-center space-x-4">
                             <button
@@ -83,11 +84,11 @@ const D2DCModule = () => {
                         <div className="p-6 space-y-4">
                             <div className="flex items-center space-x-4 mb-6">
                                 <div className="h-16 w-16 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 text-xl font-bold">
-                                    {user?.firstName?.charAt(0) || 'U'}
+                                    {user?.firstName?.charAt(0) || user?.full_name?.charAt(0) || 'U'}
                                 </div>
                                 <div>
                                     <h4 className="text-lg font-medium text-gray-900">
-                                        {user?.firstName} {user?.lastName}
+                                        {user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.full_name || 'User'}
                                     </h4>
                                     <p className="text-sm text-gray-500 capitalize">{user?.role}</p>
                                 </div>
@@ -100,8 +101,22 @@ const D2DCModule = () => {
                                 </div>
                                 <div className="bg-gray-50 p-3 rounded-md">
                                     <p className="text-xs text-gray-500 uppercase">Phone</p>
-                                    <p className="text-sm font-medium text-gray-900">{user?.phoneNumber || 'N/A'}</p>
+                                    <p className="text-sm font-medium text-gray-900">{user?.phone_number || user?.phoneNumber || user?.phone || 'N/A'}</p>
                                 </div>
+                                {staffUser && (user?.employee_id || user?.id) && (
+                                    <div className="bg-gray-50 p-3 rounded-md">
+                                        <p className="text-xs text-gray-500 uppercase">Employee ID</p>
+                                        <p className="text-sm font-medium text-gray-900">{user?.employee_id || user?.id}</p>
+                                    </div>
+                                )}
+                                {user?.assigned_wards?.length > 0 && (
+                                    <div className="bg-gray-50 p-3 rounded-md">
+                                        <p className="text-xs text-gray-500 uppercase">{user.assigned_wards.length === 1 ? 'Assigned Ward' : 'Assigned Wards'}</p>
+                                        <p className="text-sm font-medium text-gray-900">
+                                            {user.assigned_wards.map((w) => `${w.wardNumber || w.id} - ${w.wardName || 'Ward'}`).join(', ')}
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                         <div className="bg-gray-50 px-4 py-3 sm:px-6 flex flex-row-reverse">
@@ -117,7 +132,10 @@ const D2DCModule = () => {
                 </div>
             )}
 
-            <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="no-print max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                <Breadcrumbs />
+            </div>
+            <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pb-6">
                 <div className="space-y-6">
                     {/* D2DC Module Header */}
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

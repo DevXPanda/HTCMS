@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 import {
     Beef,
     Plus,
@@ -20,6 +21,7 @@ import { exportToCSV } from '../../../utils/exportCSV';
 
 const GauShalaManagement = () => {
     useBackTo('/gaushala/management');
+    const { effectiveUlbId } = useSelectedUlb();
     const [facilities, setFacilities] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -37,11 +39,12 @@ const GauShalaManagement = () => {
     useEffect(() => {
         fetchData();
         fetchWards();
-    }, []);
+    }, [effectiveUlbId]);
 
     const fetchWards = async () => {
         try {
-            const response = await api.get('/wards');
+            const params = effectiveUlbId ? { ulb_id: effectiveUlbId } : {};
+            const response = await api.get('/wards', { params });
             if (response.data && response.data.success) {
                 setWards(response.data.data.wards);
             }
@@ -53,11 +56,12 @@ const GauShalaManagement = () => {
     const fetchData = async () => {
         try {
             setLoading(true);
+            const params = effectiveUlbId ? { ulb_id: effectiveUlbId } : {};
             const [facRes, cattleRes, inspRes, compRes] = await Promise.all([
-                api.get('/gaushala/facilities'),
-                api.get('/gaushala/cattle'),
-                api.get('/gaushala/inspections'),
-                api.get('/gaushala/complaints')
+                api.get('/gaushala/facilities', { params }),
+                api.get('/gaushala/cattle', { params }),
+                api.get('/gaushala/inspections', { params }),
+                api.get('/gaushala/complaints', { params })
             ]);
 
             if (facRes.data && facRes.data.success) {

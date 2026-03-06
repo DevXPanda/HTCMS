@@ -194,9 +194,7 @@ export const login = async (req, res, next) => {
           order: [['loginAt', 'DESC']]
         });
 
-        // If there's an active session, log it but don't create duplicate
-        // This handles cases where user didn't logout properly
-        if (activeSession) {
+        if (activeSession && process.env.NODE_ENV === 'development') {
           console.warn(`Collector ${user.id} logged in with existing active session. Previous session: ${activeSession.id}`);
         }
 
@@ -299,7 +297,7 @@ export const getMe = async (req, res, next) => {
       });
     }
 
-    // Ensure role is included in response
+    // Ensure role and ulb_id are included (ulb_id for role-based dashboard filtering)
     const sanitizedUser = {
       id: user.id,
       username: user.username,
@@ -308,6 +306,7 @@ export const getMe = async (req, res, next) => {
       lastName: user.lastName,
       phone: user.phone,
       role: user.role,
+      ulb_id: user.ulb_id ?? user.dataValues?.ulb_id ?? null,
       isActive: user.isActive,
       lastLogin: user.lastLogin,
       createdAt: user.createdAt,
@@ -386,20 +385,8 @@ export const logout = async (req, res, next) => {
             console.error('Failed to create audit log for attendance punch out:', auditError);
             // Logout and attendance update are still successful
           }
-        } else {
+        } else if (process.env.NODE_ENV === 'development') {
           console.warn(`Collector ${user.id} logged out but no active attendance session found`);
-
-          // Check all attendance records for this collector to debug
-          const allRecords = await CollectorAttendance.findAll({
-            where: { collectorId: user.id },
-            order: [['loginAt', 'DESC']],
-            limit: 3
-          });
-
-
-          allRecords.forEach((record, index) => {
-
-          });
         }
       } catch (attendanceError) {
         // Log error but don't fail logout

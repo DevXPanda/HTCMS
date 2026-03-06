@@ -1,6 +1,7 @@
 import { WaterConnection, Property, User, WaterConnectionDocument, Ward } from '../models/index.js';
 import { Op } from 'sequelize';
 import { WATER_CONNECTION_STATUS } from '../constants/waterTaxStatuses.js';
+import { getEffectiveUlbForRequest, getWardIdsByUlbId } from '../utils/ulbAccessHelper.js';
 import { validateMandatoryDocuments } from '../constants/waterConnectionDocumentTypes.js';
 import { WaterConnectionRequest } from '../models/index.js';
 import { generateWaterConnectionId } from '../services/uniqueIdService.js';
@@ -291,9 +292,31 @@ export const getAllWaterConnections = async (req, res, next) => {
 
         where.propertyId = { [Op.in]: propertyIds };
       }
-    } else if (propertyId) {
-      // For other roles, allow filtering by propertyId if provided
-      where.propertyId = parseInt(propertyId);
+    } else {
+      // Admin/assessor/cashier: ULB filter
+      const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+      if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You must be assigned to an ULB to view water connections.'
+        });
+      }
+      if (effectiveUlbId) {
+        const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+        if (!wardIds || wardIds.length === 0) {
+          return res.json({
+            success: true,
+            data: {
+              connections: [],
+              pagination: { total: 0, page: parseInt(page), limit: parseInt(limit), pages: 0 }
+            }
+          });
+        }
+        where['$property.wardId$'] = { [Op.in]: wardIds };
+      }
+      if (propertyId) {
+        where.propertyId = parseInt(propertyId);
+      }
     }
 
     // Ward-based filtering (for clerks or when explicitly requested)
@@ -400,7 +423,8 @@ export const getWaterConnectionById = async (req, res, next) => {
           as: 'property',
           attributes: { exclude: ['password'] },
           include: [
-            { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] }
+            { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] },
+            { model: Ward, as: 'ward', attributes: ['id', 'ulb_id'] }
           ]
         },
         {
@@ -419,6 +443,20 @@ export const getWaterConnectionById = async (req, res, next) => {
         success: false,
         message: 'Water connection not found'
       });
+    }
+
+    // ULB isolation: non-citizen non–super-admin can only view connections in their assigned ULB
+    if (req.user.role !== 'citizen') {
+      const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+      if (!isSuperAdmin && effectiveUlbId && waterConnection.property) {
+        const ward = waterConnection.property.ward || await Ward.findByPk(waterConnection.property.wardId, { attributes: ['ulb_id'] });
+        if (!ward || ward.ulb_id !== effectiveUlbId) {
+          return res.status(403).json({
+            success: false,
+            message: 'Access denied. Water connection does not belong to your assigned ULB.'
+          });
+        }
+      }
     }
 
     res.json({
@@ -491,6 +529,21 @@ export const getAllWaterConnectionRequests = async (req, res, next) => {
     const where = {};
     if (status) {
       where.status = status;
+    }
+
+    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+    if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You must be assigned to an ULB to view water connection requests.'
+      });
+    }
+    if (effectiveUlbId) {
+      const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+      if (!wardIds || wardIds.length === 0) {
+        return res.json({ success: true, data: { requests: [] } });
+      }
+      where['$property.wardId$'] = { [Op.in]: wardIds };
     }
 
     const requests = await WaterConnectionRequest.findAll({

@@ -1,6 +1,8 @@
 import { WaterConnectionRequest, User, Property, WaterConnection } from '../models/index.js';
 import { Op } from 'sequelize';
 import { auditLogger } from '../utils/auditLogger.js';
+import { getEffectiveUlbForRequest, getWardIdsByUlbId } from '../utils/ulbAccessHelper.js';
+import { generateWaterConnectionRequestNumber } from '../services/uniqueIdService.js';
 
 /**
  * @route   POST /api/water-connection-requests
@@ -35,16 +37,15 @@ export const createWaterConnectionRequest = async (req, res, next) => {
         // So we only set createdBy for citizens, not clerks (field is nullable)
         const createdBy = user.role === 'citizen' ? user.id : null;
 
-        // Generate request number using sequence-based approach
-        const year = new Date().getFullYear();
-        const count = await WaterConnectionRequest.count({
-            where: {
-                requestNumber: {
-                    [Op.like]: `WCR-${year}-%`
-                }
-            }
-        });
-        const requestNumber = `WCR-${year}-${String(count + 1).padStart(6, '0')}`;
+        // Generate request number (same format as WB, WT, PR: WCR + ward(3) + serial(4))
+        const wardId = property.wardId;
+        if (!wardId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Property ward not found; cannot generate request number'
+            });
+        }
+        const requestNumber = await generateWaterConnectionRequestNumber(wardId);
 
         // Create request
         const request = await WaterConnectionRequest.create({
@@ -111,16 +112,15 @@ export const createAndSubmitWaterConnectionRequest = async (req, res, next) => {
         // Note: createdBy references 'users' table, but Clerk is in 'staff' table
         // So we don't set createdBy for Clerk-created requests (field is nullable)
 
-        // Generate request number using sequence-based approach
-        const year = new Date().getFullYear();
-        const count = await WaterConnectionRequest.count({
-            where: {
-                requestNumber: {
-                    [Op.like]: `WCR-${year}-%`
-                }
-            }
-        });
-        const requestNumber = `WCR-${year}-${String(count + 1).padStart(6, '0')}`;
+        // Generate request number (same format as WB, WT, PR: WCR + ward(3) + serial(4))
+        const wardId = property.wardId;
+        if (!wardId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Property ward not found; cannot generate request number'
+            });
+        }
+        const requestNumber = await generateWaterConnectionRequestNumber(wardId);
 
         // Find an inspector for this property's ward
         let inspectorId = null;
@@ -232,14 +232,30 @@ export const getWaterConnectionRequests = async (req, res, next) => {
             const propertyIds = properties.map(p => p.id);
             if (propertyIds.length > 0) {
                 where.propertyId = { [Op.in]: propertyIds };
-            } else {
-                // No properties in clerk's wards, return empty result
+        } else {
+            // No properties in clerk's wards, return empty result
+            where.id = -1;
+        }
+    } else {
+        // Admin/inspector: ULB filter
+        const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+        if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied. You must be assigned to an ULB to view water connection requests.'
+            });
+        }
+        if (effectiveUlbId) {
+            const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+            if (!wardIds || wardIds.length === 0) {
                 where.id = -1;
+            } else {
+                where['$property.wardId$'] = { [Op.in]: wardIds };
             }
         }
-        // Admin and inspector can see all requests
+    }
 
-        if (status) where.status = status;
+    if (status) where.status = status;
         if (connectionType) where.connectionType = connectionType;
 
         if (search) {

@@ -1,5 +1,5 @@
 import { generateUniqueId } from '../utils/generateUniqueId.js';
-import { Property, WaterConnection, WaterBill, Shop, D2DCRecord, Ward, Assessment, WaterTaxAssessment, ShopTaxAssessment, Demand, Payment, WaterPayment, Notice } from '../models/index.js';
+import { Property, WaterConnection, WaterBill, WaterMeterReading, WaterConnectionRequest, ShopRegistrationRequest, Shop, D2DCRecord, Ward, Assessment, WaterTaxAssessment, ShopTaxAssessment, Demand, Payment, WaterPayment, Notice } from '../models/index.js';
 import { Op } from 'sequelize';
 
 /** Property type to prefix (House Tax). */
@@ -112,6 +112,106 @@ export async function generateWaterBillNumber(wardId, transaction = null) {
     nextNum++;
     candidate = generateUniqueId('water_bill', wardNumDisplay, nextNum);
     exists = await WaterBill.findOne({ where: { billNumber: candidate }, transaction });
+  }
+  return candidate;
+}
+
+/**
+ * Water Meter Reading: WR + ward(3) + serial(4). Same unique code format as Property (PR), Connection (WT), Bill (WB).
+ * Counts meter readings for connections in this ward; ensures uniqueness with retry loop.
+ */
+export async function generateWaterMeterReadingNumber(wardId, transaction = null) {
+  const ward = await Ward.findByPk(wardId, { transaction });
+  const wardNumDisplay = ward ? ward.wardNumber : wardId;
+
+  const propertyIds = await Property.findAll({
+    where: { wardId },
+    attributes: ['id'],
+    transaction
+  }).then(rows => rows.map(r => r.id));
+  const connectionIds = propertyIds.length
+    ? await WaterConnection.findAll({
+        where: { propertyId: { [Op.in]: propertyIds } },
+        attributes: ['id'],
+        transaction
+      }).then(rows => rows.map(r => r.id))
+    : [];
+  const count = connectionIds.length
+    ? await WaterMeterReading.count({
+        where: { waterConnectionId: { [Op.in]: connectionIds } },
+        transaction
+      })
+    : 0;
+
+  let nextNum = count + 1;
+  let candidate = generateUniqueId('water_reading', wardNumDisplay, nextNum);
+  let exists = await WaterMeterReading.findOne({ where: { readingNumber: candidate }, transaction });
+  while (exists) {
+    nextNum++;
+    candidate = generateUniqueId('water_reading', wardNumDisplay, nextNum);
+    exists = await WaterMeterReading.findOne({ where: { readingNumber: candidate }, transaction });
+  }
+  return candidate;
+}
+
+/**
+ * Water Connection Request: WCR + ward(3) + serial(4). Same unique code format as Property (PR), Connection (WT), Bill (WB).
+ * Counts requests for properties in this ward; ensures uniqueness with retry loop.
+ */
+export async function generateWaterConnectionRequestNumber(wardId, transaction = null) {
+  const ward = await Ward.findByPk(wardId, { transaction });
+  const wardNumDisplay = ward ? ward.wardNumber : wardId;
+
+  const propertyIds = await Property.findAll({
+    where: { wardId },
+    attributes: ['id'],
+    transaction
+  }).then(rows => rows.map(r => r.id));
+
+  const count = propertyIds.length
+    ? await WaterConnectionRequest.count({
+        where: { propertyId: { [Op.in]: propertyIds } },
+        transaction
+      })
+    : 0;
+
+  let nextNum = count + 1;
+  let candidate = generateUniqueId('water_connection_request', wardNumDisplay, nextNum);
+  let exists = await WaterConnectionRequest.findOne({ where: { requestNumber: candidate }, transaction });
+  while (exists) {
+    nextNum++;
+    candidate = generateUniqueId('water_connection_request', wardNumDisplay, nextNum);
+    exists = await WaterConnectionRequest.findOne({ where: { requestNumber: candidate }, transaction });
+  }
+  return candidate;
+}
+
+/**
+ * Shop Registration Request: SRR + ward(3) + serial(4). Same unique code format as other modules.
+ */
+export async function generateShopRegistrationRequestId(wardId, transaction = null) {
+  const ward = await Ward.findByPk(wardId, { transaction });
+  const wardNumDisplay = ward ? ward.wardNumber : wardId;
+
+  const propertyIds = await Property.findAll({
+    where: { wardId },
+    attributes: ['id'],
+    transaction
+  }).then(rows => rows.map(r => r.id));
+  const count = propertyIds.length
+    ? await ShopRegistrationRequest.count({
+        where: { propertyId: { [Op.in]: propertyIds } },
+        transaction
+      })
+    : 0;
+
+  let nextNum = count + 1;
+  let candidate = generateUniqueId('shop_registration_request', wardNumDisplay, nextNum, 4);
+  let exists = await ShopRegistrationRequest.findOne({ where: { requestNumber: candidate }, transaction });
+  while (exists) {
+    nextNum++;
+    candidate = generateUniqueId('shop_registration_request', wardNumDisplay, nextNum, 4);
+    exists = await ShopRegistrationRequest.findOne({ where: { requestNumber: candidate }, transaction });
   }
   return candidate;
 }

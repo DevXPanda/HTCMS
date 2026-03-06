@@ -21,10 +21,12 @@ import {
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../../components/ConfirmModal';
+import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 
 const GauShalaComplaints = () => {
     const { confirm } = useConfirm();
     useBackTo('/gaushala/management');
+    const { effectiveUlbId } = useSelectedUlb();
     const [complaints, setComplaints] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -37,12 +39,13 @@ const GauShalaComplaints = () => {
     const [editForm, setEditForm] = useState({ status: '', priority: '', resolution_notes: '' });
     const [saving, setSaving] = useState(false);
 
-    useEffect(() => { fetchComplaints(); }, []);
+    useEffect(() => { fetchComplaints(); }, [effectiveUlbId]);
 
     const fetchComplaints = async () => {
         try {
             setLoading(true);
-            const response = await api.get('/gaushala/complaints');
+            const params = effectiveUlbId ? { ulb_id: effectiveUlbId } : {};
+            const response = await api.get('/gaushala/complaints', { params });
             if (response.data && response.data.success) {
                 setComplaints(response.data.data.complaints);
             }

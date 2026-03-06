@@ -6,9 +6,10 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js",
+    "dev": "nodemon --quiet server.js",
     "migrate": "sequelize-cli db:migrate",
-    "seed": "sequelize-cli db:seed:all"
+    "seed": "sequelize-cli db:seed:all",
+    "update-wcr-ids": "node scripts/update-water-connection-request-ids.js"
   },
   "keywords": [
     "htcms",

@@ -1,22 +1,8 @@
 import { WaterMeterReading, WaterConnection, Property, User } from '../models/index.js';
 import { Op } from 'sequelize';
+import { getEffectiveUlbForRequest, getWardIdsByUlbId } from '../utils/ulbAccessHelper.js';
 import { WATER_METER_READING_TYPE } from '../constants/waterTaxStatuses.js';
-
-/**
- * Generate unique reading number
- */
-const generateReadingNumber = async (waterConnectionId) => {
-  const year = new Date().getFullYear();
-  const count = await WaterMeterReading.count({
-    where: {
-      readingNumber: {
-        [Op.like]: `WR-${year}-%`
-      }
-    }
-  });
-  const sequence = String(count + 1).padStart(6, '0');
-  return `WR-${year}-${sequence}`;
-};
+import { generateWaterMeterReadingNumber } from '../services/uniqueIdService.js';
 
 /**
  * @route   POST /api/water-meter-readings
@@ -88,7 +74,7 @@ export const createMeterReading = async (req, res, next) => {
     const waterConnection = await WaterConnection.findOne({
       where: { id: normalizedWaterConnectionId },
       include: [
-        { model: Property, as: 'property', attributes: ['id', 'propertyNumber', 'address'] }
+        { model: Property, as: 'property', attributes: ['id', 'propertyNumber', 'address', 'wardId'] }
       ]
     });
 
@@ -126,8 +112,15 @@ export const createMeterReading = async (req, res, next) => {
     // Auto-calculate consumption
     const consumption = currentReadingValue - previousReadingValue;
 
-    // Generate reading number
-    const readingNumber = await generateReadingNumber(normalizedWaterConnectionId);
+    // Generate reading number (same format as WB, WT, PR: WR + ward(3) + serial(4))
+    const wardId = waterConnection?.property?.wardId;
+    if (!wardId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Property ward not found; cannot generate meter reading number'
+      });
+    }
+    const readingNumber = await generateWaterMeterReadingNumber(wardId);
 
     // Create meter reading
     const meterReading = await WaterMeterReading.create({
@@ -197,6 +190,27 @@ export const getAllMeterReadings = async (req, res, next) => {
     } = req.query;
 
     const where = {};
+    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+
+    if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You must be assigned to an ULB to view meter readings.'
+      });
+    }
+    if (effectiveUlbId) {
+      const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+      if (!wardIds || wardIds.length === 0) {
+        return res.json({
+          success: true,
+          data: {
+            meterReadings: [],
+            pagination: { total: 0, page: parseInt(page), limit: parseInt(limit), pages: 0 }
+          }
+        });
+      }
+      where['$waterConnection.property.wardId$'] = { [Op.in]: wardIds };
+    }
 
     // Apply filters
     if (waterConnectionId) {

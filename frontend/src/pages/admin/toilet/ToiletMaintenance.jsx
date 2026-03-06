@@ -12,9 +12,11 @@ import {
   Eye
 } from 'lucide-react';
 import api from '../../../services/api';
+import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 
 const ToiletMaintenance = () => {
   useBackTo('/toilet-management');
+  const { effectiveUlbId } = useSelectedUlb();
   const [maintenance, setMaintenance] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -22,12 +24,13 @@ const ToiletMaintenance = () => {
 
   useEffect(() => {
     fetchMaintenance();
-  }, []);
+  }, [effectiveUlbId]);
 
   const fetchMaintenance = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/toilet/maintenance');
+      const params = effectiveUlbId ? { ulb_id: effectiveUlbId } : {};
+      const response = await api.get('/toilet/maintenance', { params });
       if (response.data && response.data.success) {
         const formattedData = response.data.data.maintenanceRecords.map(m => ({
           ...m,
@@ -97,6 +100,25 @@ const ToiletMaintenance = () => {
         </Link>
       </div>
 
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="stat-card">
+          <div className="stat-card-title"><span>Total Records</span></div>
+          <p className="stat-card-value">{maintenance.length}</p>
+        </div>
+        <div className="stat-card">
+          <div className="stat-card-title"><span>Scheduled</span></div>
+          <p className="stat-card-value text-blue-600">{maintenance.filter(m => m.status === 'scheduled').length}</p>
+        </div>
+        <div className="stat-card">
+          <div className="stat-card-title"><span>In Progress</span></div>
+          <p className="stat-card-value text-yellow-600">{maintenance.filter(m => m.status === 'in_progress').length}</p>
+        </div>
+        <div className="stat-card">
+          <div className="stat-card-title"><span>Completed</span></div>
+          <p className="stat-card-value text-green-600">{maintenance.filter(m => m.status === 'completed').length}</p>
+        </div>
+      </div>
+
       <div className="card">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="relative">
@@ -129,99 +151,82 @@ const ToiletMaintenance = () => {
 
       <div className="table-wrap">
         <table className="table">
-            <thead className="bg-gray-50">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Toilet Facility
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Maintenance Type
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Scheduled Date
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Completed Date
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Assigned Staff
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Status
+              </th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {filteredMaintenance.length === 0 ? (
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Toilet Facility
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Maintenance Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Scheduled Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Completed Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Assigned Staff
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
+                <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
+                  No maintenance records found
+                </td>
               </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredMaintenance.length === 0 ? (
-                <tr>
-                  <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
-                    No maintenance records found
+            ) : (
+              filteredMaintenance.map((item) => (
+                <tr key={item.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">{item.toiletName}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{item.type}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center text-sm text-gray-900">
+                      <Calendar className="w-4 h-4 mr-1 text-gray-400" />
+                      {new Date(item.scheduledDate).toLocaleDateString()}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      {item.completedDate
+                        ? new Date(item.completedDate).toLocaleDateString()
+                        : '-'}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{item.staff}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {getStatusBadge(item.status)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <Link
+                      to={`/toilet-management/maintenance/${item.id}`}
+                      className="text-primary-600 hover:text-primary-900"
+                    >
+                      <Eye className="h-5 w-5" />
+                    </Link>
                   </td>
                 </tr>
-              ) : (
-                filteredMaintenance.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{item.toiletName}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{item.type}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center text-sm text-gray-900">
-                        <Calendar className="w-4 h-4 mr-1 text-gray-400" />
-                        {new Date(item.scheduledDate).toLocaleDateString()}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {item.completedDate
-                          ? new Date(item.completedDate).toLocaleDateString()
-                          : '-'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{item.staff}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(item.status)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <Link
-                        to={`/toilet-management/maintenance/${item.id}`}
-                        className="text-primary-600 hover:text-primary-900"
-                      >
-                        <Eye className="h-5 w-5" />
-                      </Link>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="stat-card">
-          <div className="stat-card-title"><span>Total Records</span></div>
-          <p className="stat-card-value">{maintenance.length}</p>
-        </div>
-        <div className="stat-card">
-          <div className="stat-card-title"><span>Scheduled</span></div>
-          <p className="stat-card-value text-blue-600">{maintenance.filter(m => m.status === 'scheduled').length}</p>
-        </div>
-        <div className="stat-card">
-          <div className="stat-card-title"><span>In Progress</span></div>
-          <p className="stat-card-value text-yellow-600">{maintenance.filter(m => m.status === 'in_progress').length}</p>
-        </div>
-        <div className="stat-card">
-          <div className="stat-card-title"><span>Completed</span></div>
-          <p className="stat-card-value text-green-600">{maintenance.filter(m => m.status === 'completed').length}</p>
-        </div>
-      </div>
+
     </div>
   );
 };

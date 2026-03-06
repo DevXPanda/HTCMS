@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { shopsAPI, wardAPI } from '../../../services/api';
 import { Store, Plus, Edit, Search, Filter, X, Download } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
@@ -11,6 +12,7 @@ import { exportToCSV } from '../../../utils/exportCSV';
 const ShopsList = () => {
   const navigate = useNavigate();
   const basePath = useShopTaxBasePath();
+  const { effectiveUlbId } = useSelectedUlb();
   const { isAdmin, isAssessor } = useAuth();
   const [shops, setShops] = useState([]);
   const [wards, setWards] = useState([]);
@@ -26,15 +28,16 @@ const ShopsList = () => {
 
   useEffect(() => {
     fetchWards();
-  }, []);
+  }, [effectiveUlbId]);
 
   useEffect(() => {
     fetchShops();
-  }, [search, filters]);
+  }, [search, filters, effectiveUlbId]);
 
   const fetchWards = async () => {
     try {
-      const response = await wardAPI.getAll({ isActive: true });
+      const params = { isActive: true, ...(effectiveUlbId ? { ulb_id: effectiveUlbId } : {}) };
+      const response = await wardAPI.getAll(params);
       setWards(response.data.data.wards || []);
     } catch (error) {
       console.error('Failed to fetch wards:', error);
@@ -47,7 +50,8 @@ const ShopsList = () => {
       const params = {
         limit: 10000,
         ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== '')),
-        ...(search ? { search } : {})
+        ...(search ? { search } : {}),
+        ...(effectiveUlbId ? { ulb_id: effectiveUlbId } : {})
       };
       const response = await shopsAPI.getAll(params);
       if (response.data.success) {
@@ -71,7 +75,7 @@ const ShopsList = () => {
 
   const handleExport = async () => {
     try {
-      const params = { page: 1, limit: 5000, ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== '')), ...(search ? { search } : {}) };
+      const params = { page: 1, limit: 5000, ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== '')), ...(search ? { search } : {}), ...(effectiveUlbId ? { ulb_id: effectiveUlbId } : {}) };
       const response = await shopsAPI.getAll(params);
       const list = response.data.data.shops || [];
       const rows = list.map(s => ({

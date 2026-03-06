@@ -4,6 +4,9 @@ import { paymentAPI } from '../../services/api';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
 import { Download, Printer } from 'lucide-react';
+import { PaymentReceiptView } from '../../components/ReceiptView';
+
+const formatAmt = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const PaymentDetails = () => {
   const { id } = useParams();
@@ -30,7 +33,7 @@ const PaymentDetails = () => {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="no-print flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Payment Receipt</h1>
         <div className="flex gap-2">
           <button
@@ -44,7 +47,7 @@ const PaymentDetails = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card">
+        <div className="no-print card">
           <h2 className="text-xl font-semibold mb-4">Payment Information</h2>
           <dl className="space-y-3">
             <div>
@@ -116,7 +119,7 @@ const PaymentDetails = () => {
           </dl>
         </div>
 
-        <div className="card">
+        <div className="no-print card">
           <h2 className="text-xl font-semibold mb-4">Property & Demand</h2>
           <dl className="space-y-3">
             <div>
@@ -180,78 +183,19 @@ const PaymentDetails = () => {
           </dl>
         </div>
 
-        {/* Receipt View */}
-        <div className="card lg:col-span-2 print:shadow-none print:border-2 print:border-gray-800">
-          <div className="text-center border-b-2 border-gray-300 pb-4 mb-4">
-            <h2 className="text-2xl font-bold">PAYMENT RECEIPT</h2>
-            <p className="text-sm text-gray-600">House Tax Collection & Management System</p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-6 mb-6">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Receipt Number</p>
-              <p className="font-bold text-lg">{payment.receiptNumber}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-gray-600 mb-1">Date</p>
-              <p className="font-bold">{new Date(payment.paymentDate).toLocaleDateString('en-IN', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              })}</p>
-            </div>
-          </div>
-
-          <div className="border-t border-b border-gray-300 py-4 mb-4">
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Property Number</p>
-                <p className="font-semibold">{payment.property?.propertyNumber}</p>
-                <p className="text-sm mt-1">{payment.property?.address}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Owner</p>
-                <p className="font-semibold">
-                  {payment.property?.owner?.firstName} {payment.property?.owner?.lastName}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="mb-4">
-            <p className="text-sm text-gray-600 mb-1">Payment Details</p>
-            <div className="bg-gray-50 p-4 rounded">
-              <div className="flex justify-between mb-2">
-                <span>Amount Paid:</span>
-                <span className="font-bold text-lg text-green-600">
-                  ₹{parseFloat(payment.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm text-gray-600">
-                <span>Payment Mode: <span className="capitalize font-medium">{payment.paymentMode}</span></span>
-                {payment.chequeNumber && <span>Cheque/DD: {payment.chequeNumber}</span>}
-                {payment.transactionId && <span>Transaction ID: {payment.transactionId}</span>}
-              </div>
-            </div>
-          </div>
-
+        {/* Receipt View - only this prints */}
+        <div className="card receipt-print-area lg:col-span-2 print:shadow-none print:border-2 print:border-gray-800">
+          <PaymentReceiptView payment={payment} formatAmt={formatAmt} />
           {payment.remarks && (
-            <div className="mb-4">
+            <div className="mt-4 pt-4 border-t border-gray-200">
               <p className="text-sm text-gray-600 mb-1">Remarks</p>
               <p className="text-sm">{payment.remarks}</p>
             </div>
           )}
-
-          <div className="border-t border-gray-300 pt-4 text-center text-sm text-gray-600">
-            <p>This is a computer-generated receipt. No signature required.</p>
-            {payment.cashier && (
-              <p className="mt-2">Received by: {payment.cashier.firstName} {payment.cashier.lastName}</p>
-            )}
-          </div>
         </div>
 
         {payment.remarks && (
-          <div className="card lg:col-span-2">
+          <div className="no-print card lg:col-span-2">
             <h2 className="text-xl font-semibold mb-4">Remarks</h2>
             <p className="text-gray-600 whitespace-pre-wrap">{payment.remarks}</p>
           </div>

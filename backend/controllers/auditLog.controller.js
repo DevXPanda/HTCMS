@@ -1,5 +1,6 @@
 import { AuditLog, User, Property, Ward } from '../models/index.js';
 import { Op } from 'sequelize';
+import { getEffectiveUlbForRequest, getWardIdsByUlbId } from '../utils/ulbAccessHelper.js';
 
 /**
  * @route   GET /api/audit-logs
@@ -142,17 +143,53 @@ export const getAuditLogs = async (req, res, next) => {
           ]
         }
       ];
+    } else if (user.role === 'admin' || user.role === 'assessor') {
+      // Admin/Assessor with effective ULB: restrict to entities and actors in that ULB
+      const { effectiveUlbId } = getEffectiveUlbForRequest(req);
+      if (effectiveUlbId) {
+        const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+        const ulbOrConditions = [];
+        if (wardIds && wardIds.length) {
+          const wardProperties = await Property.findAll({
+            where: { wardId: { [Op.in]: wardIds } },
+            attributes: ['id']
+          });
+          const propertyIds = wardProperties.map(p => p.id);
+          ulbOrConditions.push({ entityType: 'Ward', entityId: { [Op.in]: wardIds } });
+          if (propertyIds.length) {
+            ulbOrConditions.push({ entityType: 'Property', entityId: { [Op.in]: propertyIds } });
+            const { Demand, Payment } = await import('../models/index.js');
+            const demands = await Demand.findAll({ where: { propertyId: { [Op.in]: propertyIds } }, attributes: ['id'] });
+            const payments = await Payment.findAll({ where: { propertyId: { [Op.in]: propertyIds } }, attributes: ['id'] });
+            const demandIds = demands.map(d => d.id);
+            const paymentIds = payments.map(p => p.id);
+            if (demandIds.length) ulbOrConditions.push({ entityType: 'Demand', entityId: { [Op.in]: demandIds } });
+            if (paymentIds.length) ulbOrConditions.push({ entityType: 'Payment', entityId: { [Op.in]: paymentIds } });
+          }
+        }
+        const ulbUsers = await User.findAll({ where: { ulb_id: effectiveUlbId }, attributes: ['id'] });
+        const userIds = ulbUsers.map(u => u.id);
+        if (userIds.length) {
+          ulbOrConditions.push({ entityType: 'User', entityId: { [Op.in]: userIds } });
+          ulbOrConditions.push({ actorUserId: { [Op.in]: userIds } });
+        }
+        if (ulbOrConditions.length) {
+          where[Op.and] = where[Op.and] || [];
+          where[Op.and].push({ [Op.or]: ulbOrConditions });
+        } else {
+          where.id = -1;
+        }
+      }
     }
-    // Admin and Assessor can see all logs (no additional filtering)
 
-    // Apply filters
+    // Apply filters (normalize actorRole to lowercase to match DB enum)
     if (actorUserId) where.actorUserId = actorUserId;
-    if (actorRole) where.actorRole = actorRole;
+    if (actorRole) where.actorRole = String(actorRole).toLowerCase().replace(/-/g, '_');
     if (actionType) where.actionType = actionType;
     if (entityType) where.entityType = entityType;
     if (entityId) where.entityId = entityId;
 
-    // Date range filter
+    // Date range filter (DB column is 'timestamp')
     if (dateFrom || dateTo) {
       where.timestamp = {};
       if (dateFrom) where.timestamp[Op.gte] = new Date(dateFrom);
@@ -174,7 +211,8 @@ export const getAuditLogs = async (req, res, next) => {
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
     const validSortOrders = ['ASC', 'DESC'];
-    const order = [[sortBy, validSortOrders.includes(sortOrder.toUpperCase()) ? sortOrder.toUpperCase() : 'DESC']];
+    const sortField = (sortBy === 'timestamp' || sortBy === 'createdAt') ? 'timestamp' : sortBy;
+    const order = [[sortField, validSortOrders.includes(sortOrder.toUpperCase()) ? sortOrder.toUpperCase() : 'DESC']];
 
     const { count, rows } = await AuditLog.findAndCountAll({
       where,

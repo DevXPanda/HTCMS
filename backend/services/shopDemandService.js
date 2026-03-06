@@ -72,6 +72,7 @@ export const generateShopDemandsForProperty = async (propertyId, financialYear, 
     const penaltyAmount = 0;
     const interestAmount = 0;
     const totalAmount = Math.round((baseAmount + arrearsAmount + penaltyAmount + interestAmount) * 100) / 100;
+    const originalAmount = totalAmount;
     const demandNumber = await generateDemandId(shop.wardId, 'shop', transaction);
 
     const demand = await Demand.create({
@@ -87,6 +88,8 @@ export const generateShopDemandsForProperty = async (propertyId, financialYear, 
       penaltyAmount,
       interestAmount,
       totalAmount,
+      originalAmount,
+      finalAmount: totalAmount,
       balanceAmount: totalAmount,
       paidAmount: 0,
       dueDate: dueDateResolved,

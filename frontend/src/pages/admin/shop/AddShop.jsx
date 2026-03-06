@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { shopsAPI, propertyAPI, wardAPI, userAPI } from '../../../services/api';
@@ -14,6 +14,9 @@ const AddShop = () => {
   const [wards, setWards] = useState([]);
   const [users, setUsers] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [licenseFile, setLicenseFile] = useState(null);
+  const [licenseFileError, setLicenseFileError] = useState('');
+  const licenseFileInputRef = useRef(null);
 
   const {
     register,
@@ -62,25 +65,34 @@ const AddShop = () => {
   };
 
   const onSubmit = async (data) => {
+    const file = licenseFileInputRef.current?.files?.[0] ?? licenseFile;
+    if (!file) {
+      setLicenseFileError('Trade license document (image or PDF) is required');
+      toast.error('Please select a trade license document (PDF or image).');
+      return;
+    }
+    setLicenseFileError('');
     try {
       setLoading(true);
-      const response = await shopsAPI.create({
-        propertyId: parseInt(data.propertyId),
-        wardId: parseInt(data.wardId),
-        shopName: data.shopName,
-        shopType: data.shopType,
-        ownerId: data.ownerId ? parseInt(data.ownerId) : null,
-        area: data.area ? parseFloat(data.area) : null,
-        address: data.address || null,
-        contactName: data.contactName || null,
-        contactPhone: data.contactPhone || null,
-        status: data.status,
-        tradeLicenseNumber: data.tradeLicenseNumber || null,
-        licenseValidFrom: data.licenseValidFrom || null,
-        licenseValidTo: data.licenseValidTo || null,
-        licenseStatus: data.licenseStatus || null,
-        remarks: data.remarks || null
-      });
+      const formData = new FormData();
+      formData.append('licenseDocument', file);
+      formData.append('propertyId', data.propertyId);
+      formData.append('wardId', data.wardId);
+      formData.append('shopName', data.shopName);
+      formData.append('shopType', data.shopType);
+      if (data.ownerId) formData.append('ownerId', data.ownerId);
+      if (data.area) formData.append('area', data.area);
+      if (data.address) formData.append('address', data.address);
+      if (data.contactName) formData.append('contactName', data.contactName);
+      if (data.contactPhone) formData.append('contactPhone', data.contactPhone);
+      formData.append('status', data.status);
+      if (data.tradeLicenseNumber) formData.append('tradeLicenseNumber', data.tradeLicenseNumber);
+      if (data.licenseValidFrom) formData.append('licenseValidFrom', data.licenseValidFrom);
+      if (data.licenseValidTo) formData.append('licenseValidTo', data.licenseValidTo);
+      if (data.licenseStatus) formData.append('licenseStatus', data.licenseStatus);
+      if (data.remarks) formData.append('remarks', data.remarks);
+
+      const response = await shopsAPI.create(formData);
 
       if (response.data.success) {
         toast.success('Shop created successfully');
@@ -299,6 +311,30 @@ const AddShop = () => {
               <option value="expired">Expired</option>
               <option value="suspended">Suspended</option>
             </select>
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Trade License Document <span className="text-red-500">*</span>
+            </label>
+            <input
+              ref={licenseFileInputRef}
+              type="file"
+              accept=".pdf,image/jpeg,image/jpg,image/png,image/gif,image/webp"
+              className="input w-full"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                setLicenseFile(file || null);
+                setLicenseFileError(file ? '' : 'Trade license document (image or PDF) is required');
+              }}
+            />
+            <p className="text-xs text-gray-500 mt-1">PDF or image (JPEG, PNG, GIF, WebP). Max 10MB. Required.</p>
+            {licenseFileError && (
+              <span className="text-red-500 text-sm">{licenseFileError}</span>
+            )}
+            {licenseFile && (
+              <p className="text-sm text-green-600 mt-1">Selected: {licenseFile.name}</p>
+            )}
           </div>
 
           <div className="md:col-span-2">

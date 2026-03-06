@@ -100,7 +100,7 @@ const MrfWasteLogs = ({ facilityId, wasteTypes = [] }) => {
                 </div>
                 <button
                     onClick={() => setShowForm(!showForm)}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-600 transition-all shadow-lg shadow-gray-900/10 active:scale-95"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-700 transition-all shadow-lg shadow-primary-500/20 active:scale-95"
                 >
                     {showForm ? 'Cancel' : <><Plus className="w-4 h-4" /> Log Entry</>}
                 </button>

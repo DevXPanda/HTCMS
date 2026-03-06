@@ -13,9 +13,11 @@ import {
   User
 } from 'lucide-react';
 import api from '../../../services/api';
+import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 
 const ToiletComplaints = () => {
   useBackTo('/toilet-management');
+  const { effectiveUlbId } = useSelectedUlb();
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -23,12 +25,13 @@ const ToiletComplaints = () => {
 
   useEffect(() => {
     fetchComplaints();
-  }, []);
+  }, [effectiveUlbId]);
 
   const fetchComplaints = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/toilet/complaints');
+      const params = effectiveUlbId ? { ulb_id: effectiveUlbId } : {};
+      const response = await api.get('/toilet/complaints', { params });
       if (response.data && response.data.success) {
         const formattedData = response.data.data.complaints.map(c => ({
           ...c,

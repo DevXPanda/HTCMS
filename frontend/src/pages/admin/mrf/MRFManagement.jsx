@@ -10,11 +10,13 @@ import {
     Download
 } from 'lucide-react';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 import api from '../../../services/api';
 import { exportToCSV } from '../../../utils/exportCSV';
 
 const MRFManagement = () => {
     useBackTo('/mrf');
+    const { effectiveUlbId } = useSelectedUlb();
     const [facilities, setFacilities] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -23,11 +25,12 @@ const MRFManagement = () => {
     useEffect(() => {
         fetchFacilities();
         fetchWards();
-    }, []);
+    }, [effectiveUlbId]);
 
     const fetchWards = async () => {
         try {
-            const response = await api.get('/wards');
+            const params = effectiveUlbId ? { ulb_id: effectiveUlbId } : {};
+            const response = await api.get('/wards', { params });
             if (response.data && response.data.success) {
                 setWards(response.data.data.wards);
             }
@@ -39,7 +42,8 @@ const MRFManagement = () => {
     const fetchFacilities = async () => {
         try {
             setLoading(true);
-            const response = await api.get('/mrf/facilities');
+            const params = effectiveUlbId ? { ulb_id: effectiveUlbId } : {};
+            const response = await api.get('/mrf/facilities', { params });
             if (response.data && response.data.success) {
                 setFacilities(response.data.data.facilities);
             }

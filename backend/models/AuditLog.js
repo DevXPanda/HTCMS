@@ -73,12 +73,16 @@ export const AuditLog = sequelize.define('AuditLog', {
     type: DataTypes.JSONB,
     allowNull: true,
     comment: 'Additional metadata (e.g., propertyId for demand actions)'
+  },
+  timestamp: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+    comment: 'When the action occurred'
   }
 }, {
   tableName: 'audit_logs',
-  timestamps: true,
-  createdAt: 'timestamp',
-  updatedAt: false, // Audit logs are append-only, never updated
+  timestamps: false,
   indexes: [
     {
       fields: ['actorUserId']

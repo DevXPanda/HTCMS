@@ -19,8 +19,8 @@ const CitizenLayout = () => {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Main content */}
       <div className="w-full">
-        {/* Top bar */}
-        <header className="bg-white shadow-sm sticky top-0 z-10 w-full">
+        {/* Top bar - hidden when printing receipt */}
+        <header className="no-print bg-white shadow-sm sticky top-0 z-10 w-full">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16">
               <div className="flex items-center gap-4">
@@ -102,7 +102,7 @@ const CitizenLayout = () => {
                   </div>
                   <div className="bg-gray-50 p-3 rounded-md">
                     <p className="text-xs text-gray-500 uppercase">Phone</p>
-                    <p className="text-sm font-medium text-gray-900">{userData?.phoneNumber || userData?.phone || 'N/A'}</p>
+                    <p className="text-sm font-medium text-gray-900">{userData?.phone_number || userData?.phoneNumber || userData?.phone || 'N/A'}</p>
                   </div>
                   <div className="bg-gray-50 p-3 rounded-md">
                     <p className="text-xs text-gray-500 uppercase">User ID</p>

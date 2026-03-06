@@ -5,6 +5,7 @@ import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { Plus, Eye, Search, Filter, X, Zap, Calculator, Download } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 import { useConfirm } from '../../../components/ConfirmModal';
 import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
 import { exportToCSV } from '../../../utils/exportCSV';
@@ -14,6 +15,7 @@ const Demands = () => {
   const [searchParams] = useSearchParams();
   const moduleFromUrl = searchParams.get('module') || '';
   const basePath = useShopTaxBasePath();
+  const { effectiveUlbId } = useSelectedUlb();
   const { isAdmin, isAssessor } = useAuth();
   const { confirm } = useConfirm();
   const [demands, setDemands] = useState([]);
@@ -30,7 +32,7 @@ const Demands = () => {
 
   useEffect(() => {
     fetchDemands();
-  }, [search, filters, moduleFromUrl]);
+  }, [search, filters, moduleFromUrl, effectiveUlbId]);
 
   const fetchDemands = async () => {
     try {
@@ -38,7 +40,8 @@ const Demands = () => {
       const params = {
         search,
         limit: 10000,
-        ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''))
+        ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== '')),
+        ...(effectiveUlbId ? { ulb_id: effectiveUlbId } : {})
       };
       if (moduleFromUrl && ['PROPERTY', 'WATER', 'SHOP', 'D2DC'].includes(moduleFromUrl.toUpperCase())) {
         params.module = moduleFromUrl.toUpperCase();
@@ -253,9 +256,8 @@ const Demands = () => {
       )}
 
       {demands.some(d => isRecentDate(d.createdAt || d.generatedDate)) && (
-        <p className="text-sm text-gray-500 mb-2 flex items-center gap-2">
-          <span className="inline-block w-2.5 h-2.5 rounded-full bg-green-500" />
-          <span>Green dot = demand generated in the last 24 hours</span>
+        <p className="text-sm text-gray-500 mb-2">
+          <span>Demands generated in the last 24 hours show a &quot;Recent&quot; tag</span>
         </p>
       )}
       <div className="table-wrap">
@@ -319,12 +321,6 @@ const Demands = () => {
                   <tr key={demand.id} className={overdue ? 'bg-red-50' : ''}>
                     <td className="font-medium">
                       <span className="inline-flex items-center gap-1.5">
-                        {isRecent && (
-                          <span
-                            className="inline-block w-2.5 h-2.5 rounded-full bg-green-500 shrink-0"
-                            title="Recently generated demand"
-                          />
-                        )}
                         {demand.demandNumber}
                         {isRecent && (
                           <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Recent</span>

@@ -32,8 +32,8 @@ const FieldMonitoring = () => {
 
   const fetchCollectors = async () => {
     try {
-      const response = await userAPI.getAll({ role: 'collector', limit: 1000 });
-      setCollectors(response.data.data.users);
+      const response = await userAPI.getCollectors();
+      setCollectors(response.data.data.collectors || []);
     } catch (error) {
       console.error('Failed to fetch collectors:', error);
     }

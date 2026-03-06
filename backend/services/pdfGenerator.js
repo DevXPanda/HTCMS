@@ -12,13 +12,39 @@ import { getDemandOriginalAmount, getDemandPenaltyAmount, calculateFinalAmount }
  * Generates PDFs for payment receipts and notices
  */
 
+// Shared receipt layout constants
+const RECEIPT_MARGIN = 50;
+const RECEIPT_WIDTH = 495;
+const RECEIPT_LEFT = 50;
+const RECEIPT_LABEL_LEFT = 60;
+const RECEIPT_VALUE_RIGHT = 535;
+const ROW_HEIGHT = 22;
+
+/** Draw a bordered section with title and label-value rows; returns Y after box */
+function drawReceiptSection(doc, startY, title, rows) {
+  const titleHeight = 20;
+  const rowCount = rows.length;
+  const boxHeight = titleHeight + rowCount * ROW_HEIGHT + 10;
+  doc.rect(RECEIPT_LEFT, startY, RECEIPT_WIDTH, boxHeight).stroke();
+  doc.fontSize(12).font('Helvetica-Bold').text(title, RECEIPT_LABEL_LEFT, startY + 10);
+  let y = startY + titleHeight + 5;
+  doc.fontSize(10);
+  for (const [label, value] of rows) {
+    doc.font('Helvetica-Bold').text(label, RECEIPT_LABEL_LEFT, y);
+    doc.font('Helvetica').text(String(value || 'N/A'), RECEIPT_LABEL_LEFT, y, { width: RECEIPT_VALUE_RIGHT - RECEIPT_LABEL_LEFT - 10, align: 'right' });
+    y += ROW_HEIGHT;
+  }
+  return startY + boxHeight + 12;
+}
+
 /**
  * Generate Payment Receipt PDF
+ * Unified structure: header, receipt details, property, owner, payment details, footer
  */
 export const generateReceiptPdf = async (payment, demand, property, owner, ward, cashier) => {
   return new Promise(async (resolve, reject) => {
     try {
-      const doc = new PDFDocument({ 
+      const doc = new PDFDocument({
         size: 'A4',
         margins: { top: 50, bottom: 50, left: 50, right: 50 }
       });
@@ -40,194 +66,83 @@ export const generateReceiptPdf = async (payment, demand, property, owner, ward,
 
       // Header
       doc.fontSize(20).font('Helvetica-Bold')
-         .text('MUNICIPAL CORPORATION', { align: 'center' });
+        .text('MUNICIPAL CORPORATION', { align: 'center' });
       doc.moveDown(0.5);
       doc.fontSize(16).font('Helvetica')
-         .text('House Tax Collection & Management System', { align: 'center' });
+        .text('House Tax Collection & Management System', { align: 'center' });
       doc.moveDown(1);
-      
-      // Receipt Title
       doc.fontSize(18).font('Helvetica-Bold')
-         .text('PAYMENT RECEIPT', { align: 'center' });
+        .text('PAYMENT RECEIPT', { align: 'center' });
       doc.moveDown(1.5);
 
-      // Receipt Details Box
-      const receiptBoxY = doc.y;
-      doc.rect(50, receiptBoxY, 495, 200).stroke();
-      
-      // Receipt Number
-      doc.fontSize(12).font('Helvetica-Bold')
-         .text('Receipt Number:', 60, receiptBoxY + 15);
-      doc.font('Helvetica')
-         .text(payment.receiptNumber || payment.paymentNumber, 200, receiptBoxY + 15);
-      
-      // Payment Date & Time
-      doc.font('Helvetica-Bold')
-         .text('Payment Date:', 60, receiptBoxY + 40);
-      doc.font('Helvetica')
-         .text(new Date(payment.paymentDate).toLocaleString('en-IN', { 
-           dateStyle: 'long', 
-           timeStyle: 'short' 
-         }), 200, receiptBoxY + 40);
-      
-      // Payment Status
-      doc.font('Helvetica-Bold')
-         .text('Status:', 60, receiptBoxY + 65);
-      doc.font('Helvetica')
-         .text(payment.status.toUpperCase(), 200, receiptBoxY + 65);
-      
-      doc.moveDown(1);
+      let y = doc.y;
+
+      // Receipt Details
+      const paymentDateStr = new Date(payment.paymentDate).toLocaleString('en-IN', { dateStyle: 'long', timeStyle: 'short' });
+      const locationStr = ward ? `${ward.wardNumber} - ${ward.wardName}` : 'N/A';
+      y = drawReceiptSection(doc, y, 'Receipt Details', [
+        ['Receipt Number', payment.receiptNumber || payment.paymentNumber],
+        ['Payment Date', paymentDateStr],
+        ['Payment ID', payment.paymentNumber || payment.id],
+        ['Location', locationStr]
+      ]);
 
       // Property Details
-      doc.fontSize(14).font('Helvetica-Bold')
-         .text('Property Details', 60, doc.y);
-      doc.moveDown(0.5);
-      
-      doc.fontSize(11).font('Helvetica-Bold')
-         .text('Property Number:', 60, doc.y);
-      doc.font('Helvetica')
-         .text(property.propertyNumber || 'N/A', 200, doc.y);
-      
-      doc.font('Helvetica-Bold')
-         .text('Address:', 60, doc.y + 20);
-      doc.font('Helvetica')
-         .text(`${property.address}, ${property.city}, ${property.state} - ${property.pincode}`, 200, doc.y - 20, { width: 300 });
-      
-      doc.font('Helvetica-Bold')
-         .text('Ward:', 60, doc.y + 20);
-      doc.font('Helvetica')
-         .text(ward ? `${ward.wardNumber} - ${ward.wardName}` : 'N/A', 200, doc.y - 20);
-      
-      doc.moveDown(1);
+      const addressStr = [property.address, property.city, property.state, property.pincode].filter(Boolean).join(', ');
+      y = drawReceiptSection(doc, y, 'Property Details', [
+        ['Property Number', property.propertyNumber],
+        ['Address', addressStr || 'N/A']
+      ]);
 
       // Owner Details
-      doc.fontSize(14).font('Helvetica-Bold')
-         .text('Owner Details', 60, doc.y);
-      doc.moveDown(0.5);
-      
-      doc.fontSize(11).font('Helvetica-Bold')
-         .text('Name:', 60, doc.y);
-      doc.font('Helvetica')
-         .text(`${owner.firstName} ${owner.lastName}`, 200, doc.y);
-      
-      doc.font('Helvetica-Bold')
-         .text('Email:', 60, doc.y + 20);
-      doc.font('Helvetica')
-         .text(owner.email || 'N/A', 200, doc.y - 20);
-      
-      doc.font('Helvetica-Bold')
-         .text('Phone:', 60, doc.y + 20);
-      doc.font('Helvetica')
-         .text(owner.phone || 'N/A', 200, doc.y - 20);
-      
-      doc.moveDown(1.5);
+      const ownerName = owner ? `${owner.firstName || ''} ${owner.lastName || ''}`.trim() : 'N/A';
+      y = drawReceiptSection(doc, y, 'Owner Details', [
+        ['Name', ownerName],
+        ['Email', owner?.email],
+        ['Phone', owner?.phone]
+      ]);
 
-      // Payment Details Box
-      const paymentBoxY = doc.y;
-      doc.rect(50, paymentBoxY, 495, 180).stroke();
-      
-      doc.fontSize(14).font('Helvetica-Bold')
-         .text('Payment Details', 60, paymentBoxY + 15);
-      doc.moveDown(0.5);
-      
-      // Financial Year
-      doc.fontSize(11).font('Helvetica-Bold')
-         .text('Financial Year:', 60, doc.y);
-      doc.font('Helvetica')
-         .text(demand.financialYear || 'N/A', 200, doc.y);
-      
-      // Demand Number
-      doc.font('Helvetica-Bold')
-         .text('Demand Number:', 60, doc.y + 20);
-      doc.font('Helvetica')
-         .text(demand.demandNumber || 'N/A', 200, doc.y - 20);
-      
-      // Payment Mode
-      doc.font('Helvetica-Bold')
-         .text('Payment Mode:', 60, doc.y + 20);
-      doc.font('Helvetica')
-         .text(payment.paymentMode.toUpperCase(), 200, doc.y - 20);
-      
-      // Payment details based on mode
+      // Payment Details (amounts right-aligned in section)
+      const amountPaid = `₹${parseFloat(payment.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      const totalPaid = amountPaid;
+      const paymentDetailRows = [
+        ['Financial Year', demand?.financialYear],
+        ['Demand Number', demand?.demandNumber || 'N/A'],
+        ['Payment Mode', (payment.paymentMode || '').toUpperCase()],
+        ['Amount Paid', amountPaid],
+        ['Total Paid', totalPaid]
+      ];
       if (payment.paymentMode === 'cheque' || payment.paymentMode === 'dd') {
-        doc.font('Helvetica-Bold')
-           .text('Cheque/DD Number:', 60, doc.y + 20);
-        doc.font('Helvetica')
-           .text(payment.chequeNumber || 'N/A', 200, doc.y - 20);
-        
-        if (payment.bankName) {
-          doc.font('Helvetica-Bold')
-             .text('Bank Name:', 60, doc.y + 20);
-          doc.font('Helvetica')
-             .text(payment.bankName, 200, doc.y - 20);
-        }
+        paymentDetailRows.splice(3, 0, ['Cheque/DD Number', payment.chequeNumber]);
+        if (payment.bankName) paymentDetailRows.push(['Bank Name', payment.bankName]);
       }
-      
       if (payment.transactionId) {
-        doc.font('Helvetica-Bold')
-           .text('Transaction ID:', 60, doc.y + 20);
-        doc.font('Helvetica')
-           .text(payment.transactionId, 200, doc.y - 20);
+        paymentDetailRows.push(['Transaction ID', payment.transactionId]);
       }
-      
-      doc.moveDown(1);
+      const paymentBoxH = 20 + paymentDetailRows.length * ROW_HEIGHT + 10;
+      doc.rect(RECEIPT_LEFT, y, RECEIPT_WIDTH, paymentBoxH).stroke();
+      doc.fontSize(12).font('Helvetica-Bold').text('Payment Details', RECEIPT_LABEL_LEFT, y + 10);
+      let py = y + 35;
+      doc.fontSize(10);
+      for (const [label, value] of paymentDetailRows) {
+        doc.font('Helvetica-Bold').text(label, RECEIPT_LABEL_LEFT, py);
+        doc.font('Helvetica').text(String(value || 'N/A'), RECEIPT_LABEL_LEFT, py, { width: RECEIPT_VALUE_RIGHT - RECEIPT_LABEL_LEFT - 10, align: 'right' });
+        py += ROW_HEIGHT;
+      }
+      y = y + paymentBoxH + 12;
 
-      // Amount Details Table
-      const amountY = doc.y;
-      doc.fontSize(12).font('Helvetica-Bold')
-         .text('Amount Paid:', 60, amountY);
-      doc.font('Helvetica')
-         .text(`₹${parseFloat(payment.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 400, amountY, { align: 'right' });
-      
-      if (parseFloat(demand.penaltyAmount || 0) > 0) {
-        doc.font('Helvetica-Bold')
-           .text('Penalty Amount:', 60, doc.y + 20);
-        doc.font('Helvetica')
-           .text(`₹${parseFloat(demand.penaltyAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 400, doc.y - 20, { align: 'right' });
-      }
-      
-      if (parseFloat(demand.interestAmount || 0) > 0) {
-        doc.font('Helvetica-Bold')
-           .text('Interest Amount:', 60, doc.y + 20);
-        doc.font('Helvetica')
-           .text(`₹${parseFloat(demand.interestAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 400, doc.y - 20, { align: 'right' });
-      }
-      
-      doc.moveDown(0.5);
-      doc.lineWidth(2);
-      doc.moveTo(60, doc.y).lineTo(540, doc.y).stroke();
-      doc.lineWidth(1);
-      
-      doc.fontSize(14).font('Helvetica-Bold')
-         .text('Total Paid:', 60, doc.y + 10);
-      doc.font('Helvetica')
-         .text(`₹${parseFloat(payment.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 400, doc.y - 10, { align: 'right' });
-      
-      doc.fontSize(11).font('Helvetica-Bold')
-         .text('Remaining Balance:', 60, doc.y + 20);
-      doc.font('Helvetica')
-         .text(`₹${parseFloat(demand.balanceAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 400, doc.y - 20, { align: 'right' });
-      
-      doc.moveDown(1.5);
-
-      // Cashier Details
       if (cashier) {
-        doc.fontSize(11).font('Helvetica-Bold')
-           .text('Received By:', 60, doc.y);
-        doc.font('Helvetica')
-           .text(`${cashier.firstName} ${cashier.lastName}`, 200, doc.y);
+        doc.fontSize(10).font('Helvetica-Bold').text('Received By:', RECEIPT_LABEL_LEFT, y);
+        doc.font('Helvetica').text(`${cashier.firstName || ''} ${cashier.lastName || ''}`.trim(), 200, y);
+        y += ROW_HEIGHT + 8;
       }
-      
-      doc.moveDown(2);
 
-      // Footer
+      doc.moveDown(0.5);
       doc.fontSize(9).font('Helvetica-Oblique')
-         .text('This is a system-generated receipt. No signature required.', { align: 'center' });
-      
+        .text('This is a system-generated receipt. No signature required. Valid only if payment is successful and confirmed.', { align: 'center' });
       doc.fontSize(8).font('Helvetica')
-         .text(`Generated on: ${new Date().toLocaleString('en-IN')}`, { align: 'center' });
-      
-      // Finalize PDF
+        .text(`Generated on: ${new Date().toLocaleString('en-IN')}`, { align: 'center' });
+
       doc.end();
     } catch (error) {
       reject(error);
@@ -527,6 +442,7 @@ export const generateDemandNoticePdfBuffer = (demand, options = {}) => {
 /**
  * Generate Demand Summary Receipt PDF (buffer only)
  * Used for GET /api/demands/:id/pdf?type=receipt
+ * Same visual structure as payment receipt: header, section boxes, footer
  */
 export const generateDemandSummaryReceiptPdfBuffer = (demand, options = {}) => {
   const { property = null, owner = null, ward = null, entityLabel = 'N/A', ulbName = 'Municipal Corporation' } = options;
@@ -556,44 +472,29 @@ export const generateDemandSummaryReceiptPdfBuffer = (demand, options = {}) => {
       doc.fontSize(18).font('Helvetica-Bold').text('DEMAND SUMMARY RECEIPT', { align: 'center' });
       doc.moveDown(1.5);
 
-      let rowY = doc.y;
-      doc.fontSize(11).font('Helvetica-Bold').text('Demand Number:', 60, rowY);
-      doc.font('Helvetica').text(demand.demandNumber || 'N/A', 200, rowY);
-      doc.font('Helvetica-Bold').text('Module:', 350, rowY);
-      doc.font('Helvetica').text(moduleLabel, 450, rowY);
-      rowY += 22;
-      if (owner) {
-        doc.font('Helvetica-Bold').text('Citizen Name:', 60, rowY);
-        doc.font('Helvetica').text(`${owner.firstName || ''} ${owner.lastName || ''}`.trim() || 'N/A', 200, rowY);
-        rowY += 22;
-      }
-      doc.font('Helvetica-Bold').text('Property/Shop/Connection ID:', 60, rowY);
-      doc.font('Helvetica').text(entityLabel, 200, rowY);
-      doc.font('Helvetica-Bold').text('Due Date:', 350, rowY);
-      doc.font('Helvetica').text(demand.dueDate ? new Date(demand.dueDate).toLocaleDateString('en-IN') : 'N/A', 450, rowY);
-      doc.y = rowY + 22;
-      doc.moveDown(1);
+      let y = doc.y;
 
-      const boxY = doc.y;
-      doc.rect(50, boxY, 495, 160).stroke();
-      let boxRowY = boxY + 15;
-      doc.fontSize(11).font('Helvetica-Bold').text('Original Amount:', 60, boxRowY);
-      doc.font('Helvetica').text(`₹${originalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 400, boxRowY, { align: 'right' });
+      y = drawReceiptSection(doc, y, 'Receipt Details', [
+        ['Demand Number', demand.demandNumber || 'N/A'],
+        ['Module', moduleLabel],
+        ['Due Date', demand.dueDate ? new Date(demand.dueDate).toLocaleDateString('en-IN') : 'N/A']
+      ]);
+
+      const citizenName = owner ? `${owner.firstName || ''} ${owner.lastName || ''}`.trim() || 'N/A' : 'N/A';
+      y = drawReceiptSection(doc, y, 'Citizen & Entity', [
+        ['Citizen Name', citizenName],
+        ['Property/Shop/Connection ID', entityLabel]
+      ]);
+
+      const amountRows = [
+        ['Original Amount', `₹${originalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`],
+        ['Paid Amount', `₹${paid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`],
+        ['Balance / Final Payable', `₹${finalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`]
+      ];
       if (discountAmount > 0) {
-        boxRowY += 25;
-        doc.font('Helvetica-Bold').text('Discount:', 60, boxRowY);
-        doc.font('Helvetica').text(`₹${discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 400, boxRowY, { align: 'right' });
+        amountRows.splice(1, 0, ['Discount', `₹${discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`]);
       }
-      boxRowY += 25;
-      doc.font('Helvetica-Bold').text('Paid Amount:', 60, boxRowY);
-      doc.font('Helvetica').text(`₹${paid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 400, boxRowY, { align: 'right' });
-      boxRowY += 25;
-      doc.moveTo(60, boxRowY).lineTo(540, boxRowY).stroke();
-      boxRowY += 15;
-      doc.fontSize(12).font('Helvetica-Bold').text('Balance / Final Payable:', 60, boxRowY);
-      doc.font('Helvetica').text(`₹${finalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 400, boxRowY, { align: 'right' });
-      doc.y = boxY + 160 + 10;
-      doc.moveDown(1.5);
+      y = drawReceiptSection(doc, y, 'Amount Summary', amountRows);
 
       doc.fontSize(9).font('Helvetica-Oblique').text('This is a system-generated summary. For payment receipt use the payment receipt.', { align: 'center' });
       doc.fontSize(8).font('Helvetica').text(`Generated on: ${new Date().toLocaleString('en-IN')}`, { align: 'center' });

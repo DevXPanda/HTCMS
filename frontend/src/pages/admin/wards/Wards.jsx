@@ -1,21 +1,33 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { wardAPI } from '../../../services/api';
+import { useForm } from 'react-hook-form';
+import { wardAPI, userAPI } from '../../../services/api';
+import api from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { Plus, Eye, Search, Users, MapPin } from 'lucide-react';
+import { Plus, Eye, Search, Users, MapPin, Save, X } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 
 const Wards = () => {
+  const { effectiveUlbId } = useSelectedUlb();
   const { isAdmin } = useAuth();
   const [wards, setWards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterActive, setFilterActive] = useState('all');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [collectors, setCollectors] = useState([]);
+  const [loadingCollectors, setLoadingCollectors] = useState(false);
+  const [ulbs, setUlbs] = useState([]);
+  const [loadingUlbs, setLoadingUlbs] = useState(false);
+
+  const { register, handleSubmit, formState: { errors }, reset, watch, setValue } = useForm();
 
   useEffect(() => {
     fetchWards();
-  }, [search, filterActive]);
+  }, [search, filterActive, effectiveUlbId]);
 
   // Listen for ward assignment changes from Staff Management
   useEffect(() => {
@@ -25,13 +37,8 @@ const Wards = () => {
       }
     };
 
-    // Listen for storage events from other tabs/windows
     window.addEventListener('storage', handleStorageChange);
-
-    // Listen for custom events from same tab
-    const handleCustomEvent = () => {
-      fetchWards();
-    };
+    const handleCustomEvent = () => fetchWards();
     window.addEventListener('wardAssignmentUpdated', handleCustomEvent);
 
     return () => {
@@ -40,12 +47,40 @@ const Wards = () => {
     };
   }, []);
 
+  const addModalUlbId = watch('ulb_id');
+
+  // When Add modal opens, set default ULB and fetch ULBs
+  useEffect(() => {
+    if (showAddModal) {
+      fetchULBs();
+      reset({
+        ulb_id: effectiveUlbId || '',
+        wardNumber: '',
+        wardName: '',
+        description: '',
+        collectorId: ''
+      });
+    }
+  }, [showAddModal]);
+
+  // When ULB is selected in Add modal, fetch only collectors for that ULB; clear collector when ULB changes
+  useEffect(() => {
+    if (!showAddModal) return;
+    if (addModalUlbId) {
+      fetchCollectors(addModalUlbId);
+      setValue('collectorId', '');
+    } else {
+      setCollectors([]);
+    }
+  }, [showAddModal, addModalUlbId]);
+
   const fetchWards = async () => {
     try {
       setLoading(true);
       const params = {};
       if (search) params.search = search;
       if (filterActive !== 'all') params.isActive = filterActive === 'active';
+      if (effectiveUlbId) params.ulb_id = effectiveUlbId;
 
       const response = await wardAPI.getAll(params);
       setWards(response.data.data.wards);
@@ -56,6 +91,55 @@ const Wards = () => {
     }
   };
 
+  const fetchCollectors = async (ulbId) => {
+    try {
+      setLoadingCollectors(true);
+      const params = ulbId ? { ulb_id: ulbId } : {};
+      const response = await userAPI.getCollectors(params);
+      setCollectors(response.data.data.collectors || []);
+    } catch (error) {
+      toast.error('Failed to load collectors');
+    } finally {
+      setLoadingCollectors(false);
+    }
+  };
+
+  const fetchULBs = async () => {
+    try {
+      setLoadingUlbs(true);
+      const response = await api.get('/admin-management/ulbs');
+      setUlbs(response.data || []);
+    } catch (error) {
+      toast.error('Failed to load ULBs');
+    } finally {
+      setLoadingUlbs(false);
+    }
+  };
+
+  const onAddWardSubmit = async (data) => {
+    try {
+      setSubmitLoading(true);
+      const rawCollectorId = data.collectorId;
+      const collectorId = rawCollectorId ? parseInt(rawCollectorId, 10) : null;
+      const response = await wardAPI.create({
+        wardNumber: data.wardNumber,
+        wardName: data.wardName,
+        description: data.description || null,
+        collectorId: Number.isInteger(collectorId) ? collectorId : null,
+        ulb_id: data.ulb_id
+      });
+      if (response.data.success) {
+        toast.success('Ward created successfully!');
+        setShowAddModal(false);
+        fetchWards();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.error || error.response?.data?.message || 'Failed to create ward');
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
   if (loading && !wards.length) return <Loading />;
 
   return (
@@ -63,10 +147,14 @@ const Wards = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="ds-page-title">Wards</h1>
         {isAdmin && (
-          <Link to="/wards/new" className="btn btn-primary flex items-center">
+          <button
+            type="button"
+            onClick={() => setShowAddModal(true)}
+            className="btn btn-primary flex items-center"
+          >
             <Plus className="w-4 h-4 mr-2" />
             Add Ward
-          </Link>
+          </button>
         )}
       </div>
 
@@ -160,6 +248,127 @@ const Wards = () => {
           ))
         )}
       </div>
+
+      {/* Add Ward Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="fixed inset-0 bg-black/50" onClick={() => setShowAddModal(false)} aria-hidden="true" />
+            <div className="relative bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between p-4 border-b">
+                <h2 className="text-xl font-semibold">Add New Ward</h2>
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="p-2 rounded-lg hover:bg-gray-100 text-gray-500"
+                  aria-label="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <form onSubmit={handleSubmit(onAddWardSubmit)} className="p-6 space-y-4">
+                <div>
+                  <label className="label">ULB <span className="text-red-500">*</span></label>
+                  <select
+                    {...register('ulb_id', { required: 'ULB is required' })}
+                    className="input w-full"
+                    disabled={loadingUlbs}
+                  >
+                    <option value="">Select ULB</option>
+                    {loadingUlbs ? (
+                      <option disabled>Loading ULBs...</option>
+                    ) : ulbs.length === 0 ? (
+                      <option disabled>No ULBs available</option>
+                    ) : (
+                      ulbs.map(ulb => (
+                        <option key={ulb.id} value={ulb.id}>{ulb.name}</option>
+                      ))
+                    )}
+                  </select>
+                  {errors.ulb_id && <p className="text-red-500 text-sm mt-1">{errors.ulb_id.message}</p>}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="label">Ward Number <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      {...register('wardNumber', {
+                        required: 'Ward number is required',
+                        pattern: { value: /^[A-Za-z0-9]+$/, message: 'Letters and numbers only' }
+                      })}
+                      className="input w-full"
+                      placeholder="e.g., W001"
+                    />
+                    {errors.wardNumber && <p className="text-red-500 text-sm mt-1">{errors.wardNumber.message}</p>}
+                  </div>
+                  <div>
+                    <label className="label">Ward Name <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      {...register('wardName', { required: 'Ward name is required' })}
+                      className="input w-full"
+                      placeholder="e.g., Central Ward"
+                    />
+                    {errors.wardName && <p className="text-red-500 text-sm mt-1">{errors.wardName.message}</p>}
+                  </div>
+                </div>
+                <div>
+                  <label className="label">Description</label>
+                  <textarea
+                    {...register('description')}
+                    className="input w-full"
+                    rows="2"
+                    placeholder="Optional description..."
+                  />
+                </div>
+                <div>
+                  <label className="label">Assign Collector (Optional)</label>
+                  <select
+                    {...register('collectorId')}
+                    className="input w-full"
+                    disabled={loadingCollectors || !addModalUlbId}
+                  >
+                    <option value="">No Collector Assigned</option>
+                    {!addModalUlbId ? (
+                      <option disabled>Select ULB first</option>
+                    ) : loadingCollectors ? (
+                      <option disabled>Loading...</option>
+                    ) : collectors.length === 0 ? (
+                      <option disabled>No collectors for this ULB</option>
+                    ) : (
+                      collectors.map(collector => (
+                        <option key={collector.id} value={collector.id}>
+                          {collector.firstName} {collector.lastName}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {addModalUlbId ? 'Collectors for selected ULB only. You can assign later from ward details.' : 'Select ULB to see collectors.'}
+                  </p>
+                </div>
+                <div className="flex justify-end gap-3 pt-4 border-t">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddModal(false)}
+                    className="btn btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitLoading}
+                    className="btn btn-primary flex items-center"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    {submitLoading ? 'Creating...' : 'Create Ward'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

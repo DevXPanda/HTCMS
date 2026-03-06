@@ -20,8 +20,10 @@ import {
 import { Link } from 'react-router-dom';
 import { useStaffAuth } from '../../contexts/StaffAuthContext';
 import { fieldWorkerMonitoringAPI, workerTaskAPI, attendanceAPI, toiletComplaintAPI } from '../../services/api';
+import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../components/ConfirmModal';
+import MrfProofCapture from '../../components/MrfProofCapture';
 
 const SupervisorDashboard = () => {
   const { confirm } = useConfirm();
@@ -71,6 +73,10 @@ const SupervisorDashboard = () => {
 
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
+  const [mrfTasks, setMrfTasks] = useState([]);
+  const [mrfTasksLoading, setMrfTasksLoading] = useState(false);
+  const [mrfStatusModal, setMrfStatusModal] = useState(null);
+  const [mrfUpdating, setMrfUpdating] = useState(false);
   const [toiletComplaints, setToiletComplaints] = useState([]);
   const [complaintsLoading, setComplaintsLoading] = useState(false);
 
@@ -109,6 +115,39 @@ const SupervisorDashboard = () => {
     }
   };
 
+  const fetchMrfTasks = async () => {
+    try {
+      setMrfTasksLoading(true);
+      const res = await api.get('/mrf/tasks');
+      setMrfTasks(res?.data?.data?.tasks || []);
+    } catch (err) {
+      console.error('Error fetching MRF tasks:', err);
+      setMrfTasks([]);
+    } finally {
+      setMrfTasksLoading(false);
+    }
+  };
+
+  const submitMrfStatusUpdate = async (proof) => {
+    if (!mrfStatusModal) return;
+    try {
+      setMrfUpdating(true);
+      await api.patch(`/mrf/tasks/${mrfStatusModal.taskId}/status`, {
+        status: mrfStatusModal.newStatus,
+        remarks: proof?.remarks,
+        proof: proof ? { before: proof.before, after: proof.after, remarks: proof.remarks } : undefined
+      });
+      toast.success(`Task marked as ${mrfStatusModal.newStatus}`);
+      setMrfStatusModal(null);
+      fetchMrfTasks();
+    } catch (err) {
+      console.error('MRF task update error:', err);
+      toast.error(err.response?.data?.message || 'Failed to update task');
+    } finally {
+      setMrfUpdating(false);
+    }
+  };
+
   const fetchToiletComplaints = async () => {
     try {
       setComplaintsLoading(true);
@@ -125,6 +164,7 @@ const SupervisorDashboard = () => {
     if (user?.id) {
       fetchDashboard();
       fetchTasks();
+      fetchMrfTasks();
       fetchToiletComplaints();
     } else {
       console.warn('SupervisorDashboard: No user ID found');
@@ -519,6 +559,9 @@ const SupervisorDashboard = () => {
   const assignedTasks = Array.isArray(tasks) ? tasks.filter(t => t.status === 'ASSIGNED') : [];
   const inProgressTasks = Array.isArray(tasks) ? tasks.filter(t => t.status === 'IN_PROGRESS') : [];
   const completedTasks = Array.isArray(tasks) ? tasks.filter(t => t.status === 'COMPLETED') : [];
+  const mrfAssigned = Array.isArray(mrfTasks) ? mrfTasks.filter(t => t.status === 'Assigned') : [];
+  const mrfInProgress = Array.isArray(mrfTasks) ? mrfTasks.filter(t => t.status === 'In Progress') : [];
+  const mrfCompleted = Array.isArray(mrfTasks) ? mrfTasks.filter(t => t.status === 'Completed') : [];
 
   const canMarkAttendance = () => {
     try {
@@ -761,82 +804,96 @@ const SupervisorDashboard = () => {
         </div>
       </div>
 
-      {/* Task Assignment Panel */}
+      {/* Task Management - MRF tasks (assign & update from dashboard) */}
       <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">Task Management</h2>
-          <button
-            onClick={() => setShowTaskModal(true)}
+          <Link
+            to="/supervisor/mrf"
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             <Plus className="w-4 h-4" />
             Assign Task
-          </button>
+          </Link>
         </div>
         <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div className="border border-gray-200 rounded-lg p-4">
               <h3 className="font-medium text-gray-900 mb-2">Assigned</h3>
-              <p className="text-2xl font-bold text-blue-600">{assignedTasks.length}</p>
+              <p className="text-2xl font-bold text-blue-600">{mrfAssigned.length}</p>
             </div>
             <div className="border border-gray-200 rounded-lg p-4">
               <h3 className="font-medium text-gray-900 mb-2">In Progress</h3>
-              <p className="text-2xl font-bold text-yellow-600">{inProgressTasks.length}</p>
+              <p className="text-2xl font-bold text-yellow-600">{mrfInProgress.length}</p>
             </div>
             <div className="border border-gray-200 rounded-lg p-4">
               <h3 className="font-medium text-gray-900 mb-2">Completed</h3>
-              <p className="text-2xl font-bold text-green-600">{completedTasks.length}</p>
+              <p className="text-2xl font-bold text-green-600">{mrfCompleted.length}</p>
             </div>
           </div>
 
-          {tasks.length > 0 ? (
+          {mrfTasksLoading ? (
+            <div className="flex justify-center py-8">
+              <RefreshCw className="w-6 h-6 animate-spin text-blue-600" />
+            </div>
+          ) : mrfTasks.length > 0 ? (
             <div className="space-y-2">
-              {tasks.map((task) => (
+              {mrfTasks.map((task) => (
                 <div key={task.id} className="border border-gray-200 rounded-lg p-4 flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium text-gray-900">{task.worker?.full_name || 'Unknown Worker'}</span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${task.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                        task.status === 'IN_PROGRESS' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-blue-100 text-blue-800'
-                        }`}>
-                        {task.status.replace('_', ' ')}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="font-medium text-gray-900">{task.worker?.full_name || 'Unknown'}</span>
+                      <span className="text-sm text-gray-500">{task.facility?.name && ` · ${task.facility.name}`}</span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${task.status === 'Completed' ? 'bg-green-100 text-green-800' : task.status === 'In Progress' ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}`}>
+                        {task.status}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-600">{task.task_type} - {task.area_street} ({task.shift})</p>
-                    {task.special_instructions && (
-                      <p className="text-xs text-gray-500 mt-1">{task.special_instructions}</p>
-                    )}
+                    <p className="text-sm text-gray-600">{task.task_type}{task.remarks ? ` — ${task.remarks}` : ''}</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {task.status !== 'COMPLETED' && (
+                  <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                    {task.status === 'Assigned' && (
                       <button
-                        onClick={() => setShowWorkProofModal(task.id)}
-                        className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700"
+                        type="button"
+                        onClick={() => setMrfStatusModal({ taskId: task.id, newStatus: 'In Progress', taskType: task.task_type, workerName: task.worker?.full_name })}
+                        className="px-3 py-1.5 bg-yellow-600 text-white text-sm rounded-lg hover:bg-yellow-700"
                       >
-                        Upload Proof
+                        In Progress
                       </button>
                     )}
-                    {task.after_photo_url && (
-                      <a
-                        href={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${task.after_photo_url}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-3 py-1.5 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 flex items-center gap-1"
+                    {task.status !== 'Completed' && (
+                      <button
+                        type="button"
+                        onClick={() => setMrfStatusModal({ taskId: task.id, newStatus: 'Completed', taskType: task.task_type, workerName: task.worker?.full_name })}
+                        className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700"
                       >
-                        <ImageIcon className="w-4 h-4" />
-                        View Proof
-                      </a>
+                        Complete
+                      </button>
                     )}
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-center text-gray-500 py-8">No tasks assigned today</p>
+            <p className="text-center text-gray-500 py-8">No MRF tasks. Use &quot;Assign Task&quot; to open MRF Task Board.</p>
           )}
         </div>
       </div>
+
+      {/* MRF task status update modal (before/after photo + location on image) */}
+      {mrfStatusModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 my-4">
+            <h3 className="text-sm font-bold text-gray-900 mb-1">Update task · {mrfStatusModal.newStatus}</h3>
+            <p className="text-xs text-gray-500 mb-4">{mrfStatusModal.taskType} — {mrfStatusModal.workerName}</p>
+            <MrfProofCapture
+              submitLabel={mrfUpdating ? 'Updating...' : `Mark as ${mrfStatusModal.newStatus}`}
+              submitDisabled={mrfUpdating}
+              onSubmit={(proof) => submitMrfStatusUpdate(proof)}
+              onCancel={() => setMrfStatusModal(null)}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Toilet Complaints Panel */}
       <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden mt-6">

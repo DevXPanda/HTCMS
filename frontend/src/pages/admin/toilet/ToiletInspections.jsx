@@ -12,9 +12,11 @@ import {
   Calendar
 } from 'lucide-react';
 import api from '../../../services/api';
+import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 
 const ToiletInspections = () => {
   useBackTo('/toilet-management');
+  const { effectiveUlbId } = useSelectedUlb();
   const [inspections, setInspections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -22,12 +24,13 @@ const ToiletInspections = () => {
 
   useEffect(() => {
     fetchInspections();
-  }, []);
+  }, [effectiveUlbId]);
 
   const fetchInspections = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/toilet/inspections');
+      const params = effectiveUlbId ? { ulb_id: effectiveUlbId } : {};
+      const response = await api.get('/toilet/inspections', { params });
       if (response.data && response.data.success) {
         const formattedData = response.data.data.inspections.map(i => ({
           ...i,

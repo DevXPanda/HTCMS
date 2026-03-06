@@ -3,6 +3,7 @@ import { sequelize } from '../config/database.js';
 import { Op } from 'sequelize';
 import { auditLogger } from '../utils/auditLogger.js';
 import { generatePropertyUniqueId, parsePropertyNumberForId, getNextPropertyNumberInWard } from '../services/uniqueIdService.js';
+import { getEffectiveUlbForRequest } from '../utils/ulbAccessHelper.js';
 
 /**
  * @route   GET /api/properties
@@ -25,6 +26,26 @@ export const getAllProperties = async (req, res, next) => {
 
     const where = { isActive: true };
 
+    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+    if (req.user.role !== 'citizen' && !isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You must be assigned to an ULB to view properties.'
+      });
+    }
+    let ulbWardIds = null;
+    if (effectiveUlbId) {
+      let wards = await Ward.findAll({ where: { ulb_id: effectiveUlbId }, attributes: ['id'] });
+      ulbWardIds = wards.map(w => w.id);
+      // Fallback: if no wards have this ulb_id (e.g. not yet backfilled), include wards with NULL ulb_id so list still shows data
+      if (ulbWardIds.length === 0) {
+        const nullUlbWards = await Ward.findAll({ where: { ulb_id: { [Op.is]: null } }, attributes: ['id'] });
+        ulbWardIds = nullUlbWards.map(w => w.id);
+      }
+      if (ulbWardIds.length === 0) where.wardId = { [Op.in]: [] };
+      else where.wardId = { [Op.in]: ulbWardIds };
+    }
+
     // Filter by owner (for citizens, show only their properties)
     if (req.user.role === 'citizen') {
       where.ownerId = req.user.id;
@@ -32,7 +53,14 @@ export const getAllProperties = async (req, res, next) => {
       where.ownerId = ownerId;
     }
 
-    if (wardId) where.wardId = wardId;
+    if (wardId) {
+      const wId = parseInt(wardId, 10);
+      if (ulbWardIds !== null && !ulbWardIds.includes(wId)) {
+        where.wardId = { [Op.in]: [] };
+      } else {
+        where.wardId = wId;
+      }
+    }
     if (propertyType) where.propertyType = propertyType;
     if (usageType) where.usageType = usageType;
     if (status) where.status = status;
@@ -132,8 +160,19 @@ export const getPropertyById = async (req, res, next) => {
           message: 'Access denied. You can only view properties in your assigned wards.'
         });
       }
+    } else {
+      // ULB isolation: non–super-admin can only view properties in their assigned ULB
+      const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+      if (!isSuperAdmin && effectiveUlbId) {
+        const ward = property.ward || await Ward.findByPk(property.wardId, { attributes: ['ulb_id'] });
+        if (!ward || ward.ulb_id !== effectiveUlbId) {
+          return res.status(403).json({
+            success: false,
+            message: 'Access denied. Property does not belong to your assigned ULB.'
+          });
+        }
+      }
     }
-    // Admin, assessor, and cashier can view any property (no additional check needed)
 
     res.json({
       success: true,
@@ -476,12 +515,23 @@ export const updateProperty = async (req, res, next) => {
     const { id } = req.params;
     const updateData = { ...req.body };
 
-    const property = await Property.findByPk(id);
+    const property = await Property.findByPk(id, { include: [{ model: Ward, as: 'ward', attributes: ['ulb_id'] }] });
     if (!property) {
       return res.status(404).json({
         success: false,
         message: 'Property not found'
       });
+    }
+
+    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+    if (!isSuperAdmin && effectiveUlbId) {
+      const ward = property.ward || await Ward.findByPk(property.wardId, { attributes: ['ulb_id'] });
+      if (!ward || ward.ulb_id !== effectiveUlbId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. Property does not belong to your assigned ULB.'
+        });
+      }
     }
 
     const wardChanged = updateData.hasOwnProperty('wardId') && updateData.wardId !== property.wardId;
@@ -689,12 +739,23 @@ export const deleteProperty = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const property = await Property.findByPk(id);
+    const property = await Property.findByPk(id, { include: [{ model: Ward, as: 'ward', attributes: ['ulb_id'] }] });
     if (!property) {
       return res.status(404).json({
         success: false,
         message: 'Property not found'
       });
+    }
+
+    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+    if (!isSuperAdmin && effectiveUlbId) {
+      const ward = property.ward || await Ward.findByPk(property.wardId, { attributes: ['ulb_id'] });
+      if (!ward || ward.ulb_id !== effectiveUlbId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. Property does not belong to your assigned ULB.'
+        });
+      }
     }
 
     // Capture previous data for audit log

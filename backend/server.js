@@ -46,10 +46,12 @@ app.options("*", cors());
 // Middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-// Only use morgan logging in development mode
-if (process.env.NODE_ENV !== 'production') {
-  app.use(morgan('dev'));
-}
+
+// Minimal API log: "GET /api/auth/me - 200"
+morgan.token('path-only', (req) => req.originalUrl?.split('?')[0] ?? req.url?.split('?')[0] ?? '-');
+app.use(morgan(':method :path-only - :status', {
+  skip: (req, res) => req.originalUrl === '/health' && res.statusCode === 200
+}));
 
 // Root Test Route
 app.get("/", (req, res) => {
@@ -183,9 +185,11 @@ app.use((req, res) => res.status(404).json({ error: "Route not found" }));
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  // Only log error details in development
+  // Log error in development; in production only log 5xx (no stack to client)
   if (process.env.NODE_ENV === 'development') {
     console.error('Error:', err);
+  } else if (err.status >= 500 || !err.status) {
+    console.error('Error:', err.message || err);
   }
 
   // Sequelize validation errors

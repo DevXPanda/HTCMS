@@ -153,7 +153,17 @@ const GenerateBillModal = ({ onClose, onSuccess }) => {
       }
     } catch (error) {
       const errorMessage = error.response?.data?.message || 'Failed to generate water bill';
-      toast.error(errorMessage);
+      if (errorMessage.toLowerCase().includes('no meter reading found')) {
+        const connectionId = data.waterConnectionId;
+        const connection = connections.find((c) => c.id === parseInt(connectionId, 10));
+        const connLabel = connection ? `${connection.connectionNumber}` : 'this connection';
+        toast.error(
+          `Add a meter reading for ${connLabel} first. Open Water Connections → select the connection → "Add Meter Reading". Then generate the bill again.`,
+          { duration: 6000 }
+        );
+      } else {
+        toast.error(errorMessage);
+      }
     } finally {
       setLoading(false);
     }

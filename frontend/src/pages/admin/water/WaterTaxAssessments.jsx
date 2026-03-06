@@ -6,8 +6,10 @@ import toast from 'react-hot-toast';
 import { Plus, Search, Eye, Filter, X, Download } from 'lucide-react';
 import { exportToCSV } from '../../../utils/exportCSV';
 import { isRecentDate, sortByCreatedDesc } from '../../../utils/dateUtils';
+import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 
 const WaterTaxAssessments = () => {
+  const { effectiveUlbId } = useSelectedUlb();
   const [assessments, setAssessments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -20,7 +22,7 @@ const WaterTaxAssessments = () => {
 
   useEffect(() => {
     fetchAssessments();
-  }, [search, filters]);
+  }, [search, filters, effectiveUlbId]);
 
   const fetchAssessments = async () => {
     try {
@@ -28,7 +30,8 @@ const WaterTaxAssessments = () => {
       const params = {
         search,
         limit: 10000,
-        ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''))
+        ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== '')),
+        ...(effectiveUlbId ? { ulb_id: effectiveUlbId } : {})
       };
       const response = await waterTaxAssessmentAPI.getAll(params);
       const list = response.data?.data?.assessments ?? [];
@@ -64,7 +67,7 @@ const WaterTaxAssessments = () => {
 
   const handleExport = async () => {
     try {
-      const params = { page: 1, limit: 5000, search, ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== '')) };
+      const params = { page: 1, limit: 5000, search, ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== '')), ...(effectiveUlbId ? { ulb_id: effectiveUlbId } : {}) };
       const response = await waterTaxAssessmentAPI.getAll(params);
       const list = response.data.data.assessments || [];
       const rows = list.map(a => ({

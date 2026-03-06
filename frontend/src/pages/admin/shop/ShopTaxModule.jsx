@@ -2,42 +2,39 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Store, FileText, Receipt, FileCheck, TrendingUp, DollarSign, AlertCircle, Zap } from 'lucide-react';
 import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
+import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 import api from '../../../services/api';
 
 const ShopTaxModule = () => {
   const basePath = useShopTaxBasePath();
+  const { effectiveUlbId } = useSelectedUlb();
   const demandsLink = basePath ? `${basePath}/demands?module=SHOP` : '/demands?module=SHOP';
   const generateShopDemandsLink = basePath ? `${basePath}/demands/generate/shop` : '/demands/generate/shop';
   const registrationRequestsLink = basePath ? `${basePath}/shop-registration-requests` : '/shop-tax/registration-requests';
-  const [stats, setStats] = useState({
-    activeShops: 0,
-    shopTaxDemands: 0,
-    shopTaxRevenue: 0,
-    shopTaxOutstanding: 0
-  });
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchShopTaxStats();
-  }, []);
+  }, [effectiveUlbId]);
 
   const fetchShopTaxStats = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/reports/dashboard');
-      const data = response.data.data;
-      setStats({
-        activeShops: data.activeShops || 0,
-        shopTaxDemands: data.shopTaxDemands || 0,
-        shopTaxRevenue: data.shopTaxRevenue || 0,
-        shopTaxOutstanding: data.shopTaxOutstanding || 0
-      });
+      const params = effectiveUlbId ? { ulb_id: effectiveUlbId } : {};
+      const response = await api.get('/reports/dashboard', { params });
+      if (response.data && response.data.success) {
+        setStats(response.data.data);
+      }
     } catch (error) {
       console.error('Failed to fetch shop tax statistics:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  const fmt = (val) => parseFloat(val || 0).toLocaleString('en-IN', { minimumFractionDigits: 0 });
+  const fmtCur = (val) => '₹' + parseFloat(val || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
   const modules = [
     {
       title: 'Shops',
@@ -85,47 +82,76 @@ const ShopTaxModule = () => {
         </div>
       </div>
 
-      {/* Statistics Cards */}
-      {!loading && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg shadow p-6 border-l-4 border-yellow-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Active Shops</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.activeShops.toLocaleString()}</p>
+      {/* Summary Stats - same layout as Property Tax Module */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
+        {loading || !stats ? (
+          Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-lg shadow p-4 border-l-4 border-gray-200 animate-pulse">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <div className="h-3 w-20 bg-gray-200 rounded"></div>
+                  <div className="h-6 w-16 bg-gray-200 rounded"></div>
+                </div>
+                <div className="h-5 w-5 bg-gray-200 rounded"></div>
               </div>
-              <Store className="w-8 h-8 text-yellow-500" />
+              <div className="h-3 w-24 bg-gray-200 rounded mt-2"></div>
             </div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-6 border-l-4 border-amber-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Total Demands</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.shopTaxDemands.toLocaleString()}</p>
+          ))
+        ) : (
+          <>
+            <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-500 uppercase font-medium">Shops</p>
+                  <p className="text-xl font-bold text-gray-900">{fmt(stats.activeShops)}</p>
+                </div>
+                <Store className="w-5 h-5 text-yellow-500" />
               </div>
-              <FileText className="w-8 h-8 text-amber-500" />
+              <p className="text-xs text-green-600 mt-1">active records</p>
             </div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Total Revenue</p>
-                <p className="text-2xl font-bold text-gray-900">₹{stats.shopTaxRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+            <div className="bg-white rounded-lg shadow p-4 border-l-4 border-amber-500">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-500 uppercase font-medium">Assessments</p>
+                  <p className="text-xl font-bold text-gray-900">{fmt(stats.totalShopAssessments)}</p>
+                </div>
+                <FileText className="w-5 h-5 text-amber-500" />
               </div>
-              <DollarSign className="w-8 h-8 text-green-500" />
+              <p className="text-xs text-green-600 mt-1">{fmt(stats.approvedShopAssessments)} approved</p>
             </div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-6 border-l-4 border-red-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Outstanding</p>
-                <p className="text-2xl font-bold text-gray-900">₹{stats.shopTaxOutstanding.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+            <div className="bg-white rounded-lg shadow p-4 border-l-4 border-orange-500">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-500 uppercase font-medium">ST Demands</p>
+                  <p className="text-xl font-bold text-gray-900">{fmt(stats.shopTaxDemands)}</p>
+                </div>
+                <Receipt className="w-5 h-5 text-orange-500" />
               </div>
-              <AlertCircle className="w-8 h-8 text-red-500" />
+              <p className="text-xs text-gray-500 mt-1">shop tax demands</p>
             </div>
-          </div>
-        </div>
-      )}
+            <div className="bg-white rounded-lg shadow p-4 border-l-4 border-emerald-500">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-500 uppercase font-medium">ST Revenue</p>
+                  <p className="text-xl font-bold text-green-600">{fmtCur(stats.shopTaxRevenue)}</p>
+                </div>
+                <DollarSign className="w-5 h-5 text-emerald-500" />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">collected</p>
+            </div>
+            <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-500 uppercase font-medium">Outstanding</p>
+                  <p className="text-xl font-bold text-red-600">{fmtCur(stats.shopTaxOutstanding)}</p>
+                </div>
+                <AlertCircle className="w-5 h-5 text-red-500" />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">pending collection</p>
+            </div>
+          </>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {modules.map((module, index) => (

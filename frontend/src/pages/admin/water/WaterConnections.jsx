@@ -6,10 +6,12 @@ import toast from 'react-hot-toast';
 import { Plus, Search, Eye, X, Download } from 'lucide-react';
 import AddWaterConnectionModal from './AddWaterConnectionModal';
 import { exportToCSV } from '../../../utils/exportCSV';
+import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 
 const SEARCH_DEBOUNCE_MS = 300;
 
 const WaterConnections = () => {
+  const { effectiveUlbId } = useSelectedUlb();
   const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [properties, setProperties] = useState([]);
@@ -30,14 +32,15 @@ const WaterConnections = () => {
     }
     try {
       setPropertySearching(true);
-      const response = await propertyAPI.getAll({ search: q, limit: 20, status: 'active' });
+      const params = { search: q, limit: 20, status: 'active', ...(effectiveUlbId ? { ulb_id: effectiveUlbId } : {}) };
+      const response = await propertyAPI.getAll(params);
       setPropertySearchResults(response.data?.data?.properties ?? []);
     } catch {
       setPropertySearchResults([]);
     } finally {
       setPropertySearching(false);
     }
-  }, []);
+  }, [effectiveUlbId]);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -49,15 +52,16 @@ const WaterConnections = () => {
 
   useEffect(() => {
     fetchProperties();
-  }, []);
+  }, [effectiveUlbId]);
 
   useEffect(() => {
     fetchConnections();
-  }, [selectedPropertyId, search]);
+  }, [selectedPropertyId, search, effectiveUlbId]);
 
   const fetchProperties = async () => {
     try {
-      const response = await propertyAPI.getAll({ limit: 1000, status: 'active' });
+      const params = { limit: 1000, status: 'active', ...(effectiveUlbId ? { ulb_id: effectiveUlbId } : {}) };
+      const response = await propertyAPI.getAll(params);
       const propertiesList = response.data?.data?.properties || [];
       setProperties(propertiesList);
       return propertiesList;
@@ -72,7 +76,8 @@ const WaterConnections = () => {
       setLoading(true);
       const params = {
         limit: 10000,
-        search
+        search,
+        ...(effectiveUlbId ? { ulb_id: effectiveUlbId } : {})
       };
 
       if (selectedPropertyId) {
@@ -126,7 +131,7 @@ const WaterConnections = () => {
 
   const handleExport = async () => {
     try {
-      const params = { page: 1, limit: 5000, search };
+      const params = { page: 1, limit: 5000, search, ...(effectiveUlbId ? { ulb_id: effectiveUlbId } : {}) };
       if (selectedPropertyId) params.propertyId = selectedPropertyId;
       const response = await waterConnectionAPI.getAll(params);
       const list = response.data.data.waterConnections || [];

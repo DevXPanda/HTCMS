@@ -2,19 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Building2, Droplet, Store, Truck, Zap, Percent, ShieldAlert, TrendingUp, AlertCircle, IndianRupee, FileText } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSelectedUlb } from '../../contexts/SelectedUlbContext';
 import api from '../../services/api';
 
 const TaxManagement = () => {
     const { user } = useAuth();
+    const { effectiveUlbId } = useSelectedUlb();
     const isAdmin = user?.role === 'admin';
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => { fetchStats(); }, []);
+    useEffect(() => { fetchStats(); }, [effectiveUlbId]);
 
     const fetchStats = async () => {
         try {
-            const response = await api.get('/reports/dashboard');
+            const params = effectiveUlbId ? { ulb_id: effectiveUlbId } : {};
+            const response = await api.get('/reports/dashboard', { params });
             if (response.data && response.data.success) {
                 setStats(response.data.data);
             }

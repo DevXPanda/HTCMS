@@ -3,9 +3,11 @@ import { Plus, Users, Search, Filter, Edit, Trash2, Eye, RefreshCw, Shield, Chec
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../components/ConfirmModal';
+import { useSelectedUlb } from '../../contexts/SelectedUlbContext';
 
 const AdminManagement = () => {
   const { confirm } = useConfirm();
+  const { effectiveUlbId } = useSelectedUlb();
   const [employees, setEmployees] = useState([]);
   const [wards, setWards] = useState([]);
   const [allWards, setAllWards] = useState([]); // Store all wards for filtering
@@ -56,7 +58,7 @@ const AdminManagement = () => {
     fetchWards();
     fetchULBs();
     fetchStatistics();
-  }, [currentPage, filterRole, filterStatus, searchTerm]);
+  }, [currentPage, filterRole, filterStatus, searchTerm, effectiveUlbId]);
 
   useEffect(() => {
     if (showAddModal || showEditModal) {
@@ -89,6 +91,7 @@ const AdminManagement = () => {
       if (filterRole) params.append('role', filterRole);
       if (filterStatus) params.append('status', filterStatus);
       if (searchTerm) params.append('search', searchTerm);
+      if (effectiveUlbId) params.append('ulb_id', effectiveUlbId);
 
       const response = await api.get(`/admin-management/employees?${params}`);
       const data = response?.data;
@@ -111,7 +114,7 @@ const AdminManagement = () => {
 
   const fetchWards = async (ulbId = null) => {
     try {
-      const url = ulbId 
+      const url = ulbId
         ? `/admin-management/employees/wards?ulb_id=${ulbId}`
         : '/admin-management/employees/wards';
       const response = await api.get(url);
@@ -125,7 +128,7 @@ const AdminManagement = () => {
       } else if (data && Array.isArray(data.wards)) {
         wardsList = data.wards;
       }
-      
+
       setAllWards(wardsList);
       // Filter wards based on selected ULB if in form
       if (ulbId && formData.ulb_id === ulbId) {
@@ -202,7 +205,8 @@ const AdminManagement = () => {
 
   const fetchStatistics = async () => {
     try {
-      const response = await api.get('/admin-management/employees/statistics');
+      const params = effectiveUlbId ? `?ulb_id=${effectiveUlbId}` : '';
+      const response = await api.get(`/admin-management/employees/statistics${params}`);
       setStatistics(response?.data ?? null);
     } catch (error) {
       console.error('Error fetching statistics:', error);
@@ -220,7 +224,7 @@ const AdminManagement = () => {
       // Prepare payload with only required fields - ensure IDs are sent, not names
       // Convert role to uppercase to match database CHECK constraint
       const normalizedRole = formData.role ? formData.role.toUpperCase().replace(/-/g, '_') : formData.role;
-      
+
       const payload = {
         full_name: formData.full_name,
         email: formData.email,
@@ -321,7 +325,7 @@ const AdminManagement = () => {
       // Prepare payload with only required fields - ensure IDs are sent, not names
       // Convert role to uppercase to match database CHECK constraint
       const normalizedRole = formData.role ? formData.role.toUpperCase().replace(/-/g, '_') : formData.role;
-      
+
       const payload = {
         full_name: formData.full_name,
         email: formData.email,
@@ -440,17 +444,21 @@ const AdminManagement = () => {
     setSelectedEmployee(employee);
     // Normalize role to uppercase for form
     const normalizedRole = employee.role ? employee.role.toUpperCase().replace(/-/g, '_') : employee.role;
+    // For Clerk/Collector etc, ward can come from ward_ids or ward_id (sync from Ward Details uses ward_id)
+    const initialWardIds = (employee.ward_ids && employee.ward_ids.length > 0)
+      ? employee.ward_ids
+      : (employee.ward_id ? [employee.ward_id] : []);
     const formDataUpdate = {
       full_name: employee.full_name,
       role: normalizedRole,
       phone_number: employee.phone_number,
       email: employee.email,
-      ward_ids: employee.ward_ids || [],
+      ward_ids: initialWardIds,
       status: employee.status,
       password: '',
       assigned_ulb: employee.assigned_ulb || '',
       ulb_id: employee.ulb_id || '',
-      ward_id: employee.ward_id || '',
+      ward_id: employee.ward_id || (initialWardIds[0] ?? ''),
       eo_id: employee.eo_id || '',
       supervisor_id: employee.supervisor_id || '',
       contractor_id: employee.contractor_id || '',
@@ -459,7 +467,7 @@ const AdminManagement = () => {
       contact_details: employee.contact_details || ''
     };
     setFormData(formDataUpdate);
-    
+
     // Fetch filtered data based on employee's ULB
     if (formDataUpdate.ulb_id) {
       await fetchWards(formDataUpdate.ulb_id);
@@ -468,7 +476,7 @@ const AdminManagement = () => {
     if (formDataUpdate.ward_id) {
       await fetchSupervisors(formDataUpdate.ward_id);
     }
-    
+
     setShowEditModal(true);
   };
 
@@ -479,10 +487,10 @@ const AdminManagement = () => {
 
   const getRoleLabel = (role) => {
     const normalizedRole = role ? role.toUpperCase().replace(/-/g, '_') : role;
-    const labels = { 
-      EO: 'EO', 
-      SUPERVISOR: 'Supervisor', 
-      FIELD_WORKER: 'Field Worker', 
+    const labels = {
+      EO: 'EO',
+      SUPERVISOR: 'Supervisor',
+      FIELD_WORKER: 'Field Worker',
       CONTRACTOR: 'Contractor',
       CLERK: 'Clerk',
       INSPECTOR: 'Inspector',
@@ -572,15 +580,16 @@ const AdminManagement = () => {
   };
 
   return (
-    <div className="p-6">
+    <div>
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Staff Management</h1>
-          <p className="text-gray-600">Manage system staff and their access</p>
+          <h1 className="ds-page-title">Staff Management</h1>
+          <p className="ds-page-subtitle">Manage system staff and their access</p>
         </div>
         <button
+          type="button"
           onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          className="btn btn-primary flex items-center"
         >
           <Plus className="w-4 h-4" />
           Add Staff
@@ -590,7 +599,7 @@ const AdminManagement = () => {
       {/* Statistics Cards */}
       {statistics && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
+          <div className="card">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Total Staff</p>
@@ -599,7 +608,7 @@ const AdminManagement = () => {
               <Users className="w-8 h-8 text-blue-600" />
             </div>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
+          <div className="card">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Active</p>
@@ -608,7 +617,7 @@ const AdminManagement = () => {
               <Shield className="w-8 h-8 text-green-600" />
             </div>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
+          <div className="card">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Inactive</p>
@@ -617,7 +626,7 @@ const AdminManagement = () => {
               <Shield className="w-8 h-8 text-red-600" />
             </div>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
+          <div className="card">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Roles</p>
@@ -630,24 +639,22 @@ const AdminManagement = () => {
       )}
 
       {/* Filters */}
-      <div className="bg-white p-4 rounded-lg shadow mb-6">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search by name, email, phone, or employee ID..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
+      <div className="card mb-6">
+        <form onSubmit={(e) => { e.preventDefault(); fetchEmployees(); }} className="flex flex-col md:flex-row gap-4">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search by name, email, phone, or employee ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="input pl-10"
+            />
           </div>
           <select
             value={filterRole}
             onChange={(e) => setFilterRole(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="input w-auto min-w-[140px]"
           >
             <option value="">All Roles</option>
             <option value="CLERK">Clerk</option>
@@ -662,78 +669,56 @@ const AdminManagement = () => {
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="input w-auto min-w-[120px]"
           >
             <option value="">All Status</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
           </select>
           <button
-            onClick={() => {
-              setSearchTerm('');
-              setFilterRole('');
-              setFilterStatus('');
-            }}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+            type="button"
+            onClick={() => { setSearchTerm(''); setFilterRole(''); setFilterStatus(''); }}
+            className="btn btn-secondary flex items-center"
           >
             <RefreshCw className="w-4 h-4" />
             Reset
           </button>
-        </div>
+        </form>
       </div>
 
       {/* Bulk Actions Bar */}
       {selectedEmployees.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-blue-900">
-                {selectedEmployees.length} staff member{selectedEmployees.length !== 1 ? 's' : ''} selected
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handleBulkStatusChange('activate')}
-                className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
-              >
-                <Shield className="w-4 h-4" />
-                Activate
-              </button>
-              <button
-                onClick={() => handleBulkStatusChange('deactivate')}
-                className="flex items-center gap-2 px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm"
-              >
-                <Shield className="w-4 h-4" />
-                Deactivate
-              </button>
-              <button
-                onClick={handleBulkDelete}
-                className="flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
-              >
-                <Trash2 className="w-4 h-4" />
-                Delete
-              </button>
-              <button
-                onClick={() => {
-                  setSelectedEmployees([]);
-                  setSelectAll(false);
-                }}
-                className="flex items-center gap-2 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm"
-              >
-                Clear Selection
-              </button>
-            </div>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex items-center justify-between">
+          <span className="text-sm font-medium text-blue-900">
+            {selectedEmployees.length} staff member{selectedEmployees.length !== 1 ? 's' : ''} selected
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => handleBulkStatusChange('activate')} className="btn btn-success btn-sm flex items-center">
+              <Shield className="w-4 h-4" />
+              Activate
+            </button>
+            <button type="button" onClick={() => handleBulkStatusChange('deactivate')} className="btn btn-sm flex items-center px-3 py-2 bg-amber-600 text-white hover:bg-amber-700 rounded text-sm">
+              <Shield className="w-4 h-4" />
+              Deactivate
+            </button>
+            <button type="button" onClick={handleBulkDelete} className="btn btn-danger btn-sm flex items-center">
+              <Trash2 className="w-4 h-4" />
+              Delete
+            </button>
+            <button type="button" onClick={() => { setSelectedEmployees([]); setSelectAll(false); }} className="btn btn-secondary btn-sm flex items-center">
+              Clear Selection
+            </button>
           </div>
         </div>
       )}
 
       {/* Employees Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="card overflow-x-auto p-0">
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
+          <table className="table">
+            <thead>
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="w-12">
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
@@ -741,48 +726,36 @@ const AdminManagement = () => {
                       onChange={handleSelectAll}
                       className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-primary-500"
                     />
-                    <span>Select All</span>
+                    {/* <span>Select All</span> */}
                   </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Employee
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Role
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Contact
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Wards
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
+                <th>Employee</th>
+                <th>Role</th>
+                <th>Contact</th>
+                <th>Wards</th>
+                <th>Status</th>
+                <th className="text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="px-6 py-4 text-center">
+                  <td colSpan="7" className="text-center py-8">
                     <div className="flex justify-center">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                      <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary-600 border-t-transparent"></div>
                     </div>
                   </td>
                 </tr>
               ) : (Array.isArray(employees) ? employees : []).length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
+                  <td colSpan="7" className="text-center py-8 text-gray-500">
                     No staff members found
                   </td>
                 </tr>
               ) : (
                 (Array.isArray(employees) ? employees : []).map((employee) => (
-                  <tr key={employee.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                  <tr key={employee.id}>
+                    <td>
                       <input
                         type="checkbox"
                         checked={selectedEmployees.includes(employee.id)}
@@ -790,61 +763,43 @@ const AdminManagement = () => {
                         className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-primary-500"
                       />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{employee.full_name}</div>
-                        <div className="text-sm text-gray-500">{employee.employee_id}</div>
-                      </div>
+                    <td>
+                      <div className="font-medium text-gray-900">{employee.full_name}</div>
+                      <div className="text-xs text-gray-500">{employee.employee_id}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleBadgeColor(employee.role)}`}>
+                    <td>
+                      <span className={`badge ${getRoleBadgeColor(employee.role)}`}>
                         {getRoleLabel(employee.role)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td>
                       <div className="text-sm text-gray-900">{employee.email}</div>
-                      <div className="text-sm text-gray-500">{employee.phone_number}</div>
+                      <div className="text-xs text-gray-500">{employee.phone_number}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td>
                       <div className="text-sm text-gray-900">
                         {employee.ward_names && employee.ward_names.length > 0
                           ? employee.ward_names.join(', ')
                           : 'No wards assigned'}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeColor(employee.status)}`}>
-                        {employee.status.charAt(0).toUpperCase() + employee.status.slice(1)}
+                    <td>
+                      <span className={employee.status === 'active' ? 'badge badge-success' : 'badge badge-danger'}>
+                        {employee.status ? employee.status.charAt(0).toUpperCase() + employee.status.slice(1) : ''}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => openViewModal(employee)}
-                          className="text-blue-600 hover:text-blue-900"
-                          title="View Details"
-                        >
+                    <td className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button type="button" onClick={() => openViewModal(employee)} className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="View">
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => openEditModal(employee)}
-                          className="text-green-600 hover:text-green-900"
-                          title="Edit"
-                        >
+                        <button type="button" onClick={() => openEditModal(employee)} className="p-2 text-gray-500 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors" title="Edit">
                           <Edit className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => handleResetPassword(employee.id)}
-                          className="text-yellow-600 hover:text-yellow-900"
-                          title="Reset Password"
-                        >
+                        <button type="button" onClick={() => handleResetPassword(employee.id)} className="p-2 text-gray-500 hover:text-yellow-600 hover:bg-yellow-50 rounded transition-colors" title="Reset Password">
                           <RefreshCw className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => handleDeleteEmployee(employee.id)}
-                          className="text-red-600 hover:text-red-900"
-                          title="Delete"
-                        >
+                        <button type="button" onClick={() => handleDeleteEmployee(employee.id)} className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Delete">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -858,23 +813,25 @@ const AdminManagement = () => {
 
         {/* Pagination */}
         {(totalPages ?? 1) > 1 && (
-          <div className="px-6 py-4 border-t border-gray-200">
+          <div className="px-4 py-3 border-t border-gray-200">
             <div className="flex items-center justify-between">
               <div className="text-sm text-gray-700">
                 Page {currentPage} of {totalPages ?? 1}
               </div>
               <div className="flex gap-2">
                 <button
+                  type="button"
                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                   disabled={currentPage === 1}
-                  className="px-3 py-1 border border-gray-300 rounded-md disabled:opacity-50"
+                  className="btn btn-secondary btn-sm disabled:opacity-50"
                 >
                   Previous
                 </button>
                 <button
+                  type="button"
                   onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages ?? 1))}
                   disabled={currentPage === (totalPages ?? 1)}
-                  className="px-3 py-1 border border-gray-300 rounded-md disabled:opacity-50"
+                  className="btn btn-secondary btn-sm disabled:opacity-50"
                 >
                   Next
                 </button>
@@ -901,7 +858,42 @@ const AdminManagement = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
-                {/* ULB Dropdown - Mandatory except ADMIN */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                  <select
+                    required
+                    value={formData.role}
+                    onChange={(e) => {
+                      const newRole = e.target.value;
+                      setFormData({
+                        ...formData,
+                        role: newRole,
+                        ward_ids: [],
+                        ward_id: '',
+                        eo_id: '',
+                        supervisor_id: '',
+                        contractor_id: '',
+                        assigned_ulb: '',
+                        ulb_id: '',
+                        worker_type: '',
+                        company_name: '',
+                        contact_details: ''
+                      });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    <option value="">Select Role</option>
+                    <option value="CLERK">Clerk</option>
+                    <option value="INSPECTOR">Inspector</option>
+                    <option value="OFFICER">Officer</option>
+                    <option value="COLLECTOR">Collector</option>
+                    <option value="EO">EO</option>
+                    <option value="SUPERVISOR">Supervisor</option>
+                    <option value="FIELD_WORKER">Field Worker</option>
+                    <option value="CONTRACTOR">Contractor</option>
+                  </select>
+                </div>
+                {/* ULB - shown below Role when role is selected (mandatory except ADMIN) */}
                 {formData.role && formData.role.toUpperCase() !== 'ADMIN' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -911,16 +903,15 @@ const AdminManagement = () => {
                       required={formData.role.toUpperCase() === 'EO'}
                       value={formData.ulb_id || ''}
                       onChange={(e) => {
-                        const newUlbId = e.target.value; // This is the UUID from ulb.id
-                        setFormData({ 
-                          ...formData, 
-                          ulb_id: newUlbId, // Store UUID, not name
-                          assigned_ulb: '', // Clear name field
+                        const newUlbId = e.target.value;
+                        setFormData({
+                          ...formData,
+                          ulb_id: newUlbId,
+                          assigned_ulb: '',
                           ward_ids: [],
                           ward_id: '',
                           eo_id: ''
                         });
-                        // Reload wards filtered by ULB
                         if (newUlbId) {
                           fetchWards(newUlbId);
                           fetchEos(newUlbId);
@@ -938,41 +929,6 @@ const AdminManagement = () => {
                     </select>
                   </div>
                 )}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                  <select
-                    required
-                    value={formData.role}
-                    onChange={(e) => {
-                      const newRole = e.target.value;
-                      setFormData({ 
-                        ...formData, 
-                        role: newRole, 
-                        ward_ids: [], 
-                        ward_id: '', 
-                        eo_id: '', 
-                        supervisor_id: '', 
-                        contractor_id: '', 
-                        assigned_ulb: '', 
-                        ulb_id: '',
-                        worker_type: '', 
-                        company_name: '', 
-                        contact_details: '' 
-                      });
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  >
-                    <option value="">Select Role</option>
-                    <option value="CLERK">Clerk</option>
-                    <option value="INSPECTOR">Inspector</option>
-                    <option value="OFFICER">Officer</option>
-                    <option value="COLLECTOR">Collector</option>
-                    <option value="EO">EO</option>
-                    <option value="SUPERVISOR">Supervisor</option>
-                    <option value="FIELD_WORKER">Field Worker</option>
-                    <option value="CONTRACTOR">Contractor</option>
-                  </select>
-                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
                   <input
@@ -998,38 +954,38 @@ const AdminManagement = () => {
                 {formData.role && formData.role.toUpperCase() === 'EO' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Wards <span className="text-red-500">*</span></label>
-                      <select
-                        multiple
-                        required
-                        value={formData.ward_ids || []}
-                        onChange={(e) => {
-                          // Extract all selected ward IDs (integers) from selected options
-                          const selectedWardIds = Array.from(e.target.selectedOptions, option => {
-                            const wardId = parseInt(option.value);
-                            return isNaN(wardId) ? null : wardId;
-                          }).filter(id => id !== null);
-                          
-                          console.log('🔵 Ward selection changed:', {
-                            selectedOptions: Array.from(e.target.selectedOptions).map(o => ({ value: o.value, text: o.text })),
-                            selectedWardIds,
-                            previousWardIds: formData.ward_ids
-                          });
-                          
-                          setFormData({ ...formData, ward_ids: selectedWardIds });
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        disabled={!formData.ulb_id}
-                        size={Math.min(wards.filter(w => !formData.ulb_id || w.ulb_id === formData.ulb_id).length, 6)}
-                      >
-                        {wards
-                          .filter(w => !formData.ulb_id || w.ulb_id === formData.ulb_id)
-                          .filter((ward, index, self) => 
-                            ward && ward.id && index === self.findIndex(w => w.id === ward.id)
-                          )
-                          .map(ward => (
-                            <option key={ward.id} value={ward.id}>{ward.wardNumber} - {ward.wardName}</option>
-                          ))}
-                      </select>
+                    <select
+                      multiple
+                      required
+                      value={formData.ward_ids || []}
+                      onChange={(e) => {
+                        // Extract all selected ward IDs (integers) from selected options
+                        const selectedWardIds = Array.from(e.target.selectedOptions, option => {
+                          const wardId = parseInt(option.value);
+                          return isNaN(wardId) ? null : wardId;
+                        }).filter(id => id !== null);
+
+                        console.log('🔵 Ward selection changed:', {
+                          selectedOptions: Array.from(e.target.selectedOptions).map(o => ({ value: o.value, text: o.text })),
+                          selectedWardIds,
+                          previousWardIds: formData.ward_ids
+                        });
+
+                        setFormData({ ...formData, ward_ids: selectedWardIds });
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      disabled={!formData.ulb_id}
+                      size={Math.min(wards.filter(w => !formData.ulb_id || w.ulb_id === formData.ulb_id).length, 6)}
+                    >
+                      {wards
+                        .filter(w => !formData.ulb_id || w.ulb_id === formData.ulb_id)
+                        .filter((ward, index, self) =>
+                          ward && ward.id && index === self.findIndex(w => w.id === ward.id)
+                        )
+                        .map(ward => (
+                          <option key={ward.id} value={ward.id}>{ward.wardNumber} - {ward.wardName}</option>
+                        ))}
+                    </select>
                     <p className="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple wards</p>
                     {!formData.ulb_id && <p className="text-xs text-red-500 mt-1">Please select ULB first</p>}
                   </div>
@@ -1047,14 +1003,14 @@ const AdminManagement = () => {
                           const wardId = e.target.value ? parseInt(e.target.value) : '';
                           const selectedWard = allWards.find(w => w.id === wardId);
                           const wardUlbId = selectedWard?.ulb_id;
-                          
-                          setFormData({ 
-                            ...formData, 
+
+                          setFormData({
+                            ...formData,
                             ward_id: wardId,
                             ulb_id: wardUlbId || formData.ulb_id,
                             eo_id: '' // Reset EO when ward changes
                           });
-                          
+
                           // Reload EOs filtered by ULB
                           if (wardUlbId) {
                             await fetchEos(wardUlbId);
@@ -1064,7 +1020,7 @@ const AdminManagement = () => {
                       >
                         <option value="">Select Ward</option>
                         {allWards
-                          .filter((ward, index, self) => 
+                          .filter((ward, index, self) =>
                             ward && ward.id && index === self.findIndex(w => w.id === ward.id)
                           )
                           .map(ward => (
@@ -1118,14 +1074,14 @@ const AdminManagement = () => {
                           const wardId = e.target.value ? parseInt(e.target.value) : '';
                           const selectedWard = allWards.find(w => w.id === wardId);
                           const wardUlbId = selectedWard?.ulb_id;
-                          
-                          setFormData({ 
-                            ...formData, 
+
+                          setFormData({
+                            ...formData,
                             ward_id: wardId,
                             ulb_id: wardUlbId || formData.ulb_id,
                             supervisor_id: '' // Reset supervisor when ward changes
                           });
-                          
+
                           // Reload supervisors filtered by ward
                           if (wardId) {
                             await fetchSupervisors(wardId);
@@ -1135,7 +1091,7 @@ const AdminManagement = () => {
                       >
                         <option value="">Select Ward</option>
                         {allWards
-                          .filter((ward, index, self) => 
+                          .filter((ward, index, self) =>
                             ward && ward.id && index === self.findIndex(w => w.id === ward.id)
                           )
                           .map(ward => (
@@ -1309,43 +1265,6 @@ const AdminManagement = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
-                {/* ULB Dropdown - Mandatory except ADMIN */}
-                {formData.role && formData.role.toUpperCase() !== 'ADMIN' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      ULB {formData.role.toUpperCase() === 'EO' && <span className="text-red-500">*</span>}
-                    </label>
-                    <select
-                      required={formData.role.toUpperCase() === 'EO'}
-                      value={formData.ulb_id || ''}
-                      onChange={(e) => {
-                        const newUlbId = e.target.value; // This is the UUID from ulb.id
-                        setFormData({ 
-                          ...formData, 
-                          ulb_id: newUlbId, // Store UUID, not name
-                          assigned_ulb: '', // Clear name field
-                          ward_ids: [],
-                          ward_id: '',
-                          eo_id: ''
-                        });
-                        // Reload wards filtered by ULB
-                        if (newUlbId) {
-                          fetchWards(newUlbId);
-                          fetchEos(newUlbId);
-                        } else {
-                          fetchWards();
-                          fetchEos();
-                        }
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    >
-                      <option value="">Select ULB</option>
-                      {ulbs.map(ulb => (
-                        <option key={ulb.id} value={ulb.id}>{ulb.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
                   <select
@@ -1353,8 +1272,8 @@ const AdminManagement = () => {
                     value={formData.role}
                     onChange={(e) => {
                       const newRole = e.target.value;
-                      setFormData({ 
-                        ...formData, 
+                      setFormData({
+                        ...formData,
                         role: newRole,
                         ward_ids: [],
                         ward_id: '',
@@ -1376,6 +1295,42 @@ const AdminManagement = () => {
                     <option value="CONTRACTOR">Contractor</option>
                   </select>
                 </div>
+                {/* ULB - shown below Role when role is selected (mandatory except ADMIN) */}
+                {formData.role && formData.role.toUpperCase() !== 'ADMIN' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      ULB {formData.role.toUpperCase() === 'EO' && <span className="text-red-500">*</span>}
+                    </label>
+                    <select
+                      required={formData.role.toUpperCase() === 'EO'}
+                      value={formData.ulb_id || ''}
+                      onChange={(e) => {
+                        const newUlbId = e.target.value;
+                        setFormData({
+                          ...formData,
+                          ulb_id: newUlbId,
+                          assigned_ulb: '',
+                          ward_ids: [],
+                          ward_id: '',
+                          eo_id: ''
+                        });
+                        if (newUlbId) {
+                          fetchWards(newUlbId);
+                          fetchEos(newUlbId);
+                        } else {
+                          fetchWards();
+                          fetchEos();
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                      <option value="">Select ULB</option>
+                      {ulbs.map(ulb => (
+                        <option key={ulb.id} value={ulb.id}>{ulb.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
                   <input
@@ -1408,13 +1363,13 @@ const AdminManagement = () => {
                           const wardId = parseInt(option.value);
                           return isNaN(wardId) ? null : wardId;
                         }).filter(id => id !== null);
-                        
+
                         console.log('🔵 Ward selection changed (edit):', {
                           selectedOptions: Array.from(e.target.selectedOptions).map(o => ({ value: o.value, text: o.text })),
                           selectedWardIds,
                           previousWardIds: formData.ward_ids
                         });
-                        
+
                         setFormData({ ...formData, ward_ids: selectedWardIds });
                       }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -1423,7 +1378,7 @@ const AdminManagement = () => {
                     >
                       {wards
                         .filter(w => !formData.ulb_id || w.ulb_id === formData.ulb_id)
-                        .filter((ward, index, self) => 
+                        .filter((ward, index, self) =>
                           ward && ward.id && index === self.findIndex(w => w.id === ward.id)
                         )
                         .map(ward => (
@@ -1443,14 +1398,14 @@ const AdminManagement = () => {
                           const wardId = e.target.value ? parseInt(e.target.value) : '';
                           const selectedWard = allWards.find(w => w.id === wardId);
                           const wardUlbId = selectedWard?.ulb_id;
-                          
-                          setFormData({ 
-                            ...formData, 
+
+                          setFormData({
+                            ...formData,
                             ward_id: wardId,
                             ulb_id: wardUlbId || formData.ulb_id,
                             eo_id: ''
                           });
-                          
+
                           if (wardUlbId) {
                             await fetchEos(wardUlbId);
                           }
@@ -1502,14 +1457,14 @@ const AdminManagement = () => {
                           const wardId = e.target.value ? parseInt(e.target.value) : '';
                           const selectedWard = allWards.find(w => w.id === wardId);
                           const wardUlbId = selectedWard?.ulb_id;
-                          
-                          setFormData({ 
-                            ...formData, 
+
+                          setFormData({
+                            ...formData,
                             ward_id: wardId,
                             ulb_id: wardUlbId || formData.ulb_id,
                             supervisor_id: ''
                           });
-                          
+
                           if (wardId) {
                             await fetchSupervisors(wardId);
                           }
@@ -1518,7 +1473,7 @@ const AdminManagement = () => {
                       >
                         <option value="">Select Ward</option>
                         {allWards
-                          .filter((ward, index, self) => 
+                          .filter((ward, index, self) =>
                             ward && ward.id && index === self.findIndex(w => w.id === ward.id)
                           )
                           .map(ward => (
@@ -1590,7 +1545,7 @@ const AdminManagement = () => {
                     >
                       <option value="">Select Ward</option>
                       {wards
-                        .filter((ward, index, self) => 
+                        .filter((ward, index, self) =>
                           ward && ward.id && index === self.findIndex(w => w.id === ward.id)
                         )
                         .map(ward => (

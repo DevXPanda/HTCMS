@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { wardAPI, userAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { Edit, Users, BarChart3, Save, X } from 'lucide-react';
+import { Edit, Users, BarChart3, Save, X, Trash2 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 
 const WardDetails = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const [ward, setWard] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -17,14 +18,19 @@ const WardDetails = () => {
   const [collectors, setCollectors] = useState([]);
   const [selectedCollector, setSelectedCollector] = useState('');
   const [assigning, setAssigning] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchWard();
     fetchStatistics();
-    if (isAdmin) {
-      fetchCollectors();
+  }, [id]);
+
+  useEffect(() => {
+    if (isAdmin && ward?.ulb_id) {
+      fetchCollectors(ward.ulb_id);
     }
-  }, [id, isAdmin]);
+  }, [id, isAdmin, ward?.ulb_id]);
 
   const fetchWard = async () => {
     try {
@@ -50,9 +56,10 @@ const WardDetails = () => {
     }
   };
 
-  const fetchCollectors = async () => {
+  const fetchCollectors = async (ulbId) => {
     try {
-      const response = await userAPI.getCollectors();
+      const params = ulbId ? { ulb_id: ulbId } : {};
+      const response = await userAPI.getCollectors(params);
       setCollectors(response.data.data.collectors || []);
     } catch (error) {
       console.error('Failed to load collectors:', error);
@@ -71,9 +78,23 @@ const WardDetails = () => {
       fetchWard();
       fetchStatistics();
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Failed to assign collector');
+      toast.error(error.response?.data?.message || error.response?.data?.error || 'Failed to assign collector');
     } finally {
       setAssigning(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      setDeleting(true);
+      await wardAPI.delete(id);
+      toast.success('Ward deleted successfully');
+      navigate('/wards');
+    } catch (error) {
+      toast.error(error.response?.data?.error || error.response?.data?.message || 'Failed to delete ward');
+    } finally {
+      setDeleting(false);
+      setShowDeleteModal(false);
     }
   };
 
@@ -86,13 +107,23 @@ const WardDetails = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="ds-page-title">Ward Details</h1>
         {isAdmin && (
-          <button
-            onClick={() => setShowAssignCollector(!showAssignCollector)}
-            className="btn btn-primary flex items-center"
-          >
-            <Users className="w-4 h-4 mr-2" />
-            {ward.collector ? 'Change Collector' : 'Assign Collector'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowDeleteModal(true)}
+              className="btn bg-red-600 hover:bg-red-700 text-white flex items-center"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete Ward
+            </button>
+            <button
+              onClick={() => setShowAssignCollector(!showAssignCollector)}
+              className="btn btn-primary flex items-center"
+            >
+              <Users className="w-4 h-4 mr-2" />
+              {ward.collector ? 'Change Collector' : 'Assign Collector'}
+            </button>
+          </div>
         )}
       </div>
 
@@ -421,6 +452,19 @@ const WardDetails = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Ward</h3>
+            <p className="text-gray-600 mb-6">Are you sure you want to delete this ward? This action cannot be undone.</p>
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => setShowDeleteModal(false)} className="btn btn-secondary">Cancel</button>
+              <button type="button" onClick={handleDelete} disabled={deleting} className="btn bg-red-600 hover:bg-red-700 text-white">{deleting ? 'Deleting...' : 'Delete'}</button>
+            </div>
           </div>
         </div>
       )}

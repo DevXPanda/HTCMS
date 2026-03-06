@@ -2,6 +2,7 @@ import { WaterPayment, WaterBill, WaterConnection, Property, User } from '../mod
 import { Op } from 'sequelize';
 import { sequelize } from '../config/database.js';
 import { WATER_BILL_STATUS, WATER_PAYMENT_STATUS, getUnpaidBillStatuses, isSuccessfulPaymentStatus } from '../constants/waterTaxStatuses.js';
+import { getEffectiveUlbForRequest, getWardIdsByUlbId } from '../utils/ulbAccessHelper.js';
 
 import { generatePaymentId } from '../services/uniqueIdService.js';
 
@@ -255,6 +256,27 @@ export const getAllWaterPayments = async (req, res, next) => {
     } = req.query;
 
     const where = {};
+    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+
+    if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You must be assigned to an ULB to view water payments.'
+      });
+    }
+    if (effectiveUlbId) {
+      const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+      if (!wardIds || wardIds.length === 0) {
+        return res.json({
+          success: true,
+          data: {
+            waterPayments: [],
+            pagination: { total: 0, page: parseInt(page), limit: parseInt(limit), pages: 0 }
+          }
+        });
+      }
+      where['$waterConnection.property.wardId$'] = { [Op.in]: wardIds };
+    }
 
     // Apply filters
     if (waterBillId) {

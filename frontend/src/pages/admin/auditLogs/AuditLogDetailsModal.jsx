@@ -1,116 +1,115 @@
-import { X, User, Calendar, FileText, Globe, Monitor } from 'lucide-react';
+import { X, User, Calendar, FileText, Globe, Monitor, Tag } from 'lucide-react';
 
 const AuditLogDetailsModal = ({ log, onClose }) => {
+  const ts = log.timestamp || log.createdAt;
+  const formattedTime = ts ? new Date(ts).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'medium', hour12: true }) : '—';
+
+  const renderExtraDetails = (data) => {
+    if (!data || typeof data !== 'object') return null;
+    const entries = Object.entries(data);
+    if (entries.length === 0) return null;
+    return (
+      <div className="space-y-2">
+        {entries.map(([key, value]) => (
+          <div key={key} className="flex gap-3 text-sm">
+            <span className="text-gray-500 shrink-0 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+            <span className="text-gray-900 font-mono break-all">
+              {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center p-6 border-b">
-          <h2 className="text-2xl font-bold">Audit Log Details</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <X className="w-6 h-6" />
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal-panel max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2 className="modal-title">Audit log details</h2>
+          <button type="button" onClick={onClose} className="modal-close" aria-label="Close">
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
-          {/* Basic Information */}
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <label className="text-sm text-gray-500 flex items-center mb-1">
-                <Calendar className="w-4 h-4 mr-1" />
-                Timestamp
-              </label>
-              <p className="font-medium">{new Date(log.timestamp).toLocaleString()}</p>
+        <div className="modal-body space-y-5 overflow-y-auto">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="card bg-gray-50/80 p-3">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-0.5">Timestamp</p>
+              <p className="text-sm font-medium text-gray-900">{formattedTime}</p>
             </div>
-            <div>
-              <label className="text-sm text-gray-500 flex items-center mb-1">
-                <User className="w-4 h-4 mr-1" />
-                Actor
-              </label>
-              <p className="font-medium">
+            <div className="card bg-gray-50/80 p-3">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-0.5">Actor</p>
+              <p className="text-sm font-medium text-gray-900">
                 {log.actor ? `${log.actor.firstName} ${log.actor.lastName}` : 'System'}
               </p>
             </div>
-            <div>
-              <label className="text-sm text-gray-500">Role</label>
-              <p className="font-medium capitalize">{log.actorRole}</p>
+            <div className="card bg-gray-50/80 p-3">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-0.5">Role</p>
+              <p className="text-sm font-medium text-gray-900 capitalize">{log.actorRole}</p>
             </div>
-            <div>
-              <label className="text-sm text-gray-500">Action Type</label>
-              <p className="font-medium">{log.actionType}</p>
+            <div className="card bg-gray-50/80 p-3">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-0.5">Action</p>
+              <p className="text-sm font-medium text-gray-900">{log.actionType}</p>
             </div>
-            <div>
-              <label className="text-sm text-gray-500">Entity Type</label>
-              <p className="font-medium">{log.entityType}</p>
+            <div className="card bg-gray-50/80 p-3">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-0.5">Entity</p>
+              <p className="text-sm font-medium text-gray-900">{log.entityType}{log.entityId != null ? ` #${log.entityId}` : ''}</p>
             </div>
-            <div>
-              <label className="text-sm text-gray-500">Entity ID</label>
-              <p className="font-medium">{log.entityId || 'N/A'}</p>
-            </div>
-            <div>
-              <label className="text-sm text-gray-500 flex items-center mb-1">
-                <Globe className="w-4 h-4 mr-1" />
-                IP Address
-              </label>
-              <p className="font-medium">{log.ipAddress || 'N/A'}</p>
-            </div>
-            <div>
-              <label className="text-sm text-gray-500 flex items-center mb-1">
-                <Monitor className="w-4 h-4 mr-1" />
-                User Agent
-              </label>
-              <p className="text-sm text-gray-600 truncate" title={log.userAgent}>
-                {log.userAgent || 'N/A'}
-              </p>
+            <div className="card bg-gray-50/80 p-3">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-0.5">IP address</p>
+              <p className="text-sm font-mono text-gray-900">{log.ipAddress || '—'}</p>
             </div>
           </div>
 
-          {/* Description */}
           {log.description && (
             <div>
-              <label className="text-sm text-gray-500 flex items-center mb-2">
-                <FileText className="w-4 h-4 mr-1" />
-                Description
-              </label>
-              <p className="text-gray-900">{log.description}</p>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Description</p>
+              <p className="text-sm text-gray-900 bg-gray-50/80 rounded-ds p-3 border border-gray-100">{log.description}</p>
             </div>
           )}
 
-          {/* Previous Data */}
-          {log.previousData && (
+          {log.userAgent && (
             <div>
-              <label className="text-sm text-gray-500 mb-2 block">Previous Data</label>
-              <pre className="bg-gray-50 p-4 rounded border overflow-x-auto text-sm">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                <Monitor className="w-3.5 h-3.5" /> User agent
+              </p>
+              <p className="text-xs text-gray-600 bg-gray-50/80 rounded-ds p-3 border border-gray-100 break-all">{log.userAgent}</p>
+            </div>
+          )}
+
+          {log.metadata && Object.keys(log.metadata).length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                <Tag className="w-3.5 h-3.5" /> Additional details
+              </p>
+              <div className="bg-gray-50/80 rounded-ds p-3 border border-gray-100 text-sm">
+                {renderExtraDetails(log.metadata)}
+              </div>
+            </div>
+          )}
+
+          {log.previousData && Object.keys(log.previousData).length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Before change</p>
+              <pre className="bg-gray-100 rounded-ds p-3 border border-gray-200 overflow-x-auto text-xs font-mono text-gray-800">
                 {JSON.stringify(log.previousData, null, 2)}
               </pre>
             </div>
           )}
 
-          {/* New Data */}
-          {log.newData && (
+          {log.newData && Object.keys(log.newData).length > 0 && (
             <div>
-              <label className="text-sm text-gray-500 mb-2 block">New Data</label>
-              <pre className="bg-green-50 p-4 rounded border overflow-x-auto text-sm">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">After change</p>
+              <pre className="bg-green-50 rounded-ds p-3 border border-green-100 overflow-x-auto text-xs font-mono text-gray-800">
                 {JSON.stringify(log.newData, null, 2)}
-              </pre>
-            </div>
-          )}
-
-          {/* Metadata */}
-          {log.metadata && (
-            <div>
-              <label className="text-sm text-gray-500 mb-2 block">Metadata</label>
-              <pre className="bg-blue-50 p-4 rounded border overflow-x-auto text-sm">
-                {JSON.stringify(log.metadata, null, 2)}
               </pre>
             </div>
           )}
         </div>
 
-        <div className="p-6 border-t flex justify-end">
-          <button onClick={onClose} className="btn btn-secondary">
+        <div className="modal-footer">
+          <button type="button" onClick={onClose} className="btn btn-secondary">
             Close
           </button>
         </div>

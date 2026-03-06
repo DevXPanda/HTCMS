@@ -4,7 +4,7 @@ import { Op } from 'sequelize';
 import { auditLogger } from '../utils/auditLogger.js';
 import { calculateFinalAmount } from '../utils/financialCalculations.js';
 import { wardAccessControl, specificWardAccess } from '../middleware/wardAccess.js';
-import { injectUlbFilter } from '../middleware/ulbFilter.js';
+import { getEffectiveUlbForRequest } from '../utils/ulbAccessHelper.js';
 
 /**
  * @route   GET /api/wards
@@ -21,11 +21,22 @@ export const getAllWards = async (req, res, next) => {
     if (req.wardFilter) {
       Object.assign(where, req.wardFilter);
     }
-    
-    // Apply ULB filter using reusable helper (for non-admin users)
-    // This ensures all queries are filtered by ulb_id
-    const ulbFilteredWhere = injectUlbFilter(where, req);
-    Object.assign(where, ulbFilteredWhere);
+
+    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+    if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You must be assigned to an ULB to view wards.'
+      });
+    }
+    if (effectiveUlbId) {
+      const wardsWithUlb = await Ward.count({ where: { ulb_id: effectiveUlbId } });
+      if (wardsWithUlb > 0) {
+        where.ulb_id = effectiveUlbId;
+      } else {
+        where.ulb_id = { [Op.is]: null };
+      }
+    }
 
     // Support filtering by specific IDs (for inspector dashboard)
     if (ids) {
@@ -123,6 +134,15 @@ export const getWardById = async (req, res, next) => {
       });
     }
 
+    // ULB isolation: non–super-admin can only view wards in their assigned ULB
+    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+    if (!isSuperAdmin && effectiveUlbId && ward.ulb_id !== effectiveUlbId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Ward does not belong to your assigned ULB.'
+      });
+    }
+
     res.json({
       success: true,
       data: { ward }
@@ -158,25 +178,32 @@ export const createWard = async (req, res, next) => {
       });
     }
 
-    // Check if ward number already exists
+    // Check duplicate by (ulb_id, ward_number) - allow same ward number in different ULBs
     const existingWard = await Ward.findOne({
-      where: { wardNumber }
+      where: { ulb_id, wardNumber }
     });
 
     if (existingWard) {
       return res.status(400).json({
         success: false,
-        message: 'Ward with this number already exists'
+        message: 'Ward with this number already exists in this ULB'
       });
     }
 
-    // Validate collector if provided
+    // Validate collector if provided: must exist, be COLLECTOR, and belong to same ULB as ward
     if (collectorId) {
-      const collector = await AdminManagement.findByPk(collectorId);
-      if (!collector || collector.role !== 'collector') {
+      const collector = await AdminManagement.findByPk(collectorId, { attributes: ['id', 'role', 'ulb_id'] });
+      const collectorRole = (collector?.role || '').toString().toUpperCase();
+      if (!collector || collectorRole !== 'COLLECTOR') {
         return res.status(400).json({
           success: false,
           message: 'Invalid collector. Staff member must have collector role.'
+        });
+      }
+      if (collector.ulb_id && collector.ulb_id !== ulb_id) {
+        return res.status(400).json({
+          success: false,
+          message: 'Collector must be assigned to the same ULB as the ward.'
         });
       }
     }
@@ -220,6 +247,15 @@ export const createWard = async (req, res, next) => {
       data: { ward: createdWard }
     });
   } catch (error) {
+    if (error.name === 'SequelizeForeignKeyConstraintError') {
+      const constraint = (error.parent && error.parent.constraint) || error.constraint || '';
+      if (String(constraint).includes('collector')) {
+        return res.status(400).json({
+          success: false,
+          message: 'The selected collector could not be assigned. Run the fix script: node backend/scripts/fix-ward-collector-fk.js (from project root with .env loaded).'
+        });
+      }
+    }
     next(error);
   }
 };
@@ -260,13 +296,21 @@ export const updateWard = async (req, res, next) => {
       ulb_id: ward.ulb_id
     };
 
-    // Validate collector if provided
+    // Validate collector if provided: must be COLLECTOR and same ULB as ward
     if (collectorId) {
-      const collector = await AdminManagement.findByPk(collectorId);
-      if (!collector || collector.role !== 'collector') {
+      const collector = await AdminManagement.findByPk(collectorId, { attributes: ['id', 'role', 'ulb_id'] });
+      const collectorRole = (collector?.role || '').toString().toUpperCase();
+      if (!collector || collectorRole !== 'COLLECTOR') {
         return res.status(400).json({
           success: false,
           message: 'Invalid collector. Staff member must have collector role.'
+        });
+      }
+      const wardUlbId = ulb_id !== undefined ? ulb_id : ward.ulb_id;
+      if (collector.ulb_id && wardUlbId && collector.ulb_id !== wardUlbId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Collector must be assigned to the same ULB as the ward.'
         });
       }
     }
@@ -345,13 +389,6 @@ export const assignCollector = async (req, res, next) => {
     const { id } = req.params;
     const { collectorId } = req.body;
 
-    if (!collectorId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Collector ID is required'
-      });
-    }
-
     const ward = await Ward.findByPk(id);
     if (!ward) {
       return res.status(404).json({
@@ -360,17 +397,61 @@ export const assignCollector = async (req, res, next) => {
       });
     }
 
-    const collector = await AdminManagement.findByPk(collectorId);
-    if (!collector || collector.role !== 'collector') {
+    // Allow null/empty to unassign collector
+    if (!collectorId) {
+      const previousCollectorId = ward.collectorId;
+      ward.collectorId = null;
+      await ward.save();
+      // Sync Staff Management: clear previous collector's ward_id/ward_ids so list shows "No wards assigned"
+      if (previousCollectorId) {
+        await AdminManagement.update(
+          { ward_id: null, ward_ids: [] },
+          { where: { id: previousCollectorId, role: 'COLLECTOR' } }
+        );
+      }
+      const updatedWard = await Ward.findByPk(id, {
+        include: [
+          { model: AdminManagement, as: 'collector', attributes: ['id', 'full_name', 'email', 'phone_number'] }
+        ]
+      });
+      return res.json({
+        success: true,
+        message: 'Collector unassigned successfully',
+        data: { ward: updatedWard }
+      });
+    }
+
+    const collector = await AdminManagement.findByPk(collectorId, { attributes: ['id', 'role', 'ulb_id'] });
+    const collectorRole = (collector?.role || '').toString().toUpperCase();
+    if (!collector || collectorRole !== 'COLLECTOR') {
       return res.status(400).json({
         success: false,
         message: 'Invalid collector. Staff member must have collector role.'
+      });
+    }
+    if (collector.ulb_id && ward.ulb_id && collector.ulb_id !== ward.ulb_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Collector must be assigned to the same ULB as the ward.'
       });
     }
 
     const previousCollectorId = ward.collectorId;
     ward.collectorId = collectorId;
     await ward.save();
+
+    // Sync Staff Management: update collector's ward_id/ward_ids so list shows the assigned ward
+    await AdminManagement.update(
+      { ward_id: parseInt(id), ward_ids: [parseInt(id)] },
+      { where: { id: collectorId } }
+    );
+    // Clear previous collector's assignment for this ward so their list entry updates
+    if (previousCollectorId) {
+      await AdminManagement.update(
+        { ward_id: null, ward_ids: [] },
+        { where: { id: previousCollectorId, role: 'COLLECTOR' } }
+      );
+    }
 
     // Log collector assignment
     await auditLogger.logAssign(
@@ -533,18 +614,8 @@ export const getWardsByCollector = async (req, res, next) => {
  */
 export const getCollectorDashboard = async (req, res, next) => {
   try {
-    console.log('Backend - getCollectorDashboard called');
-    console.log('Backend - Authenticated user:', {
-      id: req.user.id,
-      staff_id: req.user.staff_id,
-      employee_id: req.user.employee_id,
-      role: req.user.role,
-      userType: req.userType
-    });
-
     // Use staff_id from JWT token to identify the authenticated collector
     const collectorId = req.user.staff_id || req.user.id;
-    console.log('🆔 Backend - Using collectorId:', collectorId);
 
     // Get all wards assigned to this collector
     const wards = await Ward.findAll({
@@ -552,10 +623,8 @@ export const getCollectorDashboard = async (req, res, next) => {
       attributes: ['id']
     });
     const wardIds = wards.map(w => w.id);
-    console.log('Backend - Found wards:', wardIds.length, 'wardIds:', wardIds);
 
     if (wardIds.length === 0) {
-      console.log('Backend - No wards found for collector, returning empty dashboard');
       return res.json({
         success: true,
         data: {
@@ -864,15 +933,6 @@ export const getCollectorDashboard = async (req, res, next) => {
       discountedDemands,
       penaltyWaivedDemands
     };
-
-    console.log('Backend - Final dashboard summary:', {
-      totalWards: dashboard.totalWards,
-      totalProperties: dashboard.totalProperties,
-      totalDemands: dashboard.totalDemands,
-      pendingDemands: dashboard.pendingDemands.length,
-      overdueDemands: dashboard.overdueDemands.length,
-      propertyWiseDemands: dashboard.propertyWiseDemands.length
-    });
 
     res.json({
       success: true,

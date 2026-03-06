@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import { updateNoticeOnPayment } from './notice.controller.js';
 import { generatePaymentReceiptPdf } from '../utils/pdfHelpers.js';
 import { auditLogger, createAuditLog } from '../utils/auditLogger.js';
+import { getEffectiveUlbForRequest, getWardIdsByUlbId } from '../utils/ulbAccessHelper.js';
 import { distributePaymentAcrossItems, validatePaymentDistributionIntegrity } from '../services/paymentService.js';
 import { validateAuditAction } from '../utils/auditHelpers.js';
 import { generatePaymentId } from '../services/uniqueIdService.js';
@@ -85,6 +86,7 @@ export const getAllPayments = async (req, res, next) => {
     } = req.query;
 
     const where = {};
+    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
 
     if (demandId) where.demandId = demandId;
     if (propertyId) where.propertyId = propertyId;
@@ -120,6 +122,27 @@ export const getAllPayments = async (req, res, next) => {
       });
       const propertyIds = userProperties.map(p => p.id);
       where.propertyId = { [Op.in]: propertyIds };
+    } else {
+      // ULB filter for non-citizen
+      if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You must be assigned to an ULB to view payments.'
+        });
+      }
+      if (effectiveUlbId) {
+        const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+        if (!wardIds || wardIds.length === 0) {
+          return res.json({
+            success: true,
+            data: {
+              payments: [],
+              pagination: { total: 0, page: parseInt(page), limit: parseInt(limit), pages: 0 }
+            }
+          });
+        }
+        where['$property.wardId$'] = { [Op.in]: wardIds };
+      }
     }
 
     // For cashiers, show only their received payments
@@ -179,7 +202,8 @@ export const getPaymentById = async (req, res, next) => {
           model: Property,
           as: 'property',
           include: [
-            { model: User, as: 'owner', attributes: { exclude: ['password'] } }
+            { model: User, as: 'owner', attributes: { exclude: ['password'] } },
+            { model: Ward, as: 'ward', attributes: ['id', 'ulb_id'] }
           ]
         },
         {
@@ -208,6 +232,18 @@ export const getPaymentById = async (req, res, next) => {
           success: false,
           message: 'Access denied'
         });
+      }
+    } else {
+      // ULB isolation: non–super-admin can only view payments in their assigned ULB
+      const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+      if (!isSuperAdmin && effectiveUlbId && payment.property) {
+        const ward = payment.property.ward || await Ward.findByPk(payment.property.wardId, { attributes: ['ulb_id'] });
+        if (!ward || ward.ulb_id !== effectiveUlbId) {
+          return res.status(403).json({
+            success: false,
+            message: 'Access denied. Payment does not belong to your assigned ULB.'
+          });
+        }
       }
     }
 

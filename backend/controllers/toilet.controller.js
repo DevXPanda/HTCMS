@@ -1,6 +1,7 @@
 import { ToiletFacility, ToiletInspection, ToiletMaintenance, ToiletComplaint, ToiletStaffAssignment, User, Ward, AdminManagement, Worker } from '../models/index.js';
 import { Op } from 'sequelize';
 import { auditLogger } from '../utils/auditLogger.js';
+import { getEffectiveUlbForRequest, getWardIdsByUlbId } from '../utils/ulbAccessHelper.js';
 
 /**
  * @route   GET /api/toilet/facilities
@@ -12,7 +13,31 @@ export const getAllFacilities = async (req, res, next) => {
         const { wardId, type, status, search, page = 1, limit = 10 } = req.query;
 
         const where = {};
-        if (wardId) where.wardId = wardId;
+        const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+        if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied. You must be assigned to an ULB to view toilet facilities.'
+            });
+        }
+        if (effectiveUlbId) {
+            const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+            if (!wardIds || wardIds.length === 0) {
+                return res.json({
+                    success: true,
+                    data: { facilities: [], pagination: { total: 0, page: parseInt(page), limit: parseInt(limit), pages: 0 } }
+                });
+            }
+            where.wardId = { [Op.in]: wardIds };
+        }
+        if (wardId) {
+            const wId = parseInt(wardId, 10);
+            if (where.wardId && where.wardId[Op.in] && !where.wardId[Op.in].includes(wId)) {
+                where.wardId = { [Op.in]: [] };
+            } else {
+                where.wardId = wId;
+            }
+        }
         if (type) where.type = type;
         if (status) where.status = status;
 
@@ -395,16 +420,29 @@ export const getAllInspections = async (req, res, next) => {
     try {
         const { facilityId, inspectorId, status, page = 1, limit = 10 } = req.query;
         const where = {};
+        const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+        if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+            return res.status(403).json({ success: false, message: 'Access denied. You must be assigned to an ULB to view toilet inspections.' });
+        }
+        let facilityFilter = {};
+        if (effectiveUlbId) {
+            const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+            if (!wardIds || wardIds.length === 0) {
+                return res.json({ success: true, data: { inspections: [], total: 0 } });
+            }
+            facilityFilter = { wardId: { [Op.in]: wardIds } };
+        }
         if (facilityId) where.toiletFacilityId = facilityId;
         if (inspectorId) where.inspectorId = inspectorId;
         if (status) where.status = status;
 
+        const includeFacility = [
+            { model: ToiletFacility, as: 'facility', attributes: ['id', 'name'], required: true, ...(Object.keys(facilityFilter).length ? { where: facilityFilter } : {}) },
+            { model: AdminManagement, as: 'inspector', attributes: ['id', 'full_name'] }
+        ];
         const { count, rows } = await ToiletInspection.findAndCountAll({
             where,
-            include: [
-                { model: ToiletFacility, as: 'facility', attributes: ['id', 'name'] },
-                { model: AdminManagement, as: 'inspector', attributes: ['id', 'full_name'] }
-            ],
+            include: includeFacility,
             order: [['inspectionDate', 'DESC']]
         });
 
@@ -558,16 +596,29 @@ export const getAllMaintenanceRecords = async (req, res, next) => {
     try {
         const { facilityId, status, priority, page = 1, limit = 10 } = req.query;
         const where = {};
+        const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+        if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+            return res.status(403).json({ success: false, message: 'Access denied. You must be assigned to an ULB to view toilet maintenance.' });
+        }
+        let facilityFilter = {};
+        if (effectiveUlbId) {
+            const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+            if (!wardIds || wardIds.length === 0) {
+                return res.json({ success: true, data: { maintenanceRecords: [], total: 0 } });
+            }
+            facilityFilter = { wardId: { [Op.in]: wardIds } };
+        }
         if (facilityId) where.toiletFacilityId = facilityId;
         if (status) where.status = status;
         if (priority) where.priority = priority;
 
+        const includeFacility = [
+            { model: ToiletFacility, as: 'facility', attributes: ['id', 'name'], required: true, ...(Object.keys(facilityFilter).length ? { where: facilityFilter } : {}) },
+            { model: AdminManagement, as: 'staff', attributes: ['id', 'full_name'] }
+        ];
         const { count, rows } = await ToiletMaintenance.findAndCountAll({
             where,
-            include: [
-                { model: ToiletFacility, as: 'facility', attributes: ['id', 'name'] },
-                { model: AdminManagement, as: 'staff', attributes: ['id', 'full_name'] }
-            ],
+            include: includeFacility,
             order: [['scheduledDate', 'DESC']]
         });
 
@@ -621,16 +672,29 @@ export const getAllComplaints = async (req, res, next) => {
     try {
         const { facilityId, status, priority, page = 1, limit = 10 } = req.query;
         const where = {};
+        const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+        if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+            return res.status(403).json({ success: false, message: 'Access denied. You must be assigned to an ULB to view toilet complaints.' });
+        }
+        let facilityFilter = {};
+        if (effectiveUlbId) {
+            const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+            if (!wardIds || wardIds.length === 0) {
+                return res.json({ success: true, data: { complaints: [], total: 0 } });
+            }
+            facilityFilter = { wardId: { [Op.in]: wardIds } };
+        }
         if (facilityId) where.toiletFacilityId = facilityId;
         if (status) where.status = status;
         if (priority) where.priority = priority;
 
+        const includeFacility = [
+            { model: ToiletFacility, as: 'facility', attributes: ['id', 'name'], required: true, ...(Object.keys(facilityFilter).length ? { where: facilityFilter } : {}) },
+            { model: AdminManagement, as: 'assignee', attributes: ['id', 'full_name'] }
+        ];
         const { rows, count } = await ToiletComplaint.findAndCountAll({
             where,
-            include: [
-                { model: ToiletFacility, as: 'facility', attributes: ['id', 'name'] },
-                { model: AdminManagement, as: 'assignee', attributes: ['id', 'full_name'] }
-            ],
+            include: includeFacility,
             order: [['createdAt', 'DESC']]
         });
 
@@ -791,6 +855,29 @@ export const getAssignedComplaints = async (req, res, next) => {
  */
 export const getReports = async (req, res, next) => {
     try {
+        const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+        if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied. You must be assigned to an ULB to view toilet stats.'
+            });
+        }
+        let facilityWhere = {};
+        if (effectiveUlbId) {
+            const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+            if (!wardIds || wardIds.length === 0) {
+                return res.json({
+                    success: true,
+                    data: {
+                        totalFacilities: 0, activeFacilities: 0, maintenanceFacilities: 0,
+                        totalInspections: 0, passedInspections: 0, failedInspections: 0,
+                        totalComplaints: 0, pendingComplaints: 0, resolvedComplaints: 0,
+                        totalMaintenance: 0, completedMaintenance: 0, scheduledMaintenance: 0
+                    }
+                });
+            }
+            facilityWhere.wardId = { [Op.in]: wardIds };
+        }
         const { startDate, endDate } = req.query;
         const dateFilter = {};
         if (startDate && endDate) {
@@ -798,7 +885,6 @@ export const getReports = async (req, res, next) => {
                 [Op.between]: [new Date(startDate), new Date(endDate)]
             };
         }
-
         const [
             totalFacilities,
             activeFacilities,
@@ -810,15 +896,27 @@ export const getReports = async (req, res, next) => {
             totalMaintenance,
             completedMaintenance
         ] = await Promise.all([
-            ToiletFacility.count(),
-            ToiletFacility.count({ where: { status: 'active' } }),
-            ToiletFacility.count({ where: { status: 'maintenance' } }),
-            ToiletInspection.count({ where: dateFilter }),
-            ToiletInspection.count({ where: { ...dateFilter, cleanliness: 'Good' } }), // Assuming Good/Fair/Poor
-            ToiletComplaint.count({ where: dateFilter }),
-            ToiletComplaint.count({ where: { ...dateFilter, status: 'resolved' } }),
-            ToiletMaintenance.count({ where: dateFilter }),
-            ToiletMaintenance.count({ where: { ...dateFilter, status: 'completed' } })
+            ToiletFacility.count({ where: facilityWhere }),
+            ToiletFacility.count({ where: { ...facilityWhere, status: 'active' } }),
+            ToiletFacility.count({ where: { ...facilityWhere, status: 'maintenance' } }),
+            facilityWhere.wardId
+                ? ToiletInspection.count({ where: dateFilter, include: [{ model: ToiletFacility, as: 'facility', required: true, where: facilityWhere }] })
+                : ToiletInspection.count({ where: dateFilter }),
+            facilityWhere.wardId
+                ? ToiletInspection.count({ where: { ...dateFilter, cleanliness: 'Good' }, include: [{ model: ToiletFacility, as: 'facility', required: true, where: facilityWhere }] })
+                : ToiletInspection.count({ where: { ...dateFilter, cleanliness: 'Good' } }),
+            facilityWhere.wardId
+                ? ToiletComplaint.count({ where: dateFilter, include: [{ model: ToiletFacility, as: 'facility', required: true, where: facilityWhere }] })
+                : ToiletComplaint.count({ where: dateFilter }),
+            facilityWhere.wardId
+                ? ToiletComplaint.count({ where: { ...dateFilter, status: 'resolved' }, include: [{ model: ToiletFacility, as: 'facility', required: true, where: facilityWhere }] })
+                : ToiletComplaint.count({ where: { ...dateFilter, status: 'resolved' } }),
+            facilityWhere.wardId
+                ? ToiletMaintenance.count({ where: dateFilter, include: [{ model: ToiletFacility, as: 'facility', required: true, where: facilityWhere }] })
+                : ToiletMaintenance.count({ where: dateFilter }),
+            facilityWhere.wardId
+                ? ToiletMaintenance.count({ where: { ...dateFilter, status: 'completed' }, include: [{ model: ToiletFacility, as: 'facility', required: true, where: facilityWhere }] })
+                : ToiletMaintenance.count({ where: { ...dateFilter, status: 'completed' } })
         ]);
 
         res.json({

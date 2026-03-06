@@ -1,21 +1,7 @@
 import { ShopRegistrationRequest, Property, User, Shop, Ward } from '../models/index.js';
 import { Op } from 'sequelize';
 import { auditLogger } from '../utils/auditLogger.js';
-import { generateShopId } from '../services/uniqueIdService.js';
-
-/**
- * Generate unique request number
- */
-const generateRequestNumber = async () => {
-  const year = new Date().getFullYear();
-  const count = await ShopRegistrationRequest.count({
-    where: {
-      requestNumber: { [Op.like]: `SRR-${year}-%` }
-    }
-  });
-  const sequence = String(count + 1).padStart(5, '0');
-  return `SRR-${year}-${sequence}`;
-};
+import { generateShopId, generateShopRegistrationRequestId } from '../services/uniqueIdService.js';
 
 /**
  * Get allowed ward IDs for clerk/admin from req.wardFilter
@@ -310,7 +296,7 @@ export const createShopRegistrationRequest = async (req, res, next) => {
       }
     }
 
-    const requestNumber = await generateRequestNumber();
+    const requestNumber = await generateShopRegistrationRequestId(property.wardId);
     const request = await ShopRegistrationRequest.create({
       requestNumber,
       propertyId,

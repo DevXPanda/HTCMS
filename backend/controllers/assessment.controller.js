@@ -4,6 +4,7 @@ import { auditLogger } from '../utils/auditLogger.js';
 import { generateUnifiedTaxAssessmentAndDemand } from '../services/unifiedTaxService.js';
 import { validatePropertyId } from '../utils/queryHelpers.js';
 import { generateAssessmentId } from '../services/uniqueIdService.js';
+import { getEffectiveUlbForRequest, getWardIdsByUlbId } from '../utils/ulbAccessHelper.js';
 
 /**
  * @route   GET /api/assessments
@@ -63,6 +64,25 @@ export const getAllAssessments = async (req, res, next) => {
       });
       const propertyIds = userProperties.map(p => p.id);
       where.propertyId = { [Op.in]: propertyIds };
+    } else {
+      // ULB isolation: non–super-admin can only view assessments in their assigned ULB
+      const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+      if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You must be assigned to an ULB to view assessments.'
+        });
+      }
+      if (effectiveUlbId) {
+        const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+        if (!wardIds || wardIds.length === 0) {
+          return res.json({
+            success: true,
+            data: { assessments: [], pagination: { total: 0, page: parseInt(page), limit: parseInt(limit), pages: 0 } }
+          });
+        }
+        where['$property.wardId$'] = { [Op.in]: wardIds };
+      }
     }
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
@@ -141,6 +161,17 @@ export const getAssessmentById = async (req, res, next) => {
           success: false,
           message: 'Access denied'
         });
+      }
+    } else {
+      // ULB isolation: non–super-admin can only view assessments in their assigned ULB
+      const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+      if (!isSuperAdmin && effectiveUlbId && assessment.property?.ward) {
+        if (assessment.property.ward.ulb_id !== effectiveUlbId) {
+          return res.status(403).json({
+            success: false,
+            message: 'Access denied. Assessment does not belong to your assigned ULB.'
+          });
+        }
       }
     }
 

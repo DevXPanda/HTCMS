@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { User, LogOut, Home, LayoutDashboard, X } from 'lucide-react';
+import { User, LogOut, Home, LayoutDashboard, ClipboardList } from 'lucide-react';
 import { useStaffAuth } from '../contexts/StaffAuthContext';
 
 const SupervisorLayout = () => {
@@ -9,6 +9,7 @@ const SupervisorLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isDashboard = location.pathname === '/supervisor/dashboard';
+  const isMRF = location.pathname.startsWith('/supervisor/mrf');
 
   const handleLogout = async () => {
     await logout();
@@ -25,7 +26,7 @@ const SupervisorLayout = () => {
             <div className="flex justify-between h-16">
               <div className="flex items-center gap-4">
                 <h1 className="text-xl font-bold text-primary-600">Supervisor Portal</h1>
-                <nav className="flex gap-2">
+                {/* <nav className="flex gap-2">
                   <button
                     onClick={() => navigate('/supervisor/dashboard')}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg ${isDashboard ? 'bg-primary-100 text-primary-700' : 'text-gray-600 hover:bg-gray-100'}`}
@@ -33,7 +34,14 @@ const SupervisorLayout = () => {
                     <LayoutDashboard className="w-5 h-5" />
                     Dashboard
                   </button>
-                </nav>
+                  <button
+                    onClick={() => navigate('/supervisor/mrf')}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg ${isMRF ? 'bg-primary-100 text-primary-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                  >
+                    <ClipboardList className="w-5 h-5" />
+                    MRF Task Board
+                  </button>
+                </nav> */}
               </div>
               <div className="flex items-center space-x-4">
                 <button

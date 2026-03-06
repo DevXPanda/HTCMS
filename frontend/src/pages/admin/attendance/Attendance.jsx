@@ -2,10 +2,18 @@ import { useState, useEffect } from 'react';
 import { attendanceAPI, userAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { Search, Filter, X, Eye, Calendar, User, Clock, MapPin, Monitor, Smartphone, Tablet, Globe, Users, Briefcase, Shield, UserCheck } from 'lucide-react';
+import { Search, Filter, X, Eye, Calendar, User, Clock, MapPin, Monitor, Smartphone, Tablet, Globe, Users, Briefcase, Shield, UserCheck, ClipboardList } from 'lucide-react';
 import AttendanceDetailsModal from './AttendanceDetailsModal';
+import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
+
+// Normalize role from API (backend may return uppercase e.g. CLERK, COLLECTOR)
+const getRecordRole = (record) => {
+  const r = (record.collector?.role || '').toLowerCase().replace(/-/g, '_');
+  return r === 'tax_collector' ? 'collector' : r;
+};
 
 const Attendance = () => {
+  const { effectiveUlbId } = useSelectedUlb();
   const [attendance, setAttendance] = useState([]);
   const [allAttendance, setAllAttendance] = useState([]); // Store all fetched records for frontend filtering
   const [loading, setLoading] = useState(true);
@@ -13,7 +21,7 @@ const Attendance = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [collectors, setCollectors] = useState([]);
-  const [selectedRole, setSelectedRole] = useState('collector'); // Default to collector for backwards compatibility
+  const [selectedRole, setSelectedRole] = useState('all'); // 'all' | 'clerk' | 'inspector' | 'officer' | 'collector' | 'supervisor'
   const [filters, setFilters] = useState({
     collectorId: '',
     dateFrom: '',
@@ -27,22 +35,22 @@ const Attendance = () => {
   useEffect(() => {
     fetchCollectors();
     fetchAttendance();
-  }, [search, filters]);
+  }, [search, filters, effectiveUlbId]);
 
   // Frontend filter when selected role changes
   useEffect(() => {
     if (allAttendance.length > 0) {
-      const filtered = selectedRole === 'collector'
-        ? allAttendance.filter(record => record.collector?.role === 'collector' || record.collector?.role === 'tax_collector')
-        : allAttendance.filter(record => record.collector?.role === selectedRole);
+      const filtered = selectedRole === 'all'
+        ? allAttendance
+        : allAttendance.filter(record => getRecordRole(record) === selectedRole);
       setAttendance(filtered);
     }
   }, [selectedRole, allAttendance]);
 
   const fetchCollectors = async () => {
     try {
-      const response = await userAPI.getAll({ role: 'collector', limit: 1000 });
-      setCollectors(response.data.data.users);
+      const response = await userAPI.getCollectors();
+      setCollectors(response.data.data.collectors || []);
     } catch (error) {
       console.error('Failed to fetch collectors:', error);
     }
@@ -58,12 +66,15 @@ const Attendance = () => {
         sortOrder: 'DESC',
         ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''))
       };
+      if (effectiveUlbId) params.ulb_id = effectiveUlbId;
       const response = await attendanceAPI.getAll(params);
-      const records = response.data.data.attendance;
+      const records = response.data.data.attendance || [];
       setAllAttendance(records);
 
-      // Apply frontend role filtering
-      const filtered = records.filter(record => record.collector?.role === selectedRole);
+      // Apply frontend role filtering (case-insensitive)
+      const filtered = selectedRole === 'all'
+        ? records
+        : records.filter(record => getRecordRole(record) === selectedRole);
       setAttendance(filtered);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to fetch attendance records');
@@ -140,21 +151,31 @@ const Attendance = () => {
       </div>
 
       {/* Role Summary Boxes */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
         <button
-          onClick={() => {
-            setSelectedRole('clerk');
-            const filtered = allAttendance.filter(record => record.collector?.role === 'clerk');
-            setAttendance(filtered);
-          }}
-          className={`card p-4 cursor-pointer transition-all hover:shadow-lg ${selectedRole === 'clerk' ? 'ring-2 ring-blue-500 bg-blue-50' : ''
-            }`}
+          type="button"
+          onClick={() => setSelectedRole('all')}
+          className={`card p-4 cursor-pointer transition-all hover:shadow-lg ${selectedRole === 'all' ? 'ring-2 ring-gray-500 bg-gray-50' : ''}`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">All Staff</p>
+              <p className="text-2xl font-bold text-gray-900">{allAttendance.length}</p>
+            </div>
+            <Users className="w-8 h-8 text-gray-500" />
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setSelectedRole('clerk')}
+          className={`card p-4 cursor-pointer transition-all hover:shadow-lg ${selectedRole === 'clerk' ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
         >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Clerk Attendance</p>
               <p className="text-2xl font-bold text-gray-900">
-                {allAttendance.filter(r => r.collector?.role === 'clerk').length}
+                {allAttendance.filter(r => getRecordRole(r) === 'clerk').length}
               </p>
             </div>
             <Briefcase className="w-8 h-8 text-blue-500" />
@@ -162,19 +183,15 @@ const Attendance = () => {
         </button>
 
         <button
-          onClick={() => {
-            setSelectedRole('inspector');
-            const filtered = allAttendance.filter(record => record.collector?.role === 'inspector');
-            setAttendance(filtered);
-          }}
-          className={`card p-4 cursor-pointer transition-all hover:shadow-lg ${selectedRole === 'inspector' ? 'ring-2 ring-green-500 bg-green-50' : ''
-            }`}
+          type="button"
+          onClick={() => setSelectedRole('inspector')}
+          className={`card p-4 cursor-pointer transition-all hover:shadow-lg ${selectedRole === 'inspector' ? 'ring-2 ring-green-500 bg-green-50' : ''}`}
         >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Inspector Attendance</p>
               <p className="text-2xl font-bold text-gray-900">
-                {allAttendance.filter(r => r.collector?.role === 'inspector').length}
+                {allAttendance.filter(r => getRecordRole(r) === 'inspector').length}
               </p>
             </div>
             <Shield className="w-8 h-8 text-green-500" />
@@ -182,19 +199,15 @@ const Attendance = () => {
         </button>
 
         <button
-          onClick={() => {
-            setSelectedRole('officer');
-            const filtered = allAttendance.filter(record => record.collector?.role === 'officer');
-            setAttendance(filtered);
-          }}
-          className={`card p-4 cursor-pointer transition-all hover:shadow-lg ${selectedRole === 'officer' ? 'ring-2 ring-purple-500 bg-purple-50' : ''
-            }`}
+          type="button"
+          onClick={() => setSelectedRole('officer')}
+          className={`card p-4 cursor-pointer transition-all hover:shadow-lg ${selectedRole === 'officer' ? 'ring-2 ring-purple-500 bg-purple-50' : ''}`}
         >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Officer Attendance</p>
               <p className="text-2xl font-bold text-gray-900">
-                {allAttendance.filter(r => r.collector?.role === 'officer').length}
+                {allAttendance.filter(r => getRecordRole(r) === 'officer').length}
               </p>
             </div>
             <UserCheck className="w-8 h-8 text-purple-500" />
@@ -202,22 +215,34 @@ const Attendance = () => {
         </button>
 
         <button
-          onClick={() => {
-            setSelectedRole('collector');
-            const filtered = allAttendance.filter(record => record.collector?.role === 'collector' || record.collector?.role === 'tax_collector');
-            setAttendance(filtered);
-          }}
-          className={`card p-4 cursor-pointer transition-all hover:shadow-lg ${selectedRole === 'collector' ? 'ring-2 ring-orange-500 bg-orange-50' : ''
-            }`}
+          type="button"
+          onClick={() => setSelectedRole('collector')}
+          className={`card p-4 cursor-pointer transition-all hover:shadow-lg ${selectedRole === 'collector' ? 'ring-2 ring-orange-500 bg-orange-50' : ''}`}
         >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Collector Attendance</p>
               <p className="text-2xl font-bold text-gray-900">
-                {allAttendance.filter(r => r.collector?.role === 'collector' || r.collector?.role === 'tax_collector').length}
+                {allAttendance.filter(r => getRecordRole(r) === 'collector').length}
               </p>
             </div>
             <Users className="w-8 h-8 text-orange-500" />
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setSelectedRole('supervisor')}
+          className={`card p-4 cursor-pointer transition-all hover:shadow-lg ${selectedRole === 'supervisor' ? 'ring-2 ring-teal-500 bg-teal-50' : ''}`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Supervisor Attendance</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {allAttendance.filter(r => getRecordRole(r) === 'supervisor').length}
+              </p>
+            </div>
+            <ClipboardList className="w-8 h-8 text-teal-500" />
           </div>
         </button>
       </div>

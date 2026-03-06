@@ -261,6 +261,7 @@ export const generateUnifiedTaxAssessmentAndDemand = async ({
     // For unified demands: if only water tax exists, use WATER_TAX serviceType
     // If property tax exists (with or without water), use HOUSE_TAX serviceType
     // The validation hook will check remarks to allow unified demands
+    const originalAmount = Math.round((totalAmount - penaltyAmount - interestAmount) * 100) / 100;
     const unifiedDemand = await Demand.create({
       demandNumber,
       propertyId,
@@ -273,6 +274,8 @@ export const generateUnifiedTaxAssessmentAndDemand = async ({
       penaltyAmount,
       interestAmount,
       totalAmount,
+      originalAmount,
+      finalAmount: totalAmount,
       balanceAmount: totalAmount,
       paidAmount: 0,
       dueDate: effectiveDueDate,

@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { waterConnectionAPI, waterConnectionDocumentAPI } from '../../../services/api';
+import { waterConnectionAPI, waterConnectionDocumentAPI, waterMeterReadingAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { FileText, Upload, Trash2, Download, AlertCircle, CheckCircle, Power } from 'lucide-react';
+import { FileText, Upload, Trash2, Download, AlertCircle, CheckCircle, Power, Plus, Gauge } from 'lucide-react';
 import { useConfirm } from '../../../components/ConfirmModal';
 import DocumentUploadModal from './DocumentUploadModal';
+import AddMeterReadingModal from './AddMeterReadingModal';
 
 const DOCUMENT_TYPE_LABELS = {
   APPLICATION_FORM: 'Application Form',
@@ -28,11 +29,29 @@ const WaterConnectionDetails = () => {
   const [mandatoryValidation, setMandatoryValidation] = useState({ isValid: false, missing: [] });
   const [loading, setLoading] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [meterReadings, setMeterReadings] = useState([]);
+  const [showAddMeterReadingModal, setShowAddMeterReadingModal] = useState(false);
 
   useEffect(() => {
     fetchConnection();
     fetchDocuments();
   }, [id]);
+
+  const fetchMeterReadings = useCallback(async () => {
+    if (!id) return;
+    try {
+      const response = await waterMeterReadingAPI.getByConnection(id);
+      setMeterReadings(response.data?.data?.meterReadings ?? []);
+    } catch {
+      setMeterReadings([]);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    if (id && connection?.isMetered) {
+      fetchMeterReadings();
+    }
+  }, [id, connection?.isMetered, fetchMeterReadings]);
 
   const fetchConnection = async () => {
     try {
@@ -274,6 +293,71 @@ const WaterConnectionDetails = () => {
         </div>
       </div>
 
+      {/* Meter Readings (metered connections only) */}
+      {connection.isMetered && (
+        <div className="card mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold flex items-center">
+              <Gauge className="w-5 h-5 mr-2" />
+              Meter Readings ({meterReadings.length})
+            </h2>
+            {connection.status === 'ACTIVE' && (
+              <button
+                type="button"
+                onClick={() => setShowAddMeterReadingModal(true)}
+                className="btn btn-primary flex items-center"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Meter Reading
+              </button>
+            )}
+          </div>
+          <p className="text-sm text-gray-600 mb-4">
+            Add a meter reading for the billing period before generating a water bill. Bills are calculated from current and previous readings.
+          </p>
+          {meterReadings.length === 0 ? (
+            <div className="text-center py-6 text-gray-500 bg-gray-50 rounded-lg">
+              <Gauge className="w-10 h-10 mx-auto mb-2 text-gray-400" />
+              <p>No meter readings yet</p>
+              {connection.status === 'ACTIVE' && (
+                <button
+                  type="button"
+                  onClick={() => setShowAddMeterReadingModal(true)}
+                  className="btn btn-primary mt-3"
+                >
+                  Add First Reading
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Reading #</th>
+                    <th>Date</th>
+                    <th>Previous</th>
+                    <th>Current</th>
+                    <th>Consumption</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {meterReadings.map((r) => (
+                    <tr key={r.id}>
+                      <td className="font-medium">{r.readingNumber}</td>
+                      <td>{r.readingDate ? new Date(r.readingDate).toLocaleDateString('en-IN') : '–'}</td>
+                      <td>{r.previousReading != null ? Number(r.previousReading).toLocaleString() : '–'}</td>
+                      <td>{Number(r.currentReading).toLocaleString()}</td>
+                      <td>{r.consumption != null ? Number(r.consumption).toLocaleString() : '–'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Documents Section */}
       <div className="card">
         <div className="flex justify-between items-center mb-4">
@@ -337,7 +421,7 @@ const WaterConnectionDetails = () => {
                       <div className="flex items-center space-x-2">
                         <button
                           onClick={() => handleDownloadDocument(doc)}
-                          className="text-blue-600 hover:text-blue-700"
+                          className="text-primary-600 hover:text-primary-700"
                           title="Download"
                         >
                           <Download className="w-4 h-4" />
@@ -368,6 +452,16 @@ const WaterConnectionDetails = () => {
             setShowUploadModal(false);
             fetchDocuments();
           }}
+        />
+      )}
+
+      {/* Add Meter Reading Modal */}
+      {showAddMeterReadingModal && (
+        <AddMeterReadingModal
+          waterConnectionId={id}
+          connectionNumber={connection?.connectionNumber}
+          onClose={() => setShowAddMeterReadingModal(false)}
+          onSuccess={fetchMeterReadings}
         />
       )}
     </div>

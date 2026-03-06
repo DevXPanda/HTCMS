@@ -7,10 +7,15 @@ export const Ward = sequelize.define('Ward', {
     primaryKey: true,
     autoIncrement: true
   },
+  ulb_id: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: { model: 'ulbs', key: 'id' },
+    comment: 'Urban Local Body; NOT NULL after backfill'
+  },
   wardNumber: {
     type: DataTypes.STRING(20),
-    allowNull: false,
-    unique: true
+    allowNull: false
   },
   wardName: {
     type: DataTypes.STRING(100),
@@ -70,5 +75,8 @@ export const Ward = sequelize.define('Ward', {
   }
 }, {
   tableName: 'wards',
-  timestamps: true
+  timestamps: true,
+  indexes: [
+    { unique: true, fields: ['ulb_id', 'wardNumber'], name: 'wards_ulb_id_ward_number_unique' }
+  ]
 });

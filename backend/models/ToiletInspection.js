@@ -49,11 +49,11 @@ export const ToiletInspection = sequelize.define('ToiletInspection', {
         allowNull: true
     },
     ventilation: {
-        type: DataTypes.STRING(10),
+        type: DataTypes.STRING(20),
         allowNull: true
     },
     lighting: {
-        type: DataTypes.STRING(10),
+        type: DataTypes.STRING(20),
         allowNull: true
     },
     photos: {

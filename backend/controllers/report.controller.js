@@ -1,6 +1,7 @@
 import { Payment, Demand, DemandItem, Property, Assessment, Ward, User, WaterConnection, WaterBill, WaterPayment, AdminManagement, Shop, ShopTaxAssessment } from '../models/index.js';
 import { Op, Sequelize } from 'sequelize';
 import { WATER_PAYMENT_STATUS, getUnpaidBillStatuses } from '../constants/waterTaxStatuses.js';
+import { getEffectiveUlbForRequest, getWardIdsByUlbId } from '../utils/ulbAccessHelper.js';
 
 /**
  * Helper function to check if a demand is unified (contains both property and water tax)
@@ -119,7 +120,16 @@ const splitUnifiedPayment = (payment, demand) => {
  */
 export const getDashboardStats = async (req, res, next) => {
   try {
+    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+    if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You must be assigned to an ULB to view dashboard data.'
+      });
+    }
+
     const { startDate, endDate } = req.query;
+    const ulbId = effectiveUlbId || undefined;
 
     const dateFilter = {};
     if (startDate || endDate) {
@@ -128,38 +138,57 @@ export const getDashboardStats = async (req, res, next) => {
       if (endDate) dateFilter.createdAt[Op.lte] = new Date(endDate);
     }
 
+    const wardIds = await getWardIdsByUlbId(ulbId);
+    let propertyIds = null;
+    if (wardIds !== null) {
+      if (wardIds.length === 0) {
+        propertyIds = [];
+      } else {
+        const props = await Property.findAll({
+          where: { wardId: { [Op.in]: wardIds } },
+          attributes: ['id']
+        });
+        propertyIds = props.map(p => p.id);
+      }
+    }
+
+    const propertyWhere = wardIds === null ? {} : { wardId: { [Op.in]: wardIds } };
+    const propertyIdFilter = propertyIds === null ? {} : { propertyId: { [Op.in]: propertyIds } };
+
     // Total Properties
     const totalProperties = await Property.count({
-      where: { isActive: true, ...dateFilter }
+      where: { isActive: true, ...dateFilter, ...propertyWhere }
     });
 
     // Total Assessments
     const totalAssessments = await Assessment.count({
-      where: dateFilter
+      where: { ...dateFilter, ...propertyIdFilter }
     });
 
     // Approved Assessments
     const approvedAssessments = await Assessment.count({
-      where: { status: 'approved', ...dateFilter }
+      where: { status: 'approved', ...dateFilter, ...propertyIdFilter }
     });
 
     // Total Demands
     const totalDemands = await Demand.count({
-      where: dateFilter
+      where: { ...dateFilter, ...propertyIdFilter }
     });
 
     // Total Revenue - separate by serviceType
     // Include demand items for unified demand detection
+    const paymentWhere = {
+      status: 'completed',
+      ...(Object.keys(propertyIdFilter).length ? propertyIdFilter : {}),
+      ...(startDate || endDate ? {
+        paymentDate: {
+          ...(startDate ? { [Op.gte]: new Date(startDate) } : {}),
+          ...(endDate ? { [Op.lte]: new Date(endDate) } : {})
+        }
+      } : {})
+    };
     const payments = await Payment.findAll({
-      where: {
-        status: 'completed',
-        ...(startDate || endDate ? {
-          paymentDate: {
-            ...(startDate ? { [Op.gte]: new Date(startDate) } : {}),
-            ...(endDate ? { [Op.lte]: new Date(endDate) } : {})
-          }
-        } : {})
-      },
+      where: paymentWhere,
       include: [
         {
           model: Demand,
@@ -213,21 +242,23 @@ export const getDashboardStats = async (req, res, next) => {
 
     // Pending Demands
     const pendingDemands = await Demand.count({
-      where: { status: 'pending' }
+      where: { status: 'pending', ...propertyIdFilter }
     });
 
     // Overdue Demands
     const overdueDemands = await Demand.count({
       where: {
         status: 'overdue',
-        balanceAmount: { [Op.gt]: 0 }
+        balanceAmount: { [Op.gt]: 0 },
+        ...propertyIdFilter
       }
     });
 
     // Total Outstanding Amount - separate by serviceType
     const outstandingDemands = await Demand.findAll({
       where: {
-        balanceAmount: { [Op.gt]: 0 }
+        balanceAmount: { [Op.gt]: 0 },
+        ...propertyIdFilter
       },
       attributes: ['id', 'balanceAmount', 'serviceType']
     });
@@ -245,37 +276,62 @@ export const getDashboardStats = async (req, res, next) => {
 
     // Separate demands by serviceType
     const houseTaxDemands = await Demand.count({
-      where: { serviceType: 'HOUSE_TAX', ...dateFilter }
+      where: { serviceType: 'HOUSE_TAX', ...dateFilter, ...propertyIdFilter }
     });
     const d2dcDemands = await Demand.count({
-      where: { serviceType: 'D2DC', ...dateFilter }
+      where: { serviceType: 'D2DC', ...dateFilter, ...propertyIdFilter }
     });
     const shopTaxDemands = await Demand.count({
-      where: { serviceType: 'SHOP_TAX', ...dateFilter }
+      where: { serviceType: 'SHOP_TAX', ...dateFilter, ...propertyIdFilter }
     });
+
+    const shopWardFilter = wardIds === null ? {} : { wardId: { [Op.in]: wardIds } };
+    let shopIdFilter = {};
+    if (wardIds !== null && wardIds.length > 0) {
+      const shopIds = await Shop.findAll({ where: shopWardFilter, attributes: ['id'] }).then(r => r.map(s => s.id));
+      shopIdFilter = shopIds.length ? { shopId: { [Op.in]: shopIds } } : { shopId: { [Op.in]: [] } };
+    } else if (wardIds !== null) {
+      shopIdFilter = { shopId: { [Op.in]: [] } };
+    }
 
     // Active Shops (for dashboard)
     const activeShops = await Shop.count({
-      where: { status: 'active' }
+      where: { status: 'active', ...shopWardFilter }
+    });
+
+    // Shop Tax Assessments (for dashboard) - via Shop.wardId
+    const totalShopAssessments = await ShopTaxAssessment.count({
+      where: { ...dateFilter, ...shopIdFilter }
+    });
+    const approvedShopAssessments = await ShopTaxAssessment.count({
+      where: { status: 'approved', ...dateFilter, ...shopIdFilter }
     });
 
     // Water Tax Metrics
     // Total Water Connections
     const totalWaterConnections = await WaterConnection.count({
-      where: { status: 'ACTIVE' }
+      where: { status: 'ACTIVE', ...propertyIdFilter }
     });
 
-    // Total Water Revenue (from completed water payments)
+    // Total Water Revenue (from completed water payments) - filter by ULB via bill -> connection -> property
+    let waterPaymentsWhere = {
+      status: WATER_PAYMENT_STATUS.COMPLETED,
+      ...(startDate || endDate ? {
+        paymentDate: {
+          ...(startDate ? { [Op.gte]: new Date(startDate) } : {}),
+          ...(endDate ? { [Op.lte]: new Date(endDate) } : {})
+        }
+      } : {})
+    };
+    if (propertyIds !== null && propertyIds.length === 0) {
+      waterPaymentsWhere.id = { [Op.in]: [] };
+    } else if (propertyIds !== null && propertyIds.length > 0) {
+      const connIds = await WaterConnection.findAll({ where: { propertyId: { [Op.in]: propertyIds } }, attributes: ['id'] }).then(r => r.map(c => c.id));
+      const billIds = connIds.length ? await WaterBill.findAll({ where: { waterConnectionId: { [Op.in]: connIds } }, attributes: ['id'] }).then(r => r.map(b => b.id)) : [];
+      if (billIds.length) waterPaymentsWhere.waterBillId = { [Op.in]: billIds }; else waterPaymentsWhere.id = { [Op.in]: [] };
+    }
     const waterPayments = await WaterPayment.findAll({
-      where: {
-        status: WATER_PAYMENT_STATUS.COMPLETED,
-        ...(startDate || endDate ? {
-          paymentDate: {
-            ...(startDate ? { [Op.gte]: new Date(startDate) } : {}),
-            ...(endDate ? { [Op.lte]: new Date(endDate) } : {})
-          }
-        } : {})
-      },
+      where: waterPaymentsWhere,
       attributes: ['id', 'amount']
     });
 
@@ -284,14 +340,19 @@ export const getDashboardStats = async (req, res, next) => {
     // Add water tax revenue from unified demands
     const totalWaterTaxRevenue = totalWaterRevenue + waterTaxRevenueFromUnified;
 
-    // Water Outstanding Amount (from unpaid bills)
+    // Water Outstanding Amount (from unpaid bills) - filter by ULB
+    let unpaidWaterBillsWhere = {
+      status: { [Op.in]: getUnpaidBillStatuses() },
+      balanceAmount: { [Op.gt]: 0.01 }
+    };
+    if (propertyIds !== null) {
+      const connIds = propertyIds.length === 0 ? [] : await WaterConnection.findAll({ where: { propertyId: { [Op.in]: propertyIds } }, attributes: ['id'] }).then(r => r.map(c => c.id));
+      if (propertyIds.length === 0) unpaidWaterBillsWhere.waterConnectionId = { [Op.in]: [] };
+      else if (connIds.length) unpaidWaterBillsWhere.waterConnectionId = { [Op.in]: connIds };
+      else unpaidWaterBillsWhere.waterConnectionId = { [Op.in]: [] };
+    }
     const unpaidWaterBills = await WaterBill.findAll({
-      where: {
-        status: {
-          [Op.in]: getUnpaidBillStatuses()
-        },
-        balanceAmount: { [Op.gt]: 0.01 } // Handle floating point precision
-      },
+      where: unpaidWaterBillsWhere,
       attributes: ['id', 'balanceAmount']
     });
 
@@ -308,6 +369,8 @@ export const getDashboardStats = async (req, res, next) => {
         d2dcDemands,
         shopTaxDemands,
         activeShops,
+        totalShopAssessments,
+        approvedShopAssessments,
         totalRevenue,
         houseTaxRevenue,
         d2dcRevenue,
@@ -336,7 +399,16 @@ export const getDashboardStats = async (req, res, next) => {
  */
 export const getRevenueReport = async (req, res, next) => {
   try {
+    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+    if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You must be assigned to an ULB to view revenue data.'
+      });
+    }
+
     const { startDate, endDate, wardId, paymentMode, taxType } = req.query;
+    const ulbId = effectiveUlbId || null;
 
     const where = {
       status: 'completed'
@@ -350,12 +422,23 @@ export const getRevenueReport = async (req, res, next) => {
       if (endDate) where.paymentDate[Op.lte] = new Date(endDate);
     }
 
+    let propertyIds = null;
+    if (ulbId) {
+      const wardIds = await getWardIdsByUlbId(ulbId);
+      if (wardIds && wardIds.length > 0) {
+        const props = await Property.findAll({ where: { wardId: { [Op.in]: wardIds } }, attributes: ['id'] });
+        propertyIds = props.map(p => p.id);
+      } else {
+        propertyIds = [];
+      }
+    }
     if (wardId) {
-      const properties = await Property.findAll({
-        where: { wardId },
-        attributes: ['id']
-      });
-      const propertyIds = properties.map(p => p.id);
+      const wardProps = await Property.findAll({ where: { wardId }, attributes: ['id'] });
+      const ids = wardProps.map(p => p.id);
+      if (propertyIds !== null) propertyIds = propertyIds.filter(id => ids.includes(id));
+      else propertyIds = ids;
+    }
+    if (propertyIds !== null) {
       where.propertyId = { [Op.in]: propertyIds };
     }
 
@@ -442,16 +525,24 @@ export const getRevenueReport = async (req, res, next) => {
     // Get Water Tax revenue from WaterPayment table (only if taxType is not specified or is WATER_TAX)
     let waterPayments = [];
     if (!taxType || taxType === 'WATER_TAX') {
+      const waterPaymentWhere = {
+        status: WATER_PAYMENT_STATUS.COMPLETED,
+        ...(startDate || endDate ? {
+          paymentDate: {
+            ...(startDate ? { [Op.gte]: new Date(startDate) } : {}),
+            ...(endDate ? { [Op.lte]: new Date(endDate) } : {})
+          }
+        } : {})
+      };
+      if (propertyIds !== null && propertyIds.length > 0) {
+        const connIds = await WaterConnection.findAll({ where: { propertyId: { [Op.in]: propertyIds } }, attributes: ['id'] }).then(r => r.map(c => c.id));
+        const billIds = connIds.length ? await WaterBill.findAll({ where: { waterConnectionId: { [Op.in]: connIds } }, attributes: ['id'] }).then(r => r.map(b => b.id)) : [];
+        if (billIds.length) waterPaymentWhere.waterBillId = { [Op.in]: billIds }; else waterPaymentWhere.id = { [Op.in]: [] };
+      } else if (propertyIds !== null) {
+        waterPaymentWhere.id = { [Op.in]: [] };
+      }
       waterPayments = await WaterPayment.findAll({
-        where: {
-          status: WATER_PAYMENT_STATUS.COMPLETED,
-          ...(startDate || endDate ? {
-            paymentDate: {
-              ...(startDate ? { [Op.gte]: new Date(startDate) } : {}),
-              ...(endDate ? { [Op.lte]: new Date(endDate) } : {})
-            }
-          } : {})
-        },
+        where: waterPaymentWhere,
         attributes: ['id', 'amount']
       });
     }
@@ -612,7 +703,16 @@ export const getRevenueReport = async (req, res, next) => {
  */
 export const getOutstandingReport = async (req, res, next) => {
   try {
+    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+    if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You must be assigned to an ULB to view outstanding data.'
+      });
+    }
+
     const { wardId, status } = req.query;
+    const ulbId = effectiveUlbId || null;
 
     const where = {
       balanceAmount: { [Op.gt]: 0 }
@@ -621,7 +721,12 @@ export const getOutstandingReport = async (req, res, next) => {
     if (status) where.status = status;
 
     let propertyWhere = {};
-    if (wardId) propertyWhere.wardId = wardId;
+    if (ulbId) {
+      const wardIds = await getWardIdsByUlbId(ulbId);
+      if (wardIds && wardIds.length) propertyWhere.wardId = { [Op.in]: wardIds };
+      else propertyWhere.wardId = { [Op.in]: [] };
+    }
+    if (wardId) propertyWhere.wardId = parseInt(wardId, 10);
 
     const demands = await Demand.findAll({
       where,
@@ -701,10 +806,22 @@ export const getOutstandingReport = async (req, res, next) => {
  */
 export const getWardWiseReport = async (req, res, next) => {
   try {
+    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+    if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You must be assigned to an ULB to view ward-wise data.'
+      });
+    }
+
     const { startDate, endDate } = req.query;
+    const ulbId = effectiveUlbId || null;
+
+    const wardWhere = { isActive: true };
+    if (ulbId) wardWhere.ulb_id = ulbId;
 
     const wards = await Ward.findAll({
-      where: { isActive: true },
+      where: wardWhere,
       include: [
         {
           model: AdminManagement,

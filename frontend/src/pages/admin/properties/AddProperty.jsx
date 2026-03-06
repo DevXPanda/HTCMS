@@ -5,9 +5,11 @@ import { propertyAPI, wardAPI, uploadAPI } from '../../../services/api';
 import toast from 'react-hot-toast';
 import { Save, Upload, X, Image as ImageIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 
 const AddProperty = () => {
   const navigate = useNavigate();
+  const { effectiveUlbId } = useSelectedUlb();
   const [loading, setLoading] = useState(false);
   const [wards, setWards] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
@@ -33,12 +35,13 @@ const AddProperty = () => {
 
   useEffect(() => {
     fetchInitialData();
-  }, []);
+  }, [effectiveUlbId]);
 
   const fetchInitialData = async () => {
     try {
       setLoadingData(true);
-      const wardsRes = await wardAPI.getAll();
+      const params = effectiveUlbId ? { ulb_id: effectiveUlbId } : {};
+      const wardsRes = await wardAPI.getAll(params);
       setWards(wardsRes.data.data.wards);
     } catch (error) {
       toast.error('Failed to load initial data');

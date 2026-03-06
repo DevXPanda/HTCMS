@@ -31,8 +31,10 @@ const getCorrespondingUserId = async (adminManagementId) => {
 
       return correspondingUser.id;
     } else {
-      console.warn(`No corresponding user found for admin ID: ${adminManagementId}`);
-      return adminManagementId; // Fallback to original ID
+      if (process.env.NODE_ENV === 'development') {
+        console.warn(`No corresponding user found for admin ID: ${adminManagementId}`);
+      }
+      return adminManagementId;
     }
   } catch (error) {
     console.error('Error getting corresponding user ID:', error);

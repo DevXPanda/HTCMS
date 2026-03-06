@@ -102,12 +102,20 @@ const ClerkLayout = () => {
                                     </div>
                                     <div className="bg-gray-50 p-3 rounded-md">
                                         <p className="text-xs text-gray-500 uppercase">Phone</p>
-                                        <p className="text-sm font-medium text-gray-900">{userData?.phone || userData?.phoneNumber || 'N/A'}</p>
+                                        <p className="text-sm font-medium text-gray-900">{userData?.phone_number || userData?.phone || userData?.phoneNumber || 'N/A'}</p>
                                     </div>
                                     <div className="bg-gray-50 p-3 rounded-md">
                                         <p className="text-xs text-gray-500 uppercase">Employee ID</p>
                                         <p className="text-sm font-medium text-gray-900">{userData?.employee_id || userData?.id || 'N/A'}</p>
                                     </div>
+                                    {userData?.assigned_wards?.length > 0 && (
+                                        <div className="bg-gray-50 p-3 rounded-md">
+                                            <p className="text-xs text-gray-500 uppercase">{userData.assigned_wards.length === 1 ? 'Assigned Ward' : 'Assigned Wards'}</p>
+                                            <p className="text-sm font-medium text-gray-900">
+                                                {userData.assigned_wards.map((w) => `${w.wardNumber || w.id} - ${w.wardName || 'Ward'}`).join(', ')}
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             <div className="modal-footer">

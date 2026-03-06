@@ -4,6 +4,7 @@ import { ConfirmProvider } from './components/ConfirmModal';
 import { AuthProvider } from './contexts/AuthContext';
 import { StaffAuthProvider } from './contexts/StaffAuthContext';
 import { NavigationProvider } from './contexts/NavigationContext';
+import { SelectedUlbProvider } from './contexts/SelectedUlbContext';
 import PrivateRoute from './components/PrivateRoute';
 import { ShopTaxBasePathProvider } from './contexts/ShopTaxBasePathContext';
 import AdminLayout from './components/AdminLayout';
@@ -55,8 +56,9 @@ import AddPayment from './pages/admin/payments/AddPayment';
 import OnlinePayment from './pages/admin/payments/OnlinePayment';
 import Wards from './pages/admin/wards/Wards';
 import WardDetails from './pages/admin/wards/WardDetails';
-import AddWard from './pages/admin/wards/AddWard';
+import ULBManagement from './pages/admin/ulb/ULBManagement';
 import Users from './pages/admin/users/Users';
+import AdminAccounts from './pages/admin/users/AdminAccounts';
 import AdminManagement from './pages/admin/AdminManagement';
 import Reports from './pages/admin/reports/Reports';
 import AuditLogs from './pages/admin/auditLogs/AuditLogs';
@@ -129,6 +131,8 @@ import GlobalStaffAssignment from './pages/admin/toilet/GlobalStaffAssignment';
 // import FeedbackList from './pages/admin/feedback/FeedbackList';
 
 import ToiletComplaintsSupervisor from './pages/supervisor/ToiletComplaintsSupervisor';
+import SupervisorMRFList from './pages/supervisor/SupervisorMRFList';
+import SupervisorMRFDetails from './pages/supervisor/SupervisorMRFDetails';
 
 // Citizen Pages
 import CitizenDashboard from './pages/citizen/CitizenDashboard';
@@ -268,7 +272,9 @@ function App() {
               path="/"
               element={
                 <PrivateRoute allowedRoles={['admin', 'assessor', 'cashier']}>
-                  <AdminLayout />
+                  <SelectedUlbProvider>
+                    <AdminLayout />
+                  </SelectedUlbProvider>
                 </PrivateRoute>
               }
             >
@@ -371,15 +377,21 @@ function App() {
               <Route path="payments/online/:demandId" element={<OnlinePayment />} />
               <Route path="payments/:id" element={<PaymentDetails />} />
 
-              {/* Wards */}
+              {/* Wards - Add Ward is in popup on Wards page */}
               <Route path="wards" element={<Wards />} />
-              <Route path="wards/new" element={<AddWard />} />
+              <Route path="wards/new" element={<Navigate to="/wards" replace />} />
               <Route path="wards/:id" element={<WardDetails />} />
 
-              {/* Users (Collector Management) */}
+              {/* ULB Management */}
+              <Route path="ulb-management" element={<ULBManagement />} />
+
+              {/* Users (Citizen Management) */}
               <Route path="users" element={<Users />} />
 
-              {/* Admin Management */}
+              {/* Admin Accounts (admin role users) */}
+              <Route path="admin-accounts" element={<AdminAccounts />} />
+
+              {/* Admin Management (Staff / EO) */}
               <Route path="admin-management" element={<AdminManagement />} />
 
               {/* Reports */}
@@ -547,6 +559,8 @@ function App() {
               <Route index element={<Navigate to="/supervisor/dashboard" replace />} />
               <Route path="dashboard" element={<SupervisorDashboard />} />
               <Route path="toilet-complaints" element={<ToiletComplaintsSupervisor />} />
+              <Route path="mrf" element={<SupervisorMRFList />} />
+              <Route path="mrf/facilities/:id" element={<SupervisorMRFDetails />} />
             </Route>
 
             {/* Protected Routes - Officer Portal */}

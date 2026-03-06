@@ -1,6 +1,7 @@
 import { CollectorAttendance, User, Ward, AdminManagement, Worker, WorkerAttendance, ULB } from '../models/index.js';
 import { Op } from 'sequelize';
 import { isPointInPolygon, parseWardBoundary } from '../utils/geoHelpers.js';
+import { getEffectiveUlbForRequest } from '../utils/ulbAccessHelper.js';
 
 /**
  * @route   GET /api/attendance
@@ -38,7 +39,30 @@ export const getAttendanceRecords = async (req, res, next) => {
         where.usertype = 'admin_management';
       }
     } else if (user.role === 'admin' || user.role === 'assessor') {
-      // Admin and Assessor can see all attendance records
+      // Admin and Assessor: apply ULB filter when effective ULB is set
+      const { effectiveUlbId } = getEffectiveUlbForRequest(req);
+      if (effectiveUlbId) {
+        const [adminStaff, usersInUlb] = await Promise.all([
+          AdminManagement.findAll({ where: { ulb_id: effectiveUlbId }, attributes: ['id'] }),
+          User.findAll({ where: { ulb_id: effectiveUlbId }, attributes: ['id'] })
+        ]);
+        const adminIds = adminStaff.map(s => s.id);
+        const userIds = usersInUlb.map(u => u.id);
+        const orParts = [];
+        if (userIds.length) orParts.push({ usertype: 'user', collectorId: { [Op.in]: userIds } });
+        if (adminIds.length) orParts.push({ usertype: 'admin_management', collectorId: { [Op.in]: adminIds } });
+        if (orParts.length) where[Op.or] = orParts;
+        if (!orParts.length) {
+          return res.json({
+            success: true,
+            data: {
+              attendance: [],
+              pagination: { total: 0, page: parseInt(page), limit: parseInt(limit), pages: 0 }
+            }
+          });
+        }
+      }
+
       // Apply filters if provided
       if (collectorId) {
         where.collectorId = collectorId;
@@ -267,8 +291,21 @@ export const getAttendanceStats = async (req, res, next) => {
     const { dateFrom, dateTo } = req.query;
 
     const where = {};
+    const { effectiveUlbId } = getEffectiveUlbForRequest(req);
+    if (effectiveUlbId) {
+      const [adminStaff, usersInUlb] = await Promise.all([
+        AdminManagement.findAll({ where: { ulb_id: effectiveUlbId }, attributes: ['id'] }),
+        User.findAll({ where: { ulb_id: effectiveUlbId }, attributes: ['id'] })
+      ]);
+      const adminIds = adminStaff.map(s => s.id);
+      const userIds = usersInUlb.map(u => u.id);
+      const orParts = [];
+      if (userIds.length) orParts.push({ usertype: 'user', collectorId: { [Op.in]: userIds } });
+      if (adminIds.length) orParts.push({ usertype: 'admin_management', collectorId: { [Op.in]: adminIds } });
+      if (orParts.length) where[Op.or] = orParts;
+    }
     if (dateFrom || dateTo) {
-      where.loginAt = {};
+      where.loginAt = where.loginAt || {};
       if (dateFrom) {
         where.loginAt[Op.gte] = new Date(dateFrom);
       }
@@ -296,24 +333,15 @@ export const getAttendanceStats = async (req, res, next) => {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const todayAttendance = await CollectorAttendance.count({
-      where: {
-        loginAt: {
-          [Op.gte]: today,
-          [Op.lt]: tomorrow
-        }
-      }
-    });
+    const ulbCondition = where[Op.or] ? { [Op.or]: where[Op.or] } : {};
+    const todayWhere = Object.keys(ulbCondition).length
+      ? { [Op.and]: [ulbCondition, { loginAt: { [Op.gte]: today, [Op.lt]: tomorrow } }] }
+      : { loginAt: { [Op.gte]: today, [Op.lt]: tomorrow } };
+    const todayAttendance = await CollectorAttendance.count({ where: todayWhere });
 
     // Collectors without logout today
     const noLogoutToday = await CollectorAttendance.count({
-      where: {
-        loginAt: {
-          [Op.gte]: today,
-          [Op.lt]: tomorrow
-        },
-        logoutAt: null
-      }
+      where: { ...todayWhere, logoutAt: null }
     });
 
     // Unique collectors

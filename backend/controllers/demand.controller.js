@@ -3,6 +3,7 @@ import { Op, Sequelize } from 'sequelize';
 import { generateDemandId } from '../services/uniqueIdService.js';
 
 import { auditLogger, createAuditLog } from '../utils/auditLogger.js';
+import { getEffectiveUlbForRequest, getWardIdsByUlbId } from '../utils/ulbAccessHelper.js';
 import { generateDemandNoticePdfBuffer, generateDemandSummaryReceiptPdfBuffer } from '../services/pdfGenerator.js';
 import { generateUnifiedTaxAssessmentAndDemand, getUnifiedDemandBreakdown, getUnifiedTaxSummary as getUnifiedTaxSummaryService } from '../services/unifiedTaxService.js';
 import { generateShopDemandsForProperty } from '../services/shopDemandService.js';
@@ -34,6 +35,8 @@ export const getAllDemands = async (req, res, next) => {
 
     const where = {};
     const whereConditions = []; // For combining conditions
+
+    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
 
     if (propertyId) where.propertyId = propertyId;
     if (financialYear) where.financialYear = financialYear;
@@ -193,6 +196,35 @@ export const getAllDemands = async (req, res, next) => {
       }
     }
 
+    // ULB filter for admin/assessor/cashier (not citizen, collector, clerk)
+    if (req.user.role !== 'citizen' && req.user.role !== 'collector' && req.user.role !== 'tax_collector' && req.user.role !== 'clerk') {
+      if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You must be assigned to an ULB to view demands.'
+        });
+      }
+      if (effectiveUlbId) {
+        const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+        if (!wardIds || wardIds.length === 0) {
+          return res.json({
+            success: true,
+            data: {
+              demands: [],
+              pagination: { total: 0, page: parseInt(page), limit: parseInt(limit), pages: 0 }
+            }
+          });
+        }
+        const ulbWardFilter = {
+          [Op.or]: [
+            { '$property.wardId$': { [Op.in]: wardIds } },
+            { '$shopTaxAssessment.shop.wardId$': { [Op.in]: wardIds } }
+          ]
+        };
+        whereConditions.push(ulbWardFilter);
+      }
+    }
+
     // Combine all where conditions
     if (whereConditions.length > 0) {
       if (Object.keys(where).length > 0) {
@@ -282,7 +314,9 @@ const demandByIdIncludes = [
     model: ShopTaxAssessment,
     as: 'shopTaxAssessment',
     required: false,
-    include: [{ model: Shop, as: 'shop', attributes: ['id', 'shopNumber', 'shopName', 'propertyId', 'wardId', 'status'] }]
+    include: [
+      { model: Shop, as: 'shop', attributes: ['id', 'shopNumber', 'shopName', 'propertyId', 'wardId', 'status'], include: [{ model: Ward, as: 'ward', attributes: ['id', 'ulb_id'], required: false }] }
+    ]
   },
   {
     model: DemandItem,
@@ -421,6 +455,20 @@ export const getDemandById = async (req, res, next) => {
           success: false,
           message: 'Access denied: No wards assigned to clerk. Please contact administrator.'
         });
+      }
+    }
+
+    // ULB isolation: admin/assessor/cashier/EO can only view demands in their assigned ULB
+    if (userRole !== 'citizen' && userRole !== 'clerk' && userRole !== 'collector' && userRole !== 'tax_collector') {
+      const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+      if (!isSuperAdmin && effectiveUlbId) {
+        const wardUlbId = demand.property?.ward?.ulb_id ?? demand.shopTaxAssessment?.shop?.ward?.ulb_id;
+        if (wardUlbId !== effectiveUlbId) {
+          return res.status(403).json({
+            success: false,
+            message: 'Access denied. Demand does not belong to your assigned ULB.'
+          });
+        }
       }
     }
 
@@ -782,6 +830,7 @@ export const createDemand = async (req, res, next) => {
     const interestAmount = 0; // Can be calculated based on overdue logic
     const totalAmount = Math.round((calculatedBaseAmount + arrearsAmount + penaltyAmount + interestAmount) * 100) / 100;
     const balanceAmount = Math.round(totalAmount * 100) / 100;
+    const originalAmount = totalAmount; // tax-only before penalty/interest
 
     // Validation checks
     if (serviceType === 'D2DC' && finalAssessmentId !== null) {
@@ -817,6 +866,8 @@ export const createDemand = async (req, res, next) => {
       penaltyAmount,
       interestAmount,
       totalAmount,
+      originalAmount,
+      finalAmount: totalAmount,
       balanceAmount: balanceAmount,
       paidAmount: 0,
       dueDate: new Date(dueDate),
@@ -975,7 +1026,8 @@ export const generateShopDemand = async (req, res, next) => {
     const penaltyAmount = 0;
     const interestAmount = 0;
     const totalAmount = Math.round((baseAmount + arrearsAmount + penaltyAmount + interestAmount) * 100) / 100;
-    const demandNumber = `STD-${financialYear}-${Date.now()}`;
+    const demandNumber = await generateDemandId(shop.wardId, 'shop');
+    const originalAmount = totalAmount; // no penalty/interest on creation
 
     let demand;
     try {
@@ -992,6 +1044,8 @@ export const generateShopDemand = async (req, res, next) => {
         penaltyAmount,
         interestAmount,
         totalAmount,
+        originalAmount,
+        finalAmount: totalAmount,
         balanceAmount: totalAmount,
         paidAmount: 0,
         dueDate: dueDateResolved,
@@ -1178,6 +1232,7 @@ export const generateCombinedDemands = async (req, res, next) => {
           const demandNumber = `DEM-${normalizedFinancialYear}-${Date.now()}-${propertyAssessment.id}`;
           const baseAmount = parseFloat(propertyAssessment.annualTaxAmount || 0);
           const totalAmount = Math.round((baseAmount + arrearsAmount) * 100) / 100;
+          const originalAmount = totalAmount;
 
           const demand = await Demand.create({
             demandNumber,
@@ -1191,6 +1246,8 @@ export const generateCombinedDemands = async (req, res, next) => {
             penaltyAmount: 0,
             interestAmount: 0,
             totalAmount,
+            originalAmount,
+            finalAmount: totalAmount,
             balanceAmount: totalAmount,
             paidAmount: 0,
             dueDate: new Date(normalizedDueDate || new Date()),
@@ -1253,6 +1310,7 @@ export const generateCombinedDemands = async (req, res, next) => {
 
           const totalAmount = Math.round((baseAmount + arrearsAmount) * 100) / 100;
           const demandNumber = `WTD-${normalizedFinancialYear}-${Date.now()}-${waterTaxAssessment.id}`;
+          const originalAmount = totalAmount;
 
           const demand = await Demand.create({
             demandNumber,
@@ -1266,6 +1324,8 @@ export const generateCombinedDemands = async (req, res, next) => {
             penaltyAmount: 0,
             interestAmount: 0,
             totalAmount,
+            originalAmount,
+            finalAmount: totalAmount,
             balanceAmount: totalAmount,
             paidAmount: 0,
             dueDate: new Date(normalizedDueDate || new Date()),
@@ -1401,6 +1461,7 @@ export const createD2DCDemand = async (req, res, next) => {
     const calculatedBaseAmount = parseFloat(baseAmount || 50);
     const totalAmount = Math.round((calculatedBaseAmount + arrearsAmount) * 100) / 100;
     const balanceAmount = Math.round(totalAmount * 100) / 100;
+    const originalAmount = totalAmount;
 
     // CRITICAL: D2DC demands MUST have assessmentId = null
     // D2DC is a municipal service, NOT a tax assessment
@@ -1418,6 +1479,8 @@ export const createD2DCDemand = async (req, res, next) => {
       penaltyAmount: 0,
       interestAmount: 0,
       totalAmount,
+      originalAmount,
+      finalAmount: totalAmount,
       balanceAmount,
       paidAmount: 0,
       dueDate: dueDate ? new Date(dueDate) : new Date(),
@@ -1520,6 +1583,7 @@ export const generateBulkDemands = async (req, res, next) => {
         const baseAmount = parseFloat(assessment.annualTaxAmount || 0);
         const totalAmount = Math.round((baseAmount + arrearsAmount) * 100) / 100;
         const balanceAmount = Math.round(totalAmount * 100) / 100;
+        const originalAmount = totalAmount;
 
         const demand = await Demand.create({
           demandNumber,
@@ -1532,6 +1596,8 @@ export const generateBulkDemands = async (req, res, next) => {
           penaltyAmount: 0,
           interestAmount: 0,
           totalAmount,
+          originalAmount,
+          finalAmount: totalAmount,
           balanceAmount: balanceAmount,
           paidAmount: 0,
           dueDate: new Date(dueDate),
@@ -1620,7 +1686,8 @@ export const generateBulkShopDemands = async (req, res, next) => {
       try {
         const baseAmount = parseFloat(assessment.annualTaxAmount || 0);
         const totalAmount = Math.round(baseAmount * 100) / 100;
-        const demandNumber = `STD-${fy}-${Date.now()}-${shop.id}`;
+        const demandNumber = await generateDemandId(shop.wardId, 'shop');
+        const originalAmount = totalAmount; // no penalty/interest on creation
 
         const demand = await Demand.create({
           demandNumber,
@@ -1635,6 +1702,8 @@ export const generateBulkShopDemands = async (req, res, next) => {
           penaltyAmount: 0,
           interestAmount: 0,
           totalAmount,
+          originalAmount,
+          finalAmount: totalAmount,
           balanceAmount: totalAmount,
           paidAmount: 0,
           dueDate: dueDateResolved,
@@ -1797,6 +1866,7 @@ export const generateBulkWaterDemands = async (req, res, next) => {
 
         const demandNumber = await generateDemandId(property.wardId, 'water');
 
+        const originalAmount = totalAmount;
         const demand = await Demand.create({
           demandNumber,
           propertyId,
@@ -1809,6 +1879,8 @@ export const generateBulkWaterDemands = async (req, res, next) => {
           penaltyAmount: 0,
           interestAmount: 0,
           totalAmount,
+          originalAmount,
+          finalAmount: totalAmount,
           balanceAmount: totalAmount,
           paidAmount: 0,
           dueDate: dueDateResolved,

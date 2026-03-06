@@ -55,13 +55,14 @@ export const distributePaymentAcrossItems = async (demandId, paymentAmount, tran
       const newBalanceAmount = Math.round((totalAmount - newPaidAmount) * 100) / 100;
       const newStatus = newBalanceAmount <= 0 ? 'paid' : newPaidAmount > 0 ? 'partially_paid' : demand.status;
 
+      // Skip model validation: we only update payment fields; beforeValidate requires assessmentId on "new" instance which Sequelize can pass for bulk update
       await Demand.update(
         {
           paidAmount: newPaidAmount,
           balanceAmount: newBalanceAmount,
           status: newStatus
         },
-        { where: { id: demandId }, transaction }
+        { where: { id: demandId }, transaction, validate: false }
       );
 
       return {
@@ -160,13 +161,12 @@ export const distributePaymentAcrossItems = async (demandId, paymentAmount, tran
       attributes: ['id', 'assessmentId', 'waterTaxAssessmentId', 'serviceType', 'remarks', 'totalAmount']
     });
 
-    // Update demand
+    // Update demand (validate: false so beforeValidate hook does not run with partial instance and fail on assessmentId)
     await Demand.update(
       {
         paidAmount: totalItemPaid,
         balanceAmount: newDemandBalance,
         status: newDemandBalance <= 0 ? 'paid' : (totalItemPaid >= (parseFloat(currentDemand.totalAmount) * 0.49) && totalItemPaid <= (parseFloat(currentDemand.totalAmount) * 0.51)) ? 'partially_paid' : 'pending',
-        // Preserve assessment IDs to avoid validation issues
         assessmentId: currentDemand.assessmentId,
         waterTaxAssessmentId: currentDemand.waterTaxAssessmentId,
         serviceType: currentDemand.serviceType,
@@ -174,7 +174,8 @@ export const distributePaymentAcrossItems = async (demandId, paymentAmount, tran
       },
       {
         where: { id: demandId },
-        transaction
+        transaction,
+        validate: false
       }
     );
 

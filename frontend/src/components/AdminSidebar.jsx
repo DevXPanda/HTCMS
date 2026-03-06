@@ -24,7 +24,8 @@ import {
   Store,
   Bath,
   Recycle,
-  Beef
+  Beef,
+  Building2
 } from 'lucide-react';
 
 const AdminSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
@@ -58,7 +59,9 @@ const AdminSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
   // Note: Dashboard is rendered separately above, so it's not included here
   const navItems = [
     { path: '/wards', label: 'Wards', icon: MapPin },
+    { path: '/ulb-management', label: 'ULB Management', icon: Building2 },
     { path: '/users', label: 'Citizen Management', icon: Users },
+    { path: '/admin-accounts', label: 'Admin Management', icon: Shield },
     { path: '/admin-management', label: 'Staff Management', icon: Users },
     // { path: '/admin-management', label: 'Employee Management', icon: Users },
     {

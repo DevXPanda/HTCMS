@@ -6,8 +6,10 @@ import toast from 'react-hot-toast';
 import { Plus, Search, Filter, X, Eye, Download } from 'lucide-react';
 import GenerateBillModal from './GenerateBillModal';
 import { exportToCSV } from '../../../utils/exportCSV';
+import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 
 const WaterBills = () => {
+  const { effectiveUlbId } = useSelectedUlb();
   const [bills, setBills] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -21,15 +23,16 @@ const WaterBills = () => {
 
   useEffect(() => {
     fetchProperties();
-  }, []);
+  }, [effectiveUlbId]);
 
   useEffect(() => {
     fetchBills();
-  }, [search, filters]);
+  }, [search, filters, effectiveUlbId]);
 
   const fetchProperties = async () => {
     try {
-      const response = await propertyAPI.getAll({ limit: 1000, isActive: true });
+      const params = { limit: 1000, isActive: true, ...(effectiveUlbId ? { ulb_id: effectiveUlbId } : {}) };
+      const response = await propertyAPI.getAll(params);
       setProperties(response.data.data.properties || []);
     } catch (error) {
       console.error('Failed to fetch properties');
@@ -105,7 +108,8 @@ const WaterBills = () => {
         }
       } else {
         // No property filter - use standard API call
-        const response = await waterBillAPI.getAll(params);
+        const allParams = { ...params, ...(effectiveUlbId ? { ulb_id: effectiveUlbId } : {}) };
+        const response = await waterBillAPI.getAll(allParams);
         setBills(response.data.data.waterBills || []);
       }
     } catch (error) {
@@ -151,7 +155,7 @@ const WaterBills = () => {
 
   const handleExport = async () => {
     try {
-      const params = { page: 1, limit: 5000 };
+      const params = { page: 1, limit: 5000, ...(effectiveUlbId ? { ulb_id: effectiveUlbId } : {}) };
       if (filters.status) params.status = filters.status;
       const response = await waterBillAPI.getAll(params);
       const list = response.data.data.waterBills || [];

@@ -26,20 +26,19 @@ export const authenticate = async (req, res, next) => {
       user = await AdminManagement.findByPk(decoded.userId, {
         attributes: { exclude: ['password'] }
       });
-
-      // If found, ensure role is attached (AdminManagement has role column)
-      // No need to fall back to User table if userType is explicitly admin_management
+      if (user) req.userType = 'admin_management';
     } else {
       // Regular user or unspecified - check users table first
       user = await User.findByPk(decoded.userId, {
         attributes: { exclude: ['password'] }
       });
-
-      // Valid fallback for backward compatibility or cross-role tokens
-      if (!user) {
+      if (user) {
+        req.userType = 'user';
+      } else {
         user = await AdminManagement.findByPk(decoded.userId, {
           attributes: { exclude: ['password'] }
         });
+        if (user) req.userType = 'admin_management';
       }
     }
 
@@ -47,7 +46,7 @@ export const authenticate = async (req, res, next) => {
       return res.status(401).json({ message: 'Token is not valid' });
     }
 
-    // Attach user to request
+    // Attach user to request (user has role, ulb_id from DB)
     req.user = user;
     next();
   } catch (error) {
@@ -75,7 +74,9 @@ export const authorize = (...roles) => {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    if (!roles.includes(req.user.role)) {
+    const userRole = (req.user.role || '').toString();
+    const normalizedRoles = roles.map((r) => (r || '').toString().toUpperCase());
+    if (!normalizedRoles.includes(userRole.toUpperCase())) {
       return res.status(403).json({
         message: 'Access denied. Insufficient permissions.'
       });
@@ -96,7 +97,9 @@ export const requireRole = (role) => {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    if (req.user.role !== role) {
+    const userRole = (req.user.role || '').toString().toUpperCase();
+    const requiredRole = (role || '').toString().toUpperCase();
+    if (userRole !== requiredRole) {
       return res.status(403).json({
         message: 'Access denied. Insufficient permissions.'
       });

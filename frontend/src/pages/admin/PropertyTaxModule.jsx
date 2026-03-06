@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Home, FileText, Receipt, Bell, CreditCard, PlusCircle, TrendingUp, AlertCircle, IndianRupee, CheckCircle, Zap } from 'lucide-react';
+import { useSelectedUlb } from '../../contexts/SelectedUlbContext';
 import api from '../../services/api';
 
 const PropertyTaxModule = () => {
+    const { effectiveUlbId } = useSelectedUlb();
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => { fetchStats(); }, []);
+    useEffect(() => { fetchStats(); }, [effectiveUlbId]);
 
     const fetchStats = async () => {
         try {
-            const response = await api.get('/reports/dashboard');
+            const params = effectiveUlbId ? { ulb_id: effectiveUlbId } : {};
+            const response = await api.get('/reports/dashboard', { params });
             if (response.data && response.data.success) {
                 setStats(response.data.data);
             }

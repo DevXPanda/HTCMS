@@ -1,13 +1,35 @@
 import { GauShalaFacility, GauShalaCattle, GauShalaComplaint, GauShalaFeedingRecord, GauShalaInspection, CattleMedicalRecord, Ward, User, AdminManagement } from '../models/index.js';
 import { Op } from 'sequelize';
 import { auditLogger } from '../utils/auditLogger.js';
+import { getEffectiveUlbForRequest, getWardIdsByUlbId } from '../utils/ulbAccessHelper.js';
 
 // Facilities
 export const getAllFacilities = async (req, res, next) => {
     try {
         const { ward_id, status, search, page = 1, limit = 10 } = req.query;
         const where = {};
-        if (ward_id) where.ward_id = ward_id;
+        const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+        if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied. You must be assigned to an ULB to view Gaushala facilities.'
+            });
+        }
+        if (effectiveUlbId) {
+            const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+            if (!wardIds || wardIds.length === 0) {
+                return res.json({ success: true, data: { facilities: [], pagination: { total: 0, page, limit, pages: 0 } } });
+            }
+            where.ward_id = { [Op.in]: wardIds };
+        }
+        if (ward_id) {
+            const wId = parseInt(ward_id, 10);
+            if (where.ward_id && where.ward_id[Op.in] && !where.ward_id[Op.in].includes(wId)) {
+                where.ward_id = { [Op.in]: [] };
+            } else {
+                where.ward_id = wId;
+            }
+        }
         if (status) where.status = status;
         if (search) where.name = { [Op.iLike]: `%${search}%` };
 
@@ -87,14 +109,27 @@ export const getAllCattle = async (req, res, next) => {
     try {
         const { facility_id, animal_type, health_status, tag_number } = req.query;
         const where = {};
+        const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+        if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+            return res.status(403).json({ success: false, message: 'Access denied. You must be assigned to an ULB to view cattle.' });
+        }
+        let facilityWhere = {};
+        if (effectiveUlbId) {
+            const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+            if (!wardIds || wardIds.length === 0) {
+                return res.json({ success: true, data: { cattle: [] } });
+            }
+            facilityWhere.ward_id = { [Op.in]: wardIds };
+        }
         if (facility_id) where.gau_shala_facility_id = facility_id;
         if (animal_type) where.animal_type = animal_type;
         if (health_status) where.health_status = health_status;
         if (tag_number) where.tag_number = { [Op.iLike]: `%${tag_number}%` };
 
+        const includeFacility = [{ model: GauShalaFacility, as: 'facility', attributes: ['id', 'name'], required: true, ...(Object.keys(facilityWhere).length ? { where: facilityWhere } : {}) }];
         const rows = await GauShalaCattle.findAll({
             where,
-            include: [{ model: GauShalaFacility, as: 'facility', attributes: ['id', 'name'] }],
+            include: includeFacility,
             order: [['created_at', 'DESC']]
         });
         res.json({ success: true, data: { cattle: rows } });
@@ -146,11 +181,24 @@ export const getAllFeedingRecords = async (req, res, next) => {
     try {
         const { facility_id } = req.query;
         const where = {};
+        const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+        if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+            return res.status(403).json({ success: false, message: 'Access denied. You must be assigned to an ULB to view feeding records.' });
+        }
+        let facilityWhere = {};
+        if (effectiveUlbId) {
+            const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+            if (!wardIds || wardIds.length === 0) {
+                return res.json({ success: true, data: { feedingRecords: [] } });
+            }
+            facilityWhere.ward_id = { [Op.in]: wardIds };
+        }
         if (facility_id) where.gau_shala_facility_id = facility_id;
 
+        const includeFacility = [{ model: GauShalaFacility, as: 'facility', attributes: ['id', 'name'], required: true, ...(Object.keys(facilityWhere).length ? { where: facilityWhere } : {}) }];
         const rows = await GauShalaFeedingRecord.findAll({
             where,
-            include: [{ model: GauShalaFacility, as: 'facility', attributes: ['id', 'name'] }],
+            include: includeFacility,
             order: [['record_date', 'DESC']]
         });
         res.json({ success: true, data: { feedingRecords: rows } });
@@ -184,17 +232,30 @@ export const getAllInspections = async (req, res, next) => {
     try {
         const { facility_id, inspector_id, status, page = 1, limit = 10 } = req.query;
         const where = {};
+        const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+        if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+            return res.status(403).json({ success: false, message: 'Access denied. You must be assigned to an ULB to view inspections.' });
+        }
+        let facilityWhere = {};
+        if (effectiveUlbId) {
+            const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+            if (!wardIds || wardIds.length === 0) {
+                return res.json({ success: true, data: { inspections: [], pagination: { total: 0, page, limit, pages: 0 } } });
+            }
+            facilityWhere.ward_id = { [Op.in]: wardIds };
+        }
         if (facility_id) where.gau_shala_facility_id = facility_id;
         if (inspector_id) where.inspector_id = inspector_id;
         if (status) where.status = status;
 
         const offset = (parseInt(page) - 1) * parseInt(limit);
+        const includeFacility = [
+            { model: GauShalaFacility, as: 'facility', attributes: ['id', 'name'], required: true, ...(Object.keys(facilityWhere).length ? { where: facilityWhere } : {}) },
+            { model: AdminManagement, as: 'inspector', attributes: ['id', 'full_name', 'employee_id', 'role'] }
+        ];
         const { count, rows } = await GauShalaInspection.findAndCountAll({
             where,
-            include: [
-                { model: GauShalaFacility, as: 'facility', attributes: ['id', 'name'] },
-                { model: AdminManagement, as: 'inspector', attributes: ['id', 'full_name', 'employee_id', 'role'] }
-            ],
+            include: includeFacility,
             limit: parseInt(limit),
             offset,
             order: [['inspection_date', 'DESC']]
@@ -205,10 +266,16 @@ export const getAllInspections = async (req, res, next) => {
     }
 };
 
+const VALID_INSPECTION_STATUSES = ['pending', 'completed', 'cancelled', 'rescheduled'];
+
 export const createInspection = async (req, res, next) => {
     try {
-
-        const inspection = await GauShalaInspection.create(req.body);
+        const payload = { ...req.body };
+        if (payload.status != null && !VALID_INSPECTION_STATUSES.includes(String(payload.status).toLowerCase())) {
+            payload.status = 'completed';
+        }
+        if (payload.status == null) payload.status = 'completed';
+        const inspection = await GauShalaInspection.create(payload);
         res.status(201).json({ success: true, data: { inspection } });
     } catch (error) {
         console.error('Sequelize error creating inspection:', error);
@@ -250,12 +317,25 @@ export const getAllComplaints = async (req, res, next) => {
     try {
         const { facility_id, status } = req.query;
         const where = {};
+        const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+        if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+            return res.status(403).json({ success: false, message: 'Access denied. You must be assigned to an ULB to view complaints.' });
+        }
+        let facilityWhere = {};
+        if (effectiveUlbId) {
+            const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+            if (!wardIds || wardIds.length === 0) {
+                return res.json({ success: true, data: { complaints: [] } });
+            }
+            facilityWhere.ward_id = { [Op.in]: wardIds };
+        }
         if (facility_id) where.gau_shala_facility_id = facility_id;
         if (status) where.status = status;
 
+        const includeFacility = [{ model: GauShalaFacility, as: 'facility', attributes: ['id', 'name'], required: true, ...(Object.keys(facilityWhere).length ? { where: facilityWhere } : {}) }];
         const rows = await GauShalaComplaint.findAll({
             where,
-            include: [{ model: GauShalaFacility, as: 'facility', attributes: ['id', 'name'] }],
+            include: includeFacility,
             order: [['created_at', 'DESC']]
         });
         res.json({ success: true, data: { complaints: rows } });
@@ -303,6 +383,31 @@ export const deleteComplaint = async (req, res, next) => {
 
 export const getReports = async (req, res, next) => {
     try {
+        const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+        if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied. You must be assigned to an ULB to view Gaushala stats.'
+            });
+        }
+        let facilityWhere = {};
+        if (effectiveUlbId) {
+            const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+            if (!wardIds || wardIds.length === 0) {
+                return res.json({
+                    success: true,
+                    data: {
+                        totalFacilities: 0, activeFacilities: 0, inactiveFacilities: 0,
+                        totalCattle: 0, healthyCattle: 0, sickCattle: 0, underTreatmentCattle: 0, criticalCattle: 0, healthRate: 0,
+                        activeComplaints: 0, pendingComplaints: 0, inProgressComplaints: 0, resolvedComplaints: 0, totalComplaints: 0,
+                        totalInspections: 0, totalFeedingRecords: 0, todayFodder: 0, monthlyFodder: 0, facilityStats: []
+                    }
+                });
+            }
+            facilityWhere.ward_id = { [Op.in]: wardIds };
+        }
+        const facilityInclude = Object.keys(facilityWhere).length ? [{ model: GauShalaFacility, as: 'facility', required: true, where: facilityWhere }] : [];
+
         const today = new Date().toISOString().split('T')[0];
         const monthStart = today.slice(0, 7);
 
@@ -323,21 +428,22 @@ export const getReports = async (req, res, next) => {
             allFeedingRecords,
             facilities
         ] = await Promise.all([
-            GauShalaFacility.count(),
-            GauShalaFacility.count({ where: { status: 'active' } }),
-            GauShalaCattle.count(),
-            GauShalaCattle.count({ where: { health_status: 'healthy' } }),
-            GauShalaCattle.count({ where: { health_status: 'sick' } }),
-            GauShalaCattle.count({ where: { health_status: 'under_treatment' } }),
-            GauShalaCattle.count({ where: { health_status: 'critical' } }),
-            GauShalaComplaint.count({ where: { status: 'pending' } }),
-            GauShalaComplaint.count({ where: { status: 'in_progress' } }),
-            GauShalaComplaint.count({ where: { status: { [Op.in]: ['resolved', 'closed'] } } }),
-            GauShalaComplaint.count(),
-            GauShalaInspection.count(),
-            GauShalaFeedingRecord.count(),
-            GauShalaFeedingRecord.findAll({ attributes: ['record_date', 'quantity'] }),
+            GauShalaFacility.count({ where: facilityWhere }),
+            GauShalaFacility.count({ where: { ...facilityWhere, status: 'active' } }),
+            facilityInclude.length ? GauShalaCattle.count({ include: facilityInclude }) : GauShalaCattle.count(),
+            facilityInclude.length ? GauShalaCattle.count({ where: { health_status: 'healthy' }, include: facilityInclude }) : GauShalaCattle.count({ where: { health_status: 'healthy' } }),
+            facilityInclude.length ? GauShalaCattle.count({ where: { health_status: 'sick' }, include: facilityInclude }) : GauShalaCattle.count({ where: { health_status: 'sick' } }),
+            facilityInclude.length ? GauShalaCattle.count({ where: { health_status: 'under_treatment' }, include: facilityInclude }) : GauShalaCattle.count({ where: { health_status: 'under_treatment' } }),
+            facilityInclude.length ? GauShalaCattle.count({ where: { health_status: 'critical' }, include: facilityInclude }) : GauShalaCattle.count({ where: { health_status: 'critical' } }),
+            facilityInclude.length ? GauShalaComplaint.count({ where: { status: 'pending' }, include: facilityInclude }) : GauShalaComplaint.count({ where: { status: 'pending' } }),
+            facilityInclude.length ? GauShalaComplaint.count({ where: { status: 'in_progress' }, include: facilityInclude }) : GauShalaComplaint.count({ where: { status: 'in_progress' } }),
+            facilityInclude.length ? GauShalaComplaint.count({ where: { status: { [Op.in]: ['resolved', 'closed'] } }, include: facilityInclude }) : GauShalaComplaint.count({ where: { status: { [Op.in]: ['resolved', 'closed'] } } }),
+            facilityInclude.length ? GauShalaComplaint.count({ include: facilityInclude }) : GauShalaComplaint.count(),
+            facilityInclude.length ? GauShalaInspection.count({ include: facilityInclude }) : GauShalaInspection.count(),
+            facilityInclude.length ? GauShalaFeedingRecord.count({ include: facilityInclude }) : GauShalaFeedingRecord.count(),
+            facilityInclude.length ? GauShalaFeedingRecord.findAll({ attributes: ['record_date', 'quantity'], include: facilityInclude }) : GauShalaFeedingRecord.findAll({ attributes: ['record_date', 'quantity'] }),
             GauShalaFacility.findAll({
+                where: facilityWhere,
                 attributes: ['id', 'name', 'status'],
                 include: [
                     { model: GauShalaCattle, as: 'cattle', attributes: ['id', 'health_status'] },

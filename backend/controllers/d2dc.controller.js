@@ -2,6 +2,7 @@ import { D2DCRecord, Demand, Payment, Property, User, Ward, AdminManagement } fr
 import { Op } from 'sequelize';
 import { sequelize } from '../config/database.js';
 import { generateD2DCId } from '../services/uniqueIdService.js';
+import { getEffectiveUlbForRequest, getWardIdsByUlbId } from '../utils/ulbAccessHelper.js';
 
 /**
  * @route   GET /api/d2dc/collector/stats
@@ -230,6 +231,22 @@ export const getD2DCActivity = async (req, res, next) => {
             } else {
                 return res.json({ success: true, data: { activities: [], total: 0 } });
             }
+        } else {
+            // Admin/other: ULB filter
+            const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+            if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Access denied. You must be assigned to an ULB to view D2DC activity.'
+                });
+            }
+            if (effectiveUlbId) {
+                const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+                if (!wardIds || wardIds.length === 0) {
+                    return res.json({ success: true, data: { activities: [], total: 0 } });
+                }
+                where.wardId = wardId ? (wardIds.includes(parseInt(wardId)) ? parseInt(wardId) : { [Op.in]: [] }) : { [Op.in]: wardIds };
+            }
         }
 
         const offset = (parseInt(page) - 1) * parseInt(limit);
@@ -395,6 +412,8 @@ export const generateD2DCDemand = async (req, res, next) => {
             financialYear,
             baseAmount: D2DC_STANDARD_AMOUNT,
             totalAmount: D2DC_STANDARD_AMOUNT,
+            originalAmount: D2DC_STANDARD_AMOUNT,
+            finalAmount: D2DC_STANDARD_AMOUNT,
             balanceAmount: D2DC_STANDARD_AMOUNT,
             paidAmount: 0,
             dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
@@ -547,8 +566,19 @@ export const getD2DCDemands = async (req, res, next) => {
         // Get monitored wards based on role
         let wardIds = [];
         if (req.user.role === 'admin') {
-            const allWards = await Ward.findAll({ attributes: ['id'] });
-            wardIds = allWards.map(w => w.id);
+            const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+            if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Access denied. You must be assigned to an ULB to view D2DC demands.'
+                });
+            }
+            if (effectiveUlbId) {
+                wardIds = await getWardIdsByUlbId(effectiveUlbId) || [];
+            } else {
+                const allWards = await Ward.findAll({ attributes: ['id'] });
+                wardIds = allWards.map(w => w.id);
+            }
         } else {
             const assignedWards = await Ward.findAll({
                 where: { inspectorId: req.user.staff_id || req.user.id },
@@ -562,7 +592,6 @@ export const getD2DCDemands = async (req, res, next) => {
             if (wardIds.includes(requestedWardId)) {
                 wardIds = [requestedWardId];
             } else {
-                // Return empty if they try to access a ward not assigned to them (and they aren't admin who has all wards)
                 return res.json({
                     success: true,
                     data: { demands: [], total: 0, page: 1, limit: parseInt(limit) }
@@ -635,8 +664,19 @@ export const getD2DCPayments = async (req, res, next) => {
         // Get monitored wards based on role
         let wardIds = [];
         if (req.user.role === 'admin') {
-            const allWards = await Ward.findAll({ attributes: ['id'] });
-            wardIds = allWards.map(w => w.id);
+            const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+            if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Access denied. You must be assigned to an ULB to view D2DC payments.'
+                });
+            }
+            if (effectiveUlbId) {
+                wardIds = await getWardIdsByUlbId(effectiveUlbId) || [];
+            } else {
+                const allWards = await Ward.findAll({ attributes: ['id'] });
+                wardIds = allWards.map(w => w.id);
+            }
         } else {
             const assignedWards = await Ward.findAll({
                 where: { inspectorId: req.user.staff_id || req.user.id },

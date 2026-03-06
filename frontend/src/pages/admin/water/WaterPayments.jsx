@@ -5,9 +5,11 @@ import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { Plus, Eye, Search, Filter, X } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 import { isRecentWithinMinutes, sortByCreatedDesc } from '../../../utils/dateUtils';
 
 const WaterPayments = () => {
+  const { effectiveUlbId } = useSelectedUlb();
   const { isAdmin, isCashier } = useAuth();
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,7 +24,7 @@ const WaterPayments = () => {
 
   useEffect(() => {
     fetchPayments();
-  }, [search, filters]);
+  }, [search, filters, effectiveUlbId]);
 
   const fetchPayments = async () => {
     try {
@@ -30,7 +32,8 @@ const WaterPayments = () => {
       const params = {
         search,
         limit: 10000,
-        ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''))
+        ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== '')),
+        ...(effectiveUlbId ? { ulb_id: effectiveUlbId } : {})
       };
       const response = await waterPaymentAPI.getAll(params);
       const list = response.data?.data?.waterPayments || [];

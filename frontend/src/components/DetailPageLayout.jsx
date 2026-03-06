@@ -21,14 +21,14 @@ export default function DetailPageLayout({
       {showBackLink && backTo && (
         <Link
           to={backTo}
-          className="inline-flex items-center text-primary-600 hover:text-primary-700 text-sm font-medium"
+          className="no-print inline-flex items-center text-primary-600 hover:text-primary-700 text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4 mr-2 shrink-0" />
           {backLabel}
         </Link>
       )}
 
-      <div className="ds-page-header flex-wrap gap-4">
+      <div className="no-print ds-page-header flex-wrap gap-4">
         <div>
           <h1 className="ds-page-title">{title}</h1>
           {subtitle && <p className="ds-page-subtitle">{subtitle}</p>}
@@ -36,7 +36,7 @@ export default function DetailPageLayout({
         {actionButtons && <div className="flex items-center gap-2 flex-wrap">{actionButtons}</div>}
       </div>
 
-      {summarySection && <section>{summarySection}</section>}
+      {summarySection && <section className="no-print">{summarySection}</section>}
 
       {children}
     </div>

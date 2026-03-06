@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 import api from '../../../services/api';
 import { toast } from 'react-hot-toast';
 import {
@@ -16,6 +17,7 @@ import { isRecentDate } from '../../../utils/dateUtils';
 
 const InspectorDashboard = () => {
     const { user } = useAuth();
+    const { effectiveUlbId } = useSelectedUlb();
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -33,7 +35,7 @@ const InspectorDashboard = () => {
 
     useEffect(() => {
         fetchStats();
-    }, [selectedWard]); // Re-fetch stats when ward selection changes
+    }, [selectedWard, effectiveUlbId]); // Re-fetch stats when ward or ULB selection changes
 
     useEffect(() => {
         if (stats?.wards?.length > 0 && selectedWard) {
@@ -48,11 +50,11 @@ const InspectorDashboard = () => {
 
     useEffect(() => {
         fetchDemands();
-    }, [demandPage, demandStatusFilter, selectedWard]);
+    }, [demandPage, demandStatusFilter, selectedWard, effectiveUlbId]);
 
     useEffect(() => {
         fetchPayments();
-    }, [paymentPage, selectedWard]);
+    }, [paymentPage, selectedWard, effectiveUlbId]);
 
     const fetchStats = async () => {
         try {
@@ -63,7 +65,8 @@ const InspectorDashboard = () => {
                 setStats(res.data.data);
                 // Also fetch activity with filter
                 const activityQuery = selectedWard ? `&wardId=${selectedWard.id}` : '';
-                const activityRes = await api.get(`/d2dc/activity?limit=10${activityQuery}`);
+                const ulbQuery = effectiveUlbId ? `&ulb_id=${encodeURIComponent(effectiveUlbId)}` : '';
+                const activityRes = await api.get(`/d2dc/activity?limit=10${activityQuery}${ulbQuery}`);
                 if (activityRes.data.success) {
                     setStats(prev => ({ ...prev, recentActivity: activityRes.data.data.activities }));
                 }
@@ -79,7 +82,8 @@ const InspectorDashboard = () => {
     const fetchDemands = async () => {
         try {
             const wardQuery = selectedWard ? `&wardId=${selectedWard.id}` : '';
-            const res = await api.get(`/d2dc/demands?page=${demandPage}&limit=10${demandStatusFilter ? `&status=${demandStatusFilter}` : ''}${wardQuery}`);
+            const ulbQuery = effectiveUlbId ? `&ulb_id=${encodeURIComponent(effectiveUlbId)}` : '';
+            const res = await api.get(`/d2dc/demands?page=${demandPage}&limit=10${demandStatusFilter ? `&status=${demandStatusFilter}` : ''}${wardQuery}${ulbQuery}`);
             if (res.data.success) {
                 setDemands(res.data.data.demands);
                 setTotalPagesDemands(res.data.data.pages);
@@ -92,7 +96,8 @@ const InspectorDashboard = () => {
     const fetchPayments = async () => {
         try {
             const wardQuery = selectedWard ? `&wardId=${selectedWard.id}` : '';
-            const res = await api.get(`/d2dc/payments?page=${paymentPage}&limit=10${wardQuery}`);
+            const ulbQuery = effectiveUlbId ? `&ulb_id=${encodeURIComponent(effectiveUlbId)}` : '';
+            const res = await api.get(`/d2dc/payments?page=${paymentPage}&limit=10${wardQuery}${ulbQuery}`);
             if (res.data.success) {
                 setPayments(res.data.data.payments);
                 setTotalPagesPayments(res.data.data.pages);

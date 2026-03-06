@@ -64,9 +64,9 @@ const validateEnumValue = (value, validValues, fieldName) => {
   if (validValues.includes(value)) {
     return value;
   }
-  // If value is not in valid list, log warning but don't fail
-  console.warn(`Invalid ${fieldName} enum value: ${value}. Valid values: ${validValues.join(', ')}`);
-  // Return a safe default or the value if it's close enough
+  if (process.env.NODE_ENV === 'development') {
+    console.warn(`Invalid ${fieldName} enum value: ${value}. Valid values: ${validValues.join(', ')}`);
+  }
   return value;
 };
 
@@ -111,17 +111,10 @@ export const createAuditLog = async ({
     const validatedActionType = validateEnumValue(actionType, VALID_ACTION_TYPES, 'actionType');
     const validatedEntityType = validateEnumValue(entityType, VALID_ENTITY_TYPES, 'entityType');
 
-    // If validation failed, log error and use fallback
     if (!validatedActionType || !validatedEntityType) {
-      console.error(`Invalid audit log enum values - actionType: ${actionType}, entityType: ${entityType}`);
-      // Use safe defaults to prevent system failure
-      if (!validatedActionType) {
-        console.error(`Falling back to 'UPDATE' for invalid actionType: ${actionType}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`Invalid audit log enum values - actionType: ${actionType}, entityType: ${entityType}`);
       }
-      if (!validatedEntityType) {
-        console.error(`Falling back to 'User' for invalid entityType: ${entityType}`);
-      }
-      // Don't create invalid audit log - this prevents database errors
       return;
     }
 
@@ -137,8 +130,10 @@ export const createAuditLog = async ({
     // We track them via actorRole and can add employee_id to metadata if needed
     const actorUserId = (user?.userType === 'admin_management') ? null : (user?.id || null);
 
-    // Normalize role to lowercase to match ENUM if possible
-    const actorRole = user?.role ? user.role.toLowerCase() : 'system';
+    // Normalize role to match AuditLog.actorRole enum (lowercase; staff roles: supervisor, eo, clerk, inspector, officer, field_worker, contractor)
+    const VALID_ACTOR_ROLES = ['admin', 'assessor', 'cashier', 'collector', 'citizen', 'clerk', 'inspector', 'officer', 'eo', 'supervisor', 'field_worker', 'contractor', 'system'];
+    let actorRole = user?.role ? String(user.role).toLowerCase().replace(/-/g, '_') : 'system';
+    if (!VALID_ACTOR_ROLES.includes(actorRole)) actorRole = 'system';
 
     await AuditLog.create({
       actorUserId,

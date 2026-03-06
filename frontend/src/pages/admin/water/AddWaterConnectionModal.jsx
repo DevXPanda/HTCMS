@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { waterConnectionAPI, propertyAPI, waterConnectionDocumentAPI } from '../../../services/api';
 import toast from 'react-hot-toast';
@@ -105,6 +105,24 @@ const AddWaterConnectionModal = ({ properties: initialProperties, onClose, onSuc
     setPropertySearchResults([]);
     setShowPropertyDropdown(false);
   };
+
+  // Client-side filter so dropdown only shows properties matching the current search (fixes API/backend returning unfiltered results)
+  const filteredPropertyResults = useMemo(() => {
+    const q = propertySearchQuery.trim().toLowerCase();
+    if (!q) return propertySearchResults;
+    return propertySearchResults.filter((p) => {
+      const match = (s) => s != null && String(s).toLowerCase().includes(q);
+      return (
+        match(p.propertyNumber) ||
+        match(p.uniqueCode) ||
+        match(p.address) ||
+        match(p.city) ||
+        match(p.ownerName) ||
+        match(p.ownerPhone) ||
+        String(p.id) === q
+      );
+    });
+  }, [propertySearchQuery, propertySearchResults]);
 
   const clearProperty = () => {
     setSelectedProperty(null);
@@ -279,7 +297,7 @@ const AddWaterConnectionModal = ({ properties: initialProperties, onClose, onSuc
                     Add
                   </button>
                 </div>
-                {showPropertyDropdown && (propertySearchResults.length > 0 || propertySearchQuery.trim()) && (
+                {showPropertyDropdown && (filteredPropertyResults.length > 0 || propertySearchQuery.trim()) && (
                   <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
                     <li
                       className="px-4 py-2 hover:bg-primary-50 cursor-pointer border-b border-gray-100 font-medium text-primary-600 flex items-center"
@@ -288,10 +306,10 @@ const AddWaterConnectionModal = ({ properties: initialProperties, onClose, onSuc
                       <Plus className="w-4 h-4 mr-2" />
                       + Add New Property
                     </li>
-                    {propertySearchResults.length === 0 ? (
+                    {filteredPropertyResults.length === 0 ? (
                       <li className="px-4 py-3 text-gray-500 text-sm">No properties found</li>
                     ) : (
-                      propertySearchResults.map((property) => (
+                      filteredPropertyResults.map((property) => (
                         <li
                           key={property.id}
                           className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-0"

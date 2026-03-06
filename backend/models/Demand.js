@@ -86,6 +86,12 @@ export const Demand = sequelize.define('Demand', {
     allowNull: false,
     comment: 'Total amount due (base + arrears + penalty + interest)'
   },
+  originalAmount: {
+    type: DataTypes.DECIMAL(12, 2),
+    allowNull: false,
+    field: 'original_amount',
+    comment: 'Tax-only amount before penalty/interest (totalAmount - penaltyAmount - interestAmount)'
+  },
   paidAmount: {
     type: DataTypes.DECIMAL(12, 2),
     defaultValue: 0,
@@ -156,71 +162,64 @@ export const Demand = sequelize.define('Demand', {
     beforeValidate: (demand) => {
       // CRITICAL VALIDATION: Ensure assessmentId rules based on serviceType
       // D2DC is a municipal service, NOT a tax assessment
+      // Only enforce on create: updates (e.g. payment distribution) may pass partial data and must not fail
+      const isCreate = demand.isNewRecord;
 
       // Default serviceType to HOUSE_TAX for backward compatibility
       const serviceType = demand.serviceType || 'HOUSE_TAX';
 
       if (serviceType === 'D2DC') {
         // D2DC demands MUST have assessmentId = null
-        // D2DC is linked directly to property, not assessment
-        if (demand.assessmentId !== null && demand.assessmentId !== undefined) {
+        if (isCreate && demand.assessmentId !== null && demand.assessmentId !== undefined) {
           throw new Error('D2DC demands cannot have an assessmentId. D2DC is a municipal service linked directly to property, not assessment.');
         }
-        // Explicitly set to null to ensure database constraint compliance
-        demand.assessmentId = null;
-        demand.waterTaxAssessmentId = null;
-        demand.shopTaxAssessmentId = null;
+        if (isCreate) {
+          demand.assessmentId = null;
+          demand.waterTaxAssessmentId = null;
+          demand.shopTaxAssessmentId = null;
+        }
       } else if (serviceType === 'HOUSE_TAX') {
-        // HOUSE_TAX demands MUST have assessmentId
-        // HOUSE_TAX is generated from approved tax assessments
+        // HOUSE_TAX demands MUST have assessmentId (on create only)
         // EXCEPTION: Unified demands may have both assessments stored in demand items
-        // Check if this is a unified demand (has UNIFIED_DEMAND in remarks)
         let isUnifiedDemand = false;
 
         if (demand.remarks) {
           if (typeof demand.remarks === 'string') {
-            // Check if it's a JSON string containing UNIFIED_DEMAND
             try {
               const remarksObj = JSON.parse(demand.remarks);
               isUnifiedDemand = remarksObj.type === 'UNIFIED_DEMAND' ||
                 (typeof remarksObj === 'string' && remarksObj.includes('UNIFIED_DEMAND'));
             } catch (e) {
-              // If it's not valid JSON, check as simple string
               isUnifiedDemand = demand.remarks.includes('UNIFIED_DEMAND');
             }
           } else if (typeof demand.remarks === 'object') {
-            // If it's already an object
             isUnifiedDemand = demand.remarks.type === 'UNIFIED_DEMAND';
           }
         }
 
-        if (!isUnifiedDemand && !demand.assessmentId) {
+        if (isCreate && !isUnifiedDemand && !demand.assessmentId) {
           throw new Error('HOUSE_TAX demands require an assessmentId. Please provide a valid assessment.');
         }
-        // For unified demands:
-        // - If property assessment exists, assessmentId should be set
-        // - If only water assessments exist, assessmentId can be null (will use WATER_TAX serviceType)
-        // - We allow waterTaxAssessmentId to be set for unified demands
-        // The actual breakdown is stored in demand items
-        if (!isUnifiedDemand) {
+        if (isCreate && !isUnifiedDemand) {
           demand.waterTaxAssessmentId = null;
           demand.shopTaxAssessmentId = null;
         }
       } else if (serviceType === 'WATER_TAX') {
-        // WATER_TAX demands MUST have waterTaxAssessmentId
-        // WATER_TAX is generated from approved water tax assessments
-        if (!demand.waterTaxAssessmentId) {
+        if (isCreate && !demand.waterTaxAssessmentId) {
           throw new Error('WATER_TAX demands require a waterTaxAssessmentId. Please provide a valid water tax assessment.');
         }
-        demand.assessmentId = null;
-        demand.shopTaxAssessmentId = null;
+        if (isCreate) {
+          demand.assessmentId = null;
+          demand.shopTaxAssessmentId = null;
+        }
       } else if (serviceType === 'SHOP_TAX') {
-        // SHOP_TAX demands MUST have shopTaxAssessmentId
-        if (!demand.shopTaxAssessmentId) {
+        if (isCreate && !demand.shopTaxAssessmentId) {
           throw new Error('SHOP_TAX demands require a shopTaxAssessmentId. Please provide a valid shop tax assessment.');
         }
-        demand.assessmentId = null;
-        demand.waterTaxAssessmentId = null;
+        if (isCreate) {
+          demand.assessmentId = null;
+          demand.waterTaxAssessmentId = null;
+        }
       }
     },
     afterFind: (demands) => {
@@ -237,6 +236,7 @@ export const Demand = sequelize.define('Demand', {
         if (demand.penaltyAmount !== undefined) demand.penaltyAmount = parseFloat(demand.penaltyAmount) || 0;
         if (demand.interestAmount !== undefined) demand.interestAmount = parseFloat(demand.interestAmount) || 0;
         if (demand.totalAmount !== undefined) demand.totalAmount = parseFloat(demand.totalAmount) || 0;
+        if (demand.originalAmount !== undefined) demand.originalAmount = parseFloat(demand.originalAmount) || 0;
         if (demand.paidAmount !== undefined) demand.paidAmount = parseFloat(demand.paidAmount) || 0;
         if (demand.balanceAmount !== undefined) demand.balanceAmount = parseFloat(demand.balanceAmount) || 0;
         if (demand.penaltyWaived !== undefined) demand.penaltyWaived = parseFloat(demand.penaltyWaived) || 0;

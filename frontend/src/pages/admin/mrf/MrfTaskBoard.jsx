@@ -3,25 +3,26 @@ import {
     Plus,
     CheckCircle,
     Clock,
-    AlertCircle,
-    User,
-    BarChart3,
     Calendar,
-    ArrowRight,
-    Search,
-    Filter,
     ClipboardList,
-    MoreVertical,
-    Check
+    Check,
+    MapPin,
+    Image as ImageIcon,
+    ChevronDown,
+    ChevronUp
 } from 'lucide-react';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
+import MrfProofCapture from '../../../components/MrfProofCapture';
 
-const MrfTaskBoard = ({ facilityId }) => {
+const MrfTaskBoard = ({ facilityId, allowProofOnUpdate = false }) => {
     const [tasks, setTasks] = useState([]);
     const [assignedWorkers, setAssignedWorkers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showTaskForm, setShowTaskForm] = useState(false);
+    const [statusUpdateModal, setStatusUpdateModal] = useState(null);
+    const [updating, setUpdating] = useState(false);
+    const [expandedProofTaskId, setExpandedProofTaskId] = useState(null);
     const [taskData, setTaskData] = useState({
         worker_id: '',
         task_type: 'Sorting',
@@ -30,7 +31,7 @@ const MrfTaskBoard = ({ facilityId }) => {
 
     const taskTypes = ['Sorting', 'Baling', 'Composting', 'Dispatch', 'Maintenance'];
     const statusColors = {
-        'Assigned': 'bg-blue-100 text-blue-700 border-blue-200',
+        'Assigned': 'bg-primary-100 text-primary-700 border-primary-200',
         'In Progress': 'bg-amber-100 text-amber-700 border-amber-200',
         'Completed': 'bg-green-100 text-green-700 border-green-200'
     };
@@ -94,9 +95,41 @@ const MrfTaskBoard = ({ facilityId }) => {
         }
     };
 
-    const handleUpdateStatus = async (taskId, newStatus) => {
+    const openStatusUpdate = (taskId, newStatus, taskType, workerName) => {
+        if (allowProofOnUpdate) {
+            setStatusUpdateModal({ taskId, newStatus, taskType, workerName });
+        } else {
+            handleUpdateStatus(taskId, newStatus);
+        }
+    };
+
+    const submitStatusWithProof = async (proof) => {
+        if (!statusUpdateModal) return;
         try {
-            const response = await api.patch(`/mrf/tasks/${taskId}/status`, { status: newStatus });
+            setUpdating(true);
+            const response = await api.patch(`/mrf/tasks/${statusUpdateModal.taskId}/status`, {
+                status: statusUpdateModal.newStatus,
+                remarks: proof?.remarks,
+                proof: proof ? { before: proof.before, after: proof.after, remarks: proof.remarks } : undefined
+            });
+            if (response.data.success) {
+                toast.success(`Task marked as ${statusUpdateModal.newStatus}`);
+                setStatusUpdateModal(null);
+                fetchTasks();
+            }
+        } catch (error) {
+            console.error('Status update error:', error);
+            toast.error('Failed to update task status');
+        } finally {
+            setUpdating(false);
+        }
+    };
+
+    const handleUpdateStatus = async (taskId, newStatus, remarks = null) => {
+        try {
+            const body = { status: newStatus };
+            if (remarks) body.remarks = remarks;
+            const response = await api.patch(`/mrf/tasks/${taskId}/status`, body);
             if (response.data.success) {
                 toast.success(`Task marked as ${newStatus}`);
                 fetchTasks();
@@ -126,7 +159,7 @@ const MrfTaskBoard = ({ facilityId }) => {
                 </div>
                 <button
                     onClick={() => setShowTaskForm(!showTaskForm)}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-600 transition-all shadow-lg shadow-gray-900/10 active:scale-95"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-700 transition-all shadow-lg shadow-primary-500/20 active:scale-95"
                 >
                     {showTaskForm ? 'Cancel Assignment' : <><Plus className="w-4 h-4" /> New Task Assignment</>}
                 </button>
@@ -155,7 +188,7 @@ const MrfTaskBoard = ({ facilityId }) => {
                                     type="button"
                                     onClick={() => setTaskData({ ...taskData, task_type: type })}
                                     className={`py-2 px-3 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${taskData.task_type === type
-                                        ? 'bg-primary-900 text-white border-primary-900'
+                                        ? 'bg-primary-600 text-white border-primary-600'
                                         : 'bg-white text-gray-400 border-gray-100'
                                         }`}
                                 >
@@ -186,7 +219,7 @@ const MrfTaskBoard = ({ facilityId }) => {
                     <div key={status} className="space-y-4">
                         <div className="flex items-center justify-between px-2">
                             <div className="flex items-center gap-2">
-                                <div className={`w-2 h-2 rounded-full ${status === 'Assigned' ? 'bg-blue-500' :
+                                <div className={`w-2 h-2 rounded-full ${status === 'Assigned' ? 'bg-primary-500' :
                                     status === 'In Progress' ? 'bg-amber-500' : 'bg-green-500'
                                     }`}></div>
                                 <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-widest">{status}</h4>
@@ -211,7 +244,7 @@ const MrfTaskBoard = ({ facilityId }) => {
                                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 {status === 'Assigned' && (
                                                     <button
-                                                        onClick={() => handleUpdateStatus(task.id, 'In Progress')}
+                                                        onClick={() => (allowProofOnUpdate ? openStatusUpdate(task.id, 'In Progress', task.task_type, task.worker?.full_name) : handleUpdateStatus(task.id, 'In Progress'))}
                                                         className="p-1.5 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100"
                                                         title="Start Progress"
                                                     >
@@ -220,7 +253,7 @@ const MrfTaskBoard = ({ facilityId }) => {
                                                 )}
                                                 {status !== 'Completed' && (
                                                     <button
-                                                        onClick={() => handleUpdateStatus(task.id, 'Completed')}
+                                                        onClick={() => (allowProofOnUpdate ? openStatusUpdate(task.id, 'Completed', task.task_type, task.worker?.full_name) : handleUpdateStatus(task.id, 'Completed'))}
                                                         className="p-1.5 bg-green-50 text-green-600 rounded-lg hover:bg-green-100"
                                                         title="Mark Completed"
                                                     >
@@ -239,6 +272,54 @@ const MrfTaskBoard = ({ facilityId }) => {
                                             <p className="text-[10px] text-gray-500 font-medium italic border-l-2 border-gray-100 pl-2 leading-relaxed">
                                                 "{task.remarks}"
                                             </p>
+                                        )}
+
+                                        {task.proof && (task.proof.before || task.proof.after) && (
+                                            <div className="pt-2 border-t border-gray-50">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setExpandedProofTaskId(expandedProofTaskId === task.id ? null : task.id)}
+                                                    className="flex items-center gap-1.5 text-[10px] font-bold text-primary-600 uppercase tracking-widest"
+                                                >
+                                                    <ImageIcon className="w-3.5 h-3.5" /> Proof
+                                                    {expandedProofTaskId === task.id ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                                </button>
+                                                {expandedProofTaskId === task.id && (
+                                                    <div className="mt-2 space-y-3 pl-1">
+                                                        {task.proof.before?.photo_url && (
+                                                            <div>
+                                                                <p className="text-[9px] font-bold text-gray-400 uppercase mb-1">Before</p>
+                                                                <a href={task.proof.before.photo_url} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden border border-gray-100">
+                                                                    <img src={task.proof.before.photo_url} alt="Before" className="w-full max-h-24 object-cover" />
+                                                                </a>
+                                                                {(task.proof.before.lat != null || task.proof.before.address) && (
+                                                                    <p className="text-[9px] text-gray-500 mt-0.5 flex items-center gap-1">
+                                                                        <MapPin className="w-3 h-3" />
+                                                                        {task.proof.before.address || (task.proof.before.lat != null && `Lat: ${Number(task.proof.before.lat).toFixed(5)} Lng: ${Number(task.proof.before.lng).toFixed(5)}`)}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                        {task.proof.after?.photo_url && (
+                                                            <div>
+                                                                <p className="text-[9px] font-bold text-gray-400 uppercase mb-1">After</p>
+                                                                <a href={task.proof.after.photo_url} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden border border-gray-100">
+                                                                    <img src={task.proof.after.photo_url} alt="After" className="w-full max-h-24 object-cover" />
+                                                                </a>
+                                                                {(task.proof.after.lat != null || task.proof.after.address) && (
+                                                                    <p className="text-[9px] text-gray-500 mt-0.5 flex items-center gap-1">
+                                                                        <MapPin className="w-3 h-3" />
+                                                                        {task.proof.after.address || (task.proof.after.lat != null && `Lat: ${Number(task.proof.after.lat).toFixed(5)} Lng: ${Number(task.proof.after.lng).toFixed(5)}`)}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                        {task.proof.remarks && (
+                                                            <p className="text-[10px] text-gray-500 italic">"{task.proof.remarks}"</p>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
                                         )}
 
                                         <div className="pt-3 border-t border-gray-50 flex items-center justify-between">
@@ -260,6 +341,23 @@ const MrfTaskBoard = ({ facilityId }) => {
                     </div>
                 ))}
             </div>
+
+            {statusUpdateModal && allowProofOnUpdate && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto">
+                    <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 my-4">
+                        <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-1">
+                            Update task · {statusUpdateModal.newStatus}
+                        </h3>
+                        <p className="text-xs text-gray-500 mb-4">{statusUpdateModal.taskType} — {statusUpdateModal.workerName}</p>
+                        <MrfProofCapture
+                            submitLabel={updating ? 'Updating...' : `Mark as ${statusUpdateModal.newStatus}`}
+                            submitDisabled={updating}
+                            onSubmit={(proof) => submitStatusWithProof(proof)}
+                            onCancel={() => setStatusUpdateModal(null)}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

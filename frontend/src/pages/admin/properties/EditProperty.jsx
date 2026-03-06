@@ -4,16 +4,20 @@ import { useForm } from 'react-hook-form';
 import { propertyAPI, wardAPI, uploadAPI } from '../../../services/api';
 import toast from 'react-hot-toast';
 import Loading from '../../../components/Loading';
-import { Save, Upload, X, Image as ImageIcon } from 'lucide-react';
+import { Save, Upload, X, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 
 const EditProperty = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { effectiveUlbId } = useSelectedUlb();
   const [loading, setLoading] = useState(false);
   const [loadingProperty, setLoadingProperty] = useState(true);
   const [wards, setWards] = useState([]);
   const [uploadedPhotos, setUploadedPhotos] = useState([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const {
     register,
@@ -25,14 +29,15 @@ const EditProperty = () => {
 
   useEffect(() => {
     fetchData();
-  }, [id]);
+  }, [id, effectiveUlbId]);
 
   const fetchData = async () => {
     try {
       setLoadingProperty(true);
+      const wardParams = effectiveUlbId ? { ulb_id: effectiveUlbId } : {};
       const [propertyRes, wardsRes] = await Promise.all([
         propertyAPI.getById(id),
-        wardAPI.getAll()
+        wardAPI.getAll(wardParams)
       ]);
 
       const property = propertyRes.data.data.property;
@@ -129,6 +134,20 @@ const EditProperty = () => {
       toast.error(error.response?.data?.error || 'Failed to update property');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      setDeleting(true);
+      await propertyAPI.delete(id);
+      toast.success('Property deleted successfully');
+      navigate('/properties');
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Failed to delete property');
+    } finally {
+      setDeleting(false);
+      setShowDeleteModal(false);
     }
   };
 
@@ -482,20 +501,59 @@ const EditProperty = () => {
         </div>
 
         {/* Submit Buttons */}
-        <div className="flex justify-end space-x-4 pt-4 border-t">
-          <Link to={`/properties/${id}`} className="btn btn-secondary">
-            Cancel
-          </Link>
+        <div className="flex justify-between pt-4 border-t">
           <button
-            type="submit"
-            disabled={loading}
-            className="btn btn-primary flex items-center"
+            type="button"
+            onClick={() => setShowDeleteModal(true)}
+            className="btn bg-red-600 hover:bg-red-700 text-white flex items-center"
           >
-            <Save className="w-4 h-4 mr-2" />
-            {loading ? 'Updating...' : 'Update Property'}
+            <Trash2 className="w-4 h-4 mr-2" />
+            Delete Property
           </button>
+          <div className="flex space-x-4">
+            <Link to={`/properties/${id}`} className="btn btn-secondary">
+              Cancel
+            </Link>
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn btn-primary flex items-center"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              {loading ? 'Updating...' : 'Update Property'}
+            </button>
+          </div>
         </div>
       </form>
+
+      {/* Delete confirmation modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Property</h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete this property? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                className="btn btn-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="btn bg-red-600 hover:bg-red-700 text-white"
+              >
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
