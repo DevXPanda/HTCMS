@@ -195,7 +195,7 @@ export const login = async (req, res, next) => {
         });
 
         if (activeSession && process.env.NODE_ENV === 'development') {
-          console.warn(`Collector ${user.id} logged in with existing active session. Previous session: ${activeSession.id}`);
+          console.warn('Collector already had active session, creating new punch-in');
         }
 
         // Parse device information
@@ -240,13 +240,64 @@ export const login = async (req, res, next) => {
             }
           });
         } catch (auditError) {
-          // Log error but don't fail attendance creation
-          console.error('Failed to create audit log for attendance punch in:', auditError);
-          // Attendance record is still created successfully
+          if (process.env.NODE_ENV === 'development') console.error('Audit log collector punch in:', auditError);
         }
       } catch (attendanceError) {
-        // Log error but don't fail login
-        console.error('Failed to capture attendance on login:', attendanceError);
+        if (process.env.NODE_ENV === 'development') console.error('Collector attendance on login:', attendanceError);
+      }
+    }
+
+    // Capture attendance for admins (super-admin-created accounts) - same as collector punch in
+    const roleLower = (user.role || '').toString().toLowerCase();
+    if (roleLower === 'admin' || roleLower === 'super_admin') {
+      try {
+        const { CollectorAttendance } = await import('../models/index.js');
+        const activeSession = await CollectorAttendance.findOne({
+          where: { collectorId: user.id, usertype: 'user', logoutAt: null },
+          order: [['loginAt', 'DESC']]
+        });
+        if (activeSession && process.env.NODE_ENV === 'development') {
+          console.warn('Admin already had active session, creating new punch-in');
+        }
+        const deviceInfo = parseDeviceInfo(req);
+        const { latitude, longitude, address } = req.body;
+        const attendance = await CollectorAttendance.create({
+          collectorId: user.id,
+          usertype: 'user',
+          loginAt: new Date(),
+          loginLatitude: latitude || null,
+          loginLongitude: longitude || null,
+          loginAddress: address || null,
+          ipAddress: deviceInfo.ipAddress,
+          deviceType: deviceInfo.deviceType,
+          browserName: deviceInfo.browserName,
+          operatingSystem: deviceInfo.operatingSystem,
+          source: deviceInfo.source,
+          isAutoMarked: true
+        });
+        try {
+          await createAuditLog({
+            req,
+            user,
+            actionType: 'LOGIN',
+            entityType: 'Attendance',
+            entityId: attendance.id,
+            description: 'Admin punched in',
+            metadata: {
+              attendanceId: attendance.id,
+              location: latitude && longitude ? { latitude, longitude, address } : null,
+              device: deviceInfo.deviceType,
+              browser: deviceInfo.browserName,
+              os: deviceInfo.operatingSystem,
+              ip: deviceInfo.ipAddress,
+              source: deviceInfo.source
+            }
+          });
+        } catch (auditError) {
+          if (process.env.NODE_ENV === 'development') console.error('Audit log admin punch in:', auditError);
+        }
+      } catch (attendanceError) {
+        if (process.env.NODE_ENV === 'development') console.error('Admin attendance on login:', attendanceError);
       }
     }
 
@@ -334,63 +385,90 @@ export const logout = async (req, res, next) => {
 
     // Capture attendance for collectors (automatic punch out)
     if (user.role === 'collector') {
-
-
       try {
-        // Import CollectorAttendance here to avoid circular dependency
         const { CollectorAttendance } = await import('../models/index.js');
-
-        // Find active attendance session (no logout)
         const activeAttendance = await CollectorAttendance.findOne({
-          where: {
-            collectorId: user.id,
-            logoutAt: null
-          },
+          where: { collectorId: user.id, logoutAt: null },
           order: [['loginAt', 'DESC']]
         });
-
-
         if (activeAttendance) {
-
-        }
-
-        if (activeAttendance) {
-          // Update attendance with logout time
-          await activeAttendance.update({
-            logoutAt: new Date()
-            // workingDurationMinutes is calculated automatically in the model hook
-          });
-
-
-
-          // Create audit log for attendance punch out
-          // Wrap in try-catch to ensure logout never fails due to audit log errors
-          try {
-            await createAuditLog({
-              req,
-              user,
-              actionType: 'LOGOUT',
-              entityType: 'Attendance',
-              entityId: activeAttendance.id,
-              description: `Collector punched out`,
-              metadata: {
-                attendanceId: activeAttendance.id,
-                workingDurationMinutes: activeAttendance.workingDurationMinutes,
-                loginAt: activeAttendance.loginAt,
-                logoutAt: activeAttendance.logoutAt
-              }
-            });
-          } catch (auditError) {
-            // Log error but don't fail logout
-            console.error('Failed to create audit log for attendance punch out:', auditError);
-            // Logout and attendance update are still successful
+          const logoutAt = new Date();
+          const workingDurationMinutes = Math.floor((logoutAt - new Date(activeAttendance.loginAt)) / (1000 * 60));
+          const [affected] = await CollectorAttendance.update(
+            { logoutAt, workingDurationMinutes },
+            { where: { id: activeAttendance.id, logoutAt: null } }
+          );
+          if (affected > 0) {
+            try {
+              await createAuditLog({
+                req,
+                user,
+                actionType: 'LOGOUT',
+                entityType: 'Attendance',
+                entityId: activeAttendance.id,
+                description: 'Collector punched out',
+                metadata: {
+                  attendanceId: activeAttendance.id,
+                  workingDurationMinutes,
+                  loginAt: activeAttendance.loginAt,
+                  logoutAt
+                }
+              });
+            } catch (auditError) {
+              if (process.env.NODE_ENV === 'development') console.error('Audit log collector punch out:', auditError);
+            }
           }
         } else if (process.env.NODE_ENV === 'development') {
-          console.warn(`Collector ${user.id} logged out but no active attendance session found`);
+          console.warn('Collector logout: no active attendance session found');
         }
       } catch (attendanceError) {
-        // Log error but don't fail logout
-        console.error('Failed to capture attendance on logout:', attendanceError);
+        if (process.env.NODE_ENV === 'development') console.error('Collector attendance on logout:', attendanceError);
+      }
+    }
+
+    // Capture attendance for admins (punch out)
+    const roleLowerLogout = (req.user?.role || '').toString().toLowerCase();
+    if (roleLowerLogout === 'admin' || roleLowerLogout === 'super_admin') {
+      try {
+        const { CollectorAttendance } = await import('../models/index.js');
+        const activeAttendance = await CollectorAttendance.findOne({
+          where: { collectorId: user.id, usertype: 'user', logoutAt: null },
+          order: [['loginAt', 'DESC']]
+        });
+        if (activeAttendance) {
+          const logoutAt = new Date();
+          const workingDurationMinutes = Math.floor((logoutAt - new Date(activeAttendance.loginAt)) / (1000 * 60));
+          const [affected] = await CollectorAttendance.update(
+            { logoutAt, workingDurationMinutes },
+            { where: { id: activeAttendance.id, logoutAt: null } }
+          );
+          if (affected > 0) {
+            try {
+              await createAuditLog({
+                req,
+                user,
+                actionType: 'LOGOUT',
+                entityType: 'Attendance',
+                entityId: activeAttendance.id,
+                description: 'Admin punched out',
+                metadata: {
+                  attendanceId: activeAttendance.id,
+                  workingDurationMinutes,
+                  loginAt: activeAttendance.loginAt,
+                  logoutAt
+                }
+              });
+            } catch (auditError) {
+              if (process.env.NODE_ENV === 'development') console.error('Audit log admin punch out:', auditError);
+            }
+          }
+        } else if (process.env.NODE_ENV === 'development') {
+          console.warn('Admin logout: no active attendance session found');
+        }
+      } catch (attendanceError) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Admin attendance punch out:', attendanceError);
+        }
       }
     }
 

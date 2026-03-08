@@ -39,15 +39,29 @@ export const getAttendanceRecords = async (req, res, next) => {
       where.collectorId = user.id;
       where.usertype = 'admin_management';
     } else if (user.role === 'admin' || user.role === 'assessor') {
-      // Admin and Assessor: apply ULB filter when effective ULB is set
-      const { effectiveUlbId } = getEffectiveUlbForRequest(req);
+      // Admin and Assessor: apply ULB filter when effective ULB is set; super admin (no ULB) sees all
+      const { effectiveUlbId, isSuperAdmin } = getEffectiveUlbForRequest(req);
       if (effectiveUlbId) {
-        const [adminStaff, usersInUlb] = await Promise.all([
+        const [adminStaff, usersInUlb, adminUsersNoUlb, allAdminUsers] = await Promise.all([
           AdminManagement.findAll({ where: { ulb_id: effectiveUlbId }, attributes: ['id'] }),
-          User.findAll({ where: { ulb_id: effectiveUlbId }, attributes: ['id'] })
+          User.findAll({ where: { ulb_id: effectiveUlbId }, attributes: ['id', 'role'] }),
+          // Admins with no ULB – only include for super admin (so only super admin sees admin attendance)
+          isSuperAdmin
+            ? User.findAll({ where: { role: 'admin', ulb_id: { [Op.is]: null } }, attributes: ['id'] })
+            : Promise.resolve([]),
+          // When viewer is super admin, include ALL admin users so admin attendance shows on super admin dashboard only
+          isSuperAdmin
+            ? User.findAll({ where: { role: 'admin' }, attributes: ['id'] })
+            : Promise.resolve([])
         ]);
         const adminIds = adminStaff.map(s => s.id);
-        const userIds = usersInUlb.map(u => u.id);
+        // Regular admin: exclude User with role 'admin' so only super admin sees admin attendance
+        const userIdsFromUlb = isSuperAdmin
+          ? usersInUlb.map(u => u.id)
+          : (usersInUlb || []).filter(u => (u.role || '').toString().toLowerCase() !== 'admin').map(u => u.id);
+        const adminUserIdsNoUlb = (adminUsersNoUlb || []).map(u => u.id);
+        const allAdminIds = (allAdminUsers || []).map(u => u.id);
+        const userIds = [...new Set([...userIdsFromUlb, ...adminUserIdsNoUlb, ...allAdminIds])];
         const orParts = [];
         if (userIds.length) orParts.push({ usertype: 'user', collectorId: { [Op.in]: userIds } });
         if (adminIds.length) orParts.push({ usertype: 'admin_management', collectorId: { [Op.in]: adminIds } });
@@ -62,6 +76,7 @@ export const getAttendanceRecords = async (req, res, next) => {
           });
         }
       }
+      // When super admin has no ULB selected (effectiveUlbId null), where stays empty = return all attendance
 
       // Apply filters if provided
       if (collectorId) {

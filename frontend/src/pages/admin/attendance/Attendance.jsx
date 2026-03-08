@@ -2,18 +2,20 @@ import { useState, useEffect } from 'react';
 import { attendanceAPI, userAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { Search, Filter, X, Eye, Calendar, User, Clock, MapPin, Monitor, Smartphone, Tablet, Globe, Users, Briefcase, Shield, UserCheck, ClipboardList } from 'lucide-react';
+import { Search, Filter, X, Eye, Calendar, User, Clock, MapPin, Monitor, Smartphone, Tablet, Globe, Users, Briefcase, Shield, UserCheck, ClipboardList, UserCog } from 'lucide-react';
 import AttendanceDetailsModal from './AttendanceDetailsModal';
 import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 
 // Normalize role from API (backend may return uppercase e.g. CLERK, COLLECTOR)
 const getRecordRole = (record) => {
   const r = (record.collector?.role || '').toLowerCase().replace(/-/g, '_');
-  return r === 'tax_collector' ? 'collector' : r;
+  if (r === 'tax_collector') return 'collector';
+  if (r === 'super_admin') return 'admin'; // show super_admin in Admin Attendance
+  return r;
 };
 
 const Attendance = () => {
-  const { effectiveUlbId } = useSelectedUlb();
+  const { effectiveUlbId, isSuperAdmin } = useSelectedUlb();
   const [attendance, setAttendance] = useState([]);
   const [allAttendance, setAllAttendance] = useState([]); // Store all fetched records for frontend filtering
   const [loading, setLoading] = useState(true);
@@ -21,7 +23,7 @@ const Attendance = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [collectors, setCollectors] = useState([]);
-  const [selectedRole, setSelectedRole] = useState('all'); // 'all' | 'clerk' | 'inspector' | 'officer' | 'collector' | 'supervisor'
+  const [selectedRole, setSelectedRole] = useState('all'); // 'all' | 'admin' | 'clerk' | 'inspector' | 'officer' | 'collector' | 'supervisor'
   const [filters, setFilters] = useState({
     collectorId: '',
     dateFrom: '',
@@ -36,6 +38,11 @@ const Attendance = () => {
     fetchCollectors();
     fetchAttendance();
   }, [search, filters, effectiveUlbId]);
+
+  // When admin (not super admin) and 'admin' role is selected, reset to 'all' since Admin Attendance card is hidden
+  useEffect(() => {
+    if (!isSuperAdmin && selectedRole === 'admin') setSelectedRole('all');
+  }, [isSuperAdmin, selectedRole]);
 
   // Frontend filter when selected role changes
   useEffect(() => {
@@ -150,8 +157,8 @@ const Attendance = () => {
         </button>
       </div>
 
-      {/* Role Summary Boxes */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
+      {/* Role Summary Boxes - Admin Attendance card only for super admin */}
+      <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 ${isSuperAdmin ? 'lg:grid-cols-7' : 'lg:grid-cols-6'}`}>
         <button
           type="button"
           onClick={() => setSelectedRole('all')}
@@ -165,6 +172,24 @@ const Attendance = () => {
             <Users className="w-8 h-8 text-gray-500" />
           </div>
         </button>
+
+        {isSuperAdmin && (
+          <button
+            type="button"
+            onClick={() => setSelectedRole('admin')}
+            className={`card p-4 cursor-pointer transition-all hover:shadow-lg ${selectedRole === 'admin' ? 'ring-2 ring-indigo-500 bg-indigo-50' : ''}`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Admin Attendance</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {allAttendance.filter(r => getRecordRole(r) === 'admin').length}
+                </p>
+              </div>
+              <UserCog className="w-8 h-8 text-indigo-500" />
+            </div>
+          </button>
+        )}
 
         <button
           type="button"
