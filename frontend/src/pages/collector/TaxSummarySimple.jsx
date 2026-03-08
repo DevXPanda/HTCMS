@@ -164,7 +164,11 @@ const TaxSummarySimple = () => {
         formData.append('proof', paymentForm.proofFile);
         
         const uploadResponse = await uploadAPI.uploadPaymentProof(formData);
-        proofUrl = uploadResponse.data.data.url;
+        proofUrl = uploadResponse.data?.data?.url ?? uploadResponse.data?.url;
+        if (!proofUrl && paymentForm.paymentMode !== 'ONLINE') {
+          toast.error('Payment proof upload did not return a URL. Please try again.');
+          return;
+        }
       }
 
       // Create payment
@@ -199,7 +203,9 @@ const TaxSummarySimple = () => {
       }
     } catch (error) {
       console.error('Error processing payment:', error);
-      toast.error(error.response?.data?.message || 'Failed to process payment');
+      const msg = error.response?.data?.message || error.message || 'Failed to process payment';
+      const details = error.response?.data?.details;
+      toast.error(details?.excessAmount != null ? `${msg} (excess: ₹${Number(details.excessAmount).toFixed(2)})` : msg);
     } finally {
       setUploadingProof(false);
     }

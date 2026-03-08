@@ -1,15 +1,8 @@
-import { Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
-
 /**
  * Shared layout for View Details pages across the app.
- * Use: optional back link (when showBackLink), page header (title + actions), optional summary section, then content cards.
- * When breadcrumbs are used app-wide, set showBackLink={false} (default).
+ * Uses app-wide breadcrumbs for navigation; back arrow is not shown.
  */
 export default function DetailPageLayout({
-  backTo,
-  backLabel = 'Back',
-  showBackLink = false,
   title,
   subtitle,
   actionButtons,
@@ -18,16 +11,6 @@ export default function DetailPageLayout({
 }) {
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      {showBackLink && backTo && (
-        <Link
-          to={backTo}
-          className="no-print inline-flex items-center text-primary-600 hover:text-primary-700 text-sm font-medium"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2 shrink-0" />
-          {backLabel}
-        </Link>
-      )}
-
       <div className="no-print ds-page-header flex-wrap gap-4">
         <div>
           <h1 className="ds-page-title">{title}</h1>
@@ -47,9 +30,9 @@ export default function DetailPageLayout({
 export function DetailRow({ label, value, valueClass = '' }) {
   if (value == null || value === '') return null;
   return (
-    <div className="py-3 flex justify-between items-baseline gap-4 border-b border-gray-100 last:border-b-0">
+    <div className="py-3 flex flex-col sm:flex-row sm:justify-between sm:items-baseline gap-1 sm:gap-x-4 border-b border-gray-100 last:border-b-0">
       <dt className="text-sm font-medium text-gray-500 shrink-0">{label}</dt>
-      <dd className={`text-right font-medium text-gray-900 break-words ${valueClass}`}>{value}</dd>
+      <dd className={`text-right font-medium text-gray-900 break-words min-w-0 ${valueClass}`}>{value}</dd>
     </div>
   );
 }

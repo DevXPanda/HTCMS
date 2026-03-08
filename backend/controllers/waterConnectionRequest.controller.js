@@ -1,4 +1,4 @@
-import { WaterConnectionRequest, User, Property, WaterConnection } from '../models/index.js';
+import { WaterConnectionRequest, User, Property, Ward, WaterConnection, WaterConnectionDocument } from '../models/index.js';
 import { Op } from 'sequelize';
 import { auditLogger } from '../utils/auditLogger.js';
 import { getEffectiveUlbForRequest, getWardIdsByUlbId } from '../utils/ulbAccessHelper.js';
@@ -28,6 +28,14 @@ export const createWaterConnectionRequest = async (req, res, next) => {
             return res.status(404).json({
                 success: false,
                 message: 'Property not found'
+            });
+        }
+
+        // Citizen can only create request for their own property
+        if (user.role === 'citizen' && property.ownerId !== user.id) {
+            return res.status(403).json({
+                success: false,
+                message: 'You can only request a connection for your own property'
             });
         }
 
@@ -255,7 +263,14 @@ export const getWaterConnectionRequests = async (req, res, next) => {
         }
     }
 
-    if (status) where.status = status;
+    if (status) {
+        // Map PENDING (admin UI) to SUBMITTED and UNDER_INSPECTION
+        if (status === 'PENDING') {
+            where.status = { [Op.in]: ['SUBMITTED', 'UNDER_INSPECTION'] };
+        } else {
+            where.status = status;
+        }
+    }
         if (connectionType) where.connectionType = connectionType;
 
         if (search) {
@@ -333,13 +348,14 @@ export const getWaterConnectionRequestById = async (req, res, next) => {
         const request = await WaterConnectionRequest.findOne({
             where,
             include: [
-                { model: Property, as: 'property', attributes: ['id', 'propertyNumber', 'address', 'city'] },
+                { model: Property, as: 'property', attributes: ['id', 'propertyNumber', 'address', 'city'], include: [{ model: Ward, as: 'ward', attributes: ['id', 'wardNumber', 'wardName'] }] },
                 { model: User, as: 'requester', attributes: ['id', 'firstName', 'lastName', 'email', 'phone'] },
                 { model: User, as: 'creator', attributes: ['id', 'firstName', 'lastName', 'email'] },
                 { model: User, as: 'inspector', attributes: ['id', 'firstName', 'lastName', 'email'] },
                 { model: User, as: 'processor', attributes: ['id', 'firstName', 'lastName', 'email'] },
                 { model: User, as: 'decidedByOfficer', attributes: ['id', 'firstName', 'lastName', 'email'] },
-                { model: WaterConnection, as: 'waterConnection', attributes: ['id', 'connectionNumber', 'status'] }
+                { model: WaterConnection, as: 'waterConnection', attributes: ['id', 'connectionNumber', 'status'] },
+                { model: WaterConnectionDocument, as: 'documents', required: false }
             ]
         });
 
@@ -461,6 +477,20 @@ export const submitWaterConnectionRequest = async (req, res, next) => {
             return res.status(400).json({
                 success: false,
                 message: `Cannot submit request in ${request.status} status. Only DRAFT or RETURNED requests can be submitted.`
+            });
+        }
+
+        // Require mandatory documents before submit (Application Form, ID Proof, Address Proof)
+        const { WaterConnectionDocument } = await import('../models/index.js');
+        const { validateMandatoryDocuments } = await import('../constants/waterConnectionDocumentTypes.js');
+        const requestDocuments = await WaterConnectionDocument.findAll({
+            where: { waterConnectionRequestId: request.id }
+        });
+        const docValidation = validateMandatoryDocuments(requestDocuments);
+        if (!docValidation.isValid) {
+            return res.status(400).json({
+                success: false,
+                message: `Please upload all mandatory documents before submitting: ${docValidation.missing.join(', ')}.`
             });
         }
 
@@ -683,11 +713,14 @@ export const deleteWaterConnectionRequest = async (req, res, next) => {
 
         const where = { id };
 
-        // Role-based filtering
-        if (user.role === 'citizen') {
-            where.requestedBy = user.id;
-        } else if (user.role === 'clerk') {
-            where.createdBy = user.id;
+        // Role-based filtering: admin/super_admin can delete any request; others only own
+        const isAdminOrSuperAdmin = ['admin', 'super_admin'].includes((user.role || '').toString().toLowerCase());
+        if (!isAdminOrSuperAdmin) {
+            if (user.role === 'citizen') {
+                where.requestedBy = user.id;
+            } else if (user.role === 'clerk') {
+                where.createdBy = user.id;
+            }
         }
 
         const request = await WaterConnectionRequest.findOne({ where });
@@ -699,8 +732,8 @@ export const deleteWaterConnectionRequest = async (req, res, next) => {
             });
         }
 
-        // Only DRAFT requests can be deleted
-        if (request.status !== 'DRAFT') {
+        // Only DRAFT can be deleted by citizen/clerk; admin/super_admin can delete any status
+        if (!isAdminOrSuperAdmin && request.status !== 'DRAFT') {
             return res.status(400).json({
                 success: false,
                 message: 'Only DRAFT requests can be deleted'

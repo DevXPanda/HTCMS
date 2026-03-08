@@ -6,6 +6,7 @@ import {
   getCitizenDemands,
   getCitizenPayments,
   getCitizenWaterConnections,
+  getCitizenWaterConnectionById,
   createWaterConnectionRequest,
   getCitizenWaterConnectionRequests
 } from '../controllers/citizen.controller.js';
@@ -43,6 +44,7 @@ router.get('/notices/:id', getCitizenNoticeById);
 
 // Get citizen's water connections
 router.get('/water-connections', getCitizenWaterConnections);
+router.get('/water-connections/:id', getCitizenWaterConnectionById);
 
 // Water connection requests
 router.post('/water-connection-requests', createWaterConnectionRequest);

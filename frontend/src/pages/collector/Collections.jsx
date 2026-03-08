@@ -107,7 +107,7 @@ const Collections = () => {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by receipt number..."
+              placeholder="Search by collection code or receipt number..."
               className="input pl-10"
             />
           </div>
@@ -205,7 +205,7 @@ const Collections = () => {
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Receipt Number</th>
+                    <th>Collection code</th>
                     <th>Property</th>
                     <th>Demand Number</th>
                     <th>Amount</th>
@@ -217,7 +217,7 @@ const Collections = () => {
                 <tbody>
                   {payments.map((payment) => (
                     <tr key={payment.id}>
-                      <td className="font-medium">{payment.receiptNumber}</td>
+                      <td className="font-medium font-mono">{payment.receiptNumber || payment.paymentNumber || `PAY-${payment.id}`}</td>
                       <td>
                         {payment.property?.propertyNumber || 'N/A'}
                       </td>

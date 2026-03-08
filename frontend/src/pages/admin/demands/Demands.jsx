@@ -159,18 +159,18 @@ const Demands = () => {
 
       {/* Search */}
       <form onSubmit={(e) => { e.preventDefault(); fetchDemands(); }} className="mb-6">
-        <div className="flex gap-2">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex-1 relative min-w-0">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by tax demand number..."
-              className="input pl-10"
+              className="input pl-10 w-full"
             />
           </div>
-          <button type="submit" className="btn btn-primary">
+          <button type="submit" className="btn btn-primary w-full sm:w-auto shrink-0">
             Search
           </button>
         </div>

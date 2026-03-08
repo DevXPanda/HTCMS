@@ -7,7 +7,7 @@ import { useSelectedUlb } from '../../contexts/SelectedUlbContext';
 
 const AdminManagement = () => {
   const { confirm } = useConfirm();
-  const { effectiveUlbId } = useSelectedUlb();
+  const { effectiveUlbId, isSuperAdmin, selectedUlbId, setSelectedUlbId } = useSelectedUlb();
   const [employees, setEmployees] = useState([]);
   const [wards, setWards] = useState([]);
   const [allWards, setAllWards] = useState([]); // Store all wards for filtering
@@ -595,6 +595,37 @@ const AdminManagement = () => {
           Add Staff
         </button>
       </div>
+
+      {/* ULB filter for super admin: filter staff by selected ULB */}
+      {isSuperAdmin && (
+        <div className="card-flat mb-6">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Filter className="w-5 h-5 text-gray-500" />
+              <label className="label mb-0">Filter by ULB:</label>
+            </div>
+            <select
+              value={selectedUlbId}
+              onChange={(e) => setSelectedUlbId(e.target.value)}
+              className="input max-w-xs"
+            >
+              <option value="">All ULBs</option>
+              {ulbs.map((ulb) => (
+                <option key={ulb.id} value={ulb.id}>{ulb.name}</option>
+              ))}
+            </select>
+            {selectedUlbId && (
+              <button
+                type="button"
+                onClick={() => setSelectedUlbId('')}
+                className="text-sm text-primary-600 hover:text-primary-700"
+              >
+                Clear Filter
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Statistics Cards */}
       {statistics && (
@@ -1639,6 +1670,12 @@ const AdminManagement = () => {
                 <p className="text-gray-900">{selectedEmployee.phone_number}</p>
               </div>
               <div>
+                <label className="text-sm font-medium text-gray-700">ULB</label>
+                <p className="text-gray-900">
+                  {ulbs.find(u => u.id === selectedEmployee.ulb_id)?.name || selectedEmployee.assigned_ulb || '—'}
+                </p>
+              </div>
+              <div>
                 <label className="text-sm font-medium text-gray-700">Assigned Wards</label>
                 <p className="text-gray-900">
                   {selectedEmployee.ward_names && selectedEmployee.ward_names.length > 0
@@ -1646,12 +1683,6 @@ const AdminManagement = () => {
                     : selectedEmployee.ward ? `${selectedEmployee.ward.wardNumber} - ${selectedEmployee.ward.wardName}` : 'No wards assigned'}
                 </p>
               </div>
-              {selectedEmployee.role && selectedEmployee.role.toUpperCase() === 'EO' && selectedEmployee.assigned_ulb && (
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Assigned ULB</label>
-                  <p className="text-gray-900">{selectedEmployee.assigned_ulb}</p>
-                </div>
-              )}
               {selectedEmployee.role && selectedEmployee.role.toUpperCase() === 'SUPERVISOR' && selectedEmployee.eo && (
                 <div>
                   <label className="text-sm font-medium text-gray-700">EO</label>

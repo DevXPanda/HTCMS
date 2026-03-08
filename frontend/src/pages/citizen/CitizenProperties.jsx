@@ -53,7 +53,7 @@ const CitizenProperties = () => {
             ) : (
               properties.map((property) => (
                 <tr key={property.id}>
-                  <td className="font-medium">{property.propertyNumber}</td>
+                  <td className="font-medium">{property.uniqueCode || property.propertyNumber}</td>
                   <td>{property.address}</td>
                   <td>{property.ward?.wardName || 'N/A'}</td>
                   <td className="capitalize">{property.propertyType}</td>

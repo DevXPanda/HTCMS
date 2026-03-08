@@ -580,15 +580,17 @@ export const getWardStatistics = async (req, res, next) => {
 
 /**
  * @route   GET /api/wards/collector/:collectorId
- * @desc    Get all wards assigned to a collector
+ * @desc    Get all wards assigned to a collector (with property and pending demand counts)
  * @access  Private
  */
 export const getWardsByCollector = async (req, res, next) => {
   try {
     const { collectorId } = req.params;
+    const effectiveCollectorId = parseInt(collectorId, 10);
 
-    const wards = await Ward.findAll({
-      where: { collectorId, isActive: true },
+    // If no wards by collectorId (Ward.collectorId = admin_management.id), try staff by user id (ward_ids)
+    let wards = await Ward.findAll({
+      where: { collectorId: effectiveCollectorId, isActive: true },
       include: [
         {
           model: Property,
@@ -598,9 +600,57 @@ export const getWardsByCollector = async (req, res, next) => {
       ]
     });
 
+    if (wards.length === 0) {
+      const staff = await AdminManagement.findOne({
+        where: { id: effectiveCollectorId, role: 'COLLECTOR' },
+        attributes: ['id', 'ward_ids']
+      });
+      const wardIds = staff?.ward_ids && Array.isArray(staff.ward_ids) ? staff.ward_ids : [];
+      if (wardIds.length > 0) {
+        wards = await Ward.findAll({
+          where: { id: { [Op.in]: wardIds }, isActive: true },
+          include: [
+            { model: Property, as: 'properties', attributes: ['id'] }
+          ]
+        });
+      }
+    }
+
+    const wardIds = wards.map(w => w.id);
+    const allPropertyIds = wards.flatMap(w => (w.properties || []).map(p => p.id));
+    const propertyIdToWardId = {};
+    wards.forEach(w => {
+      (w.properties || []).forEach(p => { propertyIdToWardId[p.id] = w.id; });
+    });
+
+    let pendingByWard = {};
+    if (allPropertyIds.length > 0) {
+      const demands = await Demand.findAll({
+        where: {
+          propertyId: { [Op.in]: allPropertyIds },
+          balanceAmount: { [Op.gt]: 0 }
+        },
+        attributes: ['propertyId']
+      });
+      demands.forEach(d => {
+        const wid = propertyIdToWardId[d.propertyId];
+        if (wid) pendingByWard[wid] = (pendingByWard[wid] || 0) + 1;
+      });
+    }
+
+    const wardsWithStats = wards.map(ward => {
+      const w = ward.toJSON ? ward.toJSON() : { ...ward };
+      w.statistics = {
+        totalProperties: (ward.properties || []).length,
+        pendingDemands: pendingByWard[ward.id] || 0
+      };
+      delete w.properties;
+      return w;
+    });
+
     res.json({
       success: true,
-      data: { wards }
+      data: { wards: wardsWithStats }
     });
   } catch (error) {
     next(error);

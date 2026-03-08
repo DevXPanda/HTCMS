@@ -236,7 +236,9 @@ export const citizenAPI = {
   getNotices: (params) => api.get('/citizen/notices', { params }),
   getNoticeById: (id) => api.get(`/citizen/notices/${id}`),
   getWaterConnections: () => api.get('/citizen/water-connections'),
-  createWaterConnectionRequest: (data) => api.post('/citizen/water-connection-requests', data),
+  getWaterConnectionById: (id) => api.get(`/citizen/water-connections/${id}`),
+  createWaterConnectionRequest: (data) => api.post('/water-connection-requests', data),
+  submitWaterConnectionRequest: (id) => api.post(`/water-connection-requests/${id}/submit`),
   getWaterConnectionRequests: () => api.get('/citizen/water-connection-requests'),
   createShopRegistrationRequest: (data) => api.post('/citizen/shop-registration-requests', data),
   getShopRegistrationRequests: () => api.get('/citizen/shop-registration-requests'),
@@ -296,6 +298,9 @@ export const uploadAPI = {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   uploadToiletPhoto: (formData) => api.post('/upload/toilet-photo', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  uploadOwnerPhoto: (formData) => api.post('/upload/owner-photo', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   })
 };
@@ -387,6 +392,10 @@ export const waterConnectionDocumentAPI = {
   getAll: (params) => api.get('/water-connection-documents', { params }),
   getById: (id) => api.get(`/water-connection-documents/${id}`),
   upload: (formData) => api.post('/water-connection-documents', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  /** Upload document for a water connection request (before connection exists). FormData: file, documentType, waterConnectionRequestId, documentName (optional). */
+  uploadForRequest: (formData) => api.post('/water-connection-documents/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   delete: (id) => api.delete(`/water-connection-documents/${id}`),

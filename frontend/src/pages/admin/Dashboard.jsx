@@ -190,12 +190,12 @@ const Dashboard = () => {
     { title: 'Total Outstanding', value: `₹${stats.totalOutstanding.toLocaleString()}`, icon: AlertCircle, change: '', textRed: true }
   ];
 
-  // 3. Administration (Compact Secondary Navigation)
-  const adminItems = [
+  // 3. Administration (Compact Secondary Navigation) — ULB & Admin Management only for super admin
+  const adminItemsBase = [
     { name: 'Wards', icon: MapPin, link: '/wards' },
-    { name: 'ULB Management', icon: Building2, link: '/ulb-management' },
+    ...(isSuperAdmin ? [{ name: 'ULB Management', icon: Building2, link: '/ulb-management' }] : []),
     { name: 'Citizen Management', icon: Users, link: '/users' },
-    { name: 'Admin Management', icon: Shield, link: '/admin-accounts' },
+    ...(isSuperAdmin ? [{ name: 'Admin Management', icon: Shield, link: '/admin-accounts' }] : []),
     { name: 'Staff Management', icon: UserCog, link: '/admin-management' },
     { name: 'Attendance', icon: Clock, link: '/attendance' },
     { name: 'Field Monitoring', icon: ClipboardList, link: '/field-monitoring' },
@@ -203,6 +203,7 @@ const Dashboard = () => {
     { name: 'Reports', icon: BarChart3, link: '/reports' },
     { name: 'Audit Logs', icon: Shield, link: '/audit-logs' }
   ];
+  const adminItems = adminItemsBase;
 
   // Home Icon Component
   function Home(props) {
@@ -252,7 +253,7 @@ const Dashboard = () => {
       {/* Page Header */}
       <div className="ds-page-header">
         <div>
-          <h1 className="ds-page-title">EO Control Center</h1>
+          <h1 className="ds-page-title">{isSuperAdmin ? 'EO Control Center' : 'Admin Control Panel'}</h1>
           <p className="ds-page-subtitle">System Overview & Management</p>
         </div>
         <button

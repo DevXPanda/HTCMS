@@ -4,6 +4,7 @@ import { shopsAPI, shopTaxAssessmentsAPI, demandAPI } from '../../services/api';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
 import { Store, FileText, Receipt } from 'lucide-react';
+import DetailPageLayout, { DetailRow } from '../../components/DetailPageLayout';
 
 const CitizenShopDetails = () => {
   const { id } = useParams();
@@ -42,7 +43,7 @@ const CitizenShopDetails = () => {
     try {
       const response = await demandAPI.getAll({ serviceType: 'SHOP_TAX', limit: 100 });
       const shopDemands = (response.data.data.demands || []).filter(
-        d => d.shopTaxAssessment?.shop?.id === parseInt(id) || d.shopTaxAssessment?.shopId === parseInt(id)
+        (d) => d.shopTaxAssessment?.shop?.id === parseInt(id) || d.shopTaxAssessment?.shopId === parseInt(id)
       );
       setDemands(shopDemands);
     } catch (error) {
@@ -51,109 +52,110 @@ const CitizenShopDetails = () => {
   };
 
   if (loading) return <Loading />;
-  if (!shop) return <div>Shop not found</div>;
+  if (!shop) return <div className="card text-center py-8 text-gray-600">Shop not found</div>;
+
+  const statusBadgeClass = () => {
+    const s = (shop.status || '').toLowerCase();
+    if (s === 'active') return 'badge-success';
+    if (s === 'closed') return 'badge-danger';
+    return 'badge-warning';
+  };
+
+  const totalOutstanding = demands.reduce((sum, d) => sum + parseFloat(d.balanceAmount || 0), 0);
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-          <Store className="w-8 h-8 mr-3 text-amber-600" />
-          {shop.shopName}
-        </h1>
-        <p className="text-gray-600 mt-2">Shop Number: {shop.shopNumber}</p>
-      </div>
-
+    <DetailPageLayout
+      title={shop.shopName || 'Shop Details'}
+      subtitle={`Shop Number: ${shop.shopNumber}`}
+      actionButtons={
+        <Link to="/citizen/shops" className="text-primary-600 hover:text-primary-700 font-medium text-sm">
+          ← Back to My Shops
+        </Link>
+      }
+      summarySection={
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="stat-card">
+            <div className="stat-card-title"><span>Shop Number</span></div>
+            <p className="stat-card-value text-lg font-bold text-primary-600">{shop.shopNumber}</p>
+          </div>
+          <div className="stat-card">
+            <div className="stat-card-title"><span>Status</span></div>
+            <p className="stat-card-value text-base">
+              <span className={`badge capitalize ${statusBadgeClass()}`}>{shop.status || '—'}</span>
+            </p>
+          </div>
+          <div className="stat-card">
+            <div className="stat-card-title"><span>Type</span></div>
+            <p className="stat-card-value text-lg capitalize">{shop.shopType?.replace('_', ' ') || '—'}</p>
+          </div>
+          <div className="stat-card">
+            <div className="stat-card-title"><span>Assessments / Demands</span></div>
+            <p className="stat-card-value text-lg">{assessments.length} / {demands.length}</p>
+          </div>
+        </div>
+      }
+    >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card">
-          <h2 className="text-xl font-semibold mb-4 flex items-center">
-            <Store className="w-5 h-5 mr-2" />
+        <div className="card flex flex-col">
+          <h2 className="form-section-title flex items-center">
+            <Store className="w-5 h-5 mr-2 text-primary-600" />
             Shop Information
           </h2>
-          <dl className="space-y-3">
-            <div>
-              <dt className="text-sm font-medium text-gray-500">Shop Number</dt>
-              <dd className="text-lg font-semibold">{shop.shopNumber}</dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-gray-500">Shop Name</dt>
-              <dd>{shop.shopName}</dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-gray-500">Type</dt>
-              <dd className="capitalize">{shop.shopType?.replace('_', ' ') || '—'}</dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-gray-500">Status</dt>
-              <dd>
-                <span className={`badge ${
-                  shop.status === 'active' ? 'badge-success' :
-                  shop.status === 'closed' ? 'badge-danger' :
-                  'badge-warning'
-                } capitalize`}>
-                  {shop.status}
-                </span>
-              </dd>
-            </div>
-            {shop.area && (
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Area</dt>
-                <dd>{shop.area} sq. ft.</dd>
-              </div>
-            )}
-            {shop.address && (
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Address</dt>
-                <dd>{shop.address}</dd>
-              </div>
-            )}
-            {shop.property && (
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Property</dt>
-                <dd>
-                  <Link to={`/citizen/properties/${shop.propertyId}`} className="text-primary-600 hover:underline">
-                    {shop.property.propertyNumber} – {shop.property.address}
-                  </Link>
-                </dd>
-              </div>
-            )}
-            {shop.ward && (
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Ward</dt>
-                <dd>{shop.ward.wardName}</dd>
-              </div>
-            )}
-          </dl>
+          <div className="flex-1">
+            <dl>
+              <DetailRow label="Shop Number" value={shop.shopNumber} valueClass="font-semibold" />
+              <DetailRow label="Shop Name" value={shop.shopName} />
+              <DetailRow label="Type" value={shop.shopType?.replace('_', ' ')} valueClass="capitalize" />
+              <DetailRow
+                label="Status"
+                value={<span className={`badge capitalize ${statusBadgeClass()}`}>{shop.status}</span>}
+              />
+              {shop.area != null && shop.area !== '' && (
+                <DetailRow label="Area" value={`${shop.area} sq. ft.`} />
+              )}
+              {shop.address && <DetailRow label="Address" value={shop.address} />}
+              {shop.property && (
+                <DetailRow
+                  label="Property"
+                  value={
+                    <Link to={`/citizen/properties/${shop.propertyId}`} className="text-primary-600 hover:underline font-medium">
+                      {shop.property.propertyNumber} – {shop.property.address}
+                    </Link>
+                  }
+                />
+              )}
+              {shop.ward && <DetailRow label="Ward" value={shop.ward.wardName} />}
+            </dl>
+          </div>
         </div>
 
-        <div className="card">
-          <h2 className="text-xl font-semibold mb-4 flex items-center">
-            <FileText className="w-5 h-5 mr-2" />
+        <div className="card flex flex-col">
+          <h2 className="form-section-title flex items-center">
+            <FileText className="w-5 h-5 mr-2 text-primary-600" />
             Quick Stats
           </h2>
-          <dl className="space-y-3">
-            <div>
-              <dt className="text-sm font-medium text-gray-500">Assessments</dt>
-              <dd className="text-lg font-semibold">{assessments.length}</dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-gray-500">Demands</dt>
-              <dd className="text-lg font-semibold">{demands.length}</dd>
-            </div>
-            {demands.length > 0 && (
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Total Outstanding</dt>
-                <dd className="text-lg font-semibold text-red-600">
-                  ₹{demands.reduce((sum, d) => sum + parseFloat(d.balanceAmount || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </dd>
-              </div>
-            )}
-          </dl>
+          <div className="flex-1">
+            <dl>
+              <DetailRow label="Assessments" value={assessments.length} valueClass="font-semibold text-lg" />
+              <DetailRow label="Demands" value={demands.length} valueClass="font-semibold text-lg" />
+              {demands.length > 0 && totalOutstanding > 0 && (
+                <DetailRow
+                  label="Total Outstanding"
+                  value={`₹${totalOutstanding.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
+                  valueClass="font-semibold text-lg text-red-600"
+                />
+              )}
+            </dl>
+          </div>
         </div>
       </div>
 
       {assessments.length > 0 && (
         <div className="card mt-6">
-          <h2 className="text-xl font-semibold mb-4">Shop Tax Assessments</h2>
+          <h2 className="form-section-title flex items-center">
+            <FileText className="w-5 h-5 mr-2 text-primary-600" />
+            Shop Tax Assessments
+          </h2>
           <div className="overflow-x-auto">
             <table className="table">
               <thead>
@@ -166,19 +168,24 @@ const CitizenShopDetails = () => {
                 </tr>
               </thead>
               <tbody>
-                {assessments.map(assessment => (
+                {assessments.map((assessment) => (
                   <tr key={assessment.id}>
                     <td>{assessment.assessmentNumber}</td>
                     <td>{assessment.assessmentYear}</td>
                     <td>{assessment.financialYear || '—'}</td>
                     <td>₹{parseFloat(assessment.annualTaxAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                     <td>
-                      <span className={`badge ${
-                        assessment.status === 'approved' ? 'badge-success' :
-                        assessment.status === 'pending' ? 'badge-warning' :
-                        assessment.status === 'rejected' ? 'badge-danger' :
-                        'badge-info'
-                      } capitalize`}>
+                      <span
+                        className={`badge ${
+                          assessment.status === 'approved'
+                            ? 'badge-success'
+                            : assessment.status === 'pending'
+                              ? 'badge-warning'
+                              : assessment.status === 'rejected'
+                                ? 'badge-danger'
+                                : 'badge-info'
+                        } capitalize`}
+                      >
                         {assessment.status}
                       </span>
                     </td>
@@ -192,8 +199,8 @@ const CitizenShopDetails = () => {
 
       {demands.length > 0 && (
         <div className="card mt-6">
-          <h2 className="text-xl font-semibold mb-4 flex items-center">
-            <Receipt className="w-5 h-5 mr-2" />
+          <h2 className="form-section-title flex items-center">
+            <Receipt className="w-5 h-5 mr-2 text-primary-600" />
             Shop Tax Demands
           </h2>
           <div className="overflow-x-auto">
@@ -211,7 +218,7 @@ const CitizenShopDetails = () => {
                 </tr>
               </thead>
               <tbody>
-                {demands.map(demand => (
+                {demands.map((demand) => (
                   <tr key={demand.id}>
                     <td className="font-medium">{demand.demandNumber}</td>
                     <td>{demand.financialYear}</td>
@@ -224,21 +231,23 @@ const CitizenShopDetails = () => {
                     </td>
                     <td>{new Date(demand.dueDate).toLocaleDateString()}</td>
                     <td>
-                      <span className={`badge ${
-                        demand.status === 'paid' ? 'badge-success' :
-                        demand.status === 'partially_paid' ? 'badge-warning' :
-                        demand.status === 'overdue' ? 'badge-danger' :
-                        'badge-info'
-                      } capitalize`}>
+                      <span
+                        className={`badge ${
+                          demand.status === 'paid'
+                            ? 'badge-success'
+                            : demand.status === 'partially_paid'
+                              ? 'badge-warning'
+                              : demand.status === 'overdue'
+                                ? 'badge-danger'
+                                : 'badge-info'
+                        } capitalize`}
+                      >
                         {demand.status}
                       </span>
                     </td>
                     <td>
                       {demand.balanceAmount > 0 && (
-                        <Link
-                          to={`/citizen/payments/online/${demand.id}`}
-                          className="text-green-600 hover:text-green-700 text-sm font-medium"
-                        >
+                        <Link to={`/citizen/payments/online/${demand.id}`} className="text-primary-600 hover:text-primary-700 text-sm font-medium">
                           Pay Now
                         </Link>
                       )}
@@ -256,7 +265,7 @@ const CitizenShopDetails = () => {
           <p className="text-gray-500">No assessments or demands found for this shop.</p>
         </div>
       )}
-    </div>
+    </DetailPageLayout>
   );
 };
 

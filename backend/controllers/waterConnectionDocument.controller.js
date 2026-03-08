@@ -1,4 +1,4 @@
-import { WaterConnectionDocument, WaterConnection, User } from '../models/index.js';
+import { WaterConnectionDocument, WaterConnection, WaterConnectionRequest, User } from '../models/index.js';
 import { Op } from 'sequelize';
 import fs from 'fs';
 import path from 'path';
@@ -129,6 +129,18 @@ export const uploadDocumentForRequest = async (req, res, next) => {
       });
     }
 
+    // If uploading for a request, citizen can only upload for their own request
+    if (waterConnectionRequestId) {
+      const requestId = parseInt(waterConnectionRequestId);
+      const reqRecord = await WaterConnectionRequest.findByPk(requestId, { attributes: ['id', 'requestedBy'] });
+      if (!reqRecord) {
+        return res.status(404).json({ success: false, message: 'Water connection request not found' });
+      }
+      if (req.user.role === 'citizen' && reqRecord.requestedBy !== req.user.id) {
+        return res.status(403).json({ success: false, message: 'You can only upload documents for your own request' });
+      }
+    }
+
     // Store relative path for filePath (for serving via static route)
     const relativeFilePath = `/uploads/${file.filename}`;
 
@@ -172,31 +184,37 @@ export const uploadDocumentForRequest = async (req, res, next) => {
 
 /**
  * @route   GET /api/water-connection-documents
- * @desc    Get all documents for a water connection
+ * @desc    Get all documents for a water connection or water connection request
  * @access  Private
+ * @query   waterConnectionId OR waterConnectionRequestId
  */
 export const getDocuments = async (req, res, next) => {
   try {
-    const { waterConnectionId } = req.query;
+    const { waterConnectionId, waterConnectionRequestId } = req.query;
 
-    if (!waterConnectionId) {
+    if (!waterConnectionId && !waterConnectionRequestId) {
       return res.status(400).json({
         success: false,
-        message: 'waterConnectionId is required'
+        message: 'waterConnectionId or waterConnectionRequestId is required'
       });
     }
 
+    const where = {};
+    if (waterConnectionId) {
+      where.waterConnectionId = parseInt(waterConnectionId);
+    } else {
+      where.waterConnectionRequestId = parseInt(waterConnectionRequestId);
+    }
+
     const documents = await WaterConnectionDocument.findAll({
-      where: {
-        waterConnectionId: parseInt(waterConnectionId)
-      },
+      where,
       include: [
         { model: User, as: 'uploader', attributes: ['id', 'firstName', 'lastName'] }
       ],
       order: [['uploadedAt', 'DESC']]
     });
 
-    // Check mandatory documents
+    // Check mandatory documents (only when querying by connection; for request we still return validation)
     const validation = validateMandatoryDocuments(documents);
 
     res.json({

@@ -666,13 +666,13 @@ export const approveWaterConnectionRequest = async (req, res, next) => {
       adminRemarks
     } = req.body;
 
-    // Find request
+    // Find request (include property.wardId for connection number generation)
     const request = await WaterConnectionRequest.findByPk(id, {
       include: [
         {
           model: Property,
           as: 'property',
-          attributes: ['id', 'propertyNumber', 'address']
+          attributes: ['id', 'propertyNumber', 'address', 'wardId']
         }
       ]
     });
@@ -684,10 +684,19 @@ export const approveWaterConnectionRequest = async (req, res, next) => {
       });
     }
 
-    if (request.status !== 'PENDING') {
+    const pendingStatuses = ['PENDING', 'SUBMITTED', 'UNDER_INSPECTION'];
+    if (!pendingStatuses.includes(request.status)) {
       return res.status(400).json({
         success: false,
-        message: `Request is already ${request.status}`
+        message: `Request cannot be approved in ${request.status} status`
+      });
+    }
+
+    const wardId = request.property?.wardId;
+    if (!wardId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Property ward is missing; cannot generate connection number. Please ensure the property has a ward assigned.'
       });
     }
 
@@ -708,7 +717,7 @@ export const approveWaterConnectionRequest = async (req, res, next) => {
     }
 
     // Generate connection number
-    const connectionNumber = await generateWaterConnectionId(request.property.wardId);
+    const connectionNumber = await generateWaterConnectionId(wardId);
 
     // Create water connection
     const waterConnection = await WaterConnection.create({
@@ -733,6 +742,13 @@ export const approveWaterConnectionRequest = async (req, res, next) => {
       adminRemarks: adminRemarks || null,
       waterConnectionId: waterConnection.id
     });
+
+    // Link request documents to the new connection (for admin/citizen to view on connection)
+    const { WaterConnectionDocument } = await import('../models/index.js');
+    await WaterConnectionDocument.update(
+      { waterConnectionId: waterConnection.id },
+      { where: { waterConnectionRequestId: request.id } }
+    );
 
     // Fetch updated request with relations
     const updatedRequest = await WaterConnectionRequest.findByPk(id, {
@@ -784,10 +800,11 @@ export const rejectWaterConnectionRequest = async (req, res, next) => {
       });
     }
 
-    if (request.status !== 'PENDING') {
+    const pendingStatuses = ['PENDING', 'SUBMITTED', 'UNDER_INSPECTION'];
+    if (!pendingStatuses.includes(request.status)) {
       return res.status(400).json({
         success: false,
-        message: `Request is already ${request.status}`
+        message: `Request cannot be rejected in ${request.status} status`
       });
     }
 

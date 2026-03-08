@@ -15,7 +15,8 @@ import {
   RotateCcw,
   Calendar,
   Play,
-  Send
+  Send,
+  Camera
 } from 'lucide-react';
 import { useStaffAuth } from '../../contexts/StaffAuthContext';
 import { inspectorAPI } from '../../services/api';
@@ -210,42 +211,103 @@ const InspectorPropertyDetails = () => {
               </div>
             </div>
 
-            {/* Address */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Address
-              </label>
-              <div className="flex items-start">
-                <MapPin className="h-4 w-4 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
-                <span className="text-sm text-gray-900">
-                  {property.address}, {property.city}, {property.state} - {property.pincode}
-                </span>
+            {/* Owner Information */}
+            <div className="lg:col-span-3 border-t border-gray-100 pt-4 mt-2 flex flex-wrap items-start gap-6">
+              <span className="text-sm font-semibold text-gray-700 w-full flex items-center">
+                <User className="h-4 w-4 mr-2 text-primary-600" />
+                Owner Information
+              </span>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <span className="text-sm text-gray-900">{property.ownerName || '—'}</span>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                <span className="text-sm text-gray-900">{property.ownerPhone || '—'}</span>
+              </div>
+              <div className="w-full md:w-auto">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                <span className="text-sm text-gray-900">{property.address || '—'}</span>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                <span className="text-sm text-gray-900">{[property.city, property.state].filter(Boolean).join(', ') || '—'}</span>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">PIN</label>
+                <span className="text-sm text-gray-900">{property.pincode || '—'}</span>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ward</label>
+                <span className="text-sm text-gray-900">{property.ward?.wardName || '—'}</span>
+              </div>
+              {property.ownerPhotoUrl && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Owner Photo / Document</label>
+                  {property.ownerPhotoUrl.toLowerCase().includes('pdf') || property.ownerPhotoUrl.endsWith('.pdf') ? (
+                    <a
+                      href={property.ownerPhotoUrl.startsWith('http') ? property.ownerPhotoUrl : `${window.location.origin}${property.ownerPhotoUrl}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center text-primary-600 hover:text-primary-700 text-sm font-medium"
+                    >
+                      View PDF document
+                    </a>
+                  ) : (
+                    <img
+                      src={property.ownerPhotoUrl.startsWith('http') ? property.ownerPhotoUrl : `${window.location.origin}${property.ownerPhotoUrl}`}
+                      alt="Owner"
+                      className="h-24 w-24 object-cover rounded-lg border border-gray-200"
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                  )}
+                </div>
+              )}
             </div>
 
-            {/* Owner Name */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Owner Name
-              </label>
-              <div className="flex items-center">
-                <User className="h-4 w-4 text-gray-400 mr-2" />
-                <span className="text-sm text-gray-900">
-                  {property.ownerName || 'N/A'}
+            {/* Property Location & Property Photo */}
+            <div className="lg:col-span-3 border-t border-gray-100 pt-4 mt-2 grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+              <div>
+                <span className="text-sm font-semibold text-gray-700 flex items-center mb-3">
+                  <MapPin className="h-4 w-4 mr-2 text-primary-600" />
+                  Property Location
                 </span>
+                {property.geolocation && (property.geolocation.latitude || property.geolocation.longitude) ? (
+                  <>
+                    <p className="text-sm text-gray-900">Latitude: {property.geolocation.latitude}, Longitude: {property.geolocation.longitude}</p>
+                    <a
+                      href={`https://www.google.com/maps?q=${property.geolocation.latitude},${property.geolocation.longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center text-primary-600 hover:text-primary-700 text-sm font-medium mt-2"
+                    >
+                      View on Google Maps →
+                    </a>
+                  </>
+                ) : (
+                  <p className="text-gray-500 text-sm">No location coordinates</p>
+                )}
               </div>
-            </div>
-
-            {/* Owner Phone */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Owner Phone
-              </label>
-              <div className="flex items-center">
-                <Phone className="h-4 w-4 text-gray-400 mr-2" />
-                <span className="text-sm text-gray-900">
-                  {property.ownerPhone || 'N/A'}
+              <div>
+                <span className="text-sm font-semibold text-gray-700 flex items-center mb-3">
+                  <Camera className="h-4 w-4 mr-2 text-primary-600" />
+                  Property Photo
                 </span>
+                {(property.photos == null || property.photos.length === 0) ? (
+                  <p className="text-gray-500 text-sm">No photos uploaded</p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {property.photos.slice(0, 4).map((photo, index) => (
+                      <img
+                        key={index}
+                        src={photo}
+                        alt={`Property ${index + 1}`}
+                        className="w-full h-24 object-cover rounded-lg border border-gray-200"
+                        onError={(e) => { e.target.style.display = 'none'; }}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

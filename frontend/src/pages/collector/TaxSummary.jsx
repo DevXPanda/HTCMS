@@ -497,15 +497,60 @@ const TaxSummary = () => {
 
             <form onSubmit={handlePaymentSubmit} className="p-6 space-y-4">
               {/* Demand Info */}
-              <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  Demand {selectedDemand.demandNumber}
+                </div>
                 <div className="text-sm font-medium text-gray-900">
                   {selectedDemand.property?.propertyNumber}
                 </div>
                 <div className="text-sm text-gray-600">
-                  {selectedDemand.property?.owner?.firstName} {selectedDemand.property?.owner?.lastName}
+                  {selectedDemand.property?.address}
                 </div>
-                <div className="text-lg font-bold text-gray-900 mt-2">
-                  Due Amount: {formatCurrency(selectedDemand.balanceAmount)}
+                <div className="text-sm text-gray-600">
+                  Owner: {selectedDemand.property?.owner?.firstName} {selectedDemand.property?.owner?.lastName}
+                </div>
+
+                {/* Financial breakdown: Total Payable, Penalty, Discount, Current Balance */}
+                <div className="mt-3 pt-3 border-t border-gray-200 space-y-1.5">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Total Payable</span>
+                    <span className="font-medium text-gray-900">{formatCurrency(selectedDemand.totalAmount)}</span>
+                  </div>
+                  {((parseFloat(selectedDemand.penaltyAmount) || 0) + (parseFloat(selectedDemand.interestAmount) || 0)) > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Penalty / Interest</span>
+                      <span className="text-amber-700 font-medium">
+                        +{formatCurrency((parseFloat(selectedDemand.penaltyAmount) || 0) + (parseFloat(selectedDemand.interestAmount) || 0))}
+                      </span>
+                    </div>
+                  )}
+                  {(parseFloat(selectedDemand.penaltyWaived) || 0) > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Penalty Waived</span>
+                      <span className="text-green-600 font-medium">−{formatCurrency(selectedDemand.penaltyWaived)}</span>
+                    </div>
+                  )}
+                  {(() => {
+                    const total = parseFloat(selectedDemand.totalAmount) || 0;
+                    const waived = parseFloat(selectedDemand.penaltyWaived) || 0;
+                    const finalAmt = parseFloat(selectedDemand.finalAmount) || 0;
+                    const discountApplied = total - waived - finalAmt;
+                    return discountApplied > 0.01 ? (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Discount</span>
+                        <span className="text-green-600 font-medium">−{formatCurrency(discountApplied)}</span>
+                      </div>
+                    ) : null;
+                  })()}
+                  <div className="flex justify-between text-sm pt-1">
+                    <span className="text-gray-600">Final Payable</span>
+                    <span className="font-medium text-gray-900">{formatCurrency(selectedDemand.finalAmount ?? selectedDemand.totalAmount)}</span>
+                  </div>
+                  <div className="flex justify-between text-base font-semibold pt-1">
+                    <span className="text-gray-700">Current Balance</span>
+                    <span className="text-gray-900">{formatCurrency(selectedDemand.balanceAmount)}</span>
+                  </div>
                 </div>
               </div>
 

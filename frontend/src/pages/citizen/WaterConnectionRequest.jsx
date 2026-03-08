@@ -1,9 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { citizenAPI, propertyAPI } from '../../services/api';
+import { citizenAPI, propertyAPI, waterConnectionDocumentAPI } from '../../services/api';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
-import { MapPin } from 'lucide-react';
+import { MapPin, FileText, Upload } from 'lucide-react';
+
+const MANDATORY_DOCUMENTS = [
+  { key: 'APPLICATION_FORM', label: 'Application Form', description: 'Signed application form for water connection' },
+  { key: 'ID_PROOF', label: 'ID Proof', description: 'Government-issued ID (Aadhaar, PAN, etc.)' },
+  { key: 'ADDRESS_PROOF', label: 'Address Proof', description: 'Proof of address (utility bill, ration card, etc.)' }
+];
+
+const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 const WaterConnectionRequest = () => {
   const navigate = useNavigate();
@@ -15,6 +24,11 @@ const WaterConnectionRequest = () => {
     propertyLocation: '',
     connectionType: 'domestic',
     remarks: ''
+  });
+  const [documents, setDocuments] = useState({
+    APPLICATION_FORM: null,
+    ID_PROOF: null,
+    ADDRESS_PROOF: null
   });
 
   useEffect(() => {
@@ -36,11 +50,10 @@ const WaterConnectionRequest = () => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
 
-    // Auto-fill property location if property is selected
     if (name === 'propertyId' && value) {
-      const selectedProperty = properties.find(p => p.id === parseInt(value));
+      const selectedProperty = properties.find((p) => p.id === parseInt(value));
       if (selectedProperty) {
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
           propertyId: value,
           propertyLocation: selectedProperty.address || ''
@@ -49,17 +62,59 @@ const WaterConnectionRequest = () => {
     }
   };
 
+  const handleFileChange = (documentType, file) => {
+    if (!file) {
+      setDocuments((prev) => ({ ...prev, [documentType]: null }));
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error(`${file.name}: File size must be less than 5MB`);
+      return;
+    }
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast.error(`${file.name}: Only PDF, JPEG and PNG files are allowed`);
+      return;
+    }
+    setDocuments((prev) => ({ ...prev, [documentType]: file }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!formData.propertyId || !formData.propertyLocation || !formData.connectionType) {
       toast.error('Please fill in all required fields');
       return;
     }
 
+    const missing = MANDATORY_DOCUMENTS.filter((d) => !documents[d.key]);
+    if (missing.length > 0) {
+      toast.error(`Please upload all mandatory documents: ${missing.map((d) => d.label).join(', ')}`);
+      return;
+    }
+
     setLoading(true);
     try {
-      await citizenAPI.createWaterConnectionRequest(formData);
+      const createPayload = {
+        propertyId: parseInt(formData.propertyId, 10),
+        propertyLocation: formData.propertyLocation,
+        connectionType: formData.connectionType,
+        remarks: formData.remarks || undefined
+      };
+      const createRes = await citizenAPI.createWaterConnectionRequest(createPayload);
+      const requestId = createRes.data.data.request.id;
+
+      for (const { key } of MANDATORY_DOCUMENTS) {
+        const file = documents[key];
+        if (file) {
+          const fd = new FormData();
+          fd.append('file', file);
+          fd.append('documentType', key);
+          fd.append('waterConnectionRequestId', requestId);
+          await waterConnectionDocumentAPI.uploadForRequest(fd);
+        }
+      }
+
+      await citizenAPI.submitWaterConnectionRequest(requestId);
       toast.success('Water connection request submitted successfully!');
       navigate('/citizen/water-connections?tab=requests');
     } catch (error) {
@@ -100,9 +155,7 @@ const WaterConnectionRequest = () => {
               ))}
             </select>
             {properties.length === 0 && (
-              <p className="text-sm text-gray-500 mt-1">
-                No properties found. Please add a property first.
-              </p>
+              <p className="text-sm text-gray-500 mt-1">No properties found. Please add a property first.</p>
             )}
           </div>
 
@@ -156,6 +209,44 @@ const WaterConnectionRequest = () => {
               className="input"
               placeholder="Any additional information or special requirements"
             />
+          </div>
+
+          {/* Mandatory documents */}
+          <div className="border border-amber-200 rounded-lg bg-amber-50/50 p-4">
+            <h3 className="font-semibold text-gray-900 mb-1 flex items-center">
+              <FileText className="w-5 h-5 mr-2 text-amber-600" />
+              Mandatory Documents <span className="text-red-500">*</span>
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Upload the following documents. Your request will be reviewed by the admin after submission.
+            </p>
+            <div className="space-y-4">
+              {MANDATORY_DOCUMENTS.map(({ key, label, description }) => (
+                <div key={key}>
+                  <label className="label">
+                    {label} <span className="text-red-500">*</span>
+                  </label>
+                  <p className="text-xs text-gray-500 mb-1">{description}</p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={(e) => handleFileChange(key, e.target.files?.[0] || null)}
+                      className="input flex-1 text-sm"
+                    />
+                    {documents[key] && (
+                      <span className="text-sm text-green-600 flex items-center">
+                        <Upload className="w-4 h-4 mr-1" />
+                        {documents[key].name}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-sm text-amber-800 mt-2">
+              Allowed: PDF, JPEG, PNG. Max size: 5MB per file.
+            </p>
           </div>
 
           <div className="flex gap-4 pt-4">

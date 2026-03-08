@@ -93,16 +93,16 @@ export async function generateWaterBillNumber(wardId, transaction = null) {
   }).then(rows => rows.map(r => r.id));
   const connectionIds = propertyIds.length
     ? await WaterConnection.findAll({
-        where: { propertyId: { [Op.in]: propertyIds } },
-        attributes: ['id'],
-        transaction
-      }).then(rows => rows.map(r => r.id))
+      where: { propertyId: { [Op.in]: propertyIds } },
+      attributes: ['id'],
+      transaction
+    }).then(rows => rows.map(r => r.id))
     : [];
   const count = connectionIds.length
     ? await WaterBill.count({
-        where: { waterConnectionId: { [Op.in]: connectionIds } },
-        transaction
-      })
+      where: { waterConnectionId: { [Op.in]: connectionIds } },
+      transaction
+    })
     : 0;
 
   let nextNum = count + 1;
@@ -131,16 +131,16 @@ export async function generateWaterMeterReadingNumber(wardId, transaction = null
   }).then(rows => rows.map(r => r.id));
   const connectionIds = propertyIds.length
     ? await WaterConnection.findAll({
-        where: { propertyId: { [Op.in]: propertyIds } },
-        attributes: ['id'],
-        transaction
-      }).then(rows => rows.map(r => r.id))
+      where: { propertyId: { [Op.in]: propertyIds } },
+      attributes: ['id'],
+      transaction
+    }).then(rows => rows.map(r => r.id))
     : [];
   const count = connectionIds.length
     ? await WaterMeterReading.count({
-        where: { waterConnectionId: { [Op.in]: connectionIds } },
-        transaction
-      })
+      where: { waterConnectionId: { [Op.in]: connectionIds } },
+      transaction
+    })
     : 0;
 
   let nextNum = count + 1;
@@ -170,9 +170,9 @@ export async function generateWaterConnectionRequestNumber(wardId, transaction =
 
   const count = propertyIds.length
     ? await WaterConnectionRequest.count({
-        where: { propertyId: { [Op.in]: propertyIds } },
-        transaction
-      })
+      where: { propertyId: { [Op.in]: propertyIds } },
+      transaction
+    })
     : 0;
 
   let nextNum = count + 1;
@@ -200,9 +200,9 @@ export async function generateShopRegistrationRequestId(wardId, transaction = nu
   }).then(rows => rows.map(r => r.id));
   const count = propertyIds.length
     ? await ShopRegistrationRequest.count({
-        where: { propertyId: { [Op.in]: propertyIds } },
-        transaction
-      })
+      where: { propertyId: { [Op.in]: propertyIds } },
+      transaction
+    })
     : 0;
 
   let nextNum = count + 1;
@@ -275,6 +275,7 @@ export async function generateAssessmentId(wardId, moduleType = 'property', tran
 
 /**
  * Demand ID generation for Property (Unified), Water, Shop, and D2DC.
+ * Uses max serial per ward+prefix and retry loop to guarantee unique codes (safe for bulk/concurrent).
  */
 export async function generateDemandId(wardId, moduleType = 'unified', transaction = null) {
   const ward = await Ward.findByPk(wardId, { transaction });
@@ -289,19 +290,38 @@ export async function generateDemandId(wardId, moduleType = 'unified', transacti
   };
 
   const config = typeMap[moduleType] || typeMap.unified;
-  // Simple count of all demands in the ward for the service type
-  const count = await Demand.count({
-    include: [{ model: Property, as: 'property', where: { wardId } }],
-    where: { serviceType: { [Op.not]: null } },
+  const prefixKey = config.prefix;
+  // Resolve prefix string for this ward (e.g. DEM023, WTD023)
+  const prefixStr = generateUniqueId(prefixKey, wardNumDisplay, 0, 4).replace(/\d{4}$/, '');
+  const demands = await Demand.findAll({
+    where: { demandNumber: { [Op.like]: `${prefixStr}%` } },
+    attributes: ['demandNumber'],
+    raw: true,
     transaction
   });
-
-  return generateUniqueId(config.prefix, wardNumDisplay, count + 1, 4);
+  let maxSerial = 0;
+  const serialLen = 4;
+  for (const d of demands) {
+    const numPart = d.demandNumber.slice(prefixStr.length);
+    if (new RegExp(`^\\d{${serialLen}}$`).test(numPart)) {
+      const s = parseInt(numPart, 10);
+      if (s > maxSerial) maxSerial = s;
+    }
+  }
+  let nextNum = maxSerial + 1;
+  let candidate = generateUniqueId(prefixKey, wardNumDisplay, nextNum, serialLen);
+  let exists = await Demand.findOne({ where: { demandNumber: candidate }, transaction });
+  while (exists) {
+    nextNum++;
+    candidate = generateUniqueId(prefixKey, wardNumDisplay, nextNum, serialLen);
+    exists = await Demand.findOne({ where: { demandNumber: candidate }, transaction });
+  }
+  return candidate;
 }
 
 /**
  * Payment and Receipt ID generation.
- * Handles both general Payments and WaterPayments.
+ * Uses max existing serial for the prefix (e.g. RCP023%) so generated IDs never collide with existing rows.
  */
 export async function generatePaymentId(wardId, isReceipt = false, transaction = null, moduleType = 'general') {
   const ward = await Ward.findByPk(wardId, { transaction });
@@ -315,24 +335,36 @@ export async function generatePaymentId(wardId, isReceipt = false, transaction =
   const config = typeMap[moduleType] || typeMap.general;
   const type = isReceipt ? config.receipt : config.payment;
 
-  let count;
+  // Build prefix: e.g. RCP023 or PAY000 (3-char type + 3-digit ward)
+  const prefix = generateUniqueId(type, wardNumDisplay, 0, 6).slice(0, 6);
+
   if (moduleType === 'water') {
-    count = await WaterPayment.count({
-      include: [{
-        model: WaterConnection,
-        as: 'waterConnection',
-        include: [{ model: Property, as: 'property', where: { wardId } }]
-      }],
+    const column = isReceipt ? 'receiptNumber' : 'paymentNumber';
+    const rows = await WaterPayment.findAll({
+      where: { [column]: { [Op.like]: `${prefix}%` } },
+      attributes: [column],
       transaction
     });
-  } else {
-    count = await Payment.count({
-      include: [{ model: Property, as: 'property', where: { wardId } }],
-      transaction
-    });
+    const serials = rows
+      .map((r) => parseInt(String(r.get(column) || '').slice(6), 10))
+      .filter((n) => !isNaN(n) && n >= 0);
+    const nextSerial = (serials.length > 0 ? Math.max(...serials) : 0) + 1;
+    return generateUniqueId(type, wardNumDisplay, nextSerial, 6);
   }
 
-  return generateUniqueId(type, wardNumDisplay, count + 1, 6);
+  // General: get max existing serial for this prefix from the actual column to avoid duplicates
+  const column = isReceipt ? 'receiptNumber' : 'paymentNumber';
+  const where = { [column]: { [Op.like]: `${prefix}%` } };
+  const rows = await Payment.findAll({
+    where,
+    attributes: [column],
+    transaction
+  });
+  const serials = rows
+    .map((r) => parseInt(String(r.get(column) || '').slice(6), 10))
+    .filter((n) => !isNaN(n) && n >= 0);
+  const nextSerial = (serials.length > 0 ? Math.max(...serials) : 0) + 1;
+  return generateUniqueId(type, wardNumDisplay, nextSerial, 6);
 }
 
 // Backward-compatible alias for property (used by controllers that pass wardId, propertyType only)
@@ -360,9 +392,9 @@ export async function generateNoticeNumber(wardId, noticeType, transaction = nul
   }).then((r) => r.map((p) => p.id));
   const count = propertyIds.length
     ? await Notice.count({
-        where: { propertyId: { [Op.in]: propertyIds } },
-        transaction
-      })
+      where: { propertyId: { [Op.in]: propertyIds } },
+      transaction
+    })
     : 0;
 
   let nextNum = count + 1;

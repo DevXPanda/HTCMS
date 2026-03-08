@@ -5,6 +5,7 @@ import { createAuditLog } from '../utils/auditLogger.js';
 import { sequelize } from '../config/database.js';
 import { updateNoticeOnPayment } from './notice.controller.js';
 import { generatePaymentReceiptPdf } from '../utils/pdfHelpers.js';
+import { generatePaymentId } from '../services/uniqueIdService.js';
 
 /**
  * @route   POST /api/field-visits
@@ -461,24 +462,16 @@ export const createFieldVisit = async (req, res, next) => {
         ? payments
         : [{ demandId, amount: paymentAmount, paymentMode, transactionId, chequeNumber, chequeDate, bankName }];
 
-      const year = new Date().getFullYear();
-      let paymentSequence = await Payment.count({
-        where: {
-          paymentDate: {
-            [Op.gte]: new Date(`${year}-01-01`),
-            [Op.lt]: new Date(`${year + 1}-01-01`)
-          }
-        },
-        transaction
-      });
-
       // Process each payment
       for (const paymentData of paymentsToProcess) {
         const paymentDemandId = paymentData.demandId || demandId;
         const paymentAmountNum = parseFloat(paymentData.amount);
 
         // Get the demand for this payment
-        const paymentDemand = await Demand.findByPk(paymentDemandId, { transaction });
+        const paymentDemand = await Demand.findByPk(paymentDemandId, {
+          include: [{ model: Property, as: 'property', attributes: ['wardId'] }],
+          transaction
+        });
         if (!paymentDemand) {
           await transaction.rollback();
           return res.status(404).json({
@@ -498,9 +491,14 @@ export const createFieldVisit = async (req, res, next) => {
           });
         }
 
-        paymentSequence++;
-        const paymentNumber = `PAY-${year}-${String(paymentSequence).padStart(6, '0')}`;
-        const receiptNumber = `RCP-${year}-${Date.now()}-${paymentSequence}`;
+        // Same unique code format as property/demand: PREFIX + WARD(3) + SERIAL(6)
+        const wardId = paymentDemand.property?.wardId;
+        if (!wardId) {
+          await transaction.rollback();
+          return res.status(400).json({ success: false, message: 'Property ward is required to generate collection code' });
+        }
+        const paymentNumber = await generatePaymentId(wardId, false, transaction);
+        const receiptNumber = await generatePaymentId(wardId, true, transaction);
 
         // Create payment entry
         const createdPayment = await Payment.create({

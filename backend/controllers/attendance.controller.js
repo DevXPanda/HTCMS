@@ -28,16 +28,16 @@ export const getAttendanceRecords = async (req, res, next) => {
 
     const where = {};
     const user = req.user;
+    const normalizedRole = (user.role || '').toLowerCase().replace(/-/g, '_');
 
     // Role-based access control
-    if (user.role === 'collector' || user.role === 'clerk' || user.role === 'inspector' || user.role === 'officer') {
-      // Staff members can only see their own attendance
-      where.collectorId = user.id;
+    const isStaffCollector = normalizedRole === 'collector' || normalizedRole === 'tax_collector';
+    const isStaffRole = isStaffCollector || normalizedRole === 'clerk' || normalizedRole === 'inspector' || normalizedRole === 'officer';
 
-      // For staff roles (not collectors), filter by usertype to ensure we get admin_management records
-      if (user.role !== 'collector') {
-        where.usertype = 'admin_management';
-      }
+    if (isStaffRole) {
+      // Staff members (including collector / tax_collector) can only see their own attendance
+      where.collectorId = user.id;
+      where.usertype = 'admin_management';
     } else if (user.role === 'admin' || user.role === 'assessor') {
       // Admin and Assessor: apply ULB filter when effective ULB is set
       const { effectiveUlbId } = getEffectiveUlbForRequest(req);
@@ -248,8 +248,10 @@ export const getAttendanceById = async (req, res, next) => {
       });
     }
 
-    // Role-based access control
-    if (user.role === 'collector' && attendance.collectorId !== user.id) {
+    // Role-based access control: staff (collector, tax_collector, clerk, inspector, officer) can only view own record
+    const roleForAccess = (user.role || '').toLowerCase().replace(/-/g, '_');
+    const isStaff = ['collector', 'tax_collector', 'clerk', 'inspector', 'officer'].includes(roleForAccess);
+    if (isStaff && attendance.collectorId !== user.id) {
       return res.status(403).json({
         success: false,
         message: 'Access denied. You can only view your own attendance records.'

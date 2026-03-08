@@ -221,8 +221,8 @@ export const generateUnifiedTaxAssessmentAndDemand = async ({
 
     const totalAmount = Math.round((totalBaseAmount + totalArrears + penaltyAmount + interestAmount) * 100) / 100;
 
-    // Generate demand number
-    const demandNumber = await generateDemandId(propertyId, 'unified', transaction);
+    // Generate demand number (use property.wardId for unique code per ward)
+    const demandNumber = await generateDemandId(property.wardId, 'unified', transaction);
 
     // Store assessment IDs in remarks as JSON for reference
     // IMPORTANT: Set remarks BEFORE creating demand so validation hook can detect unified demand

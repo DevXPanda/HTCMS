@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { citizenAPI, uploadAPI } from '../../services/api';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
 import { Store, CheckCircle, XCircle, Clock, MapPin, Calendar, User, Upload, X, FileText } from 'lucide-react';
+import DetailPageLayout, { DetailRow } from '../../components/DetailPageLayout';
 
 const ShopRegistrationRequest = () => {
   const navigate = useNavigate();
@@ -139,7 +140,7 @@ const ShopRegistrationRequest = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!formData.propertyId || !formData.shopName || !formData.shopType) {
       toast.error('Please fill in all required fields');
       return;
@@ -151,11 +152,11 @@ const ShopRegistrationRequest = () => {
         ...formData,
         documents: documents.length > 0 ? documents : []
       };
-      
+
       console.log('Submitting shop registration request with documents:', requestData.documents);
-      
+
       const response = await citizenAPI.createShopRegistrationRequest(requestData);
-      
+
       if (response.data.success) {
         toast.success('Shop registration request submitted successfully!');
         navigate('/citizen/shop-registration-requests');
@@ -204,157 +205,167 @@ const ShopRegistrationRequest = () => {
   if (!viewMode && loadingProperties) return <Loading />;
 
   if (viewMode) {
-    return (
-      <div>
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-                <Store className="w-8 h-8" />
-                Shop Registration Request Details
-              </h1>
-              <p className="text-gray-600 mt-2">Request Number: {request.requestNumber}</p>
-            </div>
-            {getStatusBadge(request.status)}
-          </div>
-        </div>
+    const statusBadge = getStatusBadge(request.status);
+    const docs = request.documents && Array.isArray(request.documents) ? request.documents : [];
 
-        <div className="card max-w-4xl">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Shop Information</h3>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm text-gray-600">Shop Name</p>
-                  <p className="font-medium text-gray-900">{request.shopName}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Shop Type</p>
-                  <p className="font-medium text-gray-900 capitalize">{request.shopType}</p>
-                </div>
-                {request.category && (
-                  <div>
-                    <p className="text-sm text-gray-600">Category</p>
-                    <p className="font-medium text-gray-900">{request.category}</p>
-                  </div>
-                )}
-                {request.area && (
-                  <div>
-                    <p className="text-sm text-gray-600">Area</p>
-                    <p className="font-medium text-gray-900">{request.area} sq. meters</p>
-                  </div>
+    return (
+      <DetailPageLayout
+        title="Shop Registration Request Details"
+        subtitle={`Request Number: ${request.requestNumber}`}
+        actionButtons={
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* <Link to="/citizen/shop-registration-requests" className="text-primary-600 hover:text-primary-700 font-medium text-sm">
+              ← Back to Shop Registration
+            </Link> */}
+            {statusBadge}
+          </div>
+        }
+        summarySection={
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="stat-card">
+              <div className="stat-card-title"><span>Request Number</span></div>
+              <p className="stat-card-value text-lg font-bold text-primary-600">{request.requestNumber}</p>
+            </div>
+            <div className="stat-card">
+              <div className="stat-card-title"><span>Status</span></div>
+              <p className="stat-card-value text-base">{statusBadge}</p>
+            </div>
+            <div className="stat-card">
+              <div className="stat-card-title"><span>Shop Name</span></div>
+              <p className="stat-card-value text-lg">{request.shopName || '—'}</p>
+            </div>
+            <div className="stat-card">
+              <div className="stat-card-title"><span>Submitted</span></div>
+              <p className="stat-card-value text-lg">{request.createdAt ? new Date(request.createdAt).toLocaleDateString() : '—'}</p>
+            </div>
+          </div>
+        }
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="card flex flex-col">
+            <h2 className="form-section-title flex items-center">
+              <Store className="w-5 h-5 mr-2 text-primary-600" />
+              Shop Information
+            </h2>
+            <div className="flex-1">
+              <dl>
+                <DetailRow label="Shop Name" value={request.shopName} />
+                <DetailRow label="Shop Type" value={request.shopType} valueClass="capitalize" />
+                {request.category && <DetailRow label="Category" value={request.category} />}
+                {request.area != null && request.area !== '' && (
+                  <DetailRow label="Area" value={`${request.area} sq. meters`} />
                 )}
                 {request.tradeLicenseNumber && (
-                  <div>
-                    <p className="text-sm text-gray-600">Trade License Number</p>
-                    <p className="font-medium text-gray-900">{request.tradeLicenseNumber}</p>
-                  </div>
+                  <DetailRow label="Trade License Number" value={request.tradeLicenseNumber} />
                 )}
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Property Information</h3>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm text-gray-600 flex items-center gap-1">
-                    <MapPin className="w-4 h-4" />
-                    Property
-                  </p>
-                  <p className="font-medium text-gray-900">
-                    {request.property?.propertyNumber || 'N/A'}
-                  </p>
-                  <p className="text-sm text-gray-500">{request.property?.address || 'N/A'}</p>
-                  {request.property?.ward && (
-                    <p className="text-sm text-gray-500">
-                      Ward: {request.property.ward.wardNumber && request.property.ward.wardNumber !== '0' 
-                        ? `${request.property.ward.wardNumber} - ` 
-                        : ''}{request.property.ward.wardName}
-                    </p>
-                  )}
-                </div>
-                {request.address && (
-                  <div>
-                    <p className="text-sm text-gray-600">Shop Address</p>
-                    <p className="font-medium text-gray-900">{request.address}</p>
-                  </div>
-                )}
-              </div>
+              </dl>
             </div>
           </div>
 
-          {request.documents && Array.isArray(request.documents) && request.documents.length > 0 && (
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold mb-2">Documents</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {request.documents.map((doc, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-5 h-5 text-gray-600" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{doc.originalName || doc.fileName}</p>
-                        <p className="text-xs text-gray-500">
-                          {(doc.size / 1024).toFixed(2)} KB
-                        </p>
-                      </div>
-                    </div>
-                    {doc.url && (
-                      <a
-                        href={doc.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary-600 hover:text-primary-700 text-sm"
-                      >
-                        View
-                      </a>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {request.remarks && (
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold mb-2">Remarks</h3>
-              <p className="text-gray-900">{request.remarks}</p>
-            </div>
-          )}
-
-          {request.adminRemarks && (
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-              <h3 className="text-lg font-semibold mb-2">Review Remarks</h3>
-              <p className="text-gray-900">{request.adminRemarks}</p>
-              {request.reviewer && (
-                <p className="text-sm text-gray-500 mt-2">
-                  Reviewed by: {request.reviewer.firstName} {request.reviewer.lastName}
-                </p>
-              )}
-              {request.reviewedAt && (
-                <p className="text-sm text-gray-500">
-                  Reviewed on: {new Date(request.reviewedAt).toLocaleDateString()}
-                </p>
-              )}
-            </div>
-          )}
-
-          {request.shop && (
-            <div className="mt-6 p-4 bg-green-50 rounded-lg">
-              <h3 className="text-lg font-semibold text-green-900 mb-2">Shop Created</h3>
-              <p className="text-green-900">
-                Shop Number: {request.shop.shopNumber} - {request.shop.shopName}
-              </p>
-            </div>
-          )}
-
-          <div className="mt-6 pt-6 border-t">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Calendar className="w-4 h-4" />
-              Submitted: {new Date(request.createdAt).toLocaleDateString()}
+          <div className="card flex flex-col">
+            <h2 className="form-section-title flex items-center">
+              <MapPin className="w-5 h-5 mr-2 text-primary-600" />
+              Property Information
+            </h2>
+            <div className="flex-1">
+              <dl>
+                <DetailRow label="Property" value={request.property?.propertyNumber} />
+                {request.property?.address && (
+                  <DetailRow label="Address" value={request.property.address} />
+                )}
+                {request.property?.ward && (
+                  <DetailRow
+                    label="Ward"
+                    value={
+                      request.property.ward.wardNumber && request.property.ward.wardNumber !== '0'
+                        ? `${request.property.ward.wardNumber} - ${request.property.ward.wardName}`
+                        : request.property.ward.wardName
+                    }
+                  />
+                )}
+                {request.address && <DetailRow label="Shop Address" value={request.address} />}
+              </dl>
             </div>
           </div>
         </div>
-      </div>
+
+        {docs.length > 0 && (
+          <div className="card mt-6">
+            <h2 className="form-section-title flex items-center">
+              <FileText className="w-5 h-5 mr-2 text-primary-600" />
+              Documents
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {docs.map((doc, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileText className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{doc.originalName || doc.fileName}</p>
+                      <p className="text-xs text-gray-500">{(doc.size / 1024).toFixed(2)} KB</p>
+                    </div>
+                  </div>
+                  {doc.url && (
+                    <a
+                      href={doc.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary-600 hover:text-primary-700 text-sm font-medium flex-shrink-0 ml-2"
+                    >
+                      View
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {request.remarks && (
+          <div className="card mt-6">
+            <h2 className="form-section-title">Remarks</h2>
+            <p className="text-gray-900 text-sm whitespace-pre-wrap">{request.remarks}</p>
+          </div>
+        )}
+
+        {request.adminRemarks && (
+          <div className="card mt-6">
+            <h2 className="form-section-title">Review Remarks</h2>
+            <p className="text-gray-900 text-sm whitespace-pre-wrap">{request.adminRemarks}</p>
+            {(request.reviewer || request.reviewedAt) && (
+              <div className="mt-3 pt-3 border-t border-gray-100 space-y-1">
+                {request.reviewer && (
+                  <p className="text-sm text-gray-500">
+                    Reviewed by: {request.reviewer.firstName} {request.reviewer.lastName}
+                  </p>
+                )}
+                {request.reviewedAt && (
+                  <p className="text-sm text-gray-500">
+                    Reviewed on: {new Date(request.reviewedAt).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {request.shop && (
+          <div className="card mt-6 bg-green-50 border-green-200">
+            <h2 className="form-section-title flex items-center text-green-900">
+              <CheckCircle className="w-5 h-5 mr-2" />
+              Shop Created
+            </h2>
+            <p className="text-green-900 font-medium">
+              Shop Number: {request.shop.shopNumber} – {request.shop.shopName}
+            </p>
+          </div>
+        )}
+
+        <div className="mt-6 flex items-center gap-2 text-sm text-gray-600">
+          <Calendar className="w-4 h-4 flex-shrink-0" />
+          <span>Submitted: {new Date(request.createdAt).toLocaleDateString()}</span>
+        </div>
+      </DetailPageLayout>
     );
   }
 

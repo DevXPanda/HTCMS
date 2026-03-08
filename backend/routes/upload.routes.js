@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticate, authorize } from '../middleware/enhancedAuth.js';
-import { upload, uploadPropertyPhoto, uploadFieldVisitPhoto, uploadPaymentProof, uploadShopRegistrationDocument, uploadDiscountDocument, uploadPenaltyWaiverDocument, uploadToiletPhoto } from '../controllers/upload.controller.js';
+import { upload, uploadPropertyPhoto, uploadOwnerPhoto, uploadFieldVisitPhoto, uploadPaymentProof, uploadShopRegistrationDocument, uploadDiscountDocument, uploadPenaltyWaiverDocument, uploadToiletPhoto } from '../controllers/upload.controller.js';
 
 const router = express.Router();
 
@@ -9,6 +9,9 @@ router.use(authenticate);
 
 // Upload property photo (Admin, Assessor, Collector)
 router.post('/property-photo', authorize('admin', 'assessor', 'collector'), upload.single('photo'), uploadPropertyPhoto);
+
+// Upload owner passport-size photo or PDF (all roles: citizen, collector, admin, clerk, assessor, tax_collector)
+router.post('/owner-photo', authorize('admin', 'assessor', 'tax_collector', 'collector', 'clerk', 'citizen'), upload.single('photo'), uploadOwnerPhoto);
 
 // Upload field visit photo (Collector only)
 router.post('/field-visit-photo', authorize('collector'), upload.single('photo'), uploadFieldVisitPhoto);

@@ -196,6 +196,7 @@ export const createProperty = async (req, res, next) => {
       ownerId,
       ownerName,
       ownerPhone,
+      ownerPhotoUrl,
       wardId,
       propertyType,
       usageType,
@@ -444,7 +445,13 @@ export const createProperty = async (req, res, next) => {
       });
     }
 
-    const propertyNumber = adminPropertyNumber || uniqueCode;
+    // Use generated unique code as displayed property number unless admin provided a full-format code (e.g. PR0230711).
+    // This ensures citizens and lists always show the system unique code when property is added with filter or short ref.
+    const fullFormatCode = /^(?:PR|PC|PI|PA)\d{3}\d{4}$/i;
+    const propertyNumber =
+      adminPropertyNumber && fullFormatCode.test(String(adminPropertyNumber).trim())
+        ? String(adminPropertyNumber).trim()
+        : uniqueCode;
 
     const property = await Property.create({
       propertyNumber,
@@ -452,6 +459,7 @@ export const createProperty = async (req, res, next) => {
       ownerId: finalOwnerId,
       ownerName: ownerName.trim(),
       ownerPhone: ownerPhone.trim(),
+      ownerPhotoUrl: ownerPhotoUrl && String(ownerPhotoUrl).trim() ? String(ownerPhotoUrl).trim() : null,
       wardId: parsedWardId,
       propertyType,
       usageType: usageType || propertyType,

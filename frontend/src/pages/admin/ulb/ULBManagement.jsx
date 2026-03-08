@@ -1,13 +1,20 @@
 import { useState, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import api from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { Plus, Building2, MapPin, Save, X, Pencil } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 
 const ULBManagement = () => {
   const { isAdmin } = useAuth();
+  const { isSuperAdmin } = useSelectedUlb();
+
+  if (!isSuperAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
   const [ulbs, setUlbs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);

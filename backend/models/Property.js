@@ -38,6 +38,11 @@ export const Property = sequelize.define('Property', {
     type: DataTypes.STRING(20),
     allowNull: true
   },
+  ownerPhotoUrl: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+    comment: 'Passport-size owner photo or PDF document URL'
+  },
   wardId: {
     type: DataTypes.INTEGER,
     allowNull: false,

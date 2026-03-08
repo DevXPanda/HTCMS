@@ -190,6 +190,11 @@ export const getDailyTasks = async (req, res, next) => {
       }
     });
   } catch (error) {
+    try {
+      await transaction.rollback();
+    } catch (_) {
+      // ignore rollback errors
+    }
     next(error);
   }
 };

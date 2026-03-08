@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
 import { userAPI, wardAPI } from '../../../services/api';
+import api from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { Plus, X, Eye, Pencil, Trash2 } from 'lucide-react';
+import { Plus, X, Eye, Pencil, Trash2, Filter } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 
 const Users = () => {
   const { isAdmin } = useAuth();
-  const { effectiveUlbId } = useSelectedUlb();
+  const { effectiveUlbId, isSuperAdmin, selectedUlbId, setSelectedUlbId } = useSelectedUlb();
   const [users, setUsers] = useState([]);
   const [wards, setWards] = useState([]);
+  const [ulbs, setUlbs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -50,6 +52,13 @@ const Users = () => {
     fetchUsers();
     fetchWards();
   }, [effectiveUlbId]);
+
+  useEffect(() => {
+    api.get('/admin-management/ulbs').then((res) => {
+      const data = res.data?.data ?? res.data;
+      setUlbs(Array.isArray(data) ? data : (data?.ulbs || []));
+    }).catch(() => setUlbs([]));
+  }, []);
 
   useEffect(() => {
     const allSelected = users.length > 0 && selectedUsers.length === users.length;
@@ -265,6 +274,37 @@ const Users = () => {
           Add Citizen
         </button>
       </div>
+
+      {/* ULB filter for super admin: filter citizens by selected ULB */}
+      {isSuperAdmin && (
+        <div className="card-flat mb-6">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Filter className="w-5 h-5 text-gray-500" />
+              <label className="label mb-0">Filter by ULB:</label>
+            </div>
+            <select
+              value={selectedUlbId}
+              onChange={(e) => setSelectedUlbId(e.target.value)}
+              className="input max-w-xs"
+            >
+              <option value="">All ULBs</option>
+              {ulbs.map((ulb) => (
+                <option key={ulb.id} value={ulb.id}>{ulb.name}</option>
+              ))}
+            </select>
+            {selectedUlbId && (
+              <button
+                type="button"
+                onClick={() => setSelectedUlbId('')}
+                className="text-sm text-primary-600 hover:text-primary-700"
+              >
+                Clear Filter
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {isAdmin && selectedUsers.length > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 flex items-center justify-between">
@@ -548,6 +588,7 @@ const Users = () => {
               <p><span className="text-gray-500 text-sm">Username:</span> {selectedUser.username}</p>
               <p><span className="text-gray-500 text-sm">Phone number:</span> {selectedUser.phone || '—'}</p>
               <p><span className="text-gray-500 text-sm">Role:</span> <span className={`badge ${getRoleBadge(selectedUser.role)} capitalize`}>{selectedUser.role?.replace('_', ' ')}</span></p>
+              <p><span className="text-gray-500 text-sm">ULB:</span> {ulbs.find(u => u.id === selectedUser.ulb_id)?.name || '—'}</p>
               <p><span className="text-gray-500 text-sm">Status:</span> <span className={selectedUser.isActive ? 'badge badge-success' : 'badge badge-danger'}>{selectedUser.isActive ? 'Active' : 'Inactive'}</span></p>
             </div>
             <div className="p-6 border-t flex justify-end gap-2">

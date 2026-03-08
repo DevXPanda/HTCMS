@@ -12,7 +12,7 @@ export function getEffectiveUlbForRequest(req) {
   const role = (req.user?.role ?? req.user?.dataValues?.role ?? '').toString().toLowerCase();
   const userUlbId = req.user?.ulb_id ?? req.user?.dataValues?.ulb_id ?? null;
   const hasUlbAssigned = userUlbId != null && String(userUlbId).trim() !== '';
-  const isSuperAdmin = userType === 'user' && role === 'admin' && !hasUlbAssigned;
+  const isSuperAdmin = userType === 'user' && (role === 'super_admin' || (role === 'admin' && !hasUlbAssigned));
   const effectiveUlbId = isSuperAdmin ? (req.query.ulb_id || null) : (userUlbId || null);
   return { isSuperAdmin, effectiveUlbId };
 }

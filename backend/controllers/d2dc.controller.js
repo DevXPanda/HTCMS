@@ -1,7 +1,7 @@
 import { D2DCRecord, Demand, Payment, Property, User, Ward, AdminManagement } from '../models/index.js';
 import { Op } from 'sequelize';
 import { sequelize } from '../config/database.js';
-import { generateD2DCId } from '../services/uniqueIdService.js';
+import { generateD2DCId, generatePaymentId } from '../services/uniqueIdService.js';
 import { getEffectiveUlbForRequest, getWardIdsByUlbId } from '../utils/ulbAccessHelper.js';
 
 /**
@@ -495,12 +495,13 @@ export const collectD2DCPayment = async (req, res, next) => {
             });
         }
 
-        // Generate payment number
-        const paymentCount = await Payment.count();
-        const paymentNumber = `PAY-${new Date().getFullYear()}-${String(paymentCount + 1).padStart(6, '0')}`;
-
-        // Generate receipt number
-        const receiptNumber = `RCP-${new Date().getFullYear()}-${String(paymentCount + 1).padStart(6, '0')}`;
+        // Same unique code format as property/demand: PREFIX + WARD(3) + SERIAL(6)
+        const wardId = demand.property?.wardId;
+        if (!wardId) {
+            return res.status(400).json({ success: false, message: 'Property ward is required to generate collection code' });
+        }
+        const paymentNumber = await generatePaymentId(wardId, false, null);
+        const receiptNumber = await generatePaymentId(wardId, true, null);
 
         // Create payment
         const payment = await Payment.create({

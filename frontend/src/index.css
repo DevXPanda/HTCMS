@@ -14,9 +14,13 @@
 }
 
 @layer base {
+  html {
+    overflow-x: hidden;
+  }
   body {
     @apply bg-gray-50 text-gray-900 antialiased;
     font-family: var(--ds-font-sans);
+    min-width: 0;
   }
 }
 
@@ -121,10 +125,12 @@
   /* ========== Tables ========== */
   .table-wrap {
     @apply overflow-x-auto rounded-ds-lg border border-gray-200 bg-white;
+    -webkit-overflow-scrolling: touch;
   }
 
   .table {
     @apply w-full border-collapse text-left;
+    min-width: 640px;
   }
 
   .table thead {
@@ -176,16 +182,37 @@
   .modal-overlay {
     @apply fixed inset-0 z-50 flex items-center justify-center p-4;
     background-color: var(--ds-modal-overlay);
+    overflow-y: auto;
   }
 
   .modal-panel {
-    @apply bg-white rounded-ds-lg shadow-ds-lg w-full max-h-[90vh] overflow-hidden flex flex-col;
-    max-width: 28rem;
+    @apply bg-white rounded-ds-lg shadow-ds-lg w-full max-h-[90vh] overflow-hidden flex flex-col my-auto;
+    max-width: min(28rem, calc(100vw - 2rem));
   }
 
   .modal-panel-lg {
     @apply modal-panel;
-    max-width: 42rem;
+    max-width: min(42rem, calc(100vw - 2rem));
+  }
+
+  /* Touch-friendly tap targets on touch devices */
+  @media (pointer: coarse) {
+    .modal-close {
+      min-width: 44px;
+      min-height: 44px;
+    }
+    .header-icon-btn {
+      min-width: 44px;
+      min-height: 44px;
+    }
+  }
+
+  /* Layout header: responsive title and wrap-friendly actions */
+  .layout-header-title {
+    @apply text-lg sm:text-xl font-bold text-primary-600 truncate;
+  }
+  .layout-header-actions {
+    @apply flex flex-wrap items-center justify-end gap-2 sm:gap-4;
   }
 
   .modal-header {
@@ -211,6 +238,17 @@
   /* ========== Forms ========== */
   .form-grid {
     @apply grid grid-cols-1 md:grid-cols-2 gap-4;
+  }
+
+  /* Responsive search/filter row: stack on mobile, row on sm+ */
+  .form-search-row {
+    @apply flex flex-col sm:flex-row gap-2;
+  }
+  .form-search-row .form-search-input {
+    @apply flex-1 min-w-0;
+  }
+  .form-search-row .form-search-btn {
+    @apply w-full sm:w-auto shrink-0;
   }
 
   .form-section-title {

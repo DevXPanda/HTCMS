@@ -1,5 +1,5 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   LayoutDashboard,
   Home,
@@ -27,10 +27,12 @@ import {
   Beef,
   Building2
 } from 'lucide-react';
+import { useSelectedUlb } from '../contexts/SelectedUlbContext';
 
 const AdminSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isSuperAdmin } = useSelectedUlb();
   const role = localStorage.getItem('role') || user?.role || null;
   const userData = JSON.parse(localStorage.getItem('user') || 'null') || user;
   const [shopTaxDropdownOpen, setShopTaxDropdownOpen] = useState(false);
@@ -55,14 +57,14 @@ const AdminSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
     return role.charAt(0).toUpperCase() + role.slice(1);
   };
 
-  // Admin menu items (admin, assessor, cashier)
-  // Note: Dashboard is rendered separately above, so it's not included here
-  const navItems = [
-    { path: '/wards', label: 'Wards', icon: MapPin },
-    { path: '/ulb-management', label: 'ULB Management', icon: Building2 },
-    { path: '/users', label: 'Citizen Management', icon: Users },
-    { path: '/admin-accounts', label: 'Admin Management', icon: Shield },
-    { path: '/admin-management', label: 'Staff Management', icon: Users },
+  // Admin menu items (admin, assessor, cashier). Admin Management only for super admin.
+  const navItems = useMemo(() => {
+    const items = [
+      { path: '/wards', label: 'Wards', icon: MapPin },
+      ...(isSuperAdmin ? [{ path: '/ulb-management', label: 'ULB Management', icon: Building2 }] : []),
+      { path: '/users', label: 'Citizen Management', icon: Users },
+      ...(isSuperAdmin ? [{ path: '/admin-accounts', label: 'Admin Management', icon: Shield }] : []),
+      { path: '/admin-management', label: 'Staff Management', icon: Users },
     // { path: '/admin-management', label: 'Employee Management', icon: Users },
     {
       label: 'Shop Tax',
@@ -83,6 +85,8 @@ const AdminSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
     { path: '/reports', label: 'Reports', icon: BarChart3 },
     { path: '/audit-logs', label: 'Audit Logs', icon: Shield }
   ];
+    return items;
+  }, [isSuperAdmin]);
 
   return (
     <>

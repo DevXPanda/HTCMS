@@ -1229,7 +1229,7 @@ export const generateCombinedDemands = async (req, res, next) => {
             return sum + parseFloat(prevDemand.balanceAmount || 0);
           }, 0) * 100) / 100;
 
-          const demandNumber = `DEM-${normalizedFinancialYear}-${Date.now()}-${propertyAssessment.id}`;
+          const demandNumber = await generateDemandId(property.wardId, 'property');
           const baseAmount = parseFloat(propertyAssessment.annualTaxAmount || 0);
           const totalAmount = Math.round((baseAmount + arrearsAmount) * 100) / 100;
           const originalAmount = totalAmount;
@@ -1309,7 +1309,7 @@ export const generateCombinedDemands = async (req, res, next) => {
           }
 
           const totalAmount = Math.round((baseAmount + arrearsAmount) * 100) / 100;
-          const demandNumber = `WTD-${normalizedFinancialYear}-${Date.now()}-${waterTaxAssessment.id}`;
+          const demandNumber = await generateDemandId(property.wardId, 'water');
           const originalAmount = totalAmount;
 
           const demand = await Demand.create({
@@ -1467,7 +1467,7 @@ export const createD2DCDemand = async (req, res, next) => {
     // D2DC is a municipal service, NOT a tax assessment
     // It is linked directly to property, not assessment
 
-    const demandNumber = `D2DC-${month}-${Date.now()}`;
+    const demandNumber = await generateDemandId(property.wardId, 'd2dc');
     const demand = await Demand.create({
       demandNumber,
       propertyId,
@@ -1579,7 +1579,13 @@ export const generateBulkDemands = async (req, res, next) => {
           return sum + parseFloat(prevDemand.balanceAmount || 0);
         }, 0) * 100) / 100;
 
-        const demandNumber = `DEM-${financialYear}-${Date.now()}-${assessment.id}`;
+        const property = assessment.property;
+        const wardId = property ? property.wardId : null;
+        if (!wardId) {
+          errors.push({ assessmentId: assessment.id, message: 'Property or ward not found' });
+          continue;
+        }
+        const demandNumber = await generateDemandId(wardId, 'property');
         const baseAmount = parseFloat(assessment.annualTaxAmount || 0);
         const totalAmount = Math.round((baseAmount + arrearsAmount) * 100) / 100;
         const balanceAmount = Math.round(totalAmount * 100) / 100;

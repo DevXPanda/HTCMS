@@ -1,4 +1,4 @@
-import { Property, Demand, Payment, Assessment, Ward, Notice, WaterTaxAssessment, WaterConnection, WaterConnectionRequest, Shop, ShopTaxAssessment } from '../models/index.js';
+import { Property, Demand, Payment, Assessment, Ward, Notice, WaterTaxAssessment, WaterConnection, WaterConnectionRequest, WaterConnectionDocument, User, Shop, ShopTaxAssessment } from '../models/index.js';
 import { Op } from 'sequelize';
 import { generateWaterConnectionRequestNumber } from '../services/uniqueIdService.js';
 
@@ -297,6 +297,61 @@ export const getCitizenWaterConnections = async (req, res, next) => {
     res.json({
       success: true,
       data: { waterConnections }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   GET /api/citizen/water-connections/:id
+ * @desc    Get a single water connection by ID (only if owned by citizen)
+ * @access  Private (Citizen)
+ */
+export const getCitizenWaterConnectionById = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+
+    const waterConnection = await WaterConnection.findOne({
+      where: { id },
+      include: [
+        {
+          model: Property,
+          as: 'property',
+          attributes: ['id', 'propertyNumber', 'address', 'ownerId'],
+          include: [
+            { model: Ward, as: 'ward', attributes: ['id', 'wardNumber', 'wardName'] }
+          ]
+        },
+        {
+          model: WaterConnectionDocument,
+          as: 'documents',
+          include: [
+            { model: User, as: 'uploader', attributes: ['id', 'firstName', 'lastName'] }
+          ],
+          order: [['uploadedAt', 'DESC']]
+        }
+      ]
+    });
+
+    if (!waterConnection) {
+      return res.status(404).json({
+        success: false,
+        message: 'Water connection not found'
+      });
+    }
+
+    if (!waterConnection.property || waterConnection.property.ownerId !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to view this water connection'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: { waterConnection }
     });
   } catch (error) {
     next(error);

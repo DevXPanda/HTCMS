@@ -81,6 +81,39 @@ export const uploadPropertyPhoto = async (req, res, next) => {
 };
 
 /**
+ * @route   POST /api/upload/owner-photo
+ * @desc    Upload owner passport-size photo or PDF (all roles: citizen, collector, admin, clerk, etc.)
+ * @access  Private
+ */
+export const uploadOwnerPhoto = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+    }
+
+    const fileUrl = `/uploads/${req.file.filename}`;
+    const fullUrl = `${req.protocol}://${req.get('host')}${fileUrl}`;
+
+    res.json({
+      success: true,
+      message: 'Owner photo/document uploaded successfully',
+      data: {
+        url: fullUrl,
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * @route   POST /api/upload/penalty-waiver-document
  * @desc    Upload PDF document for penalty waiver application (Admin only)
  * @access  Private (Admin)
@@ -131,8 +164,9 @@ export const uploadPenaltyWaiverDocument = async (req, res, next) => {
 export const uploadFieldVisitPhoto = async (req, res, next) => {
   try {
     const user = req.user;
+    const role = (user.role || '').toString().toLowerCase();
 
-    if (user.role !== 'collector') {
+    if (role !== 'collector') {
       return res.status(403).json({
         success: false,
         message: 'Only collectors can upload field visit photos'
@@ -175,7 +209,8 @@ export const uploadPaymentProof = async (req, res, next) => {
   try {
     const user = req.user;
 
-    if (user.role !== 'collector' && user.role !== 'tax_collector') {
+    const role = (user.role || '').toString().toLowerCase();
+    if (role !== 'collector' && role !== 'tax_collector') {
       return res.status(403).json({
         success: false,
         message: 'Only collectors can upload payment proofs'

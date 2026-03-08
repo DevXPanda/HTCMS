@@ -7,8 +7,6 @@ import { Calendar, Clock, MapPin, Monitor, Smartphone, Tablet, Globe, Filter, X 
 const Attendance = () => {
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [pagination, setPagination] = useState(null);
-  const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     dateFrom: '',
@@ -19,21 +17,20 @@ const Attendance = () => {
 
   useEffect(() => {
     fetchAttendance();
-  }, [page, filters]);
+  }, [filters]);
 
   const fetchAttendance = async () => {
     try {
       setLoading(true);
       const params = {
-        page,
-        limit: 20,
+        page: 1,
+        limit: 5000,
         sortBy: 'loginAt',
         sortOrder: 'DESC',
         ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''))
       };
       const response = await attendanceAPI.getAll(params);
-      setAttendance(response.data.data.attendance);
-      setPagination(response.data.data.pagination);
+      setAttendance(response.data.data.attendance || []);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to fetch attendance records');
     } finally {
@@ -43,7 +40,6 @@ const Attendance = () => {
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
-    setPage(1);
   };
 
   const clearFilters = () => {
@@ -53,7 +49,6 @@ const Attendance = () => {
       deviceType: '',
       source: ''
     });
-    setPage(1);
   };
 
   const formatDuration = (minutes) => {
@@ -248,28 +243,9 @@ const Attendance = () => {
           </table>
         </div>
 
-        {/* Pagination */}
-        {pagination && pagination.pages > 1 && (
-          <div className="flex justify-between items-center mt-4 px-4 pb-4">
-            <div className="text-sm text-gray-600">
-              Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} records
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={pagination.page === 1}
-                className="btn btn-sm btn-secondary disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => setPage(p => Math.min(pagination.pages, p + 1))}
-                disabled={pagination.page === pagination.pages}
-                className="btn btn-sm btn-secondary disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
+        {attendance.length > 0 && (
+          <div className="mt-4 px-4 pb-4 text-sm text-gray-600">
+            Showing {attendance.length} record{attendance.length !== 1 ? 's' : ''}
           </div>
         )}
       </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Send, Camera, AlertCircle, X, CheckCircle2 } from 'lucide-react';
+import { Send, Camera, X, ClipboardList, CheckCircle2, AlertCircle, Clock, Calendar, MessageSquare, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 
@@ -9,7 +9,9 @@ const FileToiletComplaint = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [facilities, setFacilities] = useState([]);
+    const [complaints, setComplaints] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [historyLoading, setHistoryLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [uploading, setUploading] = useState(false);
 
@@ -24,6 +26,46 @@ const FileToiletComplaint = () => {
     useEffect(() => {
         fetchFacilities();
     }, []);
+
+    useEffect(() => {
+        if (user?.phone || user?.phoneNumber || user?.email) {
+            fetchHistory();
+        } else {
+            setHistoryLoading(false);
+        }
+    }, [user?.phone, user?.phoneNumber, user?.email]);
+
+    const fetchHistory = async () => {
+        try {
+            setHistoryLoading(true);
+            const params = {
+                phone: user?.phone || user?.phoneNumber,
+                email: user?.email
+            };
+            const response = await api.get('/toilet/complaints/citizen', { params });
+            if (response.data && response.data.success) {
+                setComplaints(response.data.data.complaints || []);
+            }
+        } catch (error) {
+            console.error('Failed to fetch complaint history:', error);
+        } finally {
+            setHistoryLoading(false);
+        }
+    };
+
+    const getStatusStyle = (status) => {
+        const s = status?.toLowerCase();
+        if (s === 'resolved') return 'bg-green-100 text-green-700 border-green-200';
+        if (s === 'in progress') return 'bg-blue-100 text-blue-700 border-blue-200';
+        return 'bg-amber-100 text-amber-700 border-amber-200';
+    };
+
+    const getStatusIcon = (status) => {
+        const s = status?.toLowerCase();
+        if (s === 'resolved') return <CheckCircle2 className="w-3 h-3" />;
+        if (s === 'in progress') return <Clock className="w-3 h-3" />;
+        return <AlertCircle className="w-3 h-3" />;
+    };
 
     const fetchFacilities = async () => {
         try {
@@ -113,7 +155,8 @@ const FileToiletComplaint = () => {
 
             if (response.data && response.data.success) {
                 toast.success('Complaint filed successfully!');
-                navigate('/citizen/toilet/complaint-history');
+                setFormData({ toiletFacilityId: '', complaintType: '', description: '', priority: 'Medium', photos: [] });
+                fetchHistory();
             }
         } catch (error) {
             console.error('Failed to file complaint:', error);
@@ -291,6 +334,92 @@ const FileToiletComplaint = () => {
                     </button>
                 </div>
             </form>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-4 border-b border-gray-100 flex items-center gap-3">
+                    <div className="p-2 rounded-full bg-pink-100 text-pink-600">
+                        <ClipboardList className="w-5 h-5" />
+                    </div>
+                    <h2 className="text-lg font-bold text-gray-900">Toilet Complaint History</h2>
+                </div>
+                <div className="p-4">
+                    {historyLoading ? (
+                        <div className="flex justify-center py-8">
+                            <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary-600 border-t-transparent"></div>
+                        </div>
+                    ) : complaints.length === 0 ? (
+                        <div className="py-8 text-center text-gray-500">
+                            <ClipboardList className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                            <p className="text-sm font-medium">No complaints yet. Your submitted complaints will appear here.</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 gap-4">
+                            {complaints.map((complaint) => (
+                                <div key={complaint.id} className="rounded-xl border border-gray-100 p-4 hover:shadow-md transition-shadow">
+                                    <div className="flex flex-col md:flex-row justify-between gap-4">
+                                        <div className="space-y-3 flex-1">
+                                            <div className="flex items-center gap-3">
+                                                <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase border ${getStatusStyle(complaint.status)}`}>
+                                                    {getStatusIcon(complaint.status)}
+                                                    {complaint.status}
+                                                </span>
+                                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase border ${complaint.priority === 'High' ? 'bg-red-50 text-red-600 border-red-100' :
+                                                    complaint.priority === 'Medium' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                                                        'bg-green-50 text-green-600 border-green-100'
+                                                    }`}>
+                                                    {complaint.priority} Priority
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <h3 className="text-base font-bold text-gray-900 leading-tight mb-1">{complaint.complaintType}</h3>
+                                                <div className="flex items-center gap-4 text-xs text-gray-500 font-medium">
+                                                    <div className="flex items-center gap-1">
+                                                        <MapPin className="w-3.5 h-3.5 text-primary-500" />
+                                                        {complaint.facility?.name}
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                                                        {new Date(complaint.createdAt).toLocaleDateString()}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="bg-gray-50 p-3 rounded-lg">
+                                                <p className="text-sm text-gray-600 leading-relaxed">{complaint.description}</p>
+                                            </div>
+                                            {complaint.resolutionNotes && (
+                                                <div className="bg-green-50 p-3 rounded-lg border border-green-100">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <MessageSquare className="w-4 h-4 text-green-600" />
+                                                        <p className="text-xs font-bold text-green-800 uppercase tracking-wider">Resolution Details</p>
+                                                    </div>
+                                                    <p className="text-sm text-green-700 font-medium">{complaint.resolutionNotes}</p>
+                                                    {complaint.resolvedAt && (
+                                                        <p className="text-[10px] text-green-600 mt-2 font-bold uppercase">
+                                                            Resolved on: {new Date(complaint.resolvedAt).toLocaleString()}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                        {complaint.photos?.length > 0 && (
+                                            <div className="md:w-40 space-y-2">
+                                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Evidence Photos</p>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {complaint.photos.map((p, idx) => (
+                                                        <a key={idx} href={p} target="_blank" rel="noopener noreferrer" className="aspect-square rounded-lg overflow-hidden border border-gray-200">
+                                                            <img src={p} alt="complaint" className="w-full h-full object-cover hover:scale-110 transition-transform" />
+                                                        </a>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 };

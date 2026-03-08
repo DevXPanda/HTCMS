@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
 import { userAPI } from '../../../services/api';
 import api from '../../../services/api';
 import Loading from '../../../components/Loading';
@@ -10,6 +11,11 @@ import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 const AdminAccounts = () => {
   const { isAdmin } = useAuth();
   const { effectiveUlbId, isSuperAdmin } = useSelectedUlb();
+
+  // Only super admin can access Admin Management (add/remove admin accounts)
+  if (!isSuperAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
   const [users, setUsers] = useState([]);
   const [ulbs, setUlbs] = useState([]);
   const [loading, setLoading] = useState(true);

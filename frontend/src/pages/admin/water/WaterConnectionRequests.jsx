@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { waterConnectionRequestAPI, propertyAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { CheckCircle, XCircle, Eye, MapPin, Calendar, User, Trash2 } from 'lucide-react';
+import { CheckCircle, XCircle, Eye, MapPin, Calendar, User, Trash2, Plus, Pencil } from 'lucide-react';
 import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 
 const WaterConnectionRequests = () => {
@@ -64,7 +65,8 @@ const WaterConnectionRequests = () => {
       await fetchRequests();
     } catch (error) {
       console.error('Approve error:', error);
-      toast.error(error.response?.data?.message || 'Failed to approve request');
+      const message = error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to approve request';
+      toast.error(message);
     }
   };
 
@@ -125,9 +127,14 @@ const WaterConnectionRequests = () => {
   const getStatusBadge = (status) => {
     const statusConfig = {
       PENDING: { color: 'bg-yellow-100 text-yellow-800 border-yellow-300', label: 'Pending' },
+      SUBMITTED: { color: 'bg-yellow-100 text-yellow-800 border-yellow-300', label: 'Pending' },
+      UNDER_INSPECTION: { color: 'bg-yellow-100 text-yellow-800 border-yellow-300', label: 'Pending' },
       APPROVED: { color: 'bg-green-100 text-green-800 border-green-300', label: 'Approved' },
       REJECTED: { color: 'bg-red-100 text-red-800 border-red-300', label: 'Rejected' },
-      COMPLETED: { color: 'bg-blue-100 text-blue-800 border-blue-300', label: 'Completed' }
+      RETURNED: { color: 'bg-purple-100 text-purple-800 border-purple-300', label: 'Returned' },
+      COMPLETED: { color: 'bg-blue-100 text-blue-800 border-blue-300', label: 'Completed' },
+      DRAFT: { color: 'bg-gray-100 text-gray-800 border-gray-300', label: 'Draft' },
+      ESCALATED_TO_OFFICER: { color: 'bg-orange-100 text-orange-800 border-orange-300', label: 'Escalated' }
     };
     const config = statusConfig[status] || statusConfig.PENDING;
     return (
@@ -157,7 +164,7 @@ const WaterConnectionRequests = () => {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="ds-page-title">Water Connection Requests</h1>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -165,8 +172,10 @@ const WaterConnectionRequests = () => {
           >
             <option value="all">All Status</option>
             <option value="PENDING">Pending</option>
+            <option value="DRAFT">Draft</option>
             <option value="APPROVED">Approved</option>
             <option value="REJECTED">Rejected</option>
+            <option value="RETURNED">Returned</option>
             <option value="COMPLETED">Completed</option>
           </select>
         </div>
@@ -191,7 +200,23 @@ const WaterConnectionRequests = () => {
                   </div>
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                  {request.status === 'PENDING' && (
+                  <Link
+                    to={`/water/connection-requests/${request.id}`}
+                    className="btn btn-sm border border-gray-300 text-gray-700 hover:bg-gray-50"
+                  >
+                    <Eye className="w-4 h-4 mr-1" />
+                    View
+                  </Link>
+                  {['DRAFT', 'RETURNED'].includes(request.status) && (
+                    <Link
+                      to={`/water/connection-requests/${request.id}/edit`}
+                      className="btn btn-sm border border-primary-300 text-primary-700 hover:bg-primary-50"
+                    >
+                      <Pencil className="w-4 h-4 mr-1" />
+                      Edit
+                    </Link>
+                  )}
+                  {['PENDING', 'SUBMITTED', 'UNDER_INSPECTION'].includes(request.status) && (
                     <>
                       <button
                         onClick={() => openApproveModal(request)}

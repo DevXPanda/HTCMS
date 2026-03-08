@@ -32,8 +32,9 @@ const validateOverpaymentProtection = (paymentAmount, balanceAmount, demandNumbe
     };
   }
 
-  // Check for overpayment
-  if (payment > balance) {
+  // Check for overpayment (allow tiny tolerance for floating-point rounding, e.g. 0.02)
+  const tolerance = 0.02;
+  if (payment > balance + tolerance) {
     const context = demandNumber ? ` for demand ${demandNumber}` : '';
     return {
       isValid: false,
@@ -1207,6 +1208,14 @@ export const createFieldCollectionPayment = async (req, res, next) => {
     const paymentAmount = parseFloat(amount);
     const balanceAmount = parseFloat(demand.balanceAmount || 0);
 
+    if (isNaN(paymentAmount) || paymentAmount <= 0) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid amount. Payment amount must be a number greater than 0.'
+      });
+    }
+
     // Enhanced overpayment protection validation
     const validation = validateOverpaymentProtection(
       paymentAmount,
@@ -1254,27 +1263,11 @@ export const createFieldCollectionPayment = async (req, res, next) => {
       });
     }
 
-    // Generate payment number and receipt number using sequence-based approach
-    const year = new Date().getFullYear();
-    const fcCount = await Payment.count({
-      where: {
-        paymentNumber: {
-          [Op.like]: `FC-${year}-%`
-        }
-      },
-      transaction
-    });
-    const paymentNumber = `FC-${year}-${String(fcCount + 1).padStart(6, '0')}`;
-
-    const fcrCount = await Payment.count({
-      where: {
-        receiptNumber: {
-          [Op.like]: `FCR-${year}-%`
-        }
-      },
-      transaction
-    });
-    const receiptNumber = `FCR-${year}-${String(fcrCount + 1).padStart(6, '0')}`;
+    // Use same unique code format as property/demand modules: PREFIX + WARD(3) + SERIAL(6)
+    // Fallback to 0 when property has no ward so payment still succeeds (generates RCP000xxxxx / PAY000xxxxx)
+    const wardId = property?.wardId ?? 0;
+    const paymentNumber = await generatePaymentNumber(wardId, transaction);
+    const receiptNumber = await generateReceiptNumber(wardId, transaction);
 
     // Create payment within transaction
     const payment = await Payment.create({
@@ -1440,7 +1433,12 @@ export const createFieldCollectionPayment = async (req, res, next) => {
     // Rollback transaction on error
     await transaction.rollback();
 
-    // Handle specific error types
+    // Retry once on duplicate payment/receipt number (e.g. concurrent requests)
+    if (error.name === 'SequelizeUniqueConstraintError' && !req._fieldCollectionRetry) {
+      req._fieldCollectionRetry = true;
+      return createFieldCollectionPayment(req, res, next);
+    }
+
     if (error.name === 'SequelizeUniqueConstraintError') {
       return res.status(400).json({
         success: false,

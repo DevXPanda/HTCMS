@@ -39,10 +39,8 @@ const CitizenPropertyDetails = () => {
 
   return (
     <DetailPageLayout
-      backTo="/citizen/properties"
-      backLabel="Back to My Properties"
       title="Property Details"
-      subtitle={property.propertyNumber}
+      subtitle={property.uniqueCode || property.propertyNumber}
       summarySection={
         <>
           <h2 className="form-section-title flex items-center">
@@ -52,7 +50,7 @@ const CitizenPropertyDetails = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="stat-card">
               <div className="stat-card-title"><span>Property Number</span></div>
-              <p className="stat-card-value text-lg font-bold text-primary-600">{property.propertyNumber}</p>
+              <p className="stat-card-value text-lg font-bold text-primary-600">{property.uniqueCode || property.propertyNumber}</p>
             </div>
             <div className="stat-card">
               <div className="stat-card-title"><span>Status</span></div>
@@ -73,13 +71,14 @@ const CitizenPropertyDetails = () => {
       }
     >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card">
+        <div className="card flex flex-col">
           <h2 className="form-section-title flex items-center">
             <Building2 className="w-5 h-5 mr-2 text-primary-600" />
             Basic Information
           </h2>
+          <div className="flex-1">
           <dl>
-            <DetailRow label="Property Number" value={property.propertyNumber} valueClass="font-semibold" />
+            <DetailRow label="Property Number" value={property.uniqueCode || property.propertyNumber} valueClass="font-semibold" />
             <DetailRow label="Property Type" value={property.propertyType} valueClass="capitalize" />
             <DetailRow label="Usage Type" value={property.usageType} valueClass="capitalize" />
             <DetailRow label="Status" value={<span className={`badge capitalize ${statusBadgeClass()}`}>{property.status || 'active'}</span>} />
@@ -90,64 +89,86 @@ const CitizenPropertyDetails = () => {
             <DetailRow label="Construction Year" value={property.constructionYear} />
             <DetailRow label="Occupancy Status" value={property.occupancyStatus?.replace('_', ' ')} valueClass="capitalize" />
           </dl>
+          </div>
         </div>
 
-        <div className="card">
+        <div className="card flex flex-col">
           <h2 className="form-section-title flex items-center">
-            <MapPin className="w-5 h-5 mr-2 text-primary-600" />
-            Address
+            <User className="w-5 h-5 mr-2 text-primary-600" />
+            Owner Information
           </h2>
-          <dl>
-            <DetailRow label="Address" value={property.address || '—'} />
-            <DetailRow label="Location" value={[property.city, property.state].filter(Boolean).join(', ') || '—'} />
-            <DetailRow label="PIN" value={property.pincode} />
-            <DetailRow label="Ward" value={property.ward?.wardName} />
-          </dl>
-        </div>
-
-        {(property.ownerName || property.owner) && (
-          <div className="card">
-            <h2 className="form-section-title flex items-center">
-              <User className="w-5 h-5 mr-2 text-primary-600" />
-              Owner
-            </h2>
-            <dl>
+          <div className="flex-1 flex flex-col sm:flex-row gap-4">
+            <dl className="flex-1 space-y-1">
               <DetailRow label="Name" value={property.ownerName || [property.owner?.firstName, property.owner?.lastName].filter(Boolean).join(' ') || '—'} />
               <DetailRow label="Phone" value={property.ownerPhone || property.owner?.phone} />
               <DetailRow label="Email" value={property.owner?.email} />
+              <DetailRow label="Address" value={property.address || '—'} />
+              <DetailRow label="Location" value={[property.city, property.state].filter(Boolean).join(', ') || '—'} />
+              <DetailRow label="PIN" value={property.pincode} />
+              <DetailRow label="Ward" value={property.ward?.wardName} />
             </dl>
-          </div>
-        )}
-
-        {property.geolocation && (property.geolocation.latitude || property.geolocation.longitude) && (
-          <div className="card">
-            <h2 className="form-section-title flex items-center">
-              <MapPin className="w-5 h-5 mr-2 text-primary-600" />
-              Location
-            </h2>
-            <dl>
-              <DetailRow label="Latitude" value={property.geolocation.latitude} />
-              <DetailRow label="Longitude" value={property.geolocation.longitude} />
-              <div className="pt-3 border-t border-gray-100 mt-2">
-                <a href={`https://www.google.com/maps?q=${property.geolocation.latitude},${property.geolocation.longitude}`} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-700 text-sm font-medium">View on Google Maps →</a>
+            {property.ownerPhotoUrl && (
+              <div className="sm:border-l sm:pl-4 border-gray-100 flex-shrink-0 flex flex-col items-start">
+                <span className="text-sm font-medium text-gray-500 mb-2">Owner Photo / Document</span>
+                {property.ownerPhotoUrl.toLowerCase().includes('pdf') || property.ownerPhotoUrl.endsWith('.pdf') ? (
+                  <a
+                    href={property.ownerPhotoUrl.startsWith('http') ? property.ownerPhotoUrl : `${window.location.origin}${property.ownerPhotoUrl}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center text-primary-600 hover:text-primary-700 text-sm font-medium"
+                  >
+                    View PDF document
+                  </a>
+                ) : (
+                  <img
+                    src={property.ownerPhotoUrl.startsWith('http') ? property.ownerPhotoUrl : `${window.location.origin}${property.ownerPhotoUrl}`}
+                    alt="Owner"
+                    className="h-28 w-28 object-cover rounded-lg border border-gray-200 shadow-sm"
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                )}
               </div>
-            </dl>
+            )}
           </div>
-        )}
+        </div>
 
-        {property.photos && property.photos.length > 0 && (
-          <div className="card lg:col-span-2">
-            <h2 className="form-section-title flex items-center">
-              <Camera className="w-5 h-5 mr-2 text-primary-600" />
-              Photos
-            </h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {property.photos.map((photo, index) => (
-                <img key={index} src={photo} alt={`Property ${index + 1}`} className="w-full h-48 object-cover rounded-lg border border-gray-200" onError={(e) => { e.target.src = 'https://via.placeholder.com/300x200?text=Image+Not+Found'; }} />
-              ))}
-            </div>
+        <div className="card flex flex-col">
+          <h2 className="form-section-title flex items-center">
+            <MapPin className="w-5 h-5 mr-2 text-primary-600" />
+            Property Location
+          </h2>
+          <div className="flex-1">
+            {property.geolocation && (property.geolocation.latitude || property.geolocation.longitude) ? (
+              <dl>
+                <DetailRow label="Latitude" value={property.geolocation.latitude} />
+                <DetailRow label="Longitude" value={property.geolocation.longitude} />
+                <div className="pt-3 border-t border-gray-100 mt-2">
+                  <a href={`https://www.google.com/maps?q=${property.geolocation.latitude},${property.geolocation.longitude}`} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-700 text-sm font-medium">View on Google Maps →</a>
+                </div>
+              </dl>
+            ) : (
+              <p className="text-gray-500 text-sm py-2">No location coordinates</p>
+            )}
           </div>
-        )}
+        </div>
+
+        <div className="card flex flex-col">
+          <h2 className="form-section-title flex items-center">
+            <Camera className="w-5 h-5 mr-2 text-primary-600" />
+            Property Photo
+          </h2>
+          <div className="flex-1 min-h-[120px]">
+            {(property.photos == null || property.photos.length === 0) ? (
+              <p className="text-gray-500 text-sm py-2">No photos uploaded</p>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {property.photos.map((photo, index) => (
+                  <img key={index} src={photo} alt={`Property ${index + 1}`} className="w-full h-48 object-cover rounded-lg border border-gray-200" onError={(e) => { e.target.src = 'https://via.placeholder.com/300x200?text=Image+Not+Found'; }} />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
         {property.remarks && (
           <div className="card lg:col-span-2">
             <h2 className="form-section-title">Remarks</h2>

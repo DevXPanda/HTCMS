@@ -176,8 +176,13 @@ export const createDiscount = async (req, res, next) => {
 
     const approvedBy = req.user?.id ?? null;
 
+    // tax_discounts table only allows PROPERTY, WATER, SHOP, D2DC (no UNIFIED)
+    const moduleTypeForDb = moduleType === 'UNIFIED'
+      ? (demand.serviceType === 'WATER_TAX' ? 'WATER' : 'PROPERTY')
+      : moduleType;
+
     const discountRecord = await TaxDiscount.create({
-      moduleType,
+      moduleType: moduleTypeForDb,
       entityId,
       demandId,
       discountType,

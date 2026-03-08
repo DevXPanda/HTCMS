@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { citizenAPI } from '../../services/api';
 import Loading from '../../components/Loading';
-import { Home, FileText, DollarSign, CreditCard, Bell, Store, Droplet, PlusCircle, FileCheck, History, TrendingUp, ClipboardList } from 'lucide-react';
+import { Home, FileText, DollarSign, CreditCard, Bell, Store, Droplet, PlusCircle, FileCheck, History, TrendingUp } from 'lucide-react';
 
 const CitizenDashboard = () => {
   const [dashboard, setDashboard] = useState(null);
@@ -51,7 +51,6 @@ const CitizenDashboard = () => {
     { name: 'Shop Registration Requests', icon: FileCheck, link: '/citizen/shop-registration-requests', color: 'bg-yellow-600' },
     { name: 'My Notices', icon: Bell, link: '/citizen/notices', color: 'bg-purple-600' },
     { name: 'File Toilet Complaint', icon: PlusCircle, link: '/citizen/toilet/file-complaint', color: 'bg-pink-600' },
-    { name: 'Toilet Complaint History', icon: ClipboardList, link: '/citizen/toilet/complaint-history', color: 'bg-pink-600' },
     { name: 'Payment History', icon: CreditCard, link: '/citizen/payments', color: 'bg-green-600' },
     { name: 'Activity History', icon: History, link: '/citizen/activity-history', color: 'bg-gray-600' },
   ];

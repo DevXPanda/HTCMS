@@ -242,7 +242,7 @@ const CitizenWaterConnections = () => {
 
               <div className="mt-4 pt-4 border-t">
                 <Link
-                  to={`/water/connections/${connection.id}`}
+                  to={`/citizen/water-connections/${connection.id}`}
                   className="text-primary-600 hover:text-primary-700 font-medium text-sm"
                 >
                   View Details →

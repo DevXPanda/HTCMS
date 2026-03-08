@@ -96,6 +96,11 @@ export const Shop = sequelize.define('Shop', {
     allowNull: true,
     comment: 'Path/URL to uploaded trade license document (image or PDF)'
   },
+  ownerPhotoUrl: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+    comment: 'Passport-size owner photo or PDF document URL'
+  },
   status: {
     type: DataTypes.ENUM('active', 'inactive', 'closed'),
     allowNull: false,

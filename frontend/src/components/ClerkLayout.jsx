@@ -2,6 +2,7 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { useStaffAuth } from '../contexts/StaffAuthContext';
 import { User, LogOut, Home, X } from 'lucide-react';
 import { useState } from 'react';
+import Breadcrumbs from './Breadcrumbs';
 
 const ClerkLayout = () => {
     const { user, logout } = useStaffAuth();
@@ -19,20 +20,20 @@ const ClerkLayout = () => {
         <div className="min-h-screen bg-gray-50 flex flex-col">
             {/* Main content */}
             <div className="w-full">
-                {/* Top bar */}
-                <header className="bg-white shadow-sm sticky top-0 z-10 w-full">
+                {/* Top bar - hidden when printing receipt */}
+                <header className="no-print bg-white shadow-sm sticky top-0 z-10 w-full">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                        <div className="flex justify-between h-16">
-                            <div className="flex items-center gap-4">
-                                <h1 className="text-xl font-bold text-primary-600">ULB System</h1>
+                            <div className="flex flex-wrap justify-between items-center gap-2 h-16 min-h-[4rem]">
+                            <div className="flex items-center min-w-0 shrink-0">
+                                <h1 className="layout-header-title">ULB System</h1>
                             </div>
-                            <div className="flex items-center space-x-4">
+                            <div className="layout-header-actions">
                                 <button
                                     onClick={() => navigate('/clerk/dashboard')}
-                                    className="p-2 text-gray-600 hover:text-primary-600 hover:bg-gray-100 rounded-full transition-colors"
+                                    className="header-icon-btn p-2 text-gray-600 hover:text-primary-600 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center"
                                     title="Dashboard Home"
                                 >
-                                    <Home className="w-5 h-5" />
+                                    <Home className="w-5 h-5 shrink-0" />
                                 </button>
 
                                 <div className="hidden md:flex items-center space-x-3 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-200">
@@ -49,18 +50,18 @@ const ClerkLayout = () => {
 
                                 <button
                                     onClick={() => setShowProfileModal(true)}
-                                    className="p-2 text-gray-600 hover:text-primary-600 hover:bg-gray-100 rounded-full transition-colors"
+                                    className="header-icon-btn p-2 text-gray-600 hover:text-primary-600 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center"
                                     title="My Profile"
                                 >
-                                    <User className="w-5 h-5" />
+                                    <User className="w-5 h-5 shrink-0" />
                                 </button>
 
                                 <button
                                     onClick={handleLogout}
-                                    className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-full transition-colors"
+                                    className="header-icon-btn p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-full transition-colors flex items-center justify-center"
                                     title="Logout"
                                 >
-                                    <LogOut className="w-5 h-5" />
+                                    <LogOut className="w-5 h-5 shrink-0" />
                                 </button>
                             </div>
                         </div>
@@ -69,6 +70,9 @@ const ClerkLayout = () => {
 
                 {/* Page content */}
                 <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                    <div className="no-print mb-4">
+                        <Breadcrumbs />
+                    </div>
                     <Outlet />
                 </main>
 
