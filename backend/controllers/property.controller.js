@@ -6,6 +6,47 @@ import { generatePropertyUniqueId, parsePropertyNumberForId, getNextPropertyNumb
 import { getEffectiveUlbForRequest } from '../utils/ulbAccessHelper.js';
 
 /**
+ * Normalize phone to digits only for comparison.
+ */
+const normalizePhone = (str) => (str || '').replace(/\D/g, '');
+
+/**
+ * @route   GET /api/properties/owner-by-phone
+ * @desc    Look up owner (citizen) by phone for auto-fill in Add Property form
+ * @access  Private (admin/assessor/tax_collector)
+ */
+export const getOwnerByPhone = async (req, res, next) => {
+  try {
+    const raw = (req.query.phone || '').trim();
+    const normalized = normalizePhone(raw);
+    if (!normalized) {
+      return res.json({ success: true, data: null });
+    }
+    const users = await User.findAll({
+      where: { role: 'citizen', isActive: true },
+      attributes: ['id', 'firstName', 'lastName', 'email', 'phone']
+    });
+    const match = users.find((u) => normalizePhone(u.phone) === normalized);
+    if (!match) {
+      return res.json({ success: true, data: null });
+    }
+    res.json({
+      success: true,
+      data: {
+        id: match.id,
+        firstName: match.firstName,
+        lastName: match.lastName,
+        email: match.email,
+        phone: match.phone,
+        fullName: `${match.firstName || ''} ${match.lastName || ''}`.trim()
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * @route   GET /api/properties
  * @desc    Get all properties (with filters)
  * @access  Private

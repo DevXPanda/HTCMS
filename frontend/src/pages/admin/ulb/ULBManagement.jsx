@@ -8,6 +8,14 @@ import { Plus, Building2, MapPin, Save, X, Pencil } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 
+const ULB_TYPE_OPTIONS = [
+  { value: 'NAGAR_NIGAM', label: 'Nagar Nigam' },
+  { value: 'NAGAR_PALIKA_PARISHAD', label: 'Nagar Palika Parishad' },
+  { value: 'NAGAR_PANCHAYAT', label: 'Nagar Panchayat' }
+];
+
+const ulbTypeLabel = (value) => ULB_TYPE_OPTIONS.find((o) => o.value === value)?.label || value || '—';
+
 const ULBManagement = () => {
   const { isAdmin } = useAuth();
   const { isSuperAdmin } = useSelectedUlb();
@@ -46,6 +54,7 @@ const ULBManagement = () => {
       setSubmitLoading(true);
       await api.post('/admin-management/ulbs', {
         name: data.name.trim(),
+        ulb_type: data.ulb_type,
         state: data.state?.trim() || null,
         district: data.district?.trim() || null,
         status: data.status || 'ACTIVE'
@@ -64,6 +73,7 @@ const ULBManagement = () => {
   const openEdit = (ulb) => {
     setEditingUlb(ulb);
     setValue('name', ulb.name);
+    setValue('ulb_type', ulb.ulb_type || '');
     setValue('state', ulb.state || '');
     setValue('district', ulb.district || '');
     setValue('status', ulb.status || 'ACTIVE');
@@ -76,6 +86,7 @@ const ULBManagement = () => {
       setSubmitLoading(true);
       await api.put(`/admin-management/ulbs/${editingUlb.id}`, {
         name: data.name.trim(),
+        ulb_type: data.ulb_type || null,
         state: data.state?.trim() || null,
         district: data.district?.trim() || null,
         status: data.status || 'ACTIVE'
@@ -132,6 +143,12 @@ const ULBManagement = () => {
                   {ulb.status === 'ACTIVE' ? 'Active' : 'Inactive'}
                 </span>
               </div>
+              {ulb.ulb_type && (
+                <div className="text-sm text-gray-600 mb-2">
+                  <span className="font-medium text-gray-700">Type: </span>
+                  {ulbTypeLabel(ulb.ulb_type)}
+                </div>
+              )}
               <div className="space-y-2 mb-4">
                 {ulb.state && (
                   <div className="flex items-center text-sm text-gray-600">
@@ -179,6 +196,21 @@ const ULBManagement = () => {
                 </button>
               </div>
               <form onSubmit={handleSubmit(onAddSubmit)} className="p-6 space-y-4">
+                <div>
+                  <label className="label">ULB Type <span className="text-red-500">*</span></label>
+                  <select
+                    {...register('ulb_type', { required: 'ULB type is required' })}
+                    className="input w-full"
+                  >
+                    <option value="">Select ULB Type</option>
+                    {ULB_TYPE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.ulb_type && <p className="text-red-500 text-sm mt-1">{errors.ulb_type.message}</p>}
+                </div>
                 <div>
                   <label className="label">Name <span className="text-red-500">*</span></label>
                   <input
@@ -232,6 +264,21 @@ const ULBManagement = () => {
                 </button>
               </div>
               <form onSubmit={handleSubmit(onEditSubmit)} className="p-6 space-y-4">
+                <div>
+                  <label className="label">ULB Type <span className="text-red-500">*</span></label>
+                  <select
+                    {...register('ulb_type', { required: 'ULB type is required' })}
+                    className="input w-full"
+                  >
+                    <option value="">Select ULB Type</option>
+                    {ULB_TYPE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.ulb_type && <p className="text-red-500 text-sm mt-1">{errors.ulb_type.message}</p>}
+                </div>
                 <div>
                   <label className="label">Name <span className="text-red-500">*</span></label>
                   <input

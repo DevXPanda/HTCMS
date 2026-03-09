@@ -136,7 +136,8 @@ export const propertyAPI = {
   update: (id, data) => api.put(`/properties/${id}`, data),
   delete: (id) => api.delete(`/properties/${id}`),
   search: (params) => api.get('/properties/search', { params }),
-  getByWard: (wardId, params) => api.get(`/properties/ward/${wardId}`, { params })
+  getByWard: (wardId, params) => api.get(`/properties/ward/${wardId}`, { params }),
+  getOwnerByPhone: (phone) => api.get('/properties/owner-by-phone', { params: { phone: phone || '' } })
 };
 
 // Assessment API

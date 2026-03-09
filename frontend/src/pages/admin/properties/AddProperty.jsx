@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { propertyAPI, wardAPI, uploadAPI } from '../../../services/api';
+import api, { propertyAPI, wardAPI, uploadAPI } from '../../../services/api';
 import toast from 'react-hot-toast';
 import { Save, Upload, X, Image as ImageIcon, Camera, User } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -9,14 +9,16 @@ import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 
 const AddProperty = () => {
   const navigate = useNavigate();
-  const { effectiveUlbId } = useSelectedUlb();
+  const { effectiveUlbId, isSuperAdmin } = useSelectedUlb();
   const [loading, setLoading] = useState(false);
   const [wards, setWards] = useState([]);
+  const [ulbs, setUlbs] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
   const [uploadedPhotos, setUploadedPhotos] = useState([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [ownerPhotoUrl, setOwnerPhotoUrl] = useState('');
   const [uploadingOwnerPhoto, setUploadingOwnerPhoto] = useState(false);
+  const [ownerLookupLoading, setOwnerLookupLoading] = useState(false);
   const ownerPhotoInputRef = useRef(null);
   const ownerCameraInputRef = useRef(null);
 
@@ -37,18 +39,40 @@ const AddProperty = () => {
     }
   });
 
-  useEffect(() => {
-    fetchInitialData();
-  }, [effectiveUlbId]);
+  const formUlbId = watch('ulb_id');
+  const effectiveUlbIdForForm = isSuperAdmin ? (formUlbId || '') : effectiveUlbId;
 
-  const fetchInitialData = async () => {
+  useEffect(() => {
+    if (isSuperAdmin) {
+      api.get('/admin-management/ulbs').then((res) => {
+        const data = res?.data?.data;
+        setUlbs(Array.isArray(data) ? data : (data?.ulbs || []));
+      }).catch(() => toast.error('Failed to load ULBs'));
+    }
+  }, [isSuperAdmin]);
+
+  useEffect(() => {
+    fetchWards();
+  }, [effectiveUlbIdForForm]);
+
+  useEffect(() => {
+    if (isSuperAdmin && formUlbId) setValue('wardId', '');
+  }, [isSuperAdmin, formUlbId, setValue]);
+
+  const fetchWards = async () => {
+    if (isSuperAdmin && !effectiveUlbIdForForm) {
+      setWards([]);
+      setLoadingData(false);
+      return;
+    }
     try {
       setLoadingData(true);
-      const params = effectiveUlbId ? { ulb_id: effectiveUlbId } : {};
+      const params = effectiveUlbIdForForm ? { ulb_id: effectiveUlbIdForForm } : {};
       const wardsRes = await wardAPI.getAll(params);
-      setWards(wardsRes.data.data.wards);
+      setWards(wardsRes.data.data.wards || []);
     } catch (error) {
-      toast.error('Failed to load initial data');
+      toast.error('Failed to load wards');
+      setWards([]);
     } finally {
       setLoadingData(false);
     }
@@ -108,9 +132,32 @@ const AddProperty = () => {
     if (ownerCameraInputRef.current) ownerCameraInputRef.current.value = '';
   };
 
+  const lookupOwnerByPhone = async () => {
+    const phone = watch('ownerPhone');
+    const trimmed = (phone || '').trim();
+    if (!trimmed) return;
+    try {
+      setOwnerLookupLoading(true);
+      const res = await propertyAPI.getOwnerByPhone(trimmed);
+      const owner = res?.data?.data;
+      if (owner?.fullName) {
+        setValue('ownerName', owner.fullName);
+        toast.success('Owner found. Name and details filled.');
+      }
+      // If no owner found, leave fields empty for manual entry (no toast)
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not look up owner');
+    } finally {
+      setOwnerLookupLoading(false);
+    }
+  };
+
   const onSubmit = async (data) => {
     try {
       setLoading(true);
+
+      // ulb_id is only for super-admin form filtering; do not send to create API
+      delete data.ulb_id;
 
       // Convert wardId to number
       if (data.wardId) {
@@ -192,8 +239,31 @@ const AddProperty = () => {
         <div>
           <h2 className="text-xl font-semibold mb-4">Basic Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Left: Property Number, Ward, Owner Name, Owner Phone */}
+            {/* Left: ULB (super admin only), Property Number, Ward, Owner Phone (first), Owner Name (auto-fill or manual) */}
             <div className="space-y-4">
+              {isSuperAdmin && (
+                <div>
+                  <label className="label">ULB <span className="text-red-500">*</span></label>
+                  <select
+                    {...register('ulb_id', { required: isSuperAdmin ? 'ULB is required' : false })}
+                    className="input"
+                  >
+                    <option value="">Select ULB</option>
+                    {ulbs.length === 0 ? (
+                      <option disabled>Loading ULBs...</option>
+                    ) : (
+                      ulbs.map(ulb => (
+                        <option key={ulb.id} value={ulb.id}>
+                          {ulb.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  {errors.ulb_id && (
+                    <p className="text-red-500 text-sm mt-1">{errors.ulb_id.message}</p>
+                  )}
+                </div>
+              )}
               <div>
                 <label className="label">Property Number</label>
                 <input
@@ -208,8 +278,11 @@ const AddProperty = () => {
                 <select
                   {...register('wardId', { required: 'Ward is required' })}
                   className="input"
+                  disabled={isSuperAdmin && !formUlbId}
                 >
-                  <option value="">Select Ward</option>
+                  <option value="">
+                    {isSuperAdmin && !formUlbId ? 'Select ULB first' : 'Select Ward'}
+                  </option>
                   {wards.map(ward => (
                     <option key={ward.id} value={ward.id}>
                       {ward.wardNumber} - {ward.wardName}
@@ -222,20 +295,6 @@ const AddProperty = () => {
               </div>
               <div>
                 <label className="label">
-                  Owner Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  {...register('ownerName', { required: 'Owner name is required' })}
-                  className="input"
-                  placeholder="Enter owner's full name"
-                />
-                {errors.ownerName && (
-                  <p className="text-red-500 text-sm mt-1">{errors.ownerName.message}</p>
-                )}
-              </div>
-              <div>
-                <label className="label">
                   Owner Phone <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -243,9 +302,28 @@ const AddProperty = () => {
                   {...register('ownerPhone', { required: 'Owner phone is required' })}
                   className="input"
                   placeholder="+91 1234567890"
+                  onBlur={lookupOwnerByPhone}
+                  disabled={ownerLookupLoading}
                 />
+                {ownerLookupLoading && (
+                  <p className="text-sm text-gray-500 mt-1">Looking up owner...</p>
+                )}
                 {errors.ownerPhone && (
                   <p className="text-red-500 text-sm mt-1">{errors.ownerPhone.message}</p>
+                )}
+              </div>
+              <div>
+                <label className="label">
+                  Owner Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  {...register('ownerName', { required: 'Owner name is required' })}
+                  className="input"
+                  placeholder="Enter owner's full name (or fill phone first to auto-fill)"
+                />
+                {errors.ownerName && (
+                  <p className="text-red-500 text-sm mt-1">{errors.ownerName.message}</p>
                 )}
               </div>
             </div>

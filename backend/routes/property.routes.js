@@ -7,7 +7,8 @@ import {
   updateProperty,
   deleteProperty,
   searchProperties,
-  getPropertiesByWard
+  getPropertiesByWard,
+  getOwnerByPhone
 } from '../controllers/property.controller.js';
 
 const router = express.Router();
@@ -23,6 +24,9 @@ router.get('/search', searchProperties);
 
 // Get properties by ward
 router.get('/ward/:wardId', getPropertiesByWard);
+
+// Lookup owner by phone (for Add Property auto-fill) - must be before /:id
+router.get('/owner-by-phone', authorize('admin', 'assessor', 'tax_collector'), getOwnerByPhone);
 
 // Get property by ID
 router.get('/:id', getPropertyById);

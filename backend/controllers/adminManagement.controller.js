@@ -647,7 +647,7 @@ export const getAllULBs = async (req, res) => {
   try {
     const includeInactive = req.query.includeInactive === 'true';
     const where = includeInactive ? {} : { status: 'ACTIVE' };
-    const attributes = includeInactive ? ['id', 'name', 'state', 'district', 'status', 'created_at'] : ['id', 'name', 'state', 'district'];
+    const attributes = includeInactive ? ['id', 'name', 'ulb_type', 'state', 'district', 'status', 'created_at'] : ['id', 'name', 'ulb_type', 'state', 'district'];
 
     const ulbs = await ULB.findAll({
       where,
@@ -665,14 +665,21 @@ export const getAllULBs = async (req, res) => {
 /**
  * Create a new ULB (admin only)
  */
+const ULB_TYPES = ['NAGAR_NIGAM', 'NAGAR_PALIKA_PARISHAD', 'NAGAR_PANCHAYAT'];
+
 export const createULB = async (req, res) => {
   try {
-    const { name, state, district, status } = req.body;
+    const { name, ulb_type, state, district, status } = req.body;
     if (!name || !String(name).trim()) {
       return res.status(400).json({ message: 'ULB name is required' });
     }
+    const typeVal = ulb_type && String(ulb_type).trim();
+    if (!typeVal || !ULB_TYPES.includes(typeVal)) {
+      return res.status(400).json({ message: 'ULB type is required and must be one of: Nagar Nigam, Nagar Palika Parishad, Nagar Panchayat' });
+    }
     const ulb = await ULB.create({
       name: String(name).trim(),
+      ulb_type: typeVal,
       state: state ? String(state).trim() : null,
       district: district ? String(district).trim() : null,
       status: status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE'
@@ -680,7 +687,7 @@ export const createULB = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'ULB created successfully',
-      data: { ulb: { id: ulb.id, name: ulb.name, state: ulb.state, district: ulb.district, status: ulb.status } }
+      data: { ulb: { id: ulb.id, name: ulb.name, ulb_type: ulb.ulb_type, state: ulb.state, district: ulb.district, status: ulb.status } }
     });
   } catch (error) {
     console.error('Error creating ULB:', error);
@@ -694,12 +701,19 @@ export const createULB = async (req, res) => {
 export const updateULB = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, state, district, status } = req.body;
+    const { name, ulb_type, state, district, status } = req.body;
     const ulb = await ULB.findByPk(id);
     if (!ulb) {
       return res.status(404).json({ message: 'ULB not found' });
     }
     if (name !== undefined) ulb.name = String(name).trim() || ulb.name;
+    if (ulb_type !== undefined) {
+      const typeVal = ulb_type ? String(ulb_type).trim() : null;
+      if (typeVal && !ULB_TYPES.includes(typeVal)) {
+        return res.status(400).json({ message: 'ULB type must be one of: Nagar Nigam, Nagar Palika Parishad, Nagar Panchayat' });
+      }
+      ulb.ulb_type = typeVal || null;
+    }
     if (state !== undefined) ulb.state = state ? String(state).trim() : null;
     if (district !== undefined) ulb.district = district ? String(district).trim() : null;
     if (status !== undefined) ulb.status = status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE';
@@ -707,7 +721,7 @@ export const updateULB = async (req, res) => {
     res.json({
       success: true,
       message: 'ULB updated successfully',
-      data: { ulb: { id: ulb.id, name: ulb.name, state: ulb.state, district: ulb.district, status: ulb.status } }
+      data: { ulb: { id: ulb.id, name: ulb.name, ulb_type: ulb.ulb_type, state: ulb.state, district: ulb.district, status: ulb.status } }
     });
   } catch (error) {
     console.error('Error updating ULB:', error);

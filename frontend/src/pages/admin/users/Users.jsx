@@ -49,8 +49,8 @@ const Users = () => {
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
   useEffect(() => {
-    fetchUsers();
     fetchWards();
+    fetchUsers();
   }, [effectiveUlbId]);
 
   useEffect(() => {
@@ -80,11 +80,13 @@ const Users = () => {
     try {
       setLoading(true);
       const params = { limit: 100, isActive: true, role: 'citizen' };
+      // Super admin: filter citizens by selected ULB (admins create citizens under their ULB)
       if (effectiveUlbId) params.ulb_id = effectiveUlbId;
       const response = await userAPI.getAll(params);
-      setUsers(response.data.data.users);
+      setUsers(response.data?.data?.users ?? []);
     } catch (error) {
       toast.error('Failed to fetch users');
+      setUsers([]);
     } finally {
       setLoading(false);
     }
