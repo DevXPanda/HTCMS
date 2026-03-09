@@ -5,9 +5,11 @@ import { wardAPI, userAPI } from '../../../services/api';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
 import { Save } from 'lucide-react';
+import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 
 const AddWard = () => {
   const navigate = useNavigate();
+  const { effectiveUlbId, isSuperAdmin } = useSelectedUlb();
   const [loading, setLoading] = useState(false);
   const [collectors, setCollectors] = useState([]);
   const [loadingCollectors, setLoadingCollectors] = useState(true);
@@ -18,22 +20,30 @@ const AddWard = () => {
     register,
     handleSubmit,
     formState: { errors },
-    watch
+    watch,
+    setValue
   } = useForm();
 
   const selectedUlbId = watch('ulb_id');
+  const ulbIdForCollectors = isSuperAdmin ? selectedUlbId : (effectiveUlbId || selectedUlbId);
 
   useEffect(() => {
     fetchULBs();
   }, []);
 
   useEffect(() => {
-    if (selectedUlbId) {
-      fetchCollectors(selectedUlbId);
+    if (!isSuperAdmin && effectiveUlbId) {
+      setValue('ulb_id', effectiveUlbId);
+    }
+  }, [isSuperAdmin, effectiveUlbId, setValue]);
+
+  useEffect(() => {
+    if (ulbIdForCollectors) {
+      fetchCollectors(ulbIdForCollectors);
     } else {
       setCollectors([]);
     }
-  }, [selectedUlbId]);
+  }, [ulbIdForCollectors]);
 
   const fetchCollectors = async (ulbId) => {
     try {
@@ -61,6 +71,11 @@ const AddWard = () => {
   };
 
   const onSubmit = async (data) => {
+    const ulbId = isSuperAdmin ? data.ulb_id : (effectiveUlbId || data.ulb_id);
+    if (!ulbId) {
+      toast.error('ULB is required. Your account may not have a ULB assigned.');
+      return;
+    }
     try {
       setLoading(true);
       const response = await wardAPI.create({
@@ -68,7 +83,7 @@ const AddWard = () => {
         wardName: data.wardName,
         description: data.description || null,
         collectorId: data.collectorId ? parseInt(data.collectorId) : null,
-        ulb_id: data.ulb_id
+        ulb_id: ulbId
       });
 
       if (response.data.success) {
@@ -98,32 +113,39 @@ const AddWard = () => {
 
       <form onSubmit={handleSubmit(onSubmit)} className="card p-6 md:p-8 w-full max-w-4xl">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="md:col-span-2">
-            <label className="label">
-              ULB <span className="text-red-500">*</span>
-            </label>
-            <select
-              {...register('ulb_id', { required: 'ULB is required' })}
-              className="input w-full"
-              disabled={loadingUlbs}
-            >
-              <option value="">Select ULB</option>
-              {loadingUlbs ? (
-                <option disabled>Loading ULBs...</option>
-              ) : ulbs.length === 0 ? (
-                <option disabled>No ULBs available</option>
-              ) : (
-                ulbs.map(ulb => (
-                  <option key={ulb.id} value={ulb.id}>
-                    {ulb.name}
-                  </option>
-                ))
+          {isSuperAdmin && (
+            <div className="md:col-span-2">
+              <label className="label">
+                ULB <span className="text-red-500">*</span>
+              </label>
+              <select
+                {...register('ulb_id', { required: isSuperAdmin ? 'ULB is required' : false })}
+                className="input w-full"
+                disabled={loadingUlbs}
+              >
+                <option value="">Select ULB</option>
+                {loadingUlbs ? (
+                  <option disabled>Loading ULBs...</option>
+                ) : ulbs.length === 0 ? (
+                  <option disabled>No ULBs available</option>
+                ) : (
+                  ulbs.map(ulb => (
+                    <option key={ulb.id} value={ulb.id}>
+                      {ulb.name}
+                    </option>
+                  ))
+                )}
+              </select>
+              {errors.ulb_id && (
+                <p className="text-red-500 text-sm mt-1">{errors.ulb_id.message}</p>
               )}
-            </select>
-            {errors.ulb_id && (
-              <p className="text-red-500 text-sm mt-1">{errors.ulb_id.message}</p>
-            )}
-          </div>
+            </div>
+          )}
+          {!isSuperAdmin && effectiveUlbId && (
+            <div className="md:col-span-2">
+              <p className="text-sm text-gray-600">Ward will be created under your assigned ULB.</p>
+            </div>
+          )}
 
           <div>
             <label className="label">
@@ -176,11 +198,11 @@ const AddWard = () => {
             <select
               {...register('collectorId')}
               className="input w-full"
-              disabled={loadingCollectors || !selectedUlbId}
+              disabled={loadingCollectors || !ulbIdForCollectors}
             >
               <option value="">No Collector Assigned</option>
-              {!selectedUlbId ? (
-                <option disabled>Select ULB first</option>
+              {!ulbIdForCollectors ? (
+                <option disabled>{isSuperAdmin ? 'Select ULB first' : 'No ULB assigned'}</option>
               ) : loadingCollectors ? (
                 <option disabled>Loading collectors...</option>
               ) : collectors.length === 0 ? (
@@ -194,7 +216,7 @@ const AddWard = () => {
               )}
             </select>
             <p className="text-sm text-gray-500 mt-1">
-              {selectedUlbId ? 'Collectors for selected ULB only. You can assign later from ward details.' : 'Select ULB to see collectors.'}
+              {ulbIdForCollectors ? 'Collectors for this ULB. You can assign later from ward details.' : (isSuperAdmin ? 'Select ULB to see collectors.' : 'No ULB assigned.')}
             </p>
           </div>
         </div>

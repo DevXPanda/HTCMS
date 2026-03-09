@@ -20,6 +20,7 @@ const adminRoutes = [
   { path: 'assessments', label: 'Assessments', parentPath: 'property-tax' },
   { path: 'property-tax', label: 'Property Tax', parentPath: 'tax-management' },
   { path: 'water-tax', label: 'Water Tax', parentPath: 'tax-management' },
+  { path: 'notifications', label: 'All Notifications', parentPath: 'dashboard' },
   { path: 'notices', label: 'Notices', parentPath: 'dashboard' },
   { path: 'payments', label: 'Payments', parentPath: 'dashboard' },
   { path: 'wards', label: 'Wards', parentPath: 'dashboard' },

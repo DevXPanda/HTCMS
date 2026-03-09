@@ -10,7 +10,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 
 const Wards = () => {
-  const { effectiveUlbId } = useSelectedUlb();
+  const { effectiveUlbId, isSuperAdmin } = useSelectedUlb();
   const { isAdmin } = useAuth();
   const [wards, setWards] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -49,30 +49,33 @@ const Wards = () => {
 
   const addModalUlbId = watch('ulb_id');
 
-  // When Add modal opens, set default ULB and fetch ULBs
+  // When Add modal opens, set default ULB (for super admin: empty; for admin: their ULB) and fetch ULBs
   useEffect(() => {
     if (showAddModal) {
       fetchULBs();
       reset({
-        ulb_id: effectiveUlbId || '',
+        ulb_id: isSuperAdmin ? '' : (effectiveUlbId || ''),
         wardNumber: '',
         wardName: '',
         description: '',
         collectorId: ''
       });
     }
-  }, [showAddModal]);
+  }, [showAddModal, isSuperAdmin, effectiveUlbId]);
 
-  // When ULB is selected in Add modal, fetch only collectors for that ULB; clear collector when ULB changes
+  // ULB for collector dropdown: super admin selects; admin uses effectiveUlbId
+  const addModalUlbForCollectors = isSuperAdmin ? addModalUlbId : (effectiveUlbId || addModalUlbId);
+
+  // When ULB is selected (or fixed for admin) in Add modal, fetch collectors
   useEffect(() => {
     if (!showAddModal) return;
-    if (addModalUlbId) {
-      fetchCollectors(addModalUlbId);
+    if (addModalUlbForCollectors) {
+      fetchCollectors(addModalUlbForCollectors);
       setValue('collectorId', '');
     } else {
       setCollectors([]);
     }
-  }, [showAddModal, addModalUlbId]);
+  }, [showAddModal, addModalUlbForCollectors]);
 
   const fetchWards = async () => {
     try {
@@ -117,6 +120,11 @@ const Wards = () => {
   };
 
   const onAddWardSubmit = async (data) => {
+    const ulbId = isSuperAdmin ? data.ulb_id : (effectiveUlbId || data.ulb_id);
+    if (!ulbId) {
+      toast.error('ULB is required');
+      return;
+    }
     try {
       setSubmitLoading(true);
       const rawCollectorId = data.collectorId;
@@ -126,7 +134,7 @@ const Wards = () => {
         wardName: data.wardName,
         description: data.description || null,
         collectorId: Number.isInteger(collectorId) ? collectorId : null,
-        ulb_id: data.ulb_id
+        ulb_id: ulbId
       });
       if (response.data.success) {
         toast.success('Ward created successfully!');
@@ -267,26 +275,31 @@ const Wards = () => {
                 </button>
               </div>
               <form onSubmit={handleSubmit(onAddWardSubmit)} className="p-6 space-y-4">
-                <div>
-                  <label className="label">ULB <span className="text-red-500">*</span></label>
-                  <select
-                    {...register('ulb_id', { required: 'ULB is required' })}
-                    className="input w-full"
-                    disabled={loadingUlbs}
-                  >
-                    <option value="">Select ULB</option>
-                    {loadingUlbs ? (
-                      <option disabled>Loading ULBs...</option>
-                    ) : ulbs.length === 0 ? (
-                      <option disabled>No ULBs available</option>
-                    ) : (
-                      ulbs.map(ulb => (
-                        <option key={ulb.id} value={ulb.id}>{ulb.name}</option>
-                      ))
-                    )}
-                  </select>
-                  {errors.ulb_id && <p className="text-red-500 text-sm mt-1">{errors.ulb_id.message}</p>}
-                </div>
+                {isSuperAdmin && (
+                  <div>
+                    <label className="label">ULB <span className="text-red-500">*</span></label>
+                    <select
+                      {...register('ulb_id', { required: isSuperAdmin ? 'ULB is required' : false })}
+                      className="input w-full"
+                      disabled={loadingUlbs}
+                    >
+                      <option value="">Select ULB</option>
+                      {loadingUlbs ? (
+                        <option disabled>Loading ULBs...</option>
+                      ) : ulbs.length === 0 ? (
+                        <option disabled>No ULBs available</option>
+                      ) : (
+                        ulbs.map(ulb => (
+                          <option key={ulb.id} value={ulb.id}>{ulb.name}</option>
+                        ))
+                      )}
+                    </select>
+                    {errors.ulb_id && <p className="text-red-500 text-sm mt-1">{errors.ulb_id.message}</p>}
+                  </div>
+                )}
+                {!isSuperAdmin && effectiveUlbId && (
+                  <p className="text-sm text-gray-600">Ward will be created under your ULB.</p>
+                )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="label">Ward Number <span className="text-red-500">*</span></label>
@@ -326,11 +339,11 @@ const Wards = () => {
                   <select
                     {...register('collectorId')}
                     className="input w-full"
-                    disabled={loadingCollectors || !addModalUlbId}
+                    disabled={loadingCollectors || !addModalUlbForCollectors}
                   >
                     <option value="">No Collector Assigned</option>
-                    {!addModalUlbId ? (
-                      <option disabled>Select ULB first</option>
+                    {!addModalUlbForCollectors ? (
+                      <option disabled>{isSuperAdmin ? 'Select ULB first' : 'No ULB assigned'}</option>
                     ) : loadingCollectors ? (
                       <option disabled>Loading...</option>
                     ) : collectors.length === 0 ? (
@@ -344,7 +357,7 @@ const Wards = () => {
                     )}
                   </select>
                   <p className="text-xs text-gray-500 mt-1">
-                    {addModalUlbId ? 'Collectors for selected ULB only. You can assign later from ward details.' : 'Select ULB to see collectors.'}
+                    {addModalUlbForCollectors ? 'Collectors for this ULB. You can assign later from ward details.' : (isSuperAdmin ? 'Select ULB to see collectors.' : 'No ULB assigned.')}
                   </p>
                 </div>
                 <div className="flex justify-end gap-3 pt-4 border-t">

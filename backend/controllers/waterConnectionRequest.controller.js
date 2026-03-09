@@ -78,6 +78,15 @@ export const createWaterConnectionRequest = async (req, res, next) => {
             { requestNumber, status: 'DRAFT' }
         );
 
+        try {
+            const { pushToAdmins } = await import('../services/notificationService.js');
+            await pushToAdmins({
+                title: 'New water connection request (draft)',
+                message: `Request ${requestNumber} created`,
+                link: `/water/connection-requests/${request.id}`
+            });
+        } catch (_) { /* ignore */ }
+
         res.status(201).json({
             success: true,
             message: 'Water connection request created successfully',
@@ -196,6 +205,15 @@ export const createAndSubmitWaterConnectionRequest = async (req, res, next) => {
                 { model: User, as: 'creator', attributes: ['id', 'firstName', 'lastName', 'email'] }
             ]
         });
+
+        try {
+            const { pushToAdmins } = await import('../services/notificationService.js');
+            await pushToAdmins({
+                title: 'New water connection request submitted',
+                message: `Request ${requestNumber} – pending inspector review`,
+                link: `/water/connection-requests/${request.id}`
+            });
+        } catch (_) { /* ignore */ }
 
         res.status(201).json({
             success: true,
@@ -690,6 +708,20 @@ export const inspectionReviewWaterConnectionRequest = async (req, res, next) => 
                 returnReason
             }
         );
+
+        if (request.requestedBy && (newStatus === 'APPROVED' || newStatus === 'REJECTED')) {
+            try {
+                const { pushNotification } = await import('../services/notificationService.js');
+                await pushNotification({
+                    userId: request.requestedBy,
+                    userType: 'user',
+                    role: 'citizen',
+                    title: newStatus === 'APPROVED' ? 'Water connection request approved' : 'Water connection request rejected',
+                    message: `Request ${request.requestNumber}: ${newStatus === 'APPROVED' ? 'Approved.' : (adminRemarks || 'Rejected.')}`,
+                    link: `/citizen/water-connections`
+                });
+            } catch (_) { /* ignore */ }
+        }
 
         res.json({
             success: true,

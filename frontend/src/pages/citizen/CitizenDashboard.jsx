@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { citizenAPI } from '../../services/api';
 import Loading from '../../components/Loading';
-import { Home, FileText, DollarSign, CreditCard, Bell, Store, Droplet, PlusCircle, FileCheck, History, TrendingUp } from 'lucide-react';
+import { Home, FileText, DollarSign, CreditCard, Bell, Store, Droplet, PlusCircle, FileCheck, History, TrendingUp, Shield } from 'lucide-react';
 
 const CitizenDashboard = () => {
   const [dashboard, setDashboard] = useState(null);
@@ -54,6 +54,8 @@ const CitizenDashboard = () => {
     { name: 'Payment History', icon: CreditCard, link: '/citizen/payments', color: 'bg-green-600' },
     { name: 'Activity History', icon: History, link: '/citizen/activity-history', color: 'bg-gray-600' },
   ];
+
+  const adminReportsItems = [{ name: 'Notifications', icon: Bell, link: '/citizen/notifications' }];
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -111,6 +113,28 @@ const CitizenDashboard = () => {
                 <action.icon className="h-6 w-6" />
               </div>
               <span className="text-sm font-medium text-gray-700 group-hover:text-primary-700 text-center">{action.name}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* Administration & Reports - Notifications (role-filtered) */}
+      <section>
+        <h2 className="form-section-title flex items-center mb-4">
+          <Shield className="w-5 h-5 mr-2 text-gray-500" />
+          Administration & Reports
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {adminReportsItems.map((item, idx) => (
+            <Link
+              key={idx}
+              to={item.link}
+              className="flex flex-col items-center justify-center p-5 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-primary-100 transition-all group"
+            >
+              <div className="p-3 rounded-full bg-indigo-600 text-white mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                <item.icon className="h-6 w-6" />
+              </div>
+              <span className="text-sm font-medium text-gray-700 group-hover:text-primary-700 text-center">{item.name}</span>
             </Link>
           ))}
         </div>

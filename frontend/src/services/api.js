@@ -1,13 +1,14 @@
 import axios from 'axios';
 
-// Get API URL from environment variable
+// Get API URL from environment variable (same host used for WebSocket in production)
 // In development: VITE_API_URL=http://localhost:5000
 // In production: VITE_API_URL=https://htcms-2.onrender.com
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_BASE_URL_INTERNAL = API_BASE_URL;
 
 // Create axios instance with environment-based base URL
 const api = axios.create({
-  baseURL: `${API_BASE_URL}/api`,
+  baseURL: `${API_BASE_URL_INTERNAL}/api`,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -108,6 +109,13 @@ export const staffAuthAPI = {
   changePassword: (currentPassword, newPassword) =>
     api.post('/employee-auth/change-password', { currentPassword, newPassword }),
   updateProfile: (data) => api.put('/employee-auth/profile', data)
+};
+
+// Notifications API (role-wise; used by NotificationContext)
+export const notificationsAPI = {
+  getList: (params) => api.get('/notifications', { params }),
+  markRead: (id) => api.patch(`/notifications/${id}/read`),
+  markAllRead: () => api.patch('/notifications/read-all')
 };
 
 // User API

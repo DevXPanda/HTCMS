@@ -1,12 +1,16 @@
+import http from "http";
 import express from "express";
 import cors from "cors";
 import morgan from "morgan";
 import dotenv from "dotenv";
+import { Server as SocketIOServer } from "socket.io";
 import { sequelize } from "./config/database.js";
 import path from "path";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { testConnection as testPgConnection, closePool } from "./db.js";
+import { attachNotificationSocket } from "./socket/notificationSocket.js";
+import { setNotificationIO } from "./services/notificationService.js";
 
 // Load env
 dotenv.config();
@@ -123,6 +127,7 @@ import { startPenaltyCronJob } from "./services/penaltyCron.js";
 import { startTaskGeneratorCronJob } from "./services/taskGeneratorCron.js";
 import { startAlertCronJob } from "./services/alertCron.js";
 import d2dcRoutes from "./routes/d2dc.routes.js";
+import notificationRoutes from "./routes/notification.routes.js";
 
 // API Routes prefix
 app.use("/api/auth", authRoutes);
@@ -169,6 +174,7 @@ app.use("/api/officer", officerRoutes);
 app.use("/api/admin-management", adminManagementRoutes);
 app.use("/api/employee-auth", employeeAuthRoutes);
 app.use("/api/d2dc", d2dcRoutes);
+app.use("/api/notifications", notificationRoutes);
 app.use("/api/toilet", toiletRoutes);
 app.use("/api/mrf", mrfRoutes);
 app.use("/api/gaushala", gauShalaRoutes);
@@ -230,10 +236,25 @@ app.use((err, req, res, next) => {
   });
 });
 
+// HTTP server for Socket.IO (same port as API — works when deployed)
+const server = http.createServer(app);
+
+// Socket.IO: real-time notifications (role-wise). Use same origin as API for deployment.
+const io = new SocketIOServer(server, {
+  cors: {
+    origin: allowedOrigins.length ? allowedOrigins : true,
+    credentials: true
+  },
+  transports: ["websocket", "polling"],
+  path: "/socket.io"
+});
+
+setNotificationIO(io);
+attachNotificationSocket(io);
+
 // Start server
 const startServer = async () => {
   console.log("Starting backend...");
-
 
   const pg = await testPgConnection();
   if (!pg.success) {
@@ -248,8 +269,8 @@ const startServer = async () => {
     console.error("Sequelize error:", err.message);
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Backend running on port ${PORT}`);
+  server.listen(PORT, "0.0.0.0", () => {
+    console.log(`Backend running on port ${PORT} (HTTP + WebSocket)`);
 
     // Start cron jobs
     startPenaltyCronJob();

@@ -4,7 +4,7 @@ import {
   AlertCircle, CheckCircle, Clock, Truck, Bath, MapPin,
   Shield, BarChart3, Droplet, UserCog, ClipboardList,
   Store, ScrollText, Filter, Percent, AlertTriangle,
-  Package, Zap, Recycle, Heart
+  Package, Zap, Recycle, Heart, Bell
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
@@ -172,13 +172,10 @@ const Dashboard = () => {
   // 1. Primary Navigation: Quick Actions (Tax + Utility)
   const quickActions = [
     { name: 'Tax Management', icon: FileText, link: '/tax-management', color: 'bg-blue-600' },
-    { name: 'EO Management', icon: Store, link: '/field-worker-monitoring', color: 'bg-yellow-600' },
+    { name: 'Field Worker Management', icon: Store, link: '/field-worker-monitoring', color: 'bg-yellow-600' },
     { name: 'Toilet Management', icon: Bath, link: '/toilet-management', color: 'bg-pink-600' },
     { name: 'MRF', icon: ClipboardList, link: '/mrf', color: 'bg-green-600' },
-    { name: 'Gau Shala', icon: ScrollText, link: '/gaushala/management', color: 'bg-orange-600' },
-
-
-
+    { name: 'Gau Shala', icon: ScrollText, link: '/gaushala/management', color: 'bg-orange-600' }
   ];
 
   // 2. Global Metrics (System Health) - Lighter visual weight
@@ -190,8 +187,9 @@ const Dashboard = () => {
     { title: 'Total Outstanding', value: `₹${stats.totalOutstanding.toLocaleString()}`, icon: AlertCircle, change: '', textRed: true }
   ];
 
-  // 3. Administration (Compact Secondary Navigation) — ULB & Admin Management only for super admin
+  // 3. Administration & Reports — Notifications (role-filtered by backend) + ULB & Admin only for super admin
   const adminItemsBase = [
+    { name: 'Notifications', icon: Bell, link: '/notifications' },
     { name: 'Wards', icon: MapPin, link: '/wards' },
     ...(isSuperAdmin ? [{ name: 'ULB Management', icon: Building2, link: '/ulb-management' }] : []),
     { name: 'Citizen Management', icon: Users, link: '/users' },

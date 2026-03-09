@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { wardAPI } from '../../services/api';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
-import { MapPin, Home, FileText, DollarSign, AlertCircle, TrendingUp, CheckSquare, CreditCard, Clock, RefreshCw, Download, Shield } from 'lucide-react';
+import { MapPin, Home, FileText, DollarSign, AlertCircle, TrendingUp, CheckSquare, CreditCard, Clock, RefreshCw, Download, Shield, Bell } from 'lucide-react';
 import { penaltyWaiverAPI } from '../../services/api';
 import { useStaffAuth } from '../../contexts/StaffAuthContext';
 
@@ -86,6 +86,8 @@ const CollectorDashboard = () => {
     { name: 'My Attendance', icon: Clock, link: '/collector/attendance', color: 'bg-orange-600' },
   ];
 
+  const adminReportsItems = [{ name: 'Notifications', icon: Bell, link: '/collector/notifications' }];
+
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
       {/* Page Header */}
@@ -151,7 +153,27 @@ const CollectorDashboard = () => {
         </div>
       </section>
 
-
+      {/* Administration & Reports - Notifications (role-filtered) */}
+      <section>
+        <h2 className="form-section-title flex items-center mb-4">
+          <Shield className="w-5 h-5 mr-2 text-gray-500" />
+          Administration & Reports
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {adminReportsItems.map((item, idx) => (
+            <Link
+              key={idx}
+              to={item.link}
+              className="flex flex-col items-center justify-center p-5 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-primary-100 transition-all group"
+            >
+              <div className="p-3 rounded-full bg-indigo-600 text-white mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                <item.icon className="h-6 w-6" />
+              </div>
+              <span className="text-sm font-medium text-gray-700 group-hover:text-primary-700 text-center">{item.name}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       {/* Property-wise Unified Demands - Primary View */}
       <div className="bg-white rounded-lg border border-gray-100 p-6 lg:col-span-2 mb-6">

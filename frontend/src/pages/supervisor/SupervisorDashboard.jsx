@@ -15,7 +15,9 @@ import {
   X,
   Upload,
   Image as ImageIcon,
-  ClipboardList
+  ClipboardList,
+  Bell,
+  Shield
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useStaffAuth } from '../../contexts/StaffAuthContext';
@@ -688,6 +690,25 @@ const SupervisorDashboard = () => {
           </button>
         </div>
       )}
+
+      {/* Administration & Reports - Notifications (role-filtered) */}
+      <section className="bg-white rounded-lg border border-gray-100 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+          <Shield className="w-5 h-5 mr-2 text-gray-500" />
+          Administration & Reports
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <Link
+            to="/supervisor/notifications"
+            className="flex flex-col items-center justify-center p-5 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-primary-100 transition-all group"
+          >
+            <div className="p-3 rounded-full bg-indigo-600 text-white mb-3 shadow-sm group-hover:scale-110 transition-transform">
+              <Bell className="h-6 w-6" />
+            </div>
+            <span className="text-sm font-medium text-gray-700 group-hover:text-primary-700 text-center">Notifications</span>
+          </Link>
+        </div>
+      </section>
 
       {/* Alerts Section */}
       {(alerts.workers_not_marked_by_9am?.length > 0 || alerts.repeat_absentees?.length > 0 || alerts.geo_violations?.length > 0) && (

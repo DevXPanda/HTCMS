@@ -7,6 +7,7 @@ import { NavigationProvider } from './contexts/NavigationContext';
 import { SelectedUlbProvider } from './contexts/SelectedUlbContext';
 import PrivateRoute from './components/PrivateRoute';
 import { ShopTaxBasePathProvider } from './contexts/ShopTaxBasePathContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import AdminLayout from './components/AdminLayout';
 import CitizenLayout from './components/CitizenLayout';
 import CollectorLayout from './components/CollectorLayout';
@@ -32,6 +33,7 @@ import ToiletComplaintHistory from './pages/citizen/ToiletComplaintHistory';
 
 // Admin/Staff Pages
 import Dashboard from './pages/admin/Dashboard';
+import NotificationsPage from './pages/admin/NotificationsPage';
 import Properties from './pages/admin/properties/Properties';
 import PropertyDetails from './pages/admin/properties/PropertyDetails';
 import AddProperty from './pages/admin/properties/AddProperty';
@@ -220,6 +222,7 @@ function App() {
     <NavigationProvider>
       <AuthProvider>
         <ConfirmProvider>
+        <NotificationProvider>
         <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Toaster
             position="top-right"
@@ -305,6 +308,7 @@ function App() {
               <Route path="payments/:id" element={<PaymentDetails />} />
               <Route path="toilet/file-complaint" element={<FileToiletComplaint />} />
               <Route path="toilet/complaint-history" element={<ToiletComplaintHistory />} />
+              <Route path="notifications" element={<NotificationsPage />} />
             </Route>
 
             {/* Protected Routes - Collector Portal */}
@@ -331,6 +335,7 @@ function App() {
               <Route path="attendance" element={<CollectorAttendance />} />
               <Route path="activity-logs" element={<ActivityLogs />} />
               <Route path="demands/:id" element={<CollectorDemandDetails />} />
+              <Route path="notifications" element={<NotificationsPage />} />
             </Route>
 
             {/* Protected Routes - Clerk Portal */}
@@ -384,6 +389,7 @@ function App() {
               <Route path="returned-applications" element={<ReturnedApplications />} />
               <Route path="attendance" element={<ClerkAttendance />} />
               <Route path="activity-history" element={<ClerkActivityHistory />} />
+              <Route path="notifications" element={<NotificationsPage />} />
             </Route>
 
             {/* Protected Routes - Inspector Portal */}
@@ -407,6 +413,7 @@ function App() {
               <Route path="properties" element={<InspectorProperties />} />
               <Route path="properties/:id" element={<InspectorPropertyDetails />} />
               <Route path="attendance" element={<InspectorAttendance />} />
+              <Route path="notifications" element={<NotificationsPage />} />
             </Route>
 
             {/* Protected Routes - EO Portal */}
@@ -423,6 +430,7 @@ function App() {
               <Route index element={<Navigate to="/eo/dashboard" replace />} />
               <Route path="dashboard" element={<EoDashboard />} />
               <Route path="workers" element={<WorkerManagement />} />
+              <Route path="notifications" element={<NotificationsPage />} />
             </Route>
 
             {/* Protected Routes - Supervisor Portal */}
@@ -441,6 +449,7 @@ function App() {
               <Route path="toilet-complaints" element={<ToiletComplaintsSupervisor />} />
               <Route path="mrf" element={<SupervisorMRFList />} />
               <Route path="mrf/facilities/:id" element={<SupervisorMRFDetails />} />
+              <Route path="notifications" element={<NotificationsPage />} />
             </Route>
 
             {/* Protected Routes - Officer Portal */}
@@ -461,6 +470,7 @@ function App() {
               <Route path="water-requests/:id" element={<WaterRequestDetails />} />
               <Route path="decision-history" element={<OfficerDecisionHistory />} />
               <Route path="attendance" element={<OfficerAttendance />} />
+              <Route path="notifications" element={<NotificationsPage />} />
             </Route>
 
             {/* Protected Routes - D2DC Module */}
@@ -488,6 +498,7 @@ function App() {
             >
               <Route index element={<RoleBasedRedirect />} />
               <Route path="dashboard" element={<Dashboard />} />
+              <Route path="notifications" element={<NotificationsPage />} />
               {/* New Modules */}
               <Route path="tax-management" element={<TaxManagement />} />
               <Route path="tax/discount-management" element={<DiscountManagement />} />
@@ -643,6 +654,7 @@ function App() {
             <Route path="*" element={<RoleBasedRedirect />} />
           </Routes>
         </Router>
+        </NotificationProvider>
         </ConfirmProvider>
       </AuthProvider>
     </NavigationProvider>

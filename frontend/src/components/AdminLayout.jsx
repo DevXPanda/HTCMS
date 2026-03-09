@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { User, LogOut, X, Home } from 'lucide-react';
 import { useState } from 'react';
 import Breadcrumbs from './Breadcrumbs';
+import HeaderNotificationBell from './HeaderNotificationBell';
 
 const AdminLayout = () => {
   const { user, logout } = useAuth();
@@ -34,6 +35,7 @@ const AdminLayout = () => {
                 >
                   <Home className="w-5 h-5 shrink-0" />
                 </button>
+                <HeaderNotificationBell />
 
                 <div className="hidden md:flex items-center space-x-3 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-200">
                   <div className="h-8 w-8 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 text-sm font-bold">

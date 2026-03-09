@@ -459,6 +459,15 @@ export const createWaterConnectionRequest = async (req, res, next) => {
       ]
     });
 
+    try {
+      const { pushToAdmins } = await import('../services/notificationService.js');
+      await pushToAdmins({
+        title: 'New water connection request (citizen)',
+        message: `Request ${request.requestNumber} submitted`,
+        link: `/water/connection-requests/${request.id}`
+      });
+    } catch (_) { /* ignore */ }
+
     res.status(201).json({
       success: true,
       message: 'Water connection request submitted successfully',

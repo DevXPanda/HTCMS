@@ -11,7 +11,9 @@ import {
   ArrowRight,
   History,
   Calendar,
-  RefreshCw
+  RefreshCw,
+  Bell,
+  Shield
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useStaffAuth } from '../../contexts/StaffAuthContext';
@@ -181,6 +183,8 @@ const OfficerDashboard = () => {
     { name: 'My Attendance', icon: Calendar, link: '/officer/attendance', color: 'bg-orange-600' },
   ];
 
+  const adminReportsItems = [{ name: 'Notifications', icon: Bell, link: '/officer/notifications' }];
+
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
       {/* Page Header */}
@@ -215,6 +219,28 @@ const OfficerDashboard = () => {
                 <action.icon className="h-6 w-6" />
               </div>
               <span className="text-sm font-medium text-gray-700 group-hover:text-primary-700 text-center">{action.name}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* Administration & Reports - Notifications (role-filtered) */}
+      <section>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+          <Shield className="w-5 h-5 mr-2 text-gray-500" />
+          Administration & Reports
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {adminReportsItems.map((item, idx) => (
+            <Link
+              key={idx}
+              to={item.link}
+              className="flex flex-col items-center justify-center p-5 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-primary-100 transition-all group"
+            >
+              <div className="p-3 rounded-full bg-indigo-600 text-white mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                <item.icon className="h-6 w-6" />
+              </div>
+              <span className="text-sm font-medium text-gray-700 group-hover:text-primary-700 text-center">{item.name}</span>
             </Link>
           ))}
         </div>

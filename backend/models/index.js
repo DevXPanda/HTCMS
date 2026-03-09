@@ -54,6 +54,7 @@ import { CattleMedicalRecord } from './CattleMedicalRecord.js';
 import { FacilityUtilityBill } from './FacilityUtilityBill.js';
 import { MrfSale } from './MrfSale.js';
 import { CitizenFeedback } from './CitizenFeedback.js';
+import { Notification } from './Notification.js';
 
 
 // Define Relationships
@@ -520,6 +521,7 @@ export {
   CattleMedicalRecord,
   FacilityUtilityBill,
   MrfSale,
-  CitizenFeedback
+  CitizenFeedback,
+  Notification
 };
 

@@ -537,6 +537,26 @@ export const createPayment = async (req, res, next) => {
       // Don't fail the payment if PDF generation fails
     }
 
+    try {
+      const { pushToAdmins, pushNotification } = await import('../services/notificationService.js');
+      await pushToAdmins({
+        title: 'New payment received',
+        message: `Receipt ${payment.receiptNumber} - ₹${parseFloat(payment.amount).toFixed(2)}`,
+        link: `/payments/${payment.id}`
+      });
+      const ownerId = demand.property?.ownerId || createdPayment?.property?.ownerId;
+      if (ownerId) {
+        await pushNotification({
+          userId: ownerId,
+          userType: 'user',
+          role: 'citizen',
+          title: 'Payment received',
+          message: `Receipt ${payment.receiptNumber} - ₹${parseFloat(payment.amount).toFixed(2)}`,
+          link: `/citizen/payments/${payment.id}`
+        });
+      }
+    } catch (_) { /* ignore */ }
+
     res.status(201).json({
       success: true,
       message: 'Payment recorded successfully',
@@ -1055,6 +1075,26 @@ export const verifyOnlinePayment = async (req, res, next) => {
       ]
     });
 
+    try {
+      const { pushToAdmins, pushNotification } = await import('../services/notificationService.js');
+      await pushToAdmins({
+        title: 'Online payment received',
+        message: `Receipt ${payment.receiptNumber} - ₹${parseFloat(payment.amount).toFixed(2)}`,
+        link: `/payments/${payment.id}`
+      });
+      const ownerId = completedPayment?.property?.ownerId;
+      if (ownerId) {
+        await pushNotification({
+          userId: ownerId,
+          userType: 'user',
+          role: 'citizen',
+          title: 'Online payment successful',
+          message: `Receipt ${payment.receiptNumber} - ₹${parseFloat(payment.amount).toFixed(2)}`,
+          link: `/citizen/payments/${payment.id}`
+        });
+      }
+    } catch (_) { /* ignore */ }
+
     res.json({
       success: true,
       message: 'Payment verified and completed successfully',
@@ -1423,6 +1463,26 @@ export const createFieldCollectionPayment = async (req, res, next) => {
       console.error('Error generating receipt PDF:', pdfError);
       // Don't fail the payment if PDF generation fails
     }
+
+    try {
+      const { pushToAdmins, pushNotification } = await import('../services/notificationService.js');
+      await pushToAdmins({
+        title: 'Field collection payment received',
+        message: `Receipt ${payment.receiptNumber} - ₹${parseFloat(payment.amount).toFixed(2)}`,
+        link: `/payments/${payment.id}`
+      });
+      const ownerId = demand.property?.ownerId || createdPayment?.property?.ownerId;
+      if (ownerId) {
+        await pushNotification({
+          userId: ownerId,
+          userType: 'user',
+          role: 'citizen',
+          title: 'Field collection payment received',
+          message: `Receipt ${payment.receiptNumber} - ₹${parseFloat(payment.amount).toFixed(2)}`,
+          link: `/citizen/payments/${payment.id}`
+        });
+      }
+    } catch (_) { /* ignore */ }
 
     res.status(201).json({
       success: true,

@@ -1620,6 +1620,17 @@ export const generateBulkDemands = async (req, res, next) => {
       }
     }
 
+    if (createdDemands.length > 0) {
+      try {
+        const { pushToAdmins } = await import('../services/notificationService.js');
+        await pushToAdmins({
+          title: 'Bulk demands generated',
+          message: `${createdDemands.length} property demand(s) created for FY ${req.body.financialYear || 'current'}`,
+          link: '/demands'
+        });
+      } catch (_) { /* ignore */ }
+    }
+
     res.status(201).json({
       success: true,
       message: `Generated ${createdDemands.length} demands`,

@@ -239,6 +239,21 @@ export const generateNotice = async (req, res, next) => {
       // Don't fail notice generation if PDF generation fails
     }
 
+    // Real-time notification to citizen (owner)
+    if (notice.ownerId) {
+      try {
+        const { pushNotification } = await import('../services/notificationService.js');
+        await pushNotification({
+          userId: notice.ownerId,
+          userType: 'user',
+          role: 'citizen',
+          title: 'New notice generated',
+          message: `${noticeType} notice ${notice.noticeNumber} – amount due ₹${amountDue?.toFixed(2) || '0'}`,
+          link: `/citizen/notices/${notice.id}`
+        });
+      } catch (_) { /* ignore */ }
+    }
+
     res.status(201).json({
       success: true,
       message: 'Notice generated successfully',

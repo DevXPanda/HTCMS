@@ -334,6 +334,15 @@ export const createShopRegistrationRequest = async (req, res, next) => {
       metadata: { requestNumber, propertyId, shopName }
     });
 
+    try {
+      const { pushToAdmins } = await import('../services/notificationService.js');
+      await pushToAdmins({
+        title: 'New shop registration request',
+        message: `Request ${requestNumber} – ${shopName}`,
+        link: `/shop-registration-requests/${request.id}`
+      });
+    } catch (_) { /* ignore */ }
+
     res.status(201).json({
       success: true,
       message: 'Shop registration request created successfully',
@@ -503,6 +512,20 @@ export const approveShopRegistrationRequest = async (req, res, next) => {
       metadata: { requestNumber: request.requestNumber, shopId: shop.id, shopNumber }
     });
 
+    if (request.applicantId) {
+      try {
+        const { pushNotification } = await import('../services/notificationService.js');
+        await pushNotification({
+          userId: request.applicantId,
+          userType: 'user',
+          role: 'citizen',
+          title: 'Shop registration approved',
+          message: `Request ${request.requestNumber} – Shop "${request.shopName}" created.`,
+          link: `/citizen/shops/${shop.id}`
+        });
+      } catch (_) { /* ignore */ }
+    }
+
     res.json({
       success: true,
       message: 'Shop registration request approved and shop created successfully',
@@ -627,6 +650,20 @@ export const rejectShopRegistrationRequest = async (req, res, next) => {
       description: `Rejected shop registration request: ${request.requestNumber}`,
       metadata: { requestNumber: request.requestNumber, adminRemarks }
     });
+
+    if (request.applicantId) {
+      try {
+        const { pushNotification } = await import('../services/notificationService.js');
+        await pushNotification({
+          userId: request.applicantId,
+          userType: 'user',
+          role: 'citizen',
+          title: 'Shop registration rejected',
+          message: `Request ${request.requestNumber}: ${adminRemarks || 'Rejected.'}`,
+          link: '/citizen/shop-registration-requests'
+        });
+      } catch (_) { /* ignore */ }
+    }
 
     res.json({
       success: true,

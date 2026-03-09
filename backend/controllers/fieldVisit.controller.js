@@ -623,17 +623,6 @@ export const createFieldVisit = async (req, res, next) => {
         }
       }
 
-      // Generate receipt PDFs for all payments
-      for (const payment of createdPayments) {
-        try {
-          const receiptResult = await generatePaymentReceiptPdf(payment.id, req, user);
-          if (!receiptPdfUrl) receiptPdfUrl = receiptResult.pdfUrl; // Use first receipt URL
-        } catch (pdfError) {
-          console.error(`Error generating receipt PDF for payment ${payment.id}:`, pdfError);
-          // Don't fail the transaction if PDF generation fails
-        }
-      }
-
       // Create audit log and D2DC record for each payment
       for (const payment of createdPayments) {
         try {
@@ -715,16 +704,47 @@ export const createFieldVisit = async (req, res, next) => {
 
     await transaction.commit();
 
-    // Update notice status if demand is paid (called after transaction commit)
-    // This ensures the demand changes are committed before notice updates
+    // Generate receipt PDFs after commit so Payment.findByPk in pdfHelpers can see the rows
     if (isCollectingPayment && createdPayments.length > 0) {
+      for (const payment of createdPayments) {
+        try {
+          const receiptResult = await generatePaymentReceiptPdf(payment.id, req, user);
+          if (!receiptPdfUrl) receiptPdfUrl = receiptResult.pdfUrl;
+        } catch (pdfError) {
+          console.error(`Error generating receipt PDF for payment ${payment.id}:`, pdfError);
+        }
+      }
       // Update notice for primary demand
       try {
         await updateNoticeOnPayment(demandId, req, user);
       } catch (noticeError) {
         console.error('Error updating notice on payment (non-critical):', noticeError);
-        // Don't fail the request if notice update fails
       }
+      // Real-time notification to super admin / admin and to citizen (owner)
+      try {
+        const { pushToAdmins, pushNotification } = await import('../services/notificationService.js');
+        const totalAmount = createdPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+        const firstReceipt = createdPayments[0]?.receiptNumber;
+        await pushToAdmins({
+          title: 'Field visit payment collected',
+          message: createdPayments.length === 1
+            ? `Receipt ${firstReceipt} - ₹${totalAmount.toFixed(2)} (field visit)`
+            : `${createdPayments.length} payment(s) - ₹${totalAmount.toFixed(2)} (field visit)`,
+          link: `/payments/${createdPayments[0].id}`
+        });
+        if (property?.ownerId) {
+          await pushNotification({
+            userId: property.ownerId,
+            userType: 'user',
+            role: 'citizen',
+            title: 'Payment collected during field visit',
+            message: createdPayments.length === 1
+              ? `Receipt ${firstReceipt} - ₹${totalAmount.toFixed(2)}`
+              : `${createdPayments.length} payment(s) - ₹${totalAmount.toFixed(2)}`,
+            link: `/citizen/payments/${createdPayments[0]?.id}`
+          });
+        }
+      } catch (_) { /* ignore */ }
     }
 
     res.status(201).json({

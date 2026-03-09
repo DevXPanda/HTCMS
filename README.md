@@ -89,10 +89,10 @@ cd frontend
 npm install
 ```
 
-Create `.env` in `frontend/` if needed (e.g. API base URL):
+Create `.env` in `frontend/` if needed (API and WebSocket use the same host):
 
 ```env
-VITE_API_BASE_URL=http://localhost:5000
+VITE_API_URL=http://localhost:5000
 ```
 
 Start the dev server:
@@ -109,6 +109,12 @@ App runs at `http://localhost:5173`.
   - Terminal 1: `cd backend && npm run dev`
   - Terminal 2: `cd frontend && npm run dev`
 - **Production:** Build frontend with `cd frontend && npm run build`, then serve backend (and optionally static frontend) with `cd backend && npm start`. Set `NODE_ENV=production` and ensure `DATABASE_URL` and `JWT_SECRET` are set.
+
+## Real-time notifications (WebSocket)
+
+- Notifications use **Socket.IO** on the same host and port as the API. The frontend connects to `VITE_API_URL` (e.g. `https://your-backend.onrender.com`).
+- **Deployment:** Use one backend URL for both REST and WebSocket. Ensure your host allows WebSocket (e.g. Render, Heroku, and most Node hosts do). Do not put the API behind a proxy that strips WebSocket upgrade headers; if you use a reverse proxy, enable WebSocket passthrough for the API path.
+- Create the notifications table once: `cd backend && node scripts/sync-notifications-table.js`.
 
 ## Environment Variables (Backend)
 
