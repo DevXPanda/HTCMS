@@ -4,18 +4,21 @@ import { useForm } from 'react-hook-form';
 import { propertyAPI, wardAPI, uploadAPI } from '../../../services/api';
 import toast from 'react-hot-toast';
 import Loading from '../../../components/Loading';
-import { Save, Upload, X, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { Save, Upload, X, Image as ImageIcon, Trash2, Building2, Home, MapPin, Maximize2, FileText } from 'lucide-react';
 import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const EditProperty = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { effectiveUlbId } = useSelectedUlb();
+  const { isAdmin } = useAuth();
   const [loading, setLoading] = useState(false);
   const [loadingProperty, setLoadingProperty] = useState(true);
   const [wards, setWards] = useState([]);
   const [uploadedPhotos, setUploadedPhotos] = useState([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadingOwnerPhoto, setUploadingOwnerPhoto] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -24,8 +27,10 @@ const EditProperty = () => {
     handleSubmit,
     formState: { errors },
     setValue,
-    reset
+    reset,
+    watch
   } = useForm();
+  const ownerPhotoUrl = watch('ownerPhotoUrl');
 
   useEffect(() => {
     fetchData();
@@ -48,6 +53,7 @@ const EditProperty = () => {
         propertyNumber: property.propertyNumber,
         ownerName: property.ownerName || '',
         ownerPhone: property.ownerPhone || '',
+        ownerPhotoUrl: property.ownerPhotoUrl || '',
         wardId: property.wardId,
         propertyType: property.propertyType,
         usageType: property.usageType || property.propertyType,
@@ -64,8 +70,7 @@ const EditProperty = () => {
         status: property.status || 'active',
         remarks: property.remarks || '',
         latitude: property.geolocation?.latitude || '',
-        longitude: property.geolocation?.longitude || '',
-        photos: property.photos?.join(', ') || ''
+        longitude: property.geolocation?.longitude || ''
       });
       
       // Set existing photos for preview
@@ -100,6 +105,31 @@ const EditProperty = () => {
     setUploadedPhotos(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleOwnerPhotoUpload = async (e) => {
+    const file = e?.target?.files?.[0];
+    if (!file) return;
+    try {
+      setUploadingOwnerPhoto(true);
+      const formData = new FormData();
+      formData.append('photo', file);
+      const response = await uploadAPI.uploadOwnerPhoto(formData);
+      const url = response.data?.data?.url;
+      if (url) {
+        setValue('ownerPhotoUrl', url);
+        toast.success('Owner photo uploaded');
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to upload owner photo');
+    } finally {
+      setUploadingOwnerPhoto(false);
+      e.target.value = '';
+    }
+  };
+
+  const clearOwnerPhoto = () => {
+    setValue('ownerPhotoUrl', '');
+  };
+
   const onSubmit = async (data) => {
     try {
       setLoading(true);
@@ -116,13 +146,7 @@ const EditProperty = () => {
         delete data.geolocation;
       }
 
-      // Combine uploaded photos with manual URLs
-      let photos = [...uploadedPhotos];
-      if (data.photos && typeof data.photos === 'string') {
-        const manualUrls = data.photos.split(',').map(url => url.trim()).filter(url => url);
-        photos = [...photos, ...manualUrls];
-      }
-      data.photos = photos.length > 0 ? photos : [];
+      data.photos = uploadedPhotos;
 
       const response = await propertyAPI.update(id, data);
 
@@ -157,14 +181,20 @@ const EditProperty = () => {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="ds-page-title">Edit Property</h1>
+      <div className="ds-page-header">
+        <div>
+          <h1 className="ds-page-title">Edit Property</h1>
+          <p className="ds-page-subtitle">Update property and owner details below.</p>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="card space-y-6">
         {/* Basic Information */}
         <div>
-          <h2 className="text-xl font-semibold mb-4">Basic Information</h2>
+          <h2 className="ds-section-title flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-primary-600" />
+            Basic Information
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="label">
@@ -223,13 +253,51 @@ const EditProperty = () => {
                 <p className="text-red-500 text-sm mt-1">{errors.ownerPhone.message}</p>
               )}
             </div>
+
+            {isAdmin && (
+              <div className="md:col-span-2">
+                <label className="label">Owner Photo</label>
+                <input type="hidden" {...register('ownerPhotoUrl')} />
+                <div className="flex flex-wrap items-center gap-4">
+                  {ownerPhotoUrl && (
+                    <div className="flex items-center gap-2">
+                      {/\.(pdf|PDF)$/.test(ownerPhotoUrl) ? (
+                        <a href={ownerPhotoUrl.startsWith('http') ? ownerPhotoUrl : `${import.meta.env.VITE_API_URL || ''}${ownerPhotoUrl}`} target="_blank" rel="noopener noreferrer" className="text-primary-600 text-sm flex items-center">
+                          <ImageIcon className="w-4 h-4 mr-1" /> View document
+                        </a>
+                      ) : (
+                        <img src={ownerPhotoUrl.startsWith('http') ? ownerPhotoUrl : `${import.meta.env.VITE_API_URL || ''}${ownerPhotoUrl}`} alt="Owner" className="h-20 w-20 object-cover rounded border border-gray-200" />
+                      )}
+                      <button type="button" onClick={clearOwnerPhoto} className="text-red-600 hover:text-red-700 text-sm flex items-center">
+                        <Trash2 className="w-4 h-4 mr-1" /> Remove
+                      </button>
+                    </div>
+                  )}
+                  <label className="btn btn-secondary flex items-center cursor-pointer">
+                    <Upload className="w-4 h-4 mr-2" />
+                    {uploadingOwnerPhoto ? 'Uploading…' : (ownerPhotoUrl ? 'Replace photo' : 'Upload photo')}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,application/pdf"
+                      className="hidden"
+                      onChange={handleOwnerPhotoUpload}
+                      disabled={uploadingOwnerPhoto}
+                    />
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Passport-size photo or PDF. Max 5MB.</p>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Property Details */}
         <div>
-          <h2 className="text-xl font-semibold mb-4">Property Details</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <h2 className="ds-section-title flex items-center gap-2">
+            <Home className="w-5 h-5 text-primary-600" />
+            Property Details
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <label className="label">Property Type <span className="text-red-500">*</span></label>
               <select
@@ -308,7 +376,10 @@ const EditProperty = () => {
 
         {/* Address */}
         <div>
-          <h2 className="text-xl font-semibold mb-4">Address</h2>
+          <h2 className="ds-section-title flex items-center gap-2">
+            <MapPin className="w-5 h-5 text-primary-600" />
+            Address
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <label className="label">Address <span className="text-red-500">*</span></label>
@@ -357,7 +428,10 @@ const EditProperty = () => {
 
         {/* Area Information */}
         <div>
-          <h2 className="text-xl font-semibold mb-4">Area Information</h2>
+          <h2 className="ds-section-title flex items-center gap-2">
+            <Maximize2 className="w-5 h-5 text-primary-600" />
+            Area Information
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="label">Total Area (sq. meters) <span className="text-red-500">*</span></label>
@@ -387,7 +461,10 @@ const EditProperty = () => {
 
         {/* Geolocation */}
         <div>
-          <h2 className="text-xl font-semibold mb-4">Geolocation (Optional)</h2>
+          <h2 className="ds-section-title flex items-center gap-2">
+            <MapPin className="w-5 h-5 text-primary-600" />
+            Geolocation (Optional)
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="label">Latitude</label>
@@ -411,53 +488,45 @@ const EditProperty = () => {
           </div>
         </div>
 
-        {/* Photos */}
+        {/* Property Photos */}
         <div>
-          <h2 className="text-xl font-semibold mb-4">Property Photos (Optional)</h2>
-          
-          {/* Image Upload */}
-          <div className="mb-4">
-            <label className="label flex items-center">
-              <ImageIcon className="w-4 h-4 mr-2" />
-              Upload Photos from Local Storage
-            </label>
-            <div className="flex items-center gap-4">
-              <label className="btn btn-secondary cursor-pointer">
-                <Upload className="w-4 h-4 mr-2" />
-                {uploadingPhoto ? 'Uploading...' : 'Choose File'}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      if (file.size > 5 * 1024 * 1024) {
-                        toast.error('File size must be less than 5MB');
-                        return;
-                      }
-                      handlePhotoUpload(file);
+          <h2 className="ds-section-title flex items-center gap-2">
+            <ImageIcon className="w-5 h-5 text-primary-600" />
+            Property Photos
+          </h2>
+          <p className="text-sm text-gray-500 mb-3">Max 5MB per image (JPEG, PNG, GIF, WebP).</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="btn btn-primary cursor-pointer inline-flex items-center">
+              <Upload className="w-4 h-4 mr-2" />
+              {uploadingPhoto ? 'Uploading...' : 'Choose File'}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    if (file.size > 5 * 1024 * 1024) {
+                      toast.error('File size must be less than 5MB');
+                      return;
                     }
-                    e.target.value = ''; // Reset input
-                  }}
-                  disabled={uploadingPhoto}
-                />
-              </label>
-              <span className="text-sm text-gray-500">Max 5MB per image (JPEG, PNG, GIF, WebP)</span>
-            </div>
+                    handlePhotoUpload(file);
+                  }
+                  e.target.value = '';
+                }}
+                disabled={uploadingPhoto}
+              />
+            </label>
           </div>
-
-          {/* Uploaded Photos Preview */}
           {uploadedPhotos.length > 0 && (
-            <div className="mb-4">
-              <label className="label">Property Photos</label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="mt-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {uploadedPhotos.map((photoUrl, index) => (
-                  <div key={index} className="relative group">
+                  <div key={index} className="relative group rounded-lg border border-gray-200 overflow-hidden">
                     <img
                       src={photoUrl}
                       alt={`Property photo ${index + 1}`}
-                      className="w-full h-32 object-cover rounded-lg border border-gray-200"
+                      className="w-full h-28 object-cover"
                       onError={(e) => {
                         e.target.src = 'https://via.placeholder.com/200x150?text=Image+Not+Found';
                       }}
@@ -465,7 +534,8 @@ const EditProperty = () => {
                     <button
                       type="button"
                       onClick={() => removePhoto(index)}
-                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                      aria-label="Remove photo"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -474,34 +544,24 @@ const EditProperty = () => {
               </div>
             </div>
           )}
-
-          {/* Manual Photo URLs */}
-          <div>
-            <label className="label">Or Enter Photo URLs (comma-separated)</label>
-            <input
-              type="text"
-              {...register('photos')}
-              className="input"
-              placeholder="https://example.com/photo1.jpg, https://example.com/photo2.jpg"
-            />
-            <p className="text-sm text-gray-500 mt-1">
-              Enter photo URLs separated by commas (optional if uploading files)
-            </p>
-          </div>
         </div>
 
         {/* Remarks */}
         <div>
-          <label className="label">Remarks</label>
+          <h2 className="ds-section-title flex items-center gap-2">
+            <FileText className="w-5 h-5 text-primary-600" />
+            Remarks
+          </h2>
           <textarea
             {...register('remarks')}
             className="input"
             rows="3"
+            placeholder="Any additional notes..."
           />
         </div>
 
         {/* Submit Buttons */}
-        <div className="flex justify-between pt-4 border-t">
+        <div className="flex flex-wrap justify-between items-center gap-4 pt-4 border-t border-gray-200">
           <button
             type="button"
             onClick={() => setShowDeleteModal(true)}

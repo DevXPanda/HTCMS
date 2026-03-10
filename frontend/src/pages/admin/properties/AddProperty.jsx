@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import api, { propertyAPI, wardAPI, uploadAPI } from '../../../services/api';
 import toast from 'react-hot-toast';
-import { Save, Upload, X, Image as ImageIcon, Camera, User } from 'lucide-react';
+import { Save, Upload, X, Image as ImageIcon, Camera, User, Building2, Home, MapPin, Maximize2, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 
@@ -14,6 +14,7 @@ const AddProperty = () => {
   const [wards, setWards] = useState([]);
   const [ulbs, setUlbs] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [loadingUlbs, setLoadingUlbs] = useState(false);
   const [uploadedPhotos, setUploadedPhotos] = useState([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [ownerPhotoUrl, setOwnerPhotoUrl] = useState('');
@@ -44,10 +45,17 @@ const AddProperty = () => {
 
   useEffect(() => {
     if (isSuperAdmin) {
-      api.get('/admin-management/ulbs').then((res) => {
-        const data = res?.data?.data;
-        setUlbs(Array.isArray(data) ? data : (data?.ulbs || []));
-      }).catch(() => toast.error('Failed to load ULBs'));
+      setLoadingUlbs(true);
+      api.get('/admin-management/ulbs')
+        .then((res) => {
+          const data = res?.data;
+          setUlbs(Array.isArray(data) ? data : (data?.data || data?.ulbs || []));
+        })
+        .catch(() => {
+          toast.error('Failed to load ULBs');
+          setUlbs([]);
+        })
+        .finally(() => setLoadingUlbs(false));
     }
   }, [isSuperAdmin]);
 
@@ -156,6 +164,12 @@ const AddProperty = () => {
     try {
       setLoading(true);
 
+      if (uploadedPhotos.length === 0) {
+        toast.error('At least one property photo is required');
+        setLoading(false);
+        return;
+      }
+
       // ulb_id is only for super-admin form filtering; do not send to create API
       delete data.ulb_id;
 
@@ -196,13 +210,7 @@ const AddProperty = () => {
         delete data.geolocation;
       }
 
-      // Combine uploaded photos with manual URLs
-      let photos = [...uploadedPhotos];
-      if (data.photos && typeof data.photos === 'string') {
-        const manualUrls = data.photos.split(',').map(url => url.trim()).filter(url => url);
-        photos = [...photos, ...manualUrls];
-      }
-      data.photos = photos.length > 0 ? photos : [];
+      data.photos = uploadedPhotos;
       if (ownerPhotoUrl) data.ownerPhotoUrl = ownerPhotoUrl;
 
       const response = await propertyAPI.create(data);
@@ -230,14 +238,20 @@ const AddProperty = () => {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="ds-page-title">Add New Property</h1>
+      <div className="ds-page-header">
+        <div>
+          <h1 className="ds-page-title">Add New Property</h1>
+          <p className="ds-page-subtitle">Enter property and owner details below.</p>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="card space-y-6">
         {/* Basic Information */}
         <div>
-          <h2 className="text-xl font-semibold mb-4">Basic Information</h2>
+          <h2 className="ds-section-title flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-primary-600" />
+            Basic Information
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Left: ULB (super admin only), Property Number, Ward, Owner Phone (first), Owner Name (auto-fill or manual) */}
             <div className="space-y-4">
@@ -247,17 +261,19 @@ const AddProperty = () => {
                   <select
                     {...register('ulb_id', { required: isSuperAdmin ? 'ULB is required' : false })}
                     className="input"
+                    disabled={loadingUlbs}
                   >
-                    <option value="">Select ULB</option>
-                    {ulbs.length === 0 ? (
-                      <option disabled>Loading ULBs...</option>
-                    ) : (
-                      ulbs.map(ulb => (
-                        <option key={ulb.id} value={ulb.id}>
-                          {ulb.name}
-                        </option>
-                      ))
+                    <option value="">
+                      {loadingUlbs ? 'Loading ULBs...' : 'Select ULB'}
+                    </option>
+                    {!loadingUlbs && ulbs.length === 0 && (
+                      <option disabled>No ULBs available</option>
                     )}
+                    {!loadingUlbs && ulbs.map(ulb => (
+                      <option key={ulb.id} value={ulb.id}>
+                        {ulb.name}
+                      </option>
+                    ))}
                   </select>
                   {errors.ulb_id && (
                     <p className="text-red-500 text-sm mt-1">{errors.ulb_id.message}</p>
@@ -329,12 +345,12 @@ const AddProperty = () => {
             </div>
 
             {/* Right: Owner passport-size photo / PDF upload */}
-            <div className="border border-gray-200 rounded-lg p-4 bg-gray-50/50">
-              <label className="label flex items-center gap-2">
-                <User className="w-4 h-4" />
+            <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+              <label className="label flex items-center gap-2 text-gray-700">
+                <User className="w-4 h-4 text-primary-600" />
                 Owner Photo / Document
               </label>
-              <p className="text-xs text-gray-500 mb-3">Passport-size image (JPG, PNG) or PDF</p>
+              <p className="text-xs text-gray-500 mb-3 mt-1">Passport-size image (JPG, PNG) or PDF, max 5MB</p>
               <div className="flex flex-col gap-2">
                 <div className="flex flex-wrap gap-2">
                   <label className="btn btn-secondary cursor-pointer text-sm inline-flex items-center">
@@ -401,8 +417,11 @@ const AddProperty = () => {
 
         {/* Property Details */}
         <div>
-          <h2 className="text-xl font-semibold mb-4">Property Details</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <h2 className="ds-section-title flex items-center gap-2">
+            <Home className="w-5 h-5 text-primary-600" />
+            Property Details
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <label className="label">Property Type <span className="text-red-500">*</span></label>
               <select
@@ -482,7 +501,10 @@ const AddProperty = () => {
 
         {/* Address */}
         <div>
-          <h2 className="text-xl font-semibold mb-4">Address</h2>
+          <h2 className="ds-section-title flex items-center gap-2">
+            <MapPin className="w-5 h-5 text-primary-600" />
+            Address
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <label className="label">Address <span className="text-red-500">*</span></label>
@@ -544,7 +566,10 @@ const AddProperty = () => {
 
         {/* Area Information */}
         <div>
-          <h2 className="text-xl font-semibold mb-4">Area Information</h2>
+          <h2 className="ds-section-title flex items-center gap-2">
+            <Maximize2 className="w-5 h-5 text-primary-600" />
+            Area Information
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="label">Total Area (sq. meters) <span className="text-red-500">*</span></label>
@@ -577,7 +602,10 @@ const AddProperty = () => {
 
         {/* Geolocation */}
         <div>
-          <h2 className="text-xl font-semibold mb-4">Geolocation (Optional)</h2>
+          <h2 className="ds-section-title flex items-center gap-2">
+            <MapPin className="w-5 h-5 text-primary-600" />
+            Geolocation (Optional)
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="label">Latitude</label>
@@ -603,53 +631,45 @@ const AddProperty = () => {
           </div>
         </div>
 
-        {/* Photos */}
+        {/* Property Photos - Mandatory */}
         <div>
-          <h2 className="text-xl font-semibold mb-4">Property Photos (Optional)</h2>
-
-          {/* Image Upload */}
-          <div className="mb-4">
-            <label className="label flex items-center">
-              <ImageIcon className="w-4 h-4 mr-2" />
-              Upload Photos from Local Storage
-            </label>
-            <div className="flex items-center gap-4">
-              <label className="btn btn-secondary cursor-pointer">
-                <Upload className="w-4 h-4 mr-2" />
-                {uploadingPhoto ? 'Uploading...' : 'Choose File'}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      if (file.size > 5 * 1024 * 1024) {
-                        toast.error('File size must be less than 5MB');
-                        return;
-                      }
-                      handlePhotoUpload(file);
+          <h2 className="ds-section-title flex items-center gap-2">
+            <ImageIcon className="w-5 h-5 text-primary-600" />
+            Property Photos <span className="text-red-500">*</span>
+          </h2>
+          <p className="text-sm text-gray-500 mb-3">At least one photo required. Max 5MB per image (JPEG, PNG, GIF, WebP).</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="btn btn-primary cursor-pointer inline-flex items-center">
+              <Upload className="w-4 h-4 mr-2" />
+              {uploadingPhoto ? 'Uploading...' : 'Choose File'}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    if (file.size > 5 * 1024 * 1024) {
+                      toast.error('File size must be less than 5MB');
+                      return;
                     }
-                    e.target.value = ''; // Reset input
-                  }}
-                  disabled={uploadingPhoto}
-                />
-              </label>
-              <span className="text-sm text-gray-500">Max 5MB per image (JPEG, PNG, GIF, WebP)</span>
-            </div>
+                    handlePhotoUpload(file);
+                  }
+                  e.target.value = '';
+                }}
+                disabled={uploadingPhoto}
+              />
+            </label>
           </div>
-
-          {/* Uploaded Photos Preview */}
           {uploadedPhotos.length > 0 && (
-            <div className="mb-4">
-              <label className="label">Uploaded Photos</label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="mt-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {uploadedPhotos.map((photoUrl, index) => (
-                  <div key={index} className="relative group">
+                  <div key={index} className="relative group rounded-lg border border-gray-200 overflow-hidden">
                     <img
                       src={photoUrl}
                       alt={`Property photo ${index + 1}`}
-                      className="w-full h-32 object-cover rounded-lg border border-gray-200"
+                      className="w-full h-28 object-cover"
                       onError={(e) => {
                         e.target.src = 'https://via.placeholder.com/200x150?text=Image+Not+Found';
                       }}
@@ -657,7 +677,8 @@ const AddProperty = () => {
                     <button
                       type="button"
                       onClick={() => removePhoto(index)}
-                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                      aria-label="Remove photo"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -666,25 +687,14 @@ const AddProperty = () => {
               </div>
             </div>
           )}
-
-          {/* Manual Photo URLs */}
-          <div>
-            <label className="label">Or Enter Photo URLs (comma-separated)</label>
-            <input
-              type="text"
-              {...register('photos')}
-              className="input"
-              placeholder="https://example.com/photo1.jpg, https://example.com/photo2.jpg"
-            />
-            <p className="text-sm text-gray-500 mt-1">
-              Enter photo URLs separated by commas (optional if uploading files)
-            </p>
-          </div>
         </div>
 
         {/* Remarks */}
         <div>
-          <label className="label">Remarks</label>
+          <h2 className="ds-section-title flex items-center gap-2">
+            <FileText className="w-5 h-5 text-primary-600" />
+            Remarks
+          </h2>
           <textarea
             {...register('remarks')}
             className="input"
@@ -694,7 +704,7 @@ const AddProperty = () => {
         </div>
 
         {/* Submit Buttons */}
-        <div className="flex justify-end space-x-4 pt-4 border-t">
+        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
           <Link to="/properties" className="btn btn-secondary">
             Cancel
           </Link>
