@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Users,
   UserCheck,
@@ -34,15 +34,21 @@ const SupervisorDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Debug: Log component mount
-  useEffect(() => {
-    console.log('SupervisorDashboard: Component mounted', { userId: user?.id });
-  }, []);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [showWorkProofModal, setShowWorkProofModal] = useState(null); // taskId
   const [selectedWorker, setSelectedWorker] = useState(null);
   const [markingAttendance, setMarkingAttendance] = useState(null);
   const [markingAll, setMarkingAll] = useState(false);
+
+  // Attendance proof modal: before + after photo with live location (all modules)
+  const [attendanceProofWorker, setAttendanceProofWorker] = useState(null);
+  const [attendanceProofLocation, setAttendanceProofLocation] = useState(null);
+  const [attendanceProofBefore, setAttendanceProofBefore] = useState(null); // { blob, previewUrl }
+  const [attendanceProofAfter, setAttendanceProofAfter] = useState(null);   // { blob, previewUrl }
+  const [attendanceProofStream, setAttendanceProofStream] = useState(null);
+  const [attendanceProofLoading, setAttendanceProofLoading] = useState(false);
+  const [attendanceProofSubmitting, setAttendanceProofSubmitting] = useState(false);
+  const attendanceProofVideoRef = useRef(null);
 
   const [taskForm, setTaskForm] = useState({
     worker_id: '',
@@ -86,17 +92,10 @@ const SupervisorDashboard = () => {
     try {
       setLoading(true);
       setError(null);
-      console.log('SupervisorDashboard: Fetching dashboard data...');
       const res = await fieldWorkerMonitoringAPI.getSupervisorDashboardForSelf();
-      console.log('SupervisorDashboard: API response:', res);
-      console.log('SupervisorDashboard: Data:', res?.data?.data);
       setData(res?.data?.data ?? null);
-      if (!res?.data?.data) {
-        console.warn('SupervisorDashboard: No data received from API');
-      }
     } catch (err) {
       console.error('SupervisorDashboard: Error fetching dashboard:', err);
-      console.error('SupervisorDashboard: Error response:', err.response);
       setError(err.response?.data?.message || err.message || 'Failed to load dashboard');
       setData(null);
     } finally {
@@ -162,14 +161,18 @@ const SupervisorDashboard = () => {
     }
   };
 
+  // Assigned modules: from dashboard response or staff user (backward compat: if empty, show all)
+  const assignedModules = (data?.supervisor?.assigned_modules ?? user?.assigned_modules ?? []);
+  const hasModule = (key) => assignedModules.length === 0 || assignedModules.includes(key);
+
   useEffect(() => {
     if (user?.id) {
       fetchDashboard();
       fetchTasks();
-      fetchMrfTasks();
-      fetchToiletComplaints();
+      const mods = user?.assigned_modules ?? [];
+      if (mods.length === 0 || mods.includes('mrf')) fetchMrfTasks();
+      if (mods.length === 0 || mods.includes('toilet')) fetchToiletComplaints();
     } else {
-      console.warn('SupervisorDashboard: No user ID found');
       setLoading(false);
     }
 
@@ -181,44 +184,153 @@ const SupervisorDashboard = () => {
     };
   }, [user?.id]);
 
-  const handleMarkAttendance = async (workerId, workerName) => {
-    if (markingAttendance === workerId) return;
+  // Attach attendance proof stream to video when stream is set
+  useEffect(() => {
+    if (attendanceProofStream && attendanceProofVideoRef.current) {
+      attendanceProofVideoRef.current.srcObject = attendanceProofStream;
+    }
+  }, [attendanceProofStream]);
 
+  const openAttendanceProofModal = (workerId, workerName) => {
+    if (attendanceProofStream) {
+      attendanceProofStream.getTracks().forEach((t) => t.stop());
+    }
+    if (attendanceProofBefore?.previewUrl) URL.revokeObjectURL(attendanceProofBefore.previewUrl);
+    if (attendanceProofAfter?.previewUrl) URL.revokeObjectURL(attendanceProofAfter.previewUrl);
+    setAttendanceProofWorker({ id: workerId, full_name: workerName });
+    setAttendanceProofLocation(null);
+    setAttendanceProofBefore(null);
+    setAttendanceProofAfter(null);
+    setAttendanceProofStream(null);
+  };
+
+  const closeAttendanceProofModal = () => {
+    if (attendanceProofStream) {
+      attendanceProofStream.getTracks().forEach((t) => t.stop());
+    }
+    if (attendanceProofBefore?.previewUrl) URL.revokeObjectURL(attendanceProofBefore.previewUrl);
+    if (attendanceProofAfter?.previewUrl) URL.revokeObjectURL(attendanceProofAfter.previewUrl);
+    setAttendanceProofWorker(null);
+    setAttendanceProofLocation(null);
+    setAttendanceProofBefore(null);
+    setAttendanceProofAfter(null);
+    setAttendanceProofStream(null);
+  };
+
+  const getAttendanceProofLocation = async () => {
+    setAttendanceProofLoading(true);
     try {
-      setMarkingAttendance(workerId);
+      const loc = await getCurrentLocation();
+      toast.loading('Getting address...', { id: 'att-geo' });
+      const address = await reverseGeocode(loc.latitude, loc.longitude);
+      toast.dismiss('att-geo');
+      setAttendanceProofLocation({ latitude: loc.latitude, longitude: loc.longitude, address: address || null });
+      toast.success('Live location captured');
+    } catch (err) {
+      console.error(err);
+      toast.error('Enable location access to add proof');
+    } finally {
+      setAttendanceProofLoading(false);
+    }
+  };
 
-      // Get current location if available
-      let location = {};
-      if (navigator.geolocation) {
-        try {
-          const position = await new Promise((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
-          });
-          location = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude
-          };
-        } catch (geoError) {
-          console.warn('Geolocation not available:', geoError);
+  const startAttendanceProofCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      setAttendanceProofStream(stream);
+    } catch (err) {
+      console.error(err);
+      toast.error('Camera access denied or unavailable');
+    }
+  };
+
+  const stopAttendanceProofCamera = () => {
+    if (attendanceProofStream) {
+      attendanceProofStream.getTracks().forEach((t) => t.stop());
+      setAttendanceProofStream(null);
+    }
+  };
+
+  const drawLocationOnAttendanceCanvas = (ctx, canvas, location, address) => {
+    const h = 56;
+    const y = canvas.height - h;
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillRect(0, y, canvas.width, h);
+    ctx.fillStyle = '#fff';
+    ctx.font = '12px sans-serif';
+    ctx.fillText(`Lat: ${Number(location.latitude).toFixed(6)}  Lng: ${Number(location.longitude).toFixed(6)}`, 8, y + 18);
+    ctx.fillText(address || 'Live location', 8, y + 34);
+    ctx.fillText(new Date().toLocaleString(), 8, y + 50);
+  };
+
+  const captureAttendanceProofPhoto = async (type) => {
+    if (!attendanceProofVideoRef.current || !attendanceProofStream) return;
+    setAttendanceProofLoading(true);
+    try {
+      let loc = attendanceProofLocation;
+      if (!loc) {
+        loc = await getCurrentLocation();
+        const address = await reverseGeocode(loc.latitude, loc.longitude);
+        loc = { ...loc, address: address || null };
+        setAttendanceProofLocation(loc);
+      }
+      const video = attendanceProofVideoRef.current;
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0);
+      drawLocationOnAttendanceCanvas(ctx, canvas, loc, loc.address);
+      const blob = await new Promise((res) => canvas.toBlob((b) => res(b), 'image/jpeg', 0.9));
+      if (blob) {
+        const previewUrl = URL.createObjectURL(blob);
+        if (type === 'before') {
+          setAttendanceProofBefore({ blob, previewUrl });
+          toast.success('Before photo with location captured');
+        } else {
+          setAttendanceProofAfter({ blob, previewUrl });
+          stopAttendanceProofCamera();
+          toast.success('After photo with location captured');
         }
       }
+    } catch (err) {
+      console.error(err);
+      toast.error('Capture failed. Enable location and camera.');
+    } finally {
+      setAttendanceProofLoading(false);
+    }
+  };
 
+  const submitAttendanceProof = async () => {
+    if (!attendanceProofWorker || !attendanceProofBefore || !attendanceProofAfter || !attendanceProofLocation) {
+      toast.error('Please capture both before and after photos with live location');
+      return;
+    }
+    setAttendanceProofSubmitting(true);
+    try {
       const formData = new FormData();
-      formData.append('worker_id', workerId);
+      formData.append('worker_id', attendanceProofWorker.id);
       formData.append('ward_id', user?.ward_id);
       formData.append('timestamp', new Date().toISOString());
-      if (location.latitude) formData.append('latitude', location.latitude);
-      if (location.longitude) formData.append('longitude', location.longitude);
-
+      formData.append('latitude', attendanceProofLocation.latitude);
+      formData.append('longitude', attendanceProofLocation.longitude);
+      formData.append('before_photo', attendanceProofBefore.blob, `before-${Date.now()}.jpg`);
+      formData.append('after_photo', attendanceProofAfter.blob, `after-${Date.now()}.jpg`);
       await attendanceAPI.markWorkerAttendance(formData);
-      toast.success(`${workerName} marked as present`);
+      toast.success(`${attendanceProofWorker.full_name} marked as present with before & after proof`);
+      closeAttendanceProofModal();
       await fetchDashboard();
     } catch (err) {
       console.error('Error marking attendance:', err);
       toast.error(err.response?.data?.message || 'Failed to mark attendance');
     } finally {
-      setMarkingAttendance(null);
+      setAttendanceProofSubmitting(false);
     }
+  };
+
+  const handleMarkAttendance = (workerId, workerName) => {
+    if (markingAttendance === workerId) return;
+    openAttendanceProofModal(workerId, workerName);
   };
 
   const handleMarkAllPresent = async () => {
@@ -502,11 +614,9 @@ const SupervisorDashboard = () => {
 
   // Always show loading state while loading
   if (loading) {
-    console.log('SupervisorDashboard: Rendering loading state');
     return (
-      <div className="flex justify-center items-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
-        <span className="ml-4 text-gray-600">Loading dashboard...</span>
+      <div className="flex items-center justify-center h-64">
+        <div className="spinner spinner-md" />
       </div>
     );
   }
@@ -514,15 +624,15 @@ const SupervisorDashboard = () => {
   // Show error state if there's an error and no data
   if (error && !data) {
     return (
-      <div className="p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-2 text-red-700">
-          <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-          {error}
+      <div className="space-y-4">
+        <div className="alert-error">
+          <AlertTriangle className="h-5 w-5 text-red-400 shrink-0" />
+          <div>
+            <h3 className="alert-error-title">Error</h3>
+            <div className="alert-error-text">{error}</div>
+          </div>
         </div>
-        <button
-          onClick={fetchDashboard}
-          className="mt-4 flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
+        <button type="button" onClick={fetchDashboard} className="btn btn-primary flex items-center gap-2">
           <RefreshCw className="w-4 h-4" />
           Retry
         </button>
@@ -532,25 +642,19 @@ const SupervisorDashboard = () => {
 
   // If no data and no error, show empty state
   if (!data) {
-    console.log('SupervisorDashboard: Rendering empty state (no data, no error)');
     return (
-      <div className="p-6">
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-center gap-2 text-yellow-700">
-          <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-          No data available. Please try refreshing.
+      <div className="space-y-4">
+        <div className="card-flat flex items-center gap-3 border-amber-200 bg-amber-50/50">
+          <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+          <p className="text-sm text-amber-800">No data available. Please try refreshing.</p>
         </div>
-        <button
-          onClick={fetchDashboard}
-          className="mt-4 flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
+        <button type="button" onClick={fetchDashboard} className="btn btn-primary flex items-center gap-2">
           <RefreshCw className="w-4 h-4" />
           Refresh
         </button>
       </div>
     );
   }
-
-  console.log('SupervisorDashboard: Rendering main dashboard', { data });
 
   const supervisor = data?.supervisor || {};
   const workers = data?.workers || [];
@@ -565,142 +669,112 @@ const SupervisorDashboard = () => {
   const mrfInProgress = Array.isArray(mrfTasks) ? mrfTasks.filter(t => t.status === 'In Progress') : [];
   const mrfCompleted = Array.isArray(mrfTasks) ? mrfTasks.filter(t => t.status === 'Completed') : [];
 
-  const canMarkAttendance = () => {
-    try {
-      const now = new Date();
-      const hour = now.getHours();
-      const minute = now.getMinutes();
-      const timeMinutes = hour * 60 + minute;
-      return timeMinutes >= 6 * 60 && timeMinutes <= 11 * 60;
-    } catch (e) {
-      console.error('Error checking attendance window:', e);
-      return false;
-    }
-  };
+  const ulbName = data?.supervisor?.ulb_name || null;
+  const moduleLabels = { toilet: 'Toilet Management', mrf: 'MRF', gaushala: 'Gau Shala' };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
+    <div className="space-y-8">
+      {/* Page Header - global layout */}
+      <div className="ds-page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Supervisor Dashboard</h1>
-          <p className="text-gray-600">
+          <h1 className="ds-page-title">Supervisor Dashboard</h1>
+          <p className="ds-page-subtitle">
             {supervisor.full_name || user?.full_name} ({supervisor.employee_id || user?.employee_id})
             {supervisor.ward_name && ` · ${supervisor.ward_name}`}
           </p>
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            {ulbName && (
+              <span className="badge badge-neutral">ULB: {ulbName}</span>
+            )}
+            {assignedModules.length > 0 && assignedModules.map((m) => (
+              <span key={m} className="badge badge-info">{moduleLabels[m] || m}</span>
+            ))}
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={fetchDashboard}
-          className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-        >
+        <button type="button" onClick={fetchDashboard} className="btn btn-primary">
           <RefreshCw className="w-4 h-4" />
           Refresh
         </button>
       </div>
 
-      {/* Summary Cards */}
+      {/* Summary Cards - design system stat-cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        <div className="bg-white rounded-lg shadow border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Workers</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{data?.total_workers || 0}</p>
-            </div>
-            <Users className="w-10 h-10 text-blue-500" />
+        <div className="stat-card">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-medium text-gray-500 uppercase">Total Workers</p>
+            <Users className="h-4 w-4 text-gray-400" />
           </div>
+          <p className="text-xl font-bold text-gray-900">{data?.total_workers || 0}</p>
         </div>
-
-        <div className="bg-white rounded-lg shadow border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Present Today</p>
-              <p className="text-2xl font-bold text-green-600 mt-1">{data?.present_today || 0}</p>
-            </div>
-            <UserCheck className="w-10 h-10 text-green-500" />
+        <div className="stat-card">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-medium text-gray-500 uppercase">Present Today</p>
+            <UserCheck className="h-4 w-4 text-green-500" />
           </div>
+          <p className="text-xl font-bold text-green-600">{data?.present_today || 0}</p>
         </div>
-
-        <div className="bg-white rounded-lg shadow border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Absent Today</p>
-              <p className="text-2xl font-bold text-red-600 mt-1">{data?.absent_today || 0}</p>
-            </div>
-            <UserX className="w-10 h-10 text-red-500" />
+        <div className="stat-card">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-medium text-gray-500 uppercase">Absent Today</p>
+            <UserX className="h-4 w-4 text-red-500" />
           </div>
+          <p className="text-xl font-bold text-red-600">{data?.absent_today || 0}</p>
         </div>
-
-        <div className="bg-white rounded-lg shadow border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Attendance %</p>
-              <p className={`text-2xl font-bold mt-1 ${attendancePct >= 80 ? 'text-green-600' : attendancePct >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
-                {attendancePct}%
-              </p>
-            </div>
-            <Calendar className="w-10 h-10 text-blue-500" />
+        <div className="stat-card">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-medium text-gray-500 uppercase">Attendance %</p>
+            <Calendar className="h-4 w-4 text-gray-400" />
           </div>
+          <p className={`text-xl font-bold ${attendancePct >= 80 ? 'text-green-600' : attendancePct >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+            {attendancePct}%
+          </p>
         </div>
-
-        <div className="bg-white rounded-lg shadow border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Tasks Completed</p>
-              <p className="text-2xl font-bold text-blue-600 mt-1">{tasksCompletedToday}</p>
-            </div>
-            <CheckCircle className="w-10 h-10 text-blue-500" />
+        <div className="stat-card">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-medium text-gray-500 uppercase">Tasks Completed</p>
+            <CheckCircle className="h-4 w-4 text-blue-500" />
           </div>
+          <p className="text-xl font-bold text-blue-600">{tasksCompletedToday}</p>
         </div>
-
-        <Link to="/supervisor/toilet-complaints" className="bg-white rounded-lg shadow border border-gray-200 p-4 hover:bg-gray-50 transition-colors">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Toilet Complaints</p>
-              <p className="text-2xl font-bold text-pink-600 mt-1">View All</p>
+        {hasModule('toilet') && (
+          <Link to="/supervisor/toilet-complaints" className="stat-card flex flex-col justify-between group">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-medium text-gray-500 uppercase">Toilet Complaints</p>
+              <ClipboardList className="h-4 w-4 text-pink-500" />
             </div>
-            <ClipboardList className="w-10 h-10 text-pink-500" />
+            <p className="text-xl font-bold text-pink-600 group-hover:text-pink-700">View All</p>
+          </Link>
+        )}
+        {hasModule('gaushala') && (
+          <div className="stat-card">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-medium text-gray-500 uppercase">Gau Shala</p>
+              <ClipboardList className="h-4 w-4 text-amber-500" />
+            </div>
+            <p className="text-xl font-bold text-amber-600">Module</p>
           </div>
-        </Link>
+        )}
       </div>
 
-      {/* Quick Actions */}
-      {canMarkAttendance() && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-blue-600" />
-            <span className="text-sm text-blue-700">Attendance window: 6:00 AM - 11:00 AM</span>
-          </div>
-          <button
-            onClick={handleMarkAllPresent}
-            disabled={markingAll || workers.length === 0}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {markingAll ? (
-              <>
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                Marking...
-              </>
-            ) : (
-              <>
-                <UserCheck className="w-4 h-4" />
-                Mark All Present
-              </>
-            )}
-          </button>
-        </div>
-      )}
-
-      {/* Administration & Reports - Notifications (role-filtered) */}
-      <section className="bg-white rounded-lg border border-gray-100 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+      {/* Administration & Reports - design system */}
+      <section>
+        <h2 className="ds-section-title flex items-center">
           <Shield className="w-5 h-5 mr-2 text-gray-500" />
           Administration & Reports
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           <Link
+            to="/supervisor/workers"
+            className="card-hover flex flex-col items-center justify-center p-5 group"
+          >
+            <div className="p-3 rounded-full bg-blue-600 text-white mb-3 shadow-sm group-hover:scale-110 transition-transform">
+              <Users className="h-6 w-6" />
+            </div>
+            <span className="text-sm font-medium text-gray-700 group-hover:text-primary-700 text-center">Worker Management</span>
+          </Link>
+          <Link
             to="/supervisor/notifications"
-            className="flex flex-col items-center justify-center p-5 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-primary-100 transition-all group"
+            className="card-hover flex flex-col items-center justify-center p-5 group"
           >
             <div className="p-3 rounded-full bg-indigo-600 text-white mb-3 shadow-sm group-hover:scale-110 transition-transform">
               <Bell className="h-6 w-6" />
@@ -710,12 +784,12 @@ const SupervisorDashboard = () => {
         </div>
       </section>
 
-      {/* Alerts Section */}
+      {/* Alerts Section - design system */}
       {(alerts.workers_not_marked_by_9am?.length > 0 || alerts.repeat_absentees?.length > 0 || alerts.geo_violations?.length > 0) && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <div className="card-flat border-amber-200 bg-amber-50/50">
           <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle className="w-5 h-5 text-yellow-600" />
-            <h3 className="font-semibold text-yellow-900">Alerts</h3>
+            <AlertTriangle className="w-5 h-5 text-amber-600" />
+            <h3 className="ds-section-title mb-0">Alerts</h3>
           </div>
           <div className="space-y-2">
             {alerts.workers_not_marked_by_9am?.length > 0 && (
@@ -752,53 +826,78 @@ const SupervisorDashboard = () => {
         </div>
       )}
 
-      {/* Attendance Management Section */}
-      <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Attendance Management</h2>
-          {canMarkAttendance() && (
-            <button
-              onClick={handleMarkAllPresent}
-              disabled={markingAll}
-              className="text-sm px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            >
-              {markingAll ? 'Marking...' : 'Mark All Present'}
-            </button>
-          )}
+      {/* Attendance Management Section - design system card + table */}
+      <section>
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <h2 className="ds-section-title mb-0">Attendance Management</h2>
+          <button
+            type="button"
+            onClick={handleMarkAllPresent}
+            disabled={markingAll || workers.filter(w => !w.checkin_time).length === 0}
+            className="btn btn-primary text-sm disabled:opacity-50"
+          >
+            {markingAll ? 'Marking...' : 'Mark All Present'}
+          </button>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Worker Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Check-in Time</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Geo Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Photo</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+                <th>Worker Name</th>
+                <th>Status</th>
+                <th>Check-in Time</th>
+                <th>Geo Status</th>
+                <th>Photo</th>
+                <th>Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody>
               {workers.map((worker) => (
                 <tr key={worker.id}>
-                  <td className="px-6 py-4">
+                  <td>
                     <div>
                       <p className="font-medium text-gray-900">{worker.full_name}</p>
                       {worker.mobile && <p className="text-sm text-gray-500">{worker.mobile}</p>}
                     </div>
                   </td>
-                  <td className="px-6 py-4">{getStatusBadge(worker.status)}</td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
+                  <td>{getStatusBadge(worker.status)}</td>
+                  <td className="text-sm text-gray-900">
                     {worker.checkin_time ? new Date(worker.checkin_time).toLocaleTimeString() : '-'}
                   </td>
-                  <td className="px-6 py-4">{getGeoStatusBadge(worker.geo_status)}</td>
-                  <td className="px-6 py-4">
-                    {worker.photo_url ? (
+                  <td>{getGeoStatusBadge(worker.geo_status)}</td>
+                  <td>
+                    {worker.before_photo_url || worker.after_photo_url ? (
+                      <span className="inline-flex items-center gap-2 flex-wrap">
+                        {worker.before_photo_url && (
+                          <a
+                            href={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${worker.before_photo_url}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-800 text-sm"
+                          >
+                            <Camera className="w-3 h-3" />
+                            Before
+                          </a>
+                        )}
+                        {worker.before_photo_url && worker.after_photo_url && <span className="text-gray-400">|</span>}
+                        {worker.after_photo_url && (
+                          <a
+                            href={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${worker.after_photo_url}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-800 text-sm"
+                          >
+                            <Camera className="w-3 h-3" />
+                            After
+                          </a>
+                        )}
+                      </span>
+                    ) : worker.photo_url ? (
                       <a
                         href={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${worker.photo_url}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800"
+                        className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-800"
                       >
                         <Camera className="w-4 h-4" />
                         View
@@ -807,14 +906,14 @@ const SupervisorDashboard = () => {
                       '-'
                     )}
                   </td>
-                  <td className="px-6 py-4">
-                    {worker.status === 'NOT_MARKED' && canMarkAttendance() && (
+                  <td>
+                    {!worker.checkin_time && (
                       <button
+                        type="button"
                         onClick={() => handleMarkAttendance(worker.id, worker.full_name)}
-                        disabled={markingAttendance === worker.id}
-                        className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 disabled:opacity-50"
+                        className="btn btn-primary text-sm py-1.5 px-3"
                       >
-                        {markingAttendance === worker.id ? 'Marking...' : 'Mark Present'}
+                        Mark Present & Add Proof
                       </button>
                     )}
                   </td>
@@ -823,32 +922,30 @@ const SupervisorDashboard = () => {
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
 
-      {/* Task Management - MRF tasks (assign & update from dashboard) */}
-      <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Task Management</h2>
-          <Link
-            to="/supervisor/mrf"
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
+      {/* Task Management - MRF tasks - only when MRF module assigned */}
+      {hasModule('mrf') && (
+      <section>
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <h2 className="ds-section-title mb-0">Task Management (MRF)</h2>
+          <Link to="/supervisor/mrf" className="btn btn-primary flex items-center gap-2">
             <Plus className="w-4 h-4" />
             Assign Task
           </Link>
         </div>
-        <div className="p-6">
+        <div className="card p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="border border-gray-200 rounded-lg p-4">
-              <h3 className="font-medium text-gray-900 mb-2">Assigned</h3>
+            <div className="stat-card">
+              <p className="text-xs font-medium text-gray-500 uppercase mb-2">Assigned</p>
               <p className="text-2xl font-bold text-blue-600">{mrfAssigned.length}</p>
             </div>
-            <div className="border border-gray-200 rounded-lg p-4">
-              <h3 className="font-medium text-gray-900 mb-2">In Progress</h3>
+            <div className="stat-card">
+              <p className="text-xs font-medium text-gray-500 uppercase mb-2">In Progress</p>
               <p className="text-2xl font-bold text-yellow-600">{mrfInProgress.length}</p>
             </div>
-            <div className="border border-gray-200 rounded-lg p-4">
-              <h3 className="font-medium text-gray-900 mb-2">Completed</h3>
+            <div className="stat-card">
+              <p className="text-xs font-medium text-gray-500 uppercase mb-2">Completed</p>
               <p className="text-2xl font-bold text-green-600">{mrfCompleted.length}</p>
             </div>
           </div>
@@ -860,7 +957,7 @@ const SupervisorDashboard = () => {
           ) : mrfTasks.length > 0 ? (
             <div className="space-y-2">
               {mrfTasks.map((task) => (
-                <div key={task.id} className="border border-gray-200 rounded-lg p-4 flex items-center justify-between">
+                <div key={task.id} className="card-flat flex items-center justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span className="font-medium text-gray-900">{task.worker?.full_name || 'Unknown'}</span>
@@ -898,7 +995,8 @@ const SupervisorDashboard = () => {
             <p className="text-center text-gray-500 py-8">No MRF tasks. Use &quot;Assign Task&quot; to open MRF Task Board.</p>
           )}
         </div>
-      </div>
+      </section>
+      )}
 
       {/* MRF task status update modal (before/after photo + location on image) */}
       {mrfStatusModal && (
@@ -916,18 +1014,133 @@ const SupervisorDashboard = () => {
         </div>
       )}
 
-      {/* Toilet Complaints Panel */}
-      <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden mt-6">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Toilet Complaints (Assigned to Me)</h2>
-          <Link
-            to="/supervisor/toilet-complaints"
-            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-          >
+      {/* Attendance proof modal: before + after photo with live location (all modules) */}
+      {attendanceProofWorker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 my-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Add proof · {attendanceProofWorker.full_name}</h3>
+              <button type="button" onClick={closeAttendanceProofModal} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">Capture <strong>before</strong> and <strong>after</strong> photos with live location as proof for attendance (required for all modules).</p>
+
+            {!attendanceProofLocation && (
+              <div className="mb-4">
+                <button
+                  type="button"
+                  onClick={getAttendanceProofLocation}
+                  disabled={attendanceProofLoading}
+                  className="btn btn-primary w-full flex items-center justify-center gap-2"
+                >
+                  <MapPin className="w-4 h-4" />
+                  {attendanceProofLoading ? 'Getting location...' : 'Get live location'}
+                </button>
+              </div>
+            )}
+            {attendanceProofLocation && (
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg text-sm text-gray-700">
+                <span className="font-medium">Location: </span>
+                {attendanceProofLocation.latitude.toFixed(6)}, {attendanceProofLocation.longitude.toFixed(6)}
+                {attendanceProofLocation.address && <p className="mt-1 text-gray-600 truncate" title={attendanceProofLocation.address}>{attendanceProofLocation.address}</p>}
+              </div>
+            )}
+
+            {(!attendanceProofBefore || !attendanceProofAfter) && (
+              <>
+                {!attendanceProofStream && (
+                  <button
+                    type="button"
+                    onClick={startAttendanceProofCamera}
+                    disabled={!attendanceProofLocation}
+                    className="btn btn-secondary w-full flex items-center justify-center gap-2 mb-4"
+                  >
+                    <Camera className="w-4 h-4" />
+                    Open camera
+                  </button>
+                )}
+                {attendanceProofStream && (
+                  <div className="mb-4">
+                    <video
+                      ref={attendanceProofVideoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full rounded-lg border border-gray-200 bg-black max-h-64 object-contain"
+                    />
+                    <div className="flex gap-2 mt-2 flex-wrap">
+                      {!attendanceProofBefore && (
+                        <button
+                          type="button"
+                          onClick={() => captureAttendanceProofPhoto('before')}
+                          disabled={attendanceProofLoading}
+                          className="btn btn-primary flex-1 min-w-[140px] flex items-center justify-center gap-2"
+                        >
+                          <Camera className="w-4 h-4" />
+                          {attendanceProofLoading ? 'Capturing...' : 'Capture before'}
+                        </button>
+                      )}
+                      {attendanceProofBefore && !attendanceProofAfter && (
+                        <button
+                          type="button"
+                          onClick={() => captureAttendanceProofPhoto('after')}
+                          disabled={attendanceProofLoading}
+                          className="btn btn-primary flex-1 min-w-[140px] flex items-center justify-center gap-2"
+                        >
+                          <Camera className="w-4 h-4" />
+                          {attendanceProofLoading ? 'Capturing...' : 'Capture after'}
+                        </button>
+                      )}
+                      <button type="button" onClick={stopAttendanceProofCamera} className="btn btn-secondary">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {attendanceProofBefore && attendanceProofAfter && (
+              <div className="mb-4">
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 mb-1">Before</p>
+                    <img src={attendanceProofBefore.previewUrl} alt="Before" className="w-full rounded-lg border border-gray-200 max-h-40 object-contain bg-gray-100" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 mb-1">After</p>
+                    <img src={attendanceProofAfter.previewUrl} alt="After" className="w-full rounded-lg border border-gray-200 max-h-40 object-contain bg-gray-100" />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={submitAttendanceProof}
+                  disabled={attendanceProofSubmitting}
+                  className="btn btn-primary w-full flex items-center justify-center gap-2"
+                >
+                  {attendanceProofSubmitting ? 'Submitting...' : 'Submit attendance with proof'}
+                </button>
+              </div>
+            )}
+
+            <button type="button" onClick={closeAttendanceProofModal} className="w-full mt-2 text-sm text-gray-500 hover:text-gray-700">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Toilet Complaints Panel - only when Toilet module assigned */}
+      {hasModule('toilet') && (
+      <section>
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <h2 className="ds-section-title mb-0">Toilet Complaints (Assigned to Me)</h2>
+          <Link to="/supervisor/toilet-complaints" className="text-sm font-medium text-primary-600 hover:text-primary-800">
             Manage All
           </Link>
         </div>
-        <div className="p-6">
+        <div className="card p-6">
           {complaintsLoading ? (
             <div className="flex justify-center py-8">
               <RefreshCw className="w-6 h-6 animate-spin text-blue-600" />
@@ -975,7 +1188,8 @@ const SupervisorDashboard = () => {
             </div>
           )}
         </div>
-      </div>
+      </section>
+      )}
 
       {/* Task Assignment Modal */}
       {showTaskModal && (

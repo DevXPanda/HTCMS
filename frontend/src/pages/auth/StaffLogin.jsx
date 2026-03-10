@@ -165,7 +165,7 @@ const StaffLogin = () => {
           <div className="mt-6 text-center">
             <div className="flex items-center justify-center gap-2 text-sm text-gray-600 mb-3">
               <Users className="w-4 h-4" />
-              <span>Staff Roles: Clerk, Inspector, Officer, Collector, EO</span>
+              <span>Staff Roles: EO, Supervisor, Collector, Field Worker</span>
             </div>
           </div>
 

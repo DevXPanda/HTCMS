@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { RefreshCw, LayoutDashboard, AlertTriangle } from 'lucide-react';
 import { fieldWorkerMonitoringAPI } from '../../services/api';
+import { useSelectedUlb } from '../../contexts/SelectedUlbContext';
 
 const FieldWorkerMonitoring = () => {
+  const { effectiveUlbId } = useSelectedUlb();
   const [eos, setEos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -12,7 +14,8 @@ const FieldWorkerMonitoring = () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await fieldWorkerMonitoringAPI.getEoList();
+      const params = effectiveUlbId ? { ulb_id: effectiveUlbId } : {};
+      const res = await fieldWorkerMonitoringAPI.getEoList(params);
       // Check if response is successful and has data array
       if (res?.data?.success && Array.isArray(res.data.data)) {
         setEos(res.data.data);
@@ -38,20 +41,16 @@ const FieldWorkerMonitoring = () => {
 
   useEffect(() => {
     fetchEos();
-  }, []);
+  }, [effectiveUlbId]);
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+    <div className="space-y-8">
+      <div className="ds-page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Field Worker Monitoring</h1>
-          <p className="text-gray-600">Monitor EOs and field worker attendance</p>
+          <h1 className="ds-page-title">Field Worker Monitoring</h1>
+          <p className="ds-page-subtitle">Monitor EOs and field worker attendance</p>
         </div>
-        <button
-          type="button"
-          onClick={fetchEos}
-          className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-        >
+        <button type="button" onClick={fetchEos} className="btn btn-primary flex items-center gap-2">
           <RefreshCw className="w-4 h-4" />
           Refresh
         </button>
@@ -64,21 +63,20 @@ const FieldWorkerMonitoring = () => {
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
+      <div className="table-wrap">
+        <table className="table">
+          <thead>
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">EO Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ULB</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned Wards</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Workers</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Present Today %</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Geo Violations</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                <th>EO Name</th>
+                <th>ULB</th>
+                <th>Assigned Wards</th>
+                <th>Total Workers</th>
+                <th>Present Today %</th>
+                <th>Geo Violations</th>
+                <th>Action</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody>
               {loading ? (
                 <tr>
                   <td colSpan="7" className="px-6 py-8 text-center">
@@ -95,28 +93,26 @@ const FieldWorkerMonitoring = () => {
                 </tr>
               ) : (
                 eos.map((eo) => (
-                  <tr key={eo.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                  <tr key={eo.id}>
+                    <td>
                       <div>
                         <div className="text-sm font-medium text-gray-900">{eo.eo_name}</div>
                         <div className="text-xs text-gray-500">{eo.employee_id}</div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{eo.ulb}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      {Array.isArray(eo.assigned_wards) && eo.assigned_wards.length > 0 ? eo.assigned_wards.join(', ') : '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{eo.total_workers}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td>{eo.ulb_name ?? eo.ulb ?? '-'}</td>
+                    <td>{Array.isArray(eo.assigned_wards) && eo.assigned_wards.length > 0 ? eo.assigned_wards.join(', ') : '-'}</td>
+                    <td>{eo.total_workers}</td>
+                    <td>
                       <span className={`text-sm font-medium ${eo.present_today_pct >= 80 ? 'text-green-600' : eo.present_today_pct >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
                         {eo.present_today_pct}%
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{eo.geo_violations ?? 0}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td>{eo.geo_violations ?? 0}</td>
+                    <td>
                       <Link
                         to={`/field-worker-monitoring/eos/${eo.id}/dashboard`}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+                        className="btn btn-primary text-sm py-1.5 px-3 inline-flex items-center gap-1"
                       >
                         <LayoutDashboard className="w-4 h-4" />
                         View Dashboard
@@ -127,7 +123,6 @@ const FieldWorkerMonitoring = () => {
               )}
             </tbody>
           </table>
-        </div>
       </div>
     </div>
   );

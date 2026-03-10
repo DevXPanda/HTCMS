@@ -43,6 +43,11 @@ const SupervisorLayout = () => {
                   <div className="flex flex-col">
                     <span className="text-xs font-semibold text-gray-900">{userData?.full_name || userData?.firstName || 'Supervisor'}</span>
                     <span className="text-xs text-gray-500">ID: {userData?.employee_id || userData?.id || 'N/A'}</span>
+                    {(userData?.assigned_modules?.length > 0) && (
+                      <span className="text-[10px] text-gray-500 mt-0.5">
+                        {userData.assigned_modules.map(m => ({ toilet: 'Toilet', mrf: 'MRF', gaushala: 'Gau Shala' }[m] || m)).join(', ')}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <button

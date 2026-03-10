@@ -5,6 +5,19 @@ import { workerAPI, wardAPI } from '../../services/api';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 
+const WORKER_TYPE_OPTIONS = [
+  { value: 'ULB', label: 'ULB' },
+  { value: 'CONTRACTUAL', label: 'Contractual' },
+  { value: 'SWEEPING', label: 'Sweeping' },
+  { value: 'TOILET', label: 'Toilet' },
+  { value: 'MRF', label: 'MRF' },
+  { value: 'CLEANING', label: 'Cleaning' },
+  { value: 'DRAINAGE', label: 'Drainage' },
+  { value: 'SOLID_WASTE', label: 'Solid Waste' },
+  { value: 'ROAD_MAINTENANCE', label: 'Road Maintenance' },
+  { value: 'OTHER', label: 'Other' }
+];
+
 const WorkerManagement = () => {
   const { user } = useStaffAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -746,8 +759,9 @@ const WorkerManagement = () => {
                       errors.worker_type ? 'border-red-500' : 'border-gray-300'
                     }`}
                   >
-                    <option value="ULB">ULB</option>
-                    <option value="CONTRACTUAL">CONTRACTUAL</option>
+                    {WORKER_TYPE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
                   </select>
                   {errors.worker_type && (
                     <p className="mt-1 text-sm text-red-600">{errors.worker_type}</p>

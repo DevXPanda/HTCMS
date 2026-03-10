@@ -5,6 +5,33 @@ import toast from 'react-hot-toast';
 import { useConfirm } from '../../components/ConfirmModal';
 import { useSelectedUlb } from '../../contexts/SelectedUlbContext';
 
+// Active roles for new staff. Deprecated roles (kept for future use): Clerk, Inspector, Officer, Contractor.
+const ACTIVE_ROLES = [
+  { value: 'EO', label: 'EO' },
+  { value: 'SUPERVISOR', label: 'Supervisor' },
+  { value: 'COLLECTOR', label: 'Collector' },
+  { value: 'FIELD_WORKER', label: 'Field Worker' }
+];
+const DEPRECATED_ROLE_VALUES = ['CLERK', 'INSPECTOR', 'OFFICER', 'CONTRACTOR'];
+// Supervisor assigned modules (stored as values: toilet, mrf, gaushala)
+const SUPERVISOR_MODULES = [
+  { value: 'toilet', label: 'Toilet Management' },
+  { value: 'mrf', label: 'MRF' },
+  { value: 'gaushala', label: 'Gau Shala' }
+];
+const WORKER_TYPE_OPTIONS = [
+  { value: 'ULB', label: 'ULB' },
+  { value: 'CONTRACTUAL', label: 'Contractual' },
+  { value: 'SWEEPING', label: 'Sweeping' },
+  { value: 'TOILET', label: 'Toilet' },
+  { value: 'MRF', label: 'MRF' },
+  { value: 'CLEANING', label: 'Cleaning' },
+  { value: 'DRAINAGE', label: 'Drainage' },
+  { value: 'SOLID_WASTE', label: 'Solid Waste' },
+  { value: 'ROAD_MAINTENANCE', label: 'Road Maintenance' },
+  { value: 'OTHER', label: 'Other' }
+];
+
 const AdminManagement = () => {
   const { confirm } = useConfirm();
   const { effectiveUlbId, isSuperAdmin, selectedUlbId, setSelectedUlbId } = useSelectedUlb();
@@ -43,7 +70,8 @@ const AdminManagement = () => {
     contractor_id: '',
     worker_type: '',
     company_name: '',
-    contact_details: ''
+    contact_details: '',
+    assigned_modules: []
   });
 
   // Role-based dropdown options (EO, Supervisor, Contractor lists)
@@ -269,6 +297,9 @@ const AdminManagement = () => {
       if (formData.contact_details) {
         payload.contact_details = formData.contact_details;
       }
+      if (normalizedRole === 'SUPERVISOR' && formData.assigned_modules && Array.isArray(formData.assigned_modules)) {
+        payload.assigned_modules = formData.assigned_modules;
+      }
 
       console.log('📤 Sending payload:', payload);
       console.log('📤 Payload ward_ids:', payload.ward_ids, 'Type:', typeof payload.ward_ids, 'IsArray:', Array.isArray(payload.ward_ids));
@@ -298,7 +329,8 @@ const AdminManagement = () => {
         contractor_id: '',
         worker_type: '',
         company_name: '',
-        contact_details: ''
+        contact_details: '',
+        assigned_modules: []
       });
 
       // Notify Wards page about ward assignment change
@@ -370,6 +402,9 @@ const AdminManagement = () => {
       }
       if (formData.contact_details) {
         payload.contact_details = formData.contact_details;
+      }
+      if (normalizedRole === 'SUPERVISOR' && formData.assigned_modules !== undefined) {
+        payload.assigned_modules = Array.isArray(formData.assigned_modules) ? formData.assigned_modules : [];
       }
 
       console.log('📤 Sending payload:', payload);
@@ -464,7 +499,8 @@ const AdminManagement = () => {
       contractor_id: employee.contractor_id || '',
       worker_type: employee.worker_type || '',
       company_name: employee.company_name || '',
-      contact_details: employee.contact_details || ''
+      contact_details: employee.contact_details || '',
+      assigned_modules: Array.isArray(employee.assigned_modules) ? employee.assigned_modules : []
     };
     setFormData(formDataUpdate);
 
@@ -556,7 +592,9 @@ const AdminManagement = () => {
       fetchStatistics();
     } catch (error) {
       console.error('Error bulk deleting employees:', error);
-      toast.error(error.response?.data?.message || 'Error deleting employees');
+      const msg = error.response?.data?.message || 'Error deleting employees';
+      const hint = error.response?.data?.hint;
+      toast.error(hint ? `${msg} ${hint}` : msg);
     }
   };
 
@@ -688,14 +726,14 @@ const AdminManagement = () => {
             className="input w-auto min-w-[140px]"
           >
             <option value="">All Roles</option>
-            <option value="CLERK">Clerk</option>
+            {/* <option value="CLERK">Clerk</option>
             <option value="INSPECTOR">Inspector</option>
-            <option value="OFFICER">Officer</option>
+            <option value="OFFICER">Officer</option> */}
             <option value="COLLECTOR">Collector</option>
             <option value="EO">EO</option>
             <option value="SUPERVISOR">Supervisor</option>
             <option value="FIELD_WORKER">Field Worker</option>
-            <option value="CONTRACTOR">Contractor</option>
+            {/* <option value="CONTRACTOR">Contractor</option> */}
           </select>
           <select
             value={filterStatus}
@@ -908,20 +946,16 @@ const AdminManagement = () => {
                         ulb_id: '',
                         worker_type: '',
                         company_name: '',
-                        contact_details: ''
+                        contact_details: '',
+                        assigned_modules: []
                       });
                     }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="">Select Role</option>
-                    <option value="CLERK">Clerk</option>
-                    <option value="INSPECTOR">Inspector</option>
-                    <option value="OFFICER">Officer</option>
-                    <option value="COLLECTOR">Collector</option>
-                    <option value="EO">EO</option>
-                    <option value="SUPERVISOR">Supervisor</option>
-                    <option value="FIELD_WORKER">Field Worker</option>
-                    <option value="CONTRACTOR">Contractor</option>
+                    {ACTIVE_ROLES.map(({ value, label }) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
                   </select>
                 </div>
                 {/* ULB - shown below Role when role is selected (mandatory except ADMIN) */}
@@ -1022,7 +1056,7 @@ const AdminManagement = () => {
                   </div>
                 )}
 
-                {/* SUPERVISOR: Ward + EO (ULB auto-selected from ward) */}
+                {/* SUPERVISOR: Ward + Department Assigned (ULB auto-selected from ward) */}
                 {formData.role && formData.role.toUpperCase() === 'SUPERVISOR' && (
                   <>
                     <div>
@@ -1030,22 +1064,15 @@ const AdminManagement = () => {
                       <select
                         required
                         value={formData.ward_id}
-                        onChange={async (e) => {
+                        onChange={(e) => {
                           const wardId = e.target.value ? parseInt(e.target.value) : '';
                           const selectedWard = allWards.find(w => w.id === wardId);
                           const wardUlbId = selectedWard?.ulb_id;
-
                           setFormData({
                             ...formData,
                             ward_id: wardId,
-                            ulb_id: wardUlbId || formData.ulb_id,
-                            eo_id: '' // Reset EO when ward changes
+                            ulb_id: wardUlbId || formData.ulb_id
                           });
-
-                          // Reload EOs filtered by ULB
-                          if (wardUlbId) {
-                            await fetchEos(wardUlbId);
-                          }
                         }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       >
@@ -1062,20 +1089,17 @@ const AdminManagement = () => {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">EO <span className="text-red-500">*</span></label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Department Assigned</label>
                       <select
-                        required
-                        value={formData.eo_id}
-                        onChange={(e) => setFormData({ ...formData, eo_id: e.target.value ? parseInt(e.target.value) : '' })}
+                        value={(formData.assigned_modules && formData.assigned_modules[0]) || ''}
+                        onChange={(e) => setFormData({ ...formData, assigned_modules: e.target.value ? [e.target.value] : [] })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        disabled={!formData.ulb_id}
                       >
-                        <option value="">Select EO</option>
-                        {eosList.filter(eo => !formData.ulb_id || eo.ulb_id === formData.ulb_id).map(eo => (
-                          <option key={eo.id} value={eo.id}>{eo.employee_id} - {eo.full_name}</option>
+                        <option value="">Select Department</option>
+                        {SUPERVISOR_MODULES.map(({ value, label }) => (
+                          <option key={value} value={value}>{label}</option>
                         ))}
                       </select>
-                      {!formData.ulb_id && <p className="text-xs text-red-500 mt-1">Please select ward first</p>}
                     </div>
                   </>
                 )}
@@ -1092,8 +1116,9 @@ const AdminManagement = () => {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       >
                         <option value="">Select Type</option>
-                        <option value="ULB">ULB</option>
-                        <option value="CONTRACTUAL">CONTRACTUAL</option>
+                        {WORKER_TYPE_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
                       </select>
                     </div>
                     <div>
@@ -1310,20 +1335,26 @@ const AdminManagement = () => {
                         ward_id: '',
                         eo_id: '',
                         supervisor_id: '',
-                        ulb_id: (newRole && (newRole.toUpperCase() === 'SUPERVISOR' || newRole.toUpperCase() === 'FIELD_WORKER')) ? formData.ulb_id : ''
+                        ulb_id: (newRole && (newRole.toUpperCase() === 'SUPERVISOR' || newRole.toUpperCase() === 'FIELD_WORKER')) ? formData.ulb_id : '',
+                        assigned_modules: newRole && newRole.toUpperCase() === 'SUPERVISOR' ? (formData.assigned_modules || []) : []
                       });
                     }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="">Select Role</option>
-                    <option value="CLERK">Clerk</option>
-                    <option value="INSPECTOR">Inspector</option>
-                    <option value="OFFICER">Officer</option>
-                    <option value="COLLECTOR">Collector</option>
-                    <option value="EO">EO</option>
-                    <option value="SUPERVISOR">Supervisor</option>
-                    <option value="FIELD_WORKER">Field Worker</option>
-                    <option value="CONTRACTOR">Contractor</option>
+                    {(() => {
+                      const normalizedCurrent = (selectedEmployee?.role || '').toUpperCase().replace(/-/g, '_');
+                      const options = [...ACTIVE_ROLES];
+                      if (selectedEmployee && DEPRECATED_ROLE_VALUES.includes(normalizedCurrent)) {
+                        const label = (selectedEmployee.role || '').replace(/_/g, ' ');
+                        if (!options.some(o => o.value === normalizedCurrent)) {
+                          options.push({ value: normalizedCurrent, label });
+                        }
+                      }
+                      return options.map(({ value, label }) => (
+                        <option key={value} value={value}>{label}</option>
+                      ));
+                    })()}
                   </select>
                 </div>
                 {/* ULB - shown below Role when role is selected (mandatory except ADMIN) */}
@@ -1425,21 +1456,15 @@ const AdminManagement = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">Ward</label>
                       <select
                         value={formData.ward_id}
-                        onChange={async (e) => {
+                        onChange={(e) => {
                           const wardId = e.target.value ? parseInt(e.target.value) : '';
                           const selectedWard = allWards.find(w => w.id === wardId);
                           const wardUlbId = selectedWard?.ulb_id;
-
                           setFormData({
                             ...formData,
                             ward_id: wardId,
-                            ulb_id: wardUlbId || formData.ulb_id,
-                            eo_id: ''
+                            ulb_id: wardUlbId || formData.ulb_id
                           });
-
-                          if (wardUlbId) {
-                            await fetchEos(wardUlbId);
-                          }
                         }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       >
@@ -1450,19 +1475,17 @@ const AdminManagement = () => {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">EO</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Department Assigned</label>
                       <select
-                        value={formData.eo_id}
-                        onChange={(e) => setFormData({ ...formData, eo_id: e.target.value ? parseInt(e.target.value) : '' })}
+                        value={(formData.assigned_modules && formData.assigned_modules[0]) || ''}
+                        onChange={(e) => setFormData({ ...formData, assigned_modules: e.target.value ? [e.target.value] : [] })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        disabled={!formData.ulb_id}
                       >
-                        <option value="">Select EO</option>
-                        {eosList.filter(eo => !formData.ulb_id || eo.ulb_id === formData.ulb_id).map(eo => (
-                          <option key={eo.id} value={eo.id}>{eo.employee_id} - {eo.full_name}</option>
+                        <option value="">Select Department</option>
+                        {SUPERVISOR_MODULES.map(({ value, label }) => (
+                          <option key={value} value={value}>{label}</option>
                         ))}
                       </select>
-                      {!formData.ulb_id && <p className="text-xs text-red-500 mt-1">Please select ward first</p>}
                     </div>
                   </>
                 )}
@@ -1476,8 +1499,9 @@ const AdminManagement = () => {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       >
                         <option value="">Select Type</option>
-                        <option value="ULB">ULB</option>
-                        <option value="CONTRACTUAL">CONTRACTUAL</option>
+                        {WORKER_TYPE_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
                       </select>
                     </div>
                     <div>
@@ -1687,6 +1711,14 @@ const AdminManagement = () => {
                 <div>
                   <label className="text-sm font-medium text-gray-700">EO</label>
                   <p className="text-gray-900">{selectedEmployee.eo.full_name} ({selectedEmployee.eo.employee_id})</p>
+                </div>
+              )}
+              {selectedEmployee.role && selectedEmployee.role.toUpperCase() === 'SUPERVISOR' && (selectedEmployee.assigned_modules?.length > 0) && (
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Department Assigned</label>
+                  <p className="text-gray-900">
+                    {selectedEmployee.assigned_modules?.[0] ? (SUPERVISOR_MODULES.find(s => s.value === selectedEmployee.assigned_modules[0])?.label || selectedEmployee.assigned_modules[0]) : '—'}
+                  </p>
                 </div>
               )}
               {selectedEmployee.role && selectedEmployee.role.toUpperCase() === 'FIELD_WORKER' && (

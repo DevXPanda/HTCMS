@@ -2,6 +2,12 @@ import { AdminManagement, User, Ward, ULB } from '../models/index.js';
 import { validationResult } from 'express-validator';
 import { getEffectiveUlbForRequest } from '../utils/ulbAccessHelper.js';
 
+// Deprecated roles (kept for future use): Clerk, Inspector, Officer, Contractor. Do not assign to new users.
+const DEPRECATED_ROLES = ['CLERK', 'INSPECTOR', 'OFFICER', 'CONTRACTOR'];
+const ASSIGNABLE_ROLES = ['EO', 'SUPERVISOR', 'COLLECTOR', 'FIELD_WORKER'];
+// All staff roles (uppercase) for DB enum - used in bulk delete/status and listings
+const ALL_STAFF_ROLES = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR'];
+
 /**
  * Get all employees managed by admin
  */
@@ -122,11 +128,11 @@ export const getEmployeesByUlb = async (req, res) => {
     // Normalize role to uppercase
     const normalizedRole = role ? role.toUpperCase().replace(/-/g, '_') : role;
 
-    // Only allow fetching SUPERVISOR and CONTRACTOR roles for EO
+    // Only allow fetching SUPERVISOR and CONTRACTOR roles for EO/Supervisor
     const allowedRoles = ['SUPERVISOR', 'CONTRACTOR'];
     if (normalizedRole && !allowedRoles.includes(normalizedRole)) {
       return res.status(400).json({
-        message: `Invalid role. Only ${allowedRoles.join(' or ')} can be fetched by EO`
+        message: `Invalid role. Only ${allowedRoles.join(' or ')} can be fetched`
       });
     }
 
@@ -225,11 +231,24 @@ export const createEmployee = async (req, res) => {
       worker_type,
       supervisor_id,
       company_name,
-      contact_details
+      contact_details,
+      assigned_modules: rawAssignedModules
     } = req.body;
 
     // Normalize role to uppercase to match database CHECK constraint
     const role = rawRole ? rawRole.toUpperCase().replace(/-/g, '_') : rawRole;
+
+    // Do not allow assigning deprecated roles to new staff
+    if (role && DEPRECATED_ROLES.includes(role)) {
+      return res.status(400).json({
+        message: 'This role is deprecated and cannot be assigned to new staff. Use EO, Supervisor, Collector, or Field Worker.'
+      });
+    }
+    if (role && !ASSIGNABLE_ROLES.includes(role)) {
+      return res.status(400).json({
+        message: 'Invalid role. Allowed roles: EO, Supervisor, Collector, Field Worker.'
+      });
+    }
 
     // Check if email, phone, or username already exists
     const existingEmployee = await AdminManagement.findOne({
@@ -345,6 +364,11 @@ export const createEmployee = async (req, res) => {
     if (supervisor_id !== undefined) createPayload.supervisor_id = supervisor_id ? parseInt(supervisor_id) : null;
     if (company_name !== undefined) createPayload.company_name = company_name || null;
     if (contact_details !== undefined) createPayload.contact_details = contact_details || null;
+    const allowedModules = ['toilet', 'mrf', 'gaushala'];
+    if (role === 'SUPERVISOR' && rawAssignedModules !== undefined) {
+      const modules = Array.isArray(rawAssignedModules) ? rawAssignedModules : [];
+      createPayload.assigned_modules = modules.filter(m => typeof m === 'string' && allowedModules.includes(m.toLowerCase()));
+    }
     const employee = await AdminManagement.create(createPayload);
     if (role === 'CLERK' && assignedWardIds.length > 0) {
       await Ward.update({ clerkId: employee.id }, { where: { id: assignedWardIds[0] } });
@@ -413,7 +437,8 @@ export const updateEmployee = async (req, res) => {
       worker_type,
       supervisor_id,
       company_name,
-      contact_details
+      contact_details,
+      assigned_modules: rawAssignedModules
     } = req.body;
 
     // Normalize role to uppercase to match database CHECK constraint
@@ -422,6 +447,17 @@ export const updateEmployee = async (req, res) => {
     if (role && !normalizedStaffRoles.includes(role)) {
       return res.status(400).json({
         message: 'Invalid role. Only staff roles (CLERK, INSPECTOR, OFFICER, COLLECTOR, EO, SUPERVISOR, FIELD_WORKER, CONTRACTOR) are allowed.'
+      });
+    }
+    // Allow keeping existing deprecated role; do not allow changing to a deprecated role
+    if (role && DEPRECATED_ROLES.includes(role) && normalizedEmployeeRole !== role) {
+      return res.status(400).json({
+        message: 'This role is deprecated and cannot be assigned. Use EO, Supervisor, Collector, or Field Worker.'
+      });
+    }
+    if (role && !DEPRECATED_ROLES.includes(role) && !ASSIGNABLE_ROLES.includes(role)) {
+      return res.status(400).json({
+        message: 'Invalid role. Allowed roles: EO, Supervisor, Collector, Field Worker.'
       });
     }
 
@@ -556,6 +592,11 @@ export const updateEmployee = async (req, res) => {
     if (supervisor_id !== undefined) updateData.supervisor_id = supervisor_id ? parseInt(supervisor_id) : null;
     if (company_name !== undefined) updateData.company_name = company_name || null;
     if (contact_details !== undefined) updateData.contact_details = contact_details || null;
+    const allowedModules = ['toilet', 'mrf', 'gaushala'];
+    if (currentRole === 'SUPERVISOR' && rawAssignedModules !== undefined) {
+      const modules = Array.isArray(rawAssignedModules) ? rawAssignedModules : [];
+      updateData.assigned_modules = modules.filter(m => typeof m === 'string' && allowedModules.includes(m.toLowerCase()));
+    }
     if (password && password.trim() !== '') {
       updateData.password = password;
       updateData.password_changed = true;
@@ -836,14 +877,14 @@ export const bulkDeleteEmployees = async (req, res) => {
       return res.status(400).json({ message: 'Employee IDs are required' });
     }
 
-    // Verify all employees exist and are staff roles
+    // Verify all employees exist and are staff roles (use uppercase for PostgreSQL enum)
     const employees = await AdminManagement.findAll({
       where: {
         id: {
           [AdminManagement.sequelize.Sequelize.Op.in]: employeeIds
         },
         role: {
-          [AdminManagement.sequelize.Sequelize.Op.in]: ['clerk', 'inspector', 'officer', 'collector']
+          [AdminManagement.sequelize.Sequelize.Op.in]: ALL_STAFF_ROLES
         }
       }
     });
@@ -852,14 +893,34 @@ export const bulkDeleteEmployees = async (req, res) => {
       return res.status(400).json({ message: 'Some employees not found or not staff roles' });
     }
 
-    // Delete employees
-    const deletedCount = await AdminManagement.destroy({
-      where: {
-        id: {
-          [AdminManagement.sequelize.Sequelize.Op.in]: employeeIds
+    // Delete employees (may fail if staff is referenced elsewhere, e.g. toilet inspections, facilities)
+    let deletedCount;
+    try {
+      deletedCount = await AdminManagement.destroy({
+        where: {
+          id: {
+            [AdminManagement.sequelize.Sequelize.Op.in]: employeeIds
+          }
         }
+      });
+    } catch (destroyError) {
+      if (destroyError.name === 'SequelizeForeignKeyConstraintError') {
+        const constraint = (destroyError.index || destroyError.constraint || '').toLowerCase();
+        let hint = 'One or more employees are still assigned elsewhere. Remove or reassign those assignments first.';
+        if (constraint.includes('toilet_inspection')) {
+          hint = 'One or more employees are assigned as toilet inspectors. Reassign or remove those inspections first.';
+        } else if (constraint.includes('gaushala')) {
+          hint = 'One or more employees are assigned to Gau Shala inspections. Reassign those first.';
+        } else if (constraint.includes('ward') || constraint.includes('mrf') || constraint.includes('worker')) {
+          hint = 'One or more employees are linked to wards, facilities, or workers. Reassign or remove those links first.';
+        }
+        return res.status(400).json({
+          message: 'Cannot delete: staff are still in use.',
+          hint
+        });
       }
-    });
+      throw destroyError;
+    }
 
     res.json({
       message: `${deletedCount} employee(s) deleted successfully`,
@@ -888,14 +949,14 @@ export const bulkUpdateEmployeeStatus = async (req, res) => {
 
     const newStatus = status === 'activate' ? 'active' : 'inactive';
 
-    // Verify all employees exist and are staff roles
+    // Verify all employees exist and are staff roles (use uppercase for PostgreSQL enum)
     const employees = await AdminManagement.findAll({
       where: {
         id: {
           [AdminManagement.sequelize.Sequelize.Op.in]: employeeIds
         },
         role: {
-          [AdminManagement.sequelize.Sequelize.Op.in]: ['clerk', 'inspector', 'officer', 'collector']
+          [AdminManagement.sequelize.Sequelize.Op.in]: ALL_STAFF_ROLES
         }
       }
     });

@@ -209,6 +209,7 @@ const officerRoutes = [
 
 const supervisorRoutes = [
   { path: 'dashboard', label: 'Dashboard', parentPath: null },
+  { path: 'workers', label: 'Worker Management', parentPath: 'dashboard' },
   { path: 'toilet-complaints', label: 'Toilet Complaints', parentPath: 'dashboard' },
   { path: 'mrf', label: 'MRF', parentPath: 'dashboard' },
   { path: 'mrf/facilities/:id', label: 'MRF Details', parentPath: 'mrf' },

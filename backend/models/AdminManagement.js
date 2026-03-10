@@ -17,6 +17,7 @@ export const AdminManagement = sequelize.define('AdminManagement', {
     allowNull: false,
     unique: true
   },
+  // Deprecated roles (kept for future use): Clerk, Inspector, Officer, Contractor. Active: EO, Supervisor, Collector, Field Worker.
   role: {
     type: DataTypes.ENUM('CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'ADMIN'),
     allowNull: false
@@ -78,6 +79,12 @@ export const AdminManagement = sequelize.define('AdminManagement', {
     type: DataTypes.BOOLEAN,
     allowNull: false,
     defaultValue: false
+  },
+  // Supervisor only: assigned modules e.g. ['toilet', 'mrf', 'gaushala'] for Toilet Management, MRF, Gau Shala
+  assigned_modules: {
+    type: DataTypes.ARRAY(DataTypes.STRING),
+    allowNull: true,
+    defaultValue: []
   }
 }, {
   tableName: 'admin_management',
@@ -116,6 +123,7 @@ AdminManagement.generateEmployeeId = async (role, attempt = 1) => {
   // Normalize role to uppercase for prefix lookup
   const normalizedRole = role ? role.toUpperCase().replace(/-/g, '_') : role;
 
+  // Deprecated roles (kept for future use): Clerk, Inspector, Officer, Contractor - prefixes retained for existing IDs
   const prefixes = {
     CLERK: 'CLK',
     INSPECTOR: 'INSP',

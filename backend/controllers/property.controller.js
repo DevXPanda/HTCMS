@@ -839,3 +839,110 @@ export const deleteProperty = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * @route   POST /api/properties/:id/transfer
+ * @desc    Transfer property to another ULB (Super Admin only). Moves property to a ward in the target ULB; target ULB admins can reassign ward later.
+ * @access  Private (Super Admin only)
+ */
+export const transferProperty = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { targetUlbId, targetWardId } = req.body;
+
+    const { isSuperAdmin } = getEffectiveUlbForRequest(req);
+    if (!isSuperAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only Super Admin can transfer properties to another ULB.'
+      });
+    }
+
+    if (!targetUlbId || String(targetUlbId).trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'Target ULB is required.'
+      });
+    }
+
+    const property = await Property.findByPk(id, {
+      include: [{ model: Ward, as: 'ward', attributes: ['id', 'ulb_id', 'wardNumber', 'wardName'] }]
+    });
+    if (!property) {
+      return res.status(404).json({
+        success: false,
+        message: 'Property not found'
+      });
+    }
+
+    let targetWard;
+    if (targetWardId) {
+      targetWard = await Ward.findByPk(targetWardId, { attributes: ['id', 'ulb_id', 'wardNumber', 'wardName'] });
+      if (!targetWard || targetWard.ulb_id !== targetUlbId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Selected ward does not belong to the target ULB.'
+        });
+      }
+    } else {
+      targetWard = await Ward.findOne({
+        where: { ulb_id: targetUlbId, isActive: true },
+        order: [['id', 'ASC']],
+        attributes: ['id', 'ulb_id', 'wardNumber', 'wardName']
+      });
+      if (!targetWard) {
+        return res.status(400).json({
+          success: false,
+          message: 'Target ULB has no wards. Create wards in the target ULB first.'
+        });
+      }
+    }
+
+    const previousWardId = property.wardId;
+    const newWardId = targetWard.id;
+
+    const propertyNumberForId = parsePropertyNumberForId(property.propertyNumber);
+    const newUniqueCode = await generatePropertyUniqueId(newWardId, property.propertyType, propertyNumberForId);
+    const existingCode = await Property.findOne({
+      where: { uniqueCode: newUniqueCode, id: { [Op.ne]: id } }
+    });
+    if (existingCode) {
+      const nextNum = await getNextPropertyNumberInWard(newWardId);
+      const fallbackUniqueCode = await generatePropertyUniqueId(newWardId, property.propertyType, nextNum);
+      property.wardId = newWardId;
+      property.uniqueCode = fallbackUniqueCode;
+      property.propertyNumber = fallbackUniqueCode;
+    } else {
+      property.wardId = newWardId;
+      property.uniqueCode = newUniqueCode;
+      property.propertyNumber = newUniqueCode;
+    }
+
+    await property.save();
+
+    const updatedProperty = await Property.findByPk(id, {
+      include: [
+        { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] },
+        { model: Ward, as: 'ward' }
+      ]
+    });
+
+    await auditLogger.logUpdate(
+      req,
+      req.user,
+      'Property',
+      property.id,
+      { wardId: previousWardId },
+      { wardId: newWardId },
+      `Transferred property to ULB ward: ${targetWard.wardNumber} - ${targetWard.wardName}`
+    );
+
+    res.json({
+      success: true,
+      message: 'Property transferred successfully. Target ULB admins can assign or change the ward from the property edit page.',
+      data: { property: updatedProperty }
+    });
+  } catch (error) {
+    next(error);
+  }
+};

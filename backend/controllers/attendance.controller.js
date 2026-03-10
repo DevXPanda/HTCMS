@@ -489,18 +489,6 @@ export const markWorkerAttendance = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Attendance already marked for this worker today' });
     }
 
-    const hour = timestamp.getHours();
-    const minute = timestamp.getMinutes();
-    const timeMinutes = hour * 60 + minute;
-    const windowStart = 6 * 60;
-    const windowEnd = 11 * 60;
-    if (timeMinutes < windowStart || timeMinutes > windowEnd) {
-      return res.status(400).json({
-        success: false,
-        message: 'Attendance can only be marked between 6:00 AM and 11:00 AM'
-      });
-    }
-
     let geoStatus = 'VALID';
     if (lat != null && lng != null && ward?.boundary_coordinates) {
       const boundary = parseWardBoundary(ward.boundary_coordinates);
@@ -509,26 +497,36 @@ export const markWorkerAttendance = async (req, res) => {
       }
     }
 
-    let photoUrl = null;
-    if (req.file && req.file.filename) {
-      photoUrl = `/uploads/worker-attendance/${req.file.filename}`;
+    const files = req.files || {};
+    const beforeFile = files.before_photo && files.before_photo[0];
+    const afterFile = files.after_photo && files.after_photo[0];
+    if (!beforeFile || !afterFile) {
+      return res.status(400).json({
+        success: false,
+        message: 'Both before and after photos are required for proof'
+      });
     }
+    const beforePhotoUrl = `/uploads/worker-attendance/${beforeFile.filename}`;
+    const afterPhotoUrl = `/uploads/worker-attendance/${afterFile.filename}`;
+    const photoUrl = beforePhotoUrl; // backward compat for single photo_url
 
     // Get eo_id from worker or supervisor (prefer worker's eo_id)
     const eoId = worker.eo_id || supervisor.eo_id || null;
-    
+
     // Store ulb_id, ward_id, supervisor_id, eo_id
     const record = await WorkerAttendance.create({
       worker_id: workerId,
       supervisor_id: user.id,
       ward_id: wardId,
       eo_id: eoId,
-      ulb_id: supervisorUlbId, // Store ULB ID from validated supervisor
+      ulb_id: supervisorUlbId,
       attendance_date: today,
       checkin_time: timestamp,
       latitude: lat,
       longitude: lng,
       photo_url: photoUrl,
+      before_photo_url: beforePhotoUrl,
+      after_photo_url: afterPhotoUrl,
       geo_status: geoStatus
     });
 
@@ -545,7 +543,9 @@ export const markWorkerAttendance = async (req, res) => {
         attendance_date: record.attendance_date,
         checkin_time: record.checkin_time,
         geo_status: record.geo_status,
-        photo_url: record.photo_url
+        photo_url: record.photo_url,
+        before_photo_url: record.before_photo_url,
+        after_photo_url: record.after_photo_url
       }
     });
   } catch (error) {
@@ -587,18 +587,6 @@ export const markAllWorkersPresent = async (req, res) => {
 
     const today = new Date().toISOString().slice(0, 10);
     const timestamp = new Date();
-    const hour = timestamp.getHours();
-    const minute = timestamp.getMinutes();
-    const timeMinutes = hour * 60 + minute;
-    const windowStart = 6 * 60;
-    const windowEnd = 11 * 60;
-
-    if (timeMinutes < windowStart || timeMinutes > windowEnd) {
-      return res.status(400).json({
-        success: false,
-        message: 'Attendance can only be marked between 6:00 AM and 11:00 AM'
-      });
-    }
 
     // Get all active workers assigned to this supervisor
     const workers = await Worker.findAll({

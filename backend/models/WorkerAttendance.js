@@ -52,6 +52,14 @@ export const WorkerAttendance = sequelize.define('WorkerAttendance', {
     type: DataTypes.STRING(500),
     allowNull: true
   },
+  before_photo_url: {
+    type: DataTypes.STRING(500),
+    allowNull: true
+  },
+  after_photo_url: {
+    type: DataTypes.STRING(500),
+    allowNull: true
+  },
   geo_status: {
     type: DataTypes.STRING(20),
     allowNull: true

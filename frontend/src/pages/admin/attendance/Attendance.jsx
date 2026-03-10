@@ -23,7 +23,8 @@ const Attendance = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [collectors, setCollectors] = useState([]);
-  const [selectedRole, setSelectedRole] = useState('all'); // 'all' | 'admin' | 'clerk' | 'inspector' | 'officer' | 'collector' | 'supervisor'
+  // Active roles only: all | admin | eo | collector | supervisor | field_worker (deprecated: clerk, inspector, officer)
+  const [selectedRole, setSelectedRole] = useState('all');
   const [filters, setFilters] = useState({
     collectorId: '',
     dateFrom: '',
@@ -158,7 +159,7 @@ const Attendance = () => {
       </div>
 
       {/* Role Summary Boxes - Admin Attendance card only for super admin */}
-      <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 ${isSuperAdmin ? 'lg:grid-cols-7' : 'lg:grid-cols-6'}`}>
+      <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 ${isSuperAdmin ? 'lg:grid-cols-6' : 'lg:grid-cols-5'}`}>
         <button
           type="button"
           onClick={() => setSelectedRole('all')}
@@ -193,49 +194,17 @@ const Attendance = () => {
 
         <button
           type="button"
-          onClick={() => setSelectedRole('clerk')}
-          className={`card p-4 cursor-pointer transition-all hover:shadow-lg ${selectedRole === 'clerk' ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
+          onClick={() => setSelectedRole('eo')}
+          className={`card p-4 cursor-pointer transition-all hover:shadow-lg ${selectedRole === 'eo' ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Clerk Attendance</p>
+              <p className="text-sm text-gray-600">EO Attendance</p>
               <p className="text-2xl font-bold text-gray-900">
-                {allAttendance.filter(r => getRecordRole(r) === 'clerk').length}
+                {allAttendance.filter(r => getRecordRole(r) === 'eo').length}
               </p>
             </div>
             <Briefcase className="w-8 h-8 text-blue-500" />
-          </div>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setSelectedRole('inspector')}
-          className={`card p-4 cursor-pointer transition-all hover:shadow-lg ${selectedRole === 'inspector' ? 'ring-2 ring-green-500 bg-green-50' : ''}`}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Inspector Attendance</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {allAttendance.filter(r => getRecordRole(r) === 'inspector').length}
-              </p>
-            </div>
-            <Shield className="w-8 h-8 text-green-500" />
-          </div>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setSelectedRole('officer')}
-          className={`card p-4 cursor-pointer transition-all hover:shadow-lg ${selectedRole === 'officer' ? 'ring-2 ring-purple-500 bg-purple-50' : ''}`}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Officer Attendance</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {allAttendance.filter(r => getRecordRole(r) === 'officer').length}
-              </p>
-            </div>
-            <UserCheck className="w-8 h-8 text-purple-500" />
           </div>
         </button>
 
@@ -268,6 +237,22 @@ const Attendance = () => {
               </p>
             </div>
             <ClipboardList className="w-8 h-8 text-teal-500" />
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setSelectedRole('field_worker')}
+          className={`card p-4 cursor-pointer transition-all hover:shadow-lg ${selectedRole === 'field_worker' ? 'ring-2 ring-cyan-500 bg-cyan-50' : ''}`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Field Worker Attendance</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {allAttendance.filter(r => getRecordRole(r) === 'field_worker').length}
+              </p>
+            </div>
+            <UserCheck className="w-8 h-8 text-cyan-500" />
           </div>
         </button>
       </div>

@@ -86,7 +86,10 @@ const AdminFieldWorkerMonitoring = () => {
     try {
       setLoading(true);
       const params = {};
-      if (filters.ulb) params.ulb = filters.ulb;
+      if (filters.ulb) {
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(filters.ulb);
+        if (isUuid) params.ulb_id = filters.ulb; else params.ulb = filters.ulb;
+      }
       if (filters.wardId) params.wardId = filters.wardId;
       if (filters.eoId) params.eoId = filters.eoId;
       if (filters.startDate) params.startDate = filters.startDate;
@@ -217,35 +220,30 @@ const AdminFieldWorkerMonitoring = () => {
   ];
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+    <div className="space-y-6">
+      <div className="ds-page-header flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Admin Field Worker Monitoring</h1>
-          <p className="text-gray-600 mt-1">Comprehensive monitoring of field workers across all ULBs</p>
+          <h1 className="ds-page-title">Admin Field Worker Monitoring</h1>
+          <p className="ds-page-subtitle">Comprehensive monitoring of field workers across all ULBs</p>
         </div>
-        <button
-          onClick={fetchDashboard}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
-        >
+        <button type="button" onClick={fetchDashboard} className="btn btn-primary shrink-0">
           <RefreshCw className="w-4 h-4" />
           Refresh
         </button>
       </div>
 
       {/* Filters */}
-      <div className="card mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <Filter className="w-5 h-5" />
-            Filters
-          </h3>
-          <button
-            onClick={clearFilters}
-            className="text-sm text-primary-600 hover:text-primary-700"
-          >
-            Clear All
-          </button>
-        </div>
+      <section className="mb-6">
+        <div className="card">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="ds-section-title mb-0 flex items-center gap-2">
+              <Filter className="w-5 h-5 text-gray-500" />
+              Filters
+            </h2>
+            <button type="button" onClick={clearFilters} className="text-sm text-primary-600 hover:text-primary-700">
+              Clear All
+            </button>
+          </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div>
             <label className="label">ULB</label>
@@ -311,20 +309,22 @@ const AdminFieldWorkerMonitoring = () => {
             />
           </div>
         </div>
-      </div>
+        </div>
+      </section>
 
       {/* Tabs */}
-      <div className="mb-6 border-b border-gray-200">
-        <nav className="flex space-x-8">
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="flex flex-wrap gap-1">
           {tabs.map(tab => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm ${
+                className={`flex items-center gap-2 py-3 px-4 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === tab.id
-                    ? 'border-primary-500 text-primary-600'
+                    ? 'border-primary-500 text-primary-600 bg-primary-50/50'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
@@ -339,91 +339,108 @@ const AdminFieldWorkerMonitoring = () => {
       {/* Tab Content */}
       {dashboardData && dashboardData.attendance_summary && (
         <div className="card">
+          <section className="space-y-6">
           {activeTab === 'attendance' && (
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Attendance Summary</h2>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <div className="text-sm text-gray-600">Total Workers</div>
-                  <div className="text-2xl font-bold text-blue-600">
-                    {dashboardData.attendance_summary?.total_workers || 0}
+            <div className="space-y-6">
+              <h2 className="ds-section-title mb-0">Attendance Summary</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="stat-card">
+                  <div className="stat-card-title">
+                    <span>TOTAL WORKERS</span>
+                    <Users className="h-4 w-4 text-blue-500 shrink-0" />
                   </div>
+                  <p className="stat-card-value text-blue-600">{dashboardData.attendance_summary?.total_workers ?? 0}</p>
                 </div>
-                <div className="bg-green-50 p-4 rounded-lg">
-                  <div className="text-sm text-gray-600">Present Today</div>
-                  <div className="text-2xl font-bold text-green-600">
-                    {dashboardData.attendance_summary?.present_today || 0}
+                <div className="stat-card">
+                  <div className="stat-card-title">
+                    <span>PRESENT TODAY</span>
+                    <span className="h-2.5 w-2.5 rounded-full bg-green-500 shrink-0" aria-hidden />
                   </div>
+                  <p className="stat-card-value text-green-600">{dashboardData.attendance_summary?.present_today ?? 0}</p>
                 </div>
-                <div className="bg-red-50 p-4 rounded-lg">
-                  <div className="text-sm text-gray-600">Absent Today</div>
-                  <div className="text-2xl font-bold text-red-600">
-                    {dashboardData.attendance_summary?.absent_today || 0}
+                <div className="stat-card">
+                  <div className="stat-card-title">
+                    <span>ABSENT TODAY</span>
+                    <span className="h-2.5 w-2.5 rounded-full bg-red-500 shrink-0" aria-hidden />
                   </div>
+                  <p className="stat-card-value text-red-600">{dashboardData.attendance_summary?.absent_today ?? 0}</p>
                 </div>
-                <div className="bg-purple-50 p-4 rounded-lg">
-                  <div className="text-sm text-gray-600">Total Records</div>
-                  <div className="text-2xl font-bold text-purple-600">
-                    {dashboardData.attendance_summary?.total_attendance_records || 0}
+                <div className="stat-card">
+                  <div className="stat-card-title">
+                    <span>TOTAL RECORDS</span>
+                    <FileText className="h-4 w-4 text-purple-500 shrink-0" />
                   </div>
+                  <p className="stat-card-value text-purple-600">{dashboardData.attendance_summary?.total_attendance_records ?? 0}</p>
                 </div>
               </div>
 
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-3">ULB-wise Attendance</h3>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+              <div>
+                <h3 className="ds-section-title mb-0">ULB-wise Attendance</h3>
+                <div className="table-wrap mt-2">
+                  <table className="table">
+                    <thead>
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ULB</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Workers</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Present Today</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Attendance %</th>
+                        <th>ULB</th>
+                        <th>TOTAL WORKERS</th>
+                        <th>PRESENT TODAY</th>
+                        <th>ATTENDANCE %</th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {(dashboardData.attendance_summary?.ulb_wise || []).map((item, idx) => (
-                        <tr key={idx}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{item.ulb || '-'}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">{item.total_workers}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">{item.present_today}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            <span className={`px-2 py-1 rounded ${item.attendance_pct >= 80 ? 'bg-green-100 text-green-800' : item.attendance_pct >= 60 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
-                              {item.attendance_pct}%
-                            </span>
-                          </td>
+                    <tbody>
+                      {(dashboardData.attendance_summary?.ulb_wise || []).length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="text-center text-gray-500 py-8">No ULB data for the selected filters.</td>
                         </tr>
-                      ))}
+                      ) : (
+                        (dashboardData.attendance_summary?.ulb_wise || []).map((item, idx) => (
+                          <tr key={item.ulb_id || idx}>
+                            <td className="font-medium">{item.ulb || '-'}</td>
+                            <td>{item.total_workers}</td>
+                            <td>{item.present_today}</td>
+                            <td>
+                              <span className={`px-2 py-1 rounded text-xs font-medium ${item.attendance_pct >= 80 ? 'bg-green-100 text-green-800' : item.attendance_pct >= 60 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
+                                {item.attendance_pct}%
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold mb-3">Ward-wise Attendance</h3>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                <h3 className="ds-section-title mb-0">Ward-wise Attendance</h3>
+                <div className="table-wrap mt-2">
+                  <table className="table">
+                    <thead>
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ward</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Workers</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Present Today</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Attendance %</th>
+                        <th>WARD</th>
+                        <th>TOTAL WORKERS</th>
+                        <th>PRESENT TODAY</th>
+                        <th>ATTENDANCE %</th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {(dashboardData.attendance_summary?.ward_wise || []).map((item, idx) => (
-                        <tr key={idx}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{item.ward_name}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">{item.total_workers}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">{item.present_today}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            <span className={`px-2 py-1 rounded ${item.attendance_pct >= 80 ? 'bg-green-100 text-green-800' : item.attendance_pct >= 60 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
-                              {item.attendance_pct}%
-                            </span>
-                          </td>
+                    <tbody>
+                      {(dashboardData.attendance_summary?.ward_wise || []).length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="text-center text-gray-500 py-8">No ward data for the selected filters.</td>
                         </tr>
-                      ))}
+                      ) : (
+                        (dashboardData.attendance_summary?.ward_wise || []).map((item, idx) => (
+                          <tr key={item.ward_id || idx}>
+                            <td className="font-medium">{item.ward_name ?? '-'}</td>
+                            <td>{item.total_workers}</td>
+                            <td>{item.present_today}</td>
+                            <td>
+                              <span className={`px-2 py-1 rounded text-xs font-medium ${item.attendance_pct >= 80 ? 'bg-green-100 text-green-800' : item.attendance_pct >= 60 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
+                                {item.attendance_pct}%
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -432,115 +449,89 @@ const AdminFieldWorkerMonitoring = () => {
           )}
 
           {activeTab === 'workers' && (
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Worker Management</h2>
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <h2 className="ds-section-title mb-0">Worker Management</h2>
                 <button
+                  type="button"
                   onClick={fetchWorkers}
-                  className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
+                  className="btn btn-secondary text-sm"
                 >
                   <RefreshCw className="w-4 h-4" />
                   Refresh
                 </button>
               </div>
-              
+
               {loadingWorkers ? (
-                <div className="p-8 text-center">
+                <div className="card p-8 text-center">
                   <RefreshCw className="w-8 h-8 animate-spin text-gray-400 mx-auto mb-2" />
                   <p className="text-gray-500">Loading workers...</p>
                 </div>
               ) : workers.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">
+                <div className="card p-8 text-center text-gray-500">
                   <Users className="w-12 h-12 text-gray-300 mx-auto mb-2" />
                   <p>No workers found.</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                <div className="table-wrap">
+                  <table className="table">
+                    <thead>
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee Code</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mobile</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Worker Type</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ward</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Supervisor</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">EO</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ULB</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Proofs</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        <th>Employee Code</th>
+                        <th>Name</th>
+                        <th>Mobile</th>
+                        <th>Worker Type</th>
+                        <th>Ward</th>
+                        <th>Supervisor</th>
+                        <th>EO</th>
+                        <th>ULB</th>
+                        <th>Status</th>
+                        <th>Proofs</th>
+                        <th>Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody>
                       {workers.map((worker) => (
-                        <tr key={worker.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="text-sm font-medium text-gray-900">{worker.employee_code}</span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">{worker.full_name}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{worker.mobile}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                        <tr key={worker.id}>
+                          <td className="font-medium">{worker.employee_code}</td>
+                          <td className="font-medium">{worker.full_name}</td>
+                          <td>{worker.mobile || '-'}</td>
+                          <td>
                             <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                              worker.worker_type === 'ULB' 
-                                ? 'bg-blue-100 text-blue-800' 
-                                : 'bg-purple-100 text-purple-800'
+                              worker.worker_type === 'ULB' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
                             }`}>
                               {worker.worker_type}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">
-                              {worker.ward ? `${worker.ward.wardNumber} - ${worker.ward.wardName}` : '-'}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">
-                              {worker.supervisor ? `${worker.supervisor.full_name} (${worker.supervisor.employee_id})` : '-'}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">
-                              {worker.eo ? `${worker.eo.full_name} (${worker.eo.employee_id})` : '-'}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">
-                              {worker.ulb ? worker.ulb.name : '-'}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td>{worker.ward ? `${worker.ward.wardNumber} - ${worker.ward.wardName}` : '-'}</td>
+                          <td>{worker.supervisor ? `${worker.supervisor.full_name} (${worker.supervisor.employee_id})` : '-'}</td>
+                          <td>{worker.eo ? `${worker.eo.full_name} (${worker.eo.employee_id})` : '-'}</td>
+                          <td>{worker.ulb ? worker.ulb.name : '-'}</td>
+                          <td>
                             <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                              worker.status === 'ACTIVE' 
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-red-100 text-red-800'
+                              worker.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                             }`}>
                               {worker.status}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center gap-2">
-                              {worker.proofs && worker.proofs.length > 0 ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
-                                  <FileText className="w-3 h-3" />
-                                  {worker.proofs.length} proof{worker.proofs.length !== 1 ? 's' : ''}
-                                </span>
-                              ) : (
-                                <span className="text-xs text-gray-400">No proofs</span>
-                              )}
-                            </div>
+                          <td>
+                            {worker.proofs && worker.proofs.length > 0 ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                                <FileText className="w-3 h-3" />
+                                {worker.proofs.length} proof{worker.proofs.length !== 1 ? 's' : ''}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-400">No proofs</span>
+                            )}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td>
                             <button
+                              type="button"
                               onClick={() => {
                                 setSelectedWorker(worker);
                                 setShowWorkerDetailsModal(true);
                               }}
-                              className="text-blue-600 hover:text-blue-900 flex items-center gap-1"
+                              className="btn btn-ghost btn-sm text-primary-600 hover:text-primary-800"
                               title="View Details"
                             >
                               <Eye className="w-4 h-4" />
@@ -557,37 +548,43 @@ const AdminFieldWorkerMonitoring = () => {
           )}
 
           {activeTab === 'payroll' && (
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Payroll Preview</h2>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+            <div className="space-y-4">
+              <h2 className="ds-section-title mb-0">Payroll Preview</h2>
+              <div className="table-wrap">
+                <table className="table">
+                  <thead>
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Worker Name</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mobile</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Worker Type</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ward</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">EO</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Days Worked</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Records</th>
+                      <th>Worker Name</th>
+                      <th>Mobile</th>
+                      <th>Worker Type</th>
+                      <th>Ward</th>
+                      <th>EO</th>
+                      <th>Days Worked</th>
+                      <th>Total Records</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {(dashboardData.payroll_preview || []).map((item, idx) => (
-                      <tr key={idx}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{item.worker_name}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">{item.mobile || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <span className={`px-2 py-1 rounded ${item.worker_type === 'ULB' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'}`}>
-                            {item.worker_type}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">{item.ward_name || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">{item.eo_name || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold">{item.days_worked}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">{item.total_records}</td>
+                  <tbody>
+                    {(dashboardData.payroll_preview || []).length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="text-center text-gray-500 py-8">No payroll data for the selected filters.</td>
                       </tr>
-                    ))}
+                    ) : (
+                      (dashboardData.payroll_preview || []).map((item, idx) => (
+                        <tr key={idx}>
+                          <td className="font-medium">{item.worker_name}</td>
+                          <td>{item.mobile || '-'}</td>
+                          <td>
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${item.worker_type === 'ULB' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'}`}>
+                              {item.worker_type}
+                            </span>
+                          </td>
+                          <td>{item.ward_name || '-'}</td>
+                          <td>{item.eo_name || '-'}</td>
+                          <td className="font-semibold">{item.days_worked}</td>
+                          <td>{item.total_records}</td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -595,41 +592,47 @@ const AdminFieldWorkerMonitoring = () => {
           )}
 
           {activeTab === 'contractor' && (
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Contractor Performance</h2>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+            <div className="space-y-4">
+              <h2 className="ds-section-title mb-0">Contractor Performance</h2>
+              <div className="table-wrap">
+                <table className="table">
+                  <thead>
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contractor</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Company</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Workers</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Days Worked</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Attendance %</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Geo Violations</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Compliance %</th>
+                      <th>Contractor</th>
+                      <th>Company</th>
+                      <th>Workers</th>
+                      <th>Days Worked</th>
+                      <th>Attendance %</th>
+                      <th>Geo Violations</th>
+                      <th>Compliance %</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {(dashboardData.contractor_performance || []).map((item, idx) => (
-                      <tr key={idx}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{item.contractor_name}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">{item.company_name || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">{item.workers_count}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">{item.days_worked}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <span className={`px-2 py-1 rounded ${item.attendance_pct >= 80 ? 'bg-green-100 text-green-800' : item.attendance_pct >= 60 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
-                            {item.attendance_pct}%
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 font-semibold">{item.geo_violations}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <span className={`px-2 py-1 rounded ${item.compliance_pct >= 90 ? 'bg-green-100 text-green-800' : item.compliance_pct >= 70 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
-                            {item.compliance_pct}%
-                          </span>
-                        </td>
+                  <tbody>
+                    {(dashboardData.contractor_performance || []).length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="text-center text-gray-500 py-8">No contractor data for the selected filters.</td>
                       </tr>
-                    ))}
+                    ) : (
+                      (dashboardData.contractor_performance || []).map((item, idx) => (
+                        <tr key={idx}>
+                          <td className="font-medium">{item.contractor_name}</td>
+                          <td>{item.company_name || '-'}</td>
+                          <td>{item.workers_count}</td>
+                          <td>{item.days_worked}</td>
+                          <td>
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${item.attendance_pct >= 80 ? 'bg-green-100 text-green-800' : item.attendance_pct >= 60 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
+                              {item.attendance_pct}%
+                            </span>
+                          </td>
+                          <td className="text-red-600 font-semibold">{item.geo_violations}</td>
+                          <td>
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${item.compliance_pct >= 90 ? 'bg-green-100 text-green-800' : item.compliance_pct >= 70 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
+                              {item.compliance_pct}%
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -637,50 +640,52 @@ const AdminFieldWorkerMonitoring = () => {
           )}
 
           {activeTab === 'geo' && (
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Geo Violations</h2>
-              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <div className="flex items-center gap-2 text-red-700">
-                  <AlertTriangle className="w-5 h-5" />
-                  <span className="font-semibold">Total Violations: {dashboardData.geo_violations?.length || 0}</span>
-                </div>
+            <div className="space-y-4">
+              <h2 className="ds-section-title mb-0">Geo Violations</h2>
+              <div className="card-flat flex items-center gap-2 p-4 bg-red-50 border-red-200 text-red-700">
+                <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+                <span className="font-semibold">Total Violations: {dashboardData.geo_violations?.length || 0}</span>
               </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+              <div className="table-wrap">
+                <table className="table">
+                  <thead>
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Worker</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ward</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">EO</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Check-in Time</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
+                      <th>Worker</th>
+                      <th>Ward</th>
+                      <th>EO</th>
+                      <th>Date</th>
+                      <th>Check-in Time</th>
+                      <th>Location</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {(dashboardData.geo_violations || []).map((item, idx) => (
-                      <tr key={idx}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{item.worker_name}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">{item.ward_name || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">{item.eo_name || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">{item.attendance_date}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          {item.checkin_time ? new Date(item.checkin_time).toLocaleTimeString() : '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          {item.latitude && item.longitude ? (
-                            <a
-                              href={`https://www.google.com/maps?q=${item.latitude},${item.longitude}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-primary-600 hover:underline"
-                            >
-                              View Map
-                            </a>
-                          ) : '-'}
-                        </td>
+                  <tbody>
+                    {(dashboardData.geo_violations || []).length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="text-center text-gray-500 py-8">No geo violations for the selected filters.</td>
                       </tr>
-                    ))}
+                    ) : (
+                      (dashboardData.geo_violations || []).map((item, idx) => (
+                        <tr key={idx}>
+                          <td className="font-medium">{item.worker_name}</td>
+                          <td>{item.ward_name || '-'}</td>
+                          <td>{item.eo_name || '-'}</td>
+                          <td>{item.attendance_date}</td>
+                          <td>{item.checkin_time ? new Date(item.checkin_time).toLocaleTimeString() : '-'}</td>
+                          <td>
+                            {item.latitude && item.longitude ? (
+                              <a
+                                href={`https://www.google.com/maps?q=${item.latitude},${item.longitude}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary-600 hover:underline"
+                              >
+                                View Map
+                              </a>
+                            ) : '-'}
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -688,37 +693,41 @@ const AdminFieldWorkerMonitoring = () => {
           )}
 
           {activeTab === 'audit' && (
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Audit Logs</h2>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+            <div className="space-y-4">
+              <h2 className="ds-section-title mb-0">Audit Logs</h2>
+              <div className="table-wrap">
+                <table className="table">
+                  <thead>
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Worker</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ward</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">EO</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Check-in Time</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Geo Status</th>
+                      <th>Worker</th>
+                      <th>Ward</th>
+                      <th>EO</th>
+                      <th>Date</th>
+                      <th>Check-in Time</th>
+                      <th>Geo Status</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {(dashboardData.audit_logs || []).slice(0, 100).map((item, idx) => (
-                      <tr key={idx}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{item.worker_name}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">{item.ward_name || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">{item.eo_name || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">{item.attendance_date}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          {item.checkin_time ? new Date(item.checkin_time).toLocaleTimeString() : '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <span className={`px-2 py-1 rounded ${item.geo_status === 'VALID' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                            {item.geo_status || 'N/A'}
-                          </span>
-                        </td>
+                  <tbody>
+                    {(dashboardData.audit_logs || []).length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="text-center text-gray-500 py-8">No audit logs for the selected filters.</td>
                       </tr>
-                    ))}
+                    ) : (
+                      (dashboardData.audit_logs || []).slice(0, 100).map((item, idx) => (
+                        <tr key={idx}>
+                          <td className="font-medium">{item.worker_name}</td>
+                          <td>{item.ward_name || '-'}</td>
+                          <td>{item.eo_name || '-'}</td>
+                            <td>{item.attendance_date}</td>
+                          <td>{item.checkin_time ? new Date(item.checkin_time).toLocaleTimeString() : '-'}</td>
+                          <td>
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${item.geo_status === 'VALID' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                              {item.geo_status || 'N/A'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -729,6 +738,7 @@ const AdminFieldWorkerMonitoring = () => {
               )}
             </div>
           )}
+          </section>
         </div>
       )}
 
@@ -881,13 +891,13 @@ const AdminFieldWorkerMonitoring = () => {
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {proof.before_photo_url && (
-                            <div>
+                            <div className="border border-gray-200 rounded-lg overflow-hidden">
                               <label className="text-xs font-medium text-gray-700 mb-1 block">Before Photo</label>
                               <a
                                 href={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${proof.before_photo_url}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="block border border-gray-200 rounded-lg overflow-hidden hover:border-blue-500 transition-colors"
+                                className="block hover:border-blue-500 transition-colors"
                               >
                                 <img
                                   src={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${proof.before_photo_url}`}
@@ -897,43 +907,50 @@ const AdminFieldWorkerMonitoring = () => {
                                     e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23ddd" width="200" height="200"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="14" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3EImage not found%3C/text%3E%3C/svg%3E';
                                   }}
                                 />
-                                <div className="p-2 bg-gray-50">
-                                  <div className="flex items-center gap-2 text-xs text-gray-600 mb-1">
-                                    <ImageIcon className="w-3 h-3" />
-                                    <span>Click to view full size</span>
-                                  </div>
-                                  {proof.before_photo_latitude != null && proof.before_photo_longitude != null && (
-                                    <div className="text-xs text-gray-500 mt-1 space-y-1">
-                                      <div className="flex items-start gap-1">
-                                        <MapPin className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                                        <div className="flex-1">
-                                          {proof.before_photo_address && (
-                                            <p className="text-gray-700 font-medium mb-1">{proof.before_photo_address}</p>
-                                          )}
-                                          <a
-                                            href={`https://www.google.com/maps?q=${proof.before_photo_latitude},${proof.before_photo_longitude}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-blue-600 hover:underline"
-                                          >
-                                            {Number(proof.before_photo_latitude).toFixed(6)}, {Number(proof.before_photo_longitude).toFixed(6)}
-                                          </a>
-                                        </div>
+                              </a>
+                              <div className="p-2 bg-gray-50">
+                                <div className="flex items-center gap-2 text-xs text-gray-600 mb-1">
+                                  <ImageIcon className="w-3 h-3" />
+                                  <a
+                                    href={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${proof.before_photo_url}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:underline"
+                                  >
+                                    Click to view full size
+                                  </a>
+                                </div>
+                                {proof.before_photo_latitude != null && proof.before_photo_longitude != null && (
+                                  <div className="text-xs text-gray-500 mt-1 space-y-1">
+                                    <div className="flex items-start gap-1">
+                                      <MapPin className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                                      <div className="flex-1">
+                                        {proof.before_photo_address && (
+                                          <p className="text-gray-700 font-medium mb-1">{proof.before_photo_address}</p>
+                                        )}
+                                        <a
+                                          href={`https://www.google.com/maps?q=${proof.before_photo_latitude},${proof.before_photo_longitude}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-blue-600 hover:underline"
+                                        >
+                                          {Number(proof.before_photo_latitude).toFixed(6)}, {Number(proof.before_photo_longitude).toFixed(6)}
+                                        </a>
                                       </div>
                                     </div>
-                                  )}
-                                </div>
-                              </a>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           )}
                           {proof.after_photo_url && (
-                            <div>
+                            <div className="border border-gray-200 rounded-lg overflow-hidden">
                               <label className="text-xs font-medium text-gray-700 mb-1 block">After Photo</label>
                               <a
                                 href={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${proof.after_photo_url}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="block border border-gray-200 rounded-lg overflow-hidden hover:border-blue-500 transition-colors"
+                                className="block hover:border-blue-500 transition-colors"
                               >
                                 <img
                                   src={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${proof.after_photo_url}`}
@@ -943,33 +960,40 @@ const AdminFieldWorkerMonitoring = () => {
                                     e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23ddd" width="200" height="200"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="14" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3EImage not found%3C/text%3E%3C/svg%3E';
                                   }}
                                 />
-                                <div className="p-2 bg-gray-50">
-                                  <div className="flex items-center gap-2 text-xs text-gray-600 mb-1">
-                                    <ImageIcon className="w-3 h-3" />
-                                    <span>Click to view full size</span>
-                                  </div>
-                                  {proof.after_photo_latitude != null && proof.after_photo_longitude != null && (
-                                    <div className="text-xs text-gray-500 mt-1 space-y-1">
-                                      <div className="flex items-start gap-1">
-                                        <MapPin className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                                        <div className="flex-1">
-                                          {proof.after_photo_address && (
-                                            <p className="text-gray-700 font-medium mb-1">{proof.after_photo_address}</p>
-                                          )}
-                                          <a
-                                            href={`https://www.google.com/maps?q=${proof.after_photo_latitude},${proof.after_photo_longitude}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-blue-600 hover:underline"
-                                          >
-                                            {Number(proof.after_photo_latitude).toFixed(6)}, {Number(proof.after_photo_longitude).toFixed(6)}
-                                          </a>
-                                        </div>
+                              </a>
+                              <div className="p-2 bg-gray-50">
+                                <div className="flex items-center gap-2 text-xs text-gray-600 mb-1">
+                                  <ImageIcon className="w-3 h-3" />
+                                  <a
+                                    href={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${proof.after_photo_url}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:underline"
+                                  >
+                                    Click to view full size
+                                  </a>
+                                </div>
+                                {proof.after_photo_latitude != null && proof.after_photo_longitude != null && (
+                                  <div className="text-xs text-gray-500 mt-1 space-y-1">
+                                    <div className="flex items-start gap-1">
+                                      <MapPin className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                                      <div className="flex-1">
+                                        {proof.after_photo_address && (
+                                          <p className="text-gray-700 font-medium mb-1">{proof.after_photo_address}</p>
+                                        )}
+                                        <a
+                                          href={`https://www.google.com/maps?q=${proof.after_photo_latitude},${proof.after_photo_longitude}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-blue-600 hover:underline"
+                                        >
+                                          {Number(proof.after_photo_latitude).toFixed(6)}, {Number(proof.after_photo_longitude).toFixed(6)}
+                                        </a>
                                       </div>
                                     </div>
-                                  )}
-                                </div>
-                              </a>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           )}
                         </div>

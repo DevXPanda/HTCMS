@@ -6,6 +6,7 @@ import {
   createProperty,
   updateProperty,
   deleteProperty,
+  transferProperty,
   searchProperties,
   getPropertiesByWard,
   getOwnerByPhone
@@ -27,6 +28,9 @@ router.get('/ward/:wardId', getPropertiesByWard);
 
 // Lookup owner by phone (for Add Property auto-fill) - must be before /:id
 router.get('/owner-by-phone', authorize('admin', 'assessor', 'tax_collector'), getOwnerByPhone);
+
+// Transfer property to another ULB (Super Admin only; check in controller)
+router.post('/:id/transfer', authorize('admin'), transferProperty);
 
 // Get property by ID
 router.get('/:id', getPropertyById);

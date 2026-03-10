@@ -17,6 +17,7 @@ import {
 } from '../controllers/adminManagement.controller.js';
 import { requireAdmin, authenticate } from '../middleware/enhancedAuth.js';
 import { body, validationResult } from 'express-validator';
+import { WORKER_TYPES } from '../controllers/worker.controller.js';
 
 const router = express.Router();
 
@@ -93,7 +94,7 @@ const createEmployeeValidation = [
   body('eo_id').optional().isInt({ min: 1 }).withMessage('EO ID must be a positive integer'),
   body('supervisor_id').optional().isInt({ min: 1 }).withMessage('Supervisor ID must be a positive integer'),
   body('contractor_id').optional().isInt({ min: 1 }).withMessage('Contractor ID must be a positive integer'),
-  body('worker_type').optional().isIn(['ULB', 'CONTRACTUAL']).withMessage('Worker type must be ULB or CONTRACTUAL'),
+  body('worker_type').optional().isIn(WORKER_TYPES).withMessage(`Worker type must be one of: ${WORKER_TYPES.join(', ')}`),
   body('company_name').optional().trim(),
   body('contact_details').optional().trim(),
   body('status')
@@ -116,9 +117,8 @@ const validateRoleBasedFields = (req, res, next) => {
     }
   } else if (role === 'SUPERVISOR') {
     if (!req.body.ward_id) errors.push({ msg: 'Ward is required for Supervisor' });
-    if (!req.body.eo_id) errors.push({ msg: 'EO is required for Supervisor' });
   } else if (role === 'FIELD_WORKER') {
-    if (!req.body.worker_type || !['ULB', 'CONTRACTUAL'].includes(req.body.worker_type)) errors.push({ msg: 'Worker Type (ULB or CONTRACTUAL) is required for Field Worker' });
+    if (!req.body.worker_type || !WORKER_TYPES.includes((req.body.worker_type || '').toUpperCase())) errors.push({ msg: `Worker Type (one of ${WORKER_TYPES.join(', ')}) is required for Field Worker` });
     if (!req.body.ward_id) errors.push({ msg: 'Ward is required for Field Worker' });
     if (!req.body.supervisor_id) errors.push({ msg: 'Supervisor is required for Field Worker' });
   } else if (role === 'CONTRACTOR') {
@@ -146,9 +146,8 @@ const validateRoleBasedFieldsUpdate = (req, res, next) => {
     }
   } else if (role === 'SUPERVISOR') {
     if (req.body.ward_id !== undefined && !req.body.ward_id) errors.push({ msg: 'Ward is required for Supervisor' });
-    if (req.body.eo_id !== undefined && !req.body.eo_id) errors.push({ msg: 'EO is required for Supervisor' });
   } else if (role === 'FIELD_WORKER') {
-    if (req.body.worker_type !== undefined && (!req.body.worker_type || !['ULB', 'CONTRACTUAL'].includes(req.body.worker_type))) errors.push({ msg: 'Worker Type (ULB or CONTRACTUAL) is required for Field Worker' });
+    if (req.body.worker_type !== undefined && (!req.body.worker_type || !WORKER_TYPES.includes((req.body.worker_type || '').toUpperCase()))) errors.push({ msg: `Worker Type (one of ${WORKER_TYPES.join(', ')}) is required for Field Worker` });
     if (req.body.ward_id !== undefined && !req.body.ward_id) errors.push({ msg: 'Ward is required for Field Worker' });
     if (req.body.supervisor_id !== undefined && !req.body.supervisor_id) errors.push({ msg: 'Supervisor is required for Field Worker' });
   } else if (role === 'CONTRACTOR') {
@@ -247,7 +246,7 @@ const updateEmployeeValidation = [
   body('eo_id').optional().isInt({ min: 1 }),
   body('supervisor_id').optional().isInt({ min: 1 }),
   body('contractor_id').optional().isInt({ min: 1 }),
-  body('worker_type').optional().isIn(['ULB', 'CONTRACTUAL']),
+  body('worker_type').optional().isIn(WORKER_TYPES),
   body('company_name').optional().trim(),
   body('contact_details').optional().trim(),
   body('status')
@@ -313,13 +312,14 @@ const bulkStatusUpdateValidation = [
 const requireEoOrAdmin = (req, res, next) => {
   const normalizedRole = req.user?.role ? req.user.role.toUpperCase().replace(/-/g, '_') : null;
   const isEo = req.userType === 'admin_management' && normalizedRole === 'EO';
+  const isSupervisor = req.userType === 'admin_management' && normalizedRole === 'SUPERVISOR';
   const isAdmin = req.userType === 'user' && req.user?.role === 'admin';
 
-  if (isEo || isAdmin) {
+  if (isEo || isSupervisor || isAdmin) {
     return next();
   }
 
-  return res.status(403).json({ message: 'EO or Admin access required' });
+  return res.status(403).json({ message: 'EO, Supervisor, or Admin access required' });
 };
 
 // Apply admin authentication to all routes except wards endpoint and by-ulb endpoint

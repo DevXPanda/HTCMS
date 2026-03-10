@@ -28,7 +28,7 @@ const RoleBasedRedirect = () => {
   // Get role from localStorage or user object - prioritize staff auth for staff roles
   const role = staffAuth?.user?.role || localStorage.getItem('role') || adminUser?.role;
 
-  // Helper functions to check role groups
+  // Helper functions to check role groups. Deprecated roles (kept for future use): Clerk, Inspector, Officer, Contractor - redirects kept for existing users.
   const isAdminRole = (role) => role === 'admin' || role === 'assessor' || role === 'cashier';
   const isCollectorRole = (role) => role === 'collector' || role === 'tax_collector';
   const isCitizenRole = (role) => role === 'citizen';

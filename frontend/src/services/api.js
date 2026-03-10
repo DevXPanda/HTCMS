@@ -135,6 +135,7 @@ export const propertyAPI = {
   create: (data) => api.post('/properties', data),
   update: (id, data) => api.put(`/properties/${id}`, data),
   delete: (id) => api.delete(`/properties/${id}`),
+  transfer: (id, data) => api.post(`/properties/${id}/transfer`, data),
   search: (params) => api.get('/properties/search', { params }),
   getByWard: (wardId, params) => api.get(`/properties/ward/${wardId}`, { params }),
   getOwnerByPhone: (phone) => api.get('/properties/owner-by-phone', { params: { phone: phone || '' } })
@@ -349,10 +350,11 @@ export const workerTaskAPI = {
   })
 };
 
-// Worker API (ADMIN, EO - worker account creation)
+// Worker API (ADMIN, EO, SUPERVISOR - create/update/list workers)
 export const workerAPI = {
   createWorker: (data) => api.post('/workers', data),
-  getAllWorkers: (params) => api.get('/workers', { params })
+  getAllWorkers: (params) => api.get('/workers', { params }),
+  updateWorker: (id, data) => api.put(`/workers/${id}`, data)
 };
 
 

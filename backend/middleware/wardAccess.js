@@ -12,8 +12,9 @@ export const wardAccessControl = async (req, res, next) => {
       return next();
     }
 
-    // For EO role, filter by ulb_id
-    if (req.user.role === 'eo' && req.user.ulb_id) {
+    // For EO and Supervisor roles, filter by ulb_id
+    const roleLower = (req.user.role || '').toString().toLowerCase();
+    if ((roleLower === 'eo' || roleLower === 'supervisor') && req.user.ulb_id) {
       req.wardFilter = {
         ulb_id: req.user.ulb_id
       };

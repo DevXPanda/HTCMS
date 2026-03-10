@@ -212,7 +212,8 @@ export const employeeLogin = async (req, res) => {
       ulb_id: employee.ulb_id || null,
       status: employee.status,
       last_login: employee.last_login,
-      password_changed: employee.password_changed
+      password_changed: employee.password_changed,
+      assigned_modules: employee.assigned_modules || []
     };
 
     res.json({

@@ -204,6 +204,7 @@ import InspectorAttendance from './pages/inspector/Attendance';
 import EoDashboard from './pages/eo/EoDashboard';
 import WorkerManagement from './pages/eo/WorkerManagement';
 import SupervisorDashboard from './pages/supervisor/SupervisorDashboard';
+import SupervisorWorkerManagement from './pages/supervisor/SupervisorWorkerManagement';
 import OfficerDashboard from './pages/officer/OfficerDashboard';
 import OfficerPropertyApplications from './pages/officer/PropertyApplications';
 import OfficerWaterRequests from './pages/officer/WaterRequests';
@@ -446,6 +447,7 @@ function App() {
             >
               <Route index element={<Navigate to="/supervisor/dashboard" replace />} />
               <Route path="dashboard" element={<SupervisorDashboard />} />
+              <Route path="workers" element={<SupervisorWorkerManagement />} />
               <Route path="toilet-complaints" element={<ToiletComplaintsSupervisor />} />
               <Route path="mrf" element={<SupervisorMRFList />} />
               <Route path="mrf/facilities/:id" element={<SupervisorMRFDetails />} />

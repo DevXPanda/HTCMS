@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import api from '../../../services/api';
 import { propertyAPI, wardAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { Plus, Search, Eye, Edit, Filter, X, Download } from 'lucide-react';
+import { Plus, Search, Eye, Edit, Filter, X, Download, ArrowRightLeft } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 import { exportToCSV } from '../../../utils/exportCSV';
 
 const Properties = () => {
-  const { effectiveUlbId } = useSelectedUlb();
+  const { effectiveUlbId, isSuperAdmin } = useSelectedUlb();
   const { isAdmin, isAssessor } = useAuth();
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,6 +24,14 @@ const Properties = () => {
     constructionType: ''
   });
   const [wards, setWards] = useState([]);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferPropertyRow, setTransferPropertyRow] = useState(null);
+  const [ulbs, setUlbs] = useState([]);
+  const [transferTargetUlbId, setTransferTargetUlbId] = useState('');
+  const [transferTargetWardId, setTransferTargetWardId] = useState('');
+  const [transferWards, setTransferWards] = useState([]);
+  const [transferSubmitting, setTransferSubmitting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
   useEffect(() => {
     fetchWards();
@@ -31,6 +40,96 @@ const Properties = () => {
   useEffect(() => {
     fetchProperties();
   }, [search, filters, effectiveUlbId]);
+
+  useEffect(() => {
+    if (showTransferModal && isSuperAdmin && ulbs.length === 0) {
+      api.get('/admin-management/ulbs').then((res) => {
+        if (res.data && Array.isArray(res.data)) setUlbs(res.data);
+      }).catch(() => toast.error('Failed to load ULBs'));
+    }
+  }, [showTransferModal, isSuperAdmin, ulbs.length]);
+
+  useEffect(() => {
+    if (!transferTargetUlbId) {
+      setTransferWards([]);
+      setTransferTargetWardId('');
+      return;
+    }
+    wardAPI.getAll({ ulb_id: transferTargetUlbId }).then((res) => {
+      const list = res.data?.data?.wards ?? [];
+      setTransferWards(list);
+      setTransferTargetWardId('');
+    }).catch(() => setTransferWards([]));
+  }, [transferTargetUlbId]);
+
+  const idsToTransfer = transferPropertyRow ? [transferPropertyRow.id] : Array.from(selectedIds);
+
+  const openTransferModal = (property) => {
+    setTransferPropertyRow(property || null);
+    setTransferTargetUlbId('');
+    setTransferTargetWardId('');
+    setTransferWards([]);
+    setShowTransferModal(true);
+  };
+
+  const openTransferModalForSelected = () => {
+    if (selectedIds.size === 0) return;
+    setTransferPropertyRow(null);
+    setTransferTargetUlbId('');
+    setTransferTargetWardId('');
+    setTransferWards([]);
+    setShowTransferModal(true);
+  };
+
+  const closeTransferModal = () => {
+    setShowTransferModal(false);
+    setTransferPropertyRow(null);
+    setTransferTargetUlbId('');
+    setTransferTargetWardId('');
+    setTransferWards([]);
+  };
+
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === properties.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(properties.map(p => p.id)));
+    }
+  };
+
+  const handleTransferSubmit = async (e) => {
+    e.preventDefault();
+    if (idsToTransfer.length === 0 || !transferTargetUlbId) {
+      toast.error('Select target ULB');
+      return;
+    }
+    setTransferSubmitting(true);
+    const payload = {
+      targetUlbId: transferTargetUlbId,
+      ...(transferTargetWardId ? { targetWardId: parseInt(transferTargetWardId, 10) } : {})
+    };
+    try {
+      await Promise.all(idsToTransfer.map(id => propertyAPI.transfer(id, payload)));
+      const n = idsToTransfer.length;
+      toast.success(n === 1 ? 'Property transferred successfully.' : `${n} properties transferred successfully. Target ULB admins can assign or change wards.`);
+      setSelectedIds(new Set());
+      closeTransferModal();
+      fetchProperties();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Transfer failed');
+    } finally {
+      setTransferSubmitting(false);
+    }
+  };
 
   const fetchWards = async () => {
     try {
@@ -135,6 +234,16 @@ const Properties = () => {
             <Download className="w-4 h-4 mr-2" />
             Export
           </button>
+          {isSuperAdmin && selectedIds.size > 0 && (
+            <button
+              type="button"
+              onClick={openTransferModalForSelected}
+              className="btn btn-primary flex items-center bg-amber-600 hover:bg-amber-700"
+            >
+              <ArrowRightLeft className="w-4 h-4 mr-2" />
+              Transfer selected ({selectedIds.size})
+            </button>
+          )}
         </div>
       </div>
 
@@ -258,6 +367,17 @@ const Properties = () => {
         <table className="table">
           <thead>
             <tr>
+              {isSuperAdmin && (
+                <th className="w-10">
+                  <input
+                    type="checkbox"
+                    checked={properties.length > 0 && selectedIds.size === properties.length}
+                    onChange={toggleSelectAll}
+                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    title="Select all"
+                  />
+                </th>
+              )}
               <th>Property ID</th>
               <th>Address</th>
               <th>Ward</th>
@@ -270,13 +390,23 @@ const Properties = () => {
           <tbody>
             {properties.length === 0 ? (
               <tr>
-                <td colSpan="7" className="text-center py-8 text-gray-500">
+                <td colSpan={isSuperAdmin ? 8 : 7} className="text-center py-8 text-gray-500">
                   No properties found
                 </td>
               </tr>
             ) : (
               properties.map((property) => (
                 <tr key={property.id}>
+                  {isSuperAdmin && (
+                    <td className="w-10">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(property.id)}
+                        onChange={() => toggleSelect(property.id)}
+                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      />
+                    </td>
+                  )}
                   <td className="font-medium">{property.uniqueCode || property.propertyNumber}</td>
                   <td className="max-w-xs truncate">{property.address}</td>
                   <td>{property.ward?.wardName || 'N/A'}</td>
@@ -315,6 +445,16 @@ const Properties = () => {
                           <Edit className="w-4 h-4" />
                         </Link>
                       )}
+                      {isSuperAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => openTransferModal(property)}
+                          className="text-amber-600 hover:text-amber-700 flex items-center"
+                          title="Transfer to another ULB"
+                        >
+                          <ArrowRightLeft className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -323,6 +463,67 @@ const Properties = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Transfer to ULB Modal (Super Admin only) */}
+      {showTransferModal && idsToTransfer.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={closeTransferModal}>
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">
+              {idsToTransfer.length === 1 ? 'Transfer property to another ULB' : `Transfer ${idsToTransfer.length} properties to another ULB`}
+            </h2>
+            <p className="text-sm text-gray-600 mb-4">
+              {idsToTransfer.length === 1 && transferPropertyRow ? (
+                <>Property <strong>{transferPropertyRow.uniqueCode || transferPropertyRow.propertyNumber}</strong> will be moved to the selected ULB. Target ULB admins can then assign or change the ward.</>
+              ) : (
+                <><strong>{idsToTransfer.length} properties</strong> will be moved to the selected ULB. Target ULB admins can then assign or change wards.</>
+              )}
+            </p>
+            <form onSubmit={handleTransferSubmit}>
+              <div className="space-y-4">
+                <div>
+                  <label className="label">Target ULB</label>
+                  <select
+                    value={transferTargetUlbId}
+                    onChange={(e) => setTransferTargetUlbId(e.target.value)}
+                    className="input w-full"
+                    required
+                  >
+                    <option value="">Select ULB</option>
+                    {ulbs.map((ulb) => (
+                      <option key={ulb.id} value={ulb.id}>{ulb.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Target Ward (optional)</label>
+                  <select
+                    value={transferTargetWardId}
+                    onChange={(e) => setTransferTargetWardId(e.target.value)}
+                    className="input w-full"
+                    disabled={!transferTargetUlbId}
+                  >
+                    <option value="">First available ward</option>
+                    {transferWards.map((w) => (
+                      <option key={w.id} value={w.id}>{w.wardNumber} - {w.wardName}</option>
+                    ))}
+                  </select>
+                  {transferTargetUlbId && transferWards.length === 0 && (
+                    <p className="text-xs text-amber-600 mt-1">No wards in this ULB. Create wards in the target ULB first.</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 mt-6">
+                <button type="button" onClick={closeTransferModal} className="btn btn-secondary">
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={transferSubmitting}>
+                  {transferSubmitting ? 'Transferring…' : 'Transfer'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Pagination removed */}
     </div>

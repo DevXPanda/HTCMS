@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticate } from '../middleware/enhancedAuth.js';
-import { createWorker, getAllWorkers, getWorkersBySupervisor } from '../controllers/worker.controller.js';
+import { createWorker, getAllWorkers, getWorkersBySupervisor, updateWorker, WORKER_TYPES } from '../controllers/worker.controller.js';
 import { body, validationResult } from 'express-validator';
 
 const router = express.Router();
@@ -28,13 +28,13 @@ const createWorkerValidation = [
     .notEmpty()
     .withMessage('Worker type is required')
     .custom((value) => {
-      const normalized = value.toUpperCase();
-      if (!['ULB', 'CONTRACTUAL'].includes(normalized)) {
-        throw new Error('Worker type must be either ULB or CONTRACTUAL');
+      const normalized = (value || '').toUpperCase().replace(/\s/g, '_');
+      if (!WORKER_TYPES.includes(normalized)) {
+        throw new Error(`Worker type must be one of: ${WORKER_TYPES.join(', ')}`);
       }
       return true;
     })
-    .customSanitizer((value) => value.toUpperCase()),
+    .customSanitizer((value) => (value || '').toUpperCase().replace(/\s/g, '_')),
 
   body('ward_id')
     .notEmpty()
@@ -90,25 +90,18 @@ const validateRequest = (req, res, next) => {
   next();
 };
 
-// Role check middleware
+// Role check middleware: ADMIN, EO, SUPERVISOR can create workers
 const checkRoleAccess = (req, res, next) => {
   const userRole = req.user?.role ? req.user.role.toUpperCase().replace(/-/g, '_') : null;
 
-  if (userRole === 'SUPERVISOR') {
+  if (userRole !== 'ADMIN' && userRole !== 'EO' && userRole !== 'SUPERVISOR') {
     return res.status(403).json({
       success: false,
-      message: 'Access denied. SUPERVISOR role cannot create workers.'
+      message: 'Access denied. Only ADMIN, EO, and SUPERVISOR can create workers.'
     });
   }
 
-  if (userRole !== 'ADMIN' && userRole !== 'EO') {
-    return res.status(403).json({
-      success: false,
-      message: 'Access denied. Only ADMIN and EO roles can create workers.'
-    });
-  }
-
-  // For ADMIN role, require ulb_id and eo_id in request
+  // For ADMIN role only, require ulb_id and eo_id in request (EO and SUPERVISOR get from token)
   if (userRole === 'ADMIN') {
     if (!req.body.ulb_id || !req.body.eo_id) {
       return res.status(400).json({
@@ -123,11 +116,14 @@ const checkRoleAccess = (req, res, next) => {
 
 router.use(authenticate);
 
-// Get all workers with details and proofs (ADMIN, EO only)
+// Get all workers with details and proofs (ADMIN, EO, SUPERVISOR)
 router.get('/', getAllWorkers);
 
-// Create worker (ADMIN, EO only)
+// Create worker (ADMIN, EO, SUPERVISOR)
 router.post('/', createWorkerValidation, validateRequest, checkRoleAccess, createWorker);
+
+// Update worker (ADMIN, EO, SUPERVISOR - scope by role)
+router.put('/:id', updateWorker);
 
 // Get workers for a supervisor
 router.get('/supervisor/:supervisorId', getWorkersBySupervisor);

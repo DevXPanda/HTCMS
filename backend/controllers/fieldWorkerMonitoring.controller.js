@@ -742,7 +742,7 @@ export const getSupervisorDashboardForSelf = async (req, res) => {
   try {
     const supervisorId = req.user.id;
     const supervisor = await AdminManagement.findByPk(supervisorId, {
-      attributes: ['id', 'full_name', 'employee_id', 'ward_id', 'ulb_id', 'role']
+      attributes: ['id', 'full_name', 'employee_id', 'ward_id', 'ulb_id', 'role', 'assigned_modules']
     });
     
     // Normalize role to uppercase for comparison
@@ -780,7 +780,7 @@ export const getSupervisorDashboardForSelf = async (req, res) => {
             supervisor_id: supervisorId,
             ulb_id: supervisor.ulb_id
           },
-          attributes: ['id', 'worker_id', 'checkin_time', 'photo_url', 'geo_status', 'latitude', 'longitude'],
+          attributes: ['id', 'worker_id', 'checkin_time', 'photo_url', 'before_photo_url', 'after_photo_url', 'geo_status', 'latitude', 'longitude'],
           order: [['checkin_time', 'DESC']]
         })
       : [];
@@ -822,6 +822,13 @@ export const getSupervisorDashboardForSelf = async (req, res) => {
       }
     }
 
+    // Get ULB name for display
+    let ulbName = null;
+    if (supervisor.ulb_id) {
+      const ulb = await ULB.findByPk(supervisor.ulb_id, { attributes: ['name'] });
+      if (ulb) ulbName = ulb.name;
+    }
+
     const attendancePct = workers.length > 0 
       ? Math.round((presentWorkers.length / workers.length) * 100) 
       : 0;
@@ -847,7 +854,9 @@ export const getSupervisorDashboardForSelf = async (req, res) => {
         status: status,
         checkin_time: attendance?.checkin_time || null,
         geo_status: attendance?.geo_status || null,
-        photo_url: attendance?.photo_url || null
+        photo_url: attendance?.photo_url || null,
+        before_photo_url: attendance?.before_photo_url || null,
+        after_photo_url: attendance?.after_photo_url || null
       };
     });
 
@@ -909,7 +918,9 @@ export const getSupervisorDashboardForSelf = async (req, res) => {
           employee_id: supervisor.employee_id,
           ward_id: supervisor.ward_id,
           ulb_id: supervisor.ulb_id,
-          ward_name: wardName
+          ulb_name: ulbName,
+          ward_name: wardName,
+          assigned_modules: supervisor.assigned_modules || []
         },
         total_workers: workers.length,
         present_today: presentWorkers.length,
@@ -952,7 +963,7 @@ export const getAdminFieldWorkerDashboard = async (req, res) => {
 
     const eos = await AdminManagement.findAll({
       where: eoWhere,
-      attributes: ['id', 'full_name', 'employee_id', 'assigned_ulb', 'ward_ids']
+      attributes: ['id', 'full_name', 'employee_id', 'assigned_ulb', 'ward_ids', 'ulb_id']
     });
     const eoIds = eos.map(e => e.id);
 
@@ -963,22 +974,30 @@ export const getAdminFieldWorkerDashboard = async (req, res) => {
         })).map(s => s.id)
       : [];
 
-    const workerWhere = {
-      status: 'ACTIVE',
-      [Op.or]: [
+    let workerWhere = {
+      status: 'ACTIVE'
+    };
+    const hasFilter = ulb_id || wardId || eoId;
+    if (hasFilter) {
+      workerWhere[Op.or] = [
         ...(eoIds.length ? [{ eo_id: { [Op.in]: eoIds } }] : []),
         ...(allSupervisorIds.length ? [{ supervisor_id: { [Op.in]: allSupervisorIds } }] : [])
-      ]
-    };
-    // Apply ULB filter to workers if ulb_id is provided
-    if (ulb_id) {
-      workerWhere.ulb_id = ulb_id;
+      ];
+      if (workerWhere[Op.or].length === 0) workerWhere[Op.or] = [{ ulb_id: { [Op.ne]: null } }];
+    } else {
+      // No filter: include all active workers (with or without eo/supervisor) so data is visible
+      workerWhere[Op.or] = [
+        ...(eoIds.length ? [{ eo_id: { [Op.in]: eoIds } }] : []),
+        ...(allSupervisorIds.length ? [{ supervisor_id: { [Op.in]: allSupervisorIds } }] : []),
+        { ulb_id: { [Op.ne]: null } }
+      ];
     }
+    if (ulb_id) workerWhere.ulb_id = ulb_id;
     if (wardId) workerWhere.ward_id = parseInt(wardId, 10);
 
     const allWorkers = await Worker.findAll({
       where: workerWhere,
-      attributes: ['id', 'full_name', 'mobile', 'ward_id', 'supervisor_id', 'eo_id', 'worker_type', 'contractor_id']
+      attributes: ['id', 'full_name', 'mobile', 'ward_id', 'ulb_id', 'supervisor_id', 'eo_id', 'worker_type', 'contractor_id']
     });
     const allWorkerIds = allWorkers.map(w => w.id);
 
@@ -994,19 +1013,27 @@ export const getAdminFieldWorkerDashboard = async (req, res) => {
     });
     const wardMap = Object.fromEntries(wards.map(w => [w.id, `${w.wardNumber} - ${w.wardName}`]));
 
-    const ulbList = [...new Set(eos.map(e => e.assigned_ulb).filter(Boolean))];
+    // Build ULB list from workers' ulb_id and EOs' ulb_id so data shows even when assigned_ulb is empty
+    const distinctUlbIds = [...new Set([
+      ...allWorkers.map(w => w.ulb_id).filter(Boolean),
+      ...eos.map(e => e.ulb_id).filter(Boolean)
+    ])];
+    const ulbRows = distinctUlbIds.length
+      ? await ULB.findAll({ where: { id: { [Op.in]: distinctUlbIds } }, attributes: ['id', 'name'] })
+      : [];
+    const ulbIdToName = Object.fromEntries(ulbRows.map(u => [u.id, u.name || u.id]));
 
     const attendanceWhere = {
       ...dateFilter,
       ...(allWorkerIds.length ? { worker_id: { [Op.in]: allWorkerIds } } : {})
     };
 
-    const [presentTodayRows] = allWorkerIds.length
+    const presentTodayRows = allWorkerIds.length
       ? await sequelize.query(
           'SELECT worker_id FROM worker_attendance WHERE worker_id IN (:ids) AND attendance_date = :today',
           { replacements: { ids: allWorkerIds, today }, type: sequelize.QueryTypes.SELECT }
         )
-      : [[]];
+      : [];
     const presentTodaySet = new Set((presentTodayRows || []).map(r => r.worker_id));
 
     const attendanceRecords = allWorkerIds.length
@@ -1019,27 +1046,17 @@ export const getAdminFieldWorkerDashboard = async (req, res) => {
     const workerIdToName = Object.fromEntries(allWorkers.map(w => [w.id, w.full_name]));
     const eoIdToName = Object.fromEntries(eos.map(e => [e.id, e.full_name]));
 
-    const ulbWiseData = await Promise.all(ulbList.map(async (ulbName) => {
-      const eosInUlb = eos.filter(e => e.assigned_ulb === ulbName);
-      const eoIdsInUlb = eosInUlb.map(e => e.id);
-      const supervisorsInUlb = eoIdsInUlb.length
-        ? await AdminManagement.findAll({
-            where: { eo_id: { [Op.in]: eoIdsInUlb }, role: 'SUPERVISOR' },
-            attributes: ['id']
-          })
-        : [];
-      const supIdsInUlb = supervisorsInUlb.map(s => s.id);
-      const workersInUlb = allWorkers.filter(w => 
-        eoIdsInUlb.includes(w.eo_id) || supIdsInUlb.includes(w.supervisor_id)
-      );
+    const ulbWiseData = distinctUlbIds.map((uid) => {
+      const workersInUlb = allWorkers.filter(w => w.ulb_id === uid);
       const presentInUlb = workersInUlb.filter(w => presentTodaySet.has(w.id)).length;
       return {
-        ulb: ulbName,
+        ulb: ulbIdToName[uid] || uid,
+        ulb_id: uid,
         total_workers: workersInUlb.length,
         present_today: presentInUlb,
         attendance_pct: workersInUlb.length > 0 ? Math.round((presentInUlb / workersInUlb.length) * 100) : 0
       };
-    }));
+    });
 
     const attendanceSummary = {
       total_workers: allWorkers.length,

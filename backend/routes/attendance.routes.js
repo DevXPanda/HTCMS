@@ -43,8 +43,11 @@ const workerAttendanceUpload = multer({
 // All routes require authentication
 router.use(authenticate);
 
-// Mark worker attendance (SUPERVISOR only, multipart: photo + fields)
-router.post('/mark', workerAttendanceUpload.single('photo'), markWorkerAttendance);
+// Mark worker attendance (SUPERVISOR only, multipart: before_photo + after_photo + fields)
+router.post('/mark', workerAttendanceUpload.fields([
+  { name: 'before_photo', maxCount: 1 },
+  { name: 'after_photo', maxCount: 1 }
+]), markWorkerAttendance);
 
 // Mark all workers present (SUPERVISOR only, bulk operation)
 router.post('/mark-all', markAllWorkersPresent);
