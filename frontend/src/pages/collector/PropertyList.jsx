@@ -6,6 +6,13 @@ import toast from 'react-hot-toast';
 import { Eye, Search, Filter, X, MapPin } from 'lucide-react';
 import { useStaffAuth } from '../../contexts/StaffAuthContext';
 
+const formatWardNumber = (val) => {
+  if (val == null || val === '') return '';
+  const n = parseInt(String(val).trim(), 10);
+  if (!Number.isNaN(n) && n >= 0) return String(n).padStart(3, '0');
+  return String(val);
+};
+
 const PropertyList = () => {
   const { user } = useStaffAuth();
   const [searchParams] = useSearchParams();
@@ -106,7 +113,7 @@ const PropertyList = () => {
             <option value="">All Assigned Wards</option>
             {wards.map((ward) => (
               <option key={ward.id} value={ward.id}>
-                {ward.wardName} (#{ward.wardNumber})
+                {ward.wardName} ({formatWardNumber(ward.wardNumber)})
               </option>
             ))}
           </select>

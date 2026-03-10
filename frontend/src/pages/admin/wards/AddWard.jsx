@@ -161,7 +161,7 @@ const AddWard = () => {
                 }
               })}
               className="input w-full"
-              placeholder="e.g., W001"
+              placeholder="e.g. 001"
             />
             {errors.wardNumber && (
               <p className="text-red-500 text-sm mt-1">{errors.wardNumber.message}</p>

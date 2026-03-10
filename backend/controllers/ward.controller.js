@@ -6,6 +6,15 @@ import { calculateFinalAmount } from '../utils/financialCalculations.js';
 import { wardAccessControl, specificWardAccess } from '../middleware/wardAccess.js';
 import { getEffectiveUlbForRequest } from '../utils/ulbAccessHelper.js';
 
+/** Normalize ward number to 3-digit zero-padded format (e.g. 1 -> 001). Non-numeric values returned as-is. */
+function normalizeWardNumber(val) {
+  if (val == null || val === '') return val;
+  const s = String(val).trim();
+  const n = parseInt(s, 10);
+  if (!Number.isNaN(n) && n >= 0) return String(n).padStart(3, '0');
+  return s;
+}
+
 /**
  * @route   GET /api/wards
  * @desc    Get all wards
@@ -178,9 +187,17 @@ export const createWard = async (req, res, next) => {
       });
     }
 
+    const normalizedNumber = normalizeWardNumber(wardNumber);
+    if (!normalizedNumber) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ward number is required'
+      });
+    }
+
     // Check duplicate by (ulb_id, ward_number) - allow same ward number in different ULBs
     const existingWard = await Ward.findOne({
-      where: { ulb_id, wardNumber }
+      where: { ulb_id, wardNumber: normalizedNumber }
     });
 
     if (existingWard) {
@@ -209,7 +226,7 @@ export const createWard = async (req, res, next) => {
     }
 
     const ward = await Ward.create({
-      wardNumber,
+      wardNumber: normalizedNumber,
       wardName,
       description,
       collectorId,
@@ -268,7 +285,7 @@ export const createWard = async (req, res, next) => {
 export const updateWard = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { wardName, description, collectorId, ulb_id } = req.body;
+    const { wardNumber: bodyWardNumber, wardName, description, collectorId, ulb_id } = req.body;
 
     const ward = await Ward.findByPk(id);
     if (!ward) {
@@ -289,8 +306,24 @@ export const updateWard = async (req, res, next) => {
       }
     }
 
+    if (bodyWardNumber !== undefined && bodyWardNumber !== null && String(bodyWardNumber).trim() !== '') {
+      const normalizedNumber = normalizeWardNumber(bodyWardNumber);
+      const ulbIdForUnique = ulb_id !== undefined ? ulb_id : ward.ulb_id;
+      const existing = await Ward.findOne({
+        where: { ulb_id: ulbIdForUnique, wardNumber: normalizedNumber, id: { [Op.ne]: id } }
+      });
+      if (existing) {
+        return res.status(400).json({
+          success: false,
+          message: 'Ward with this number already exists in this ULB'
+        });
+      }
+      ward.wardNumber = normalizedNumber;
+    }
+
     // Capture previous data for audit log
     const previousData = {
+      wardNumber: ward.wardNumber,
       wardName: ward.wardName,
       collectorId: ward.collectorId,
       ulb_id: ward.ulb_id
@@ -330,6 +363,7 @@ export const updateWard = async (req, res, next) => {
 
     // Log based on what changed
     const newData = {
+      wardNumber: ward.wardNumber,
       wardName: ward.wardName,
       collectorId: ward.collectorId,
       ulb_id: ward.ulb_id

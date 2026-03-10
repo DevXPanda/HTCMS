@@ -6,6 +6,13 @@ import toast from 'react-hot-toast';
 import { Eye, MapPin, Home, Users } from 'lucide-react';
 import { useStaffAuth } from '../../contexts/StaffAuthContext';
 
+const formatWardNumber = (val) => {
+  if (val == null || val === '') return '';
+  const n = parseInt(String(val).trim(), 10);
+  if (!Number.isNaN(n) && n >= 0) return String(n).padStart(3, '0');
+  return String(val);
+};
+
 const AssignedWards = () => {
   const { user } = useStaffAuth();
   const [wards, setWards] = useState([]);
@@ -48,7 +55,7 @@ const AssignedWards = () => {
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">{ward.wardName}</h3>
-                  <p className="text-sm text-gray-500">Ward #{ward.wardNumber}</p>
+                  <p className="text-sm text-gray-500">{formatWardNumber(ward.wardNumber)}</p>
                 </div>
                 <span className={`badge ${ward.isActive ? 'badge-success' : 'badge-danger'}`}>
                   {ward.isActive ? 'Active' : 'Inactive'}

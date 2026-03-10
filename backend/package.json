@@ -11,6 +11,7 @@
     "migrate:assigned-modules": "node run-migrate-assigned-modules.js",
     "migrate:worker-type": "node run-migrate-worker-type.js",
     "migrate:attendance-photos": "node run-migrate-attendance-before-after-photos.js",
+    "migrate:ward-number-001": "node run-migrate-ward-number-001.js",
     "seed": "sequelize-cli db:seed:all",
     "update-wcr-ids": "node scripts/update-water-connection-request-ids.js"
   },

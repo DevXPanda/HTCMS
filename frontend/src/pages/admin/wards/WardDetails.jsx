@@ -6,6 +6,13 @@ import toast from 'react-hot-toast';
 import { Edit, Users, BarChart3, Save, X, Trash2 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 
+const formatWardNumber = (val) => {
+  if (val == null || val === '') return '';
+  const n = parseInt(String(val).trim(), 10);
+  if (!Number.isNaN(n) && n >= 0) return String(n).padStart(3, '0');
+  return String(val);
+};
+
 const WardDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -224,7 +231,7 @@ const WardDetails = () => {
             </div>
             <div>
               <dt className="text-sm font-medium text-gray-500">Ward Number</dt>
-              <dd className="text-lg font-semibold">{ward.wardNumber}</dd>
+              <dd className="text-lg font-semibold">{formatWardNumber(ward.wardNumber)}</dd>
             </div>
             <div>
               <dt className="text-sm font-medium text-gray-500">Ward Name</dt>

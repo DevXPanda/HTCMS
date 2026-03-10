@@ -5,6 +5,13 @@ import toast from 'react-hot-toast';
 import { X, MapPin, User, Building, DollarSign, Calendar, Smartphone, 
          CheckCircle, XCircle, AlertTriangle, FileText, Shield } from 'lucide-react';
 
+const formatWardNumber = (val) => {
+  if (val == null || val === '') return '';
+  const n = parseInt(String(val).trim(), 10);
+  if (!Number.isNaN(n) && n >= 0) return String(n).padStart(3, '0');
+  return String(val);
+};
+
 const FieldVisitDetailsModal = ({ visitId, isOpen, onClose }) => {
   const [visitDetails, setVisitDetails] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -302,7 +309,7 @@ const FieldVisitDetailsModal = ({ visitId, isOpen, onClose }) => {
                       <div>
                         <p className="text-sm text-gray-500">Ward</p>
                         <p className="font-medium">
-                          {visitDetails.property.ward.wardName} (Ward #{visitDetails.property.ward.wardNumber})
+                          {visitDetails.property.ward.wardName} ({formatWardNumber(visitDetails.property.ward.wardNumber)})
                         </p>
                       </div>
                     )}
