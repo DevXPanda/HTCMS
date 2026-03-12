@@ -220,6 +220,46 @@ const eoRoutes = [
   { path: 'workers', label: 'Workers', parentPath: 'dashboard' },
 ];
 
+const sfiRoutes = [
+  { path: 'dashboard', label: 'SFI Dashboard', parentPath: null },
+  { path: 'toilet-management', label: 'Toilet Management', parentPath: 'dashboard' },
+  { path: 'toilet-management/facilities', label: 'Facilities', parentPath: 'toilet-management' },
+  { path: 'toilet-management/facilities/new', label: 'Add Facility', parentPath: 'toilet-management/facilities' },
+  { path: 'toilet-management/facilities/:id', label: 'Facility Details', parentPath: 'toilet-management/facilities' },
+  { path: 'toilet-management/inspections', label: 'Inspections', parentPath: 'toilet-management' },
+  { path: 'toilet-management/inspections/new', label: 'New Inspection', parentPath: 'toilet-management/inspections' },
+  { path: 'toilet-management/inspections/:id', label: 'Inspection Details', parentPath: 'toilet-management/inspections' },
+  { path: 'toilet-management/complaints', label: 'Complaints', parentPath: 'toilet-management' },
+  { path: 'toilet-management/complaints/:id', label: 'Complaint Details', parentPath: 'toilet-management/complaints' },
+  { path: 'toilet-management/maintenance', label: 'Maintenance', parentPath: 'toilet-management' },
+  { path: 'toilet-management/maintenance/new', label: 'New Maintenance', parentPath: 'toilet-management/maintenance' },
+  { path: 'toilet-management/maintenance/:id', label: 'Maintenance Details', parentPath: 'toilet-management/maintenance' },
+  { path: 'toilet-management/staff', label: 'Staff Assignment', parentPath: 'toilet-management' },
+  { path: 'toilet-management/facilities/:id/staff', label: 'Staff', parentPath: 'toilet-management/facilities' },
+  { path: 'toilet-management/reports', label: 'Reports', parentPath: 'toilet-management' },
+  { path: 'mrf', label: 'MRF', parentPath: 'dashboard' },
+  { path: 'mrf/management', label: 'MRF Management', parentPath: 'mrf' },
+  { path: 'mrf/worker-assignment', label: 'Worker Assignment', parentPath: 'mrf' },
+  { path: 'mrf/facilities/new', label: 'Add MRF', parentPath: 'mrf/management' },
+  { path: 'mrf/facilities/:id', label: 'MRF Details', parentPath: 'mrf/management' },
+  { path: 'mrf/reports', label: 'MRF Reports', parentPath: 'mrf' },
+  { path: 'gaushala/management', label: 'Gaushala', parentPath: 'dashboard' },
+  { path: 'gaushala/facilities', label: 'Facilities', parentPath: 'gaushala/management' },
+  { path: 'gaushala/facilities/new', label: 'Add Facility', parentPath: 'gaushala/facilities' },
+  { path: 'gaushala/facilities/:id', label: 'Facility Details', parentPath: 'gaushala/facilities' },
+  { path: 'gaushala/facilities/:id/cattle', label: 'Cattle', parentPath: 'gaushala/facilities' },
+  { path: 'gaushala/all-cattle', label: 'All Cattle', parentPath: 'gaushala/management' },
+  { path: 'gaushala/all-cattle/new', label: 'Add Cattle', parentPath: 'gaushala/all-cattle' },
+  { path: 'gaushala/inspections', label: 'Inspections', parentPath: 'gaushala/management' },
+  { path: 'gaushala/inspections/new', label: 'New Inspection', parentPath: 'gaushala/inspections' },
+  { path: 'gaushala/inspections/:id', label: 'Inspection Details', parentPath: 'gaushala/inspections' },
+  { path: 'gaushala/feeding', label: 'Feeding', parentPath: 'gaushala/management' },
+  { path: 'gaushala/complaints', label: 'Complaints', parentPath: 'gaushala/management' },
+  { path: 'gaushala/reports', label: 'Reports', parentPath: 'gaushala/management' },
+  { path: 'workers', label: 'Worker Management', parentPath: 'dashboard' },
+  { path: 'notifications', label: 'Notifications', parentPath: 'dashboard' },
+];
+
 // Generic match for a route list (pathWithoutPrefix, routesArray)
 function matchPathForRole(clean, routes, detailLabels) {
   if (!clean) return { path: 'dashboard', label: 'Dashboard', parentPath: null };
@@ -317,6 +357,12 @@ export function getEoBreadcrumbs(pathname) {
   return buildBreadcrumbsForRole(rest, prefix, eoRoutes, {});
 }
 
+export function getSfiBreadcrumbs(pathname) {
+  const prefix = '/sfi';
+  const rest = pathname.replace(/^\/sfi\/?/, '') || 'dashboard';
+  return buildBreadcrumbsForRole(rest, prefix, sfiRoutes, {});
+}
+
 /**
  * Returns breadcrumb items for current pathname (all roles).
  * Normalizes pathname (trim trailing slash) so links and matching work correctly.
@@ -331,6 +377,7 @@ export function getBreadcrumbs(pathname) {
   if (p.startsWith('officer/') || p === 'officer') return getOfficerBreadcrumbs(normalized);
   if (p.startsWith('supervisor/') || p === 'supervisor') return getSupervisorBreadcrumbs(normalized);
   if (p.startsWith('eo/') || p === 'eo') return getEoBreadcrumbs(normalized);
+  if (p.startsWith('sfi/') || p === 'sfi') return getSfiBreadcrumbs(normalized);
   return getAdminBreadcrumbs(normalized);
 }
 

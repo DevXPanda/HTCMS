@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useMrfBasePath } from './useMrfBasePath';
 import {
     Recycle,
     BarChart3,
@@ -14,7 +15,8 @@ import {
 import api from '../../../services/api';
 
 const MRFModule = () => {
-    useBackTo('/dashboard');
+    const base = useMrfBasePath();
+    useBackTo(base === '/sfi/mrf' ? '/sfi/dashboard' : '/dashboard');
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -40,21 +42,21 @@ const MRFModule = () => {
             title: 'MRF Centers',
             description: 'View and manage all material recovery facilities',
             icon: Recycle,
-            link: '/mrf/management',
+            link: `${base}/management`,
             color: 'bg-green-500'
         },
         {
             title: 'Worker Assignment',
             description: 'Assign workers to MRF facilities',
             icon: Users,
-            link: '/mrf/worker-assignment',
+            link: `${base}/worker-assignment`,
             color: 'bg-blue-500'
         },
         {
             title: 'Reports & Analytics',
             description: 'View reports and analytics',
             icon: BarChart3,
-            link: '/mrf/reports',
+            link: `${base}/reports`,
             color: 'bg-purple-500'
         }
     ];
@@ -152,19 +154,19 @@ const MRFModule = () => {
                 <h2 className="ds-section-title mb-4">Quick Actions</h2>
                 <div className="flex flex-wrap gap-4">
                     <Link
-                        to="/mrf/facilities/new"
+                        to={`${base}/facilities/new`}
                         className="btn btn-primary flex items-center"
                     >
                         <PlusCircle className="h-4 w-4 mr-2" /> Add MRF Center
                     </Link>
                     <Link
-                        to="/mrf/management"
+                        to={`${base}/management`}
                         className="btn btn-secondary flex items-center"
                     >
                         <Recycle className="h-4 w-4 mr-2" /> View All Centers
                     </Link>
                     <Link
-                        to="/mrf/reports"
+                        to={`${base}/reports`}
                         className="btn btn-secondary flex items-center"
                     >
                         <BarChart3 className="h-4 w-4 mr-2" /> View Reports

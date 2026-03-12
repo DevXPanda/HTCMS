@@ -1,7 +1,7 @@
 import { GauShalaFacility, GauShalaCattle, GauShalaComplaint, GauShalaFeedingRecord, GauShalaInspection, CattleMedicalRecord, Ward, User, AdminManagement } from '../models/index.js';
 import { Op } from 'sequelize';
 import { auditLogger } from '../utils/auditLogger.js';
-import { getEffectiveUlbForRequest, getWardIdsByUlbId } from '../utils/ulbAccessHelper.js';
+import { getEffectiveUlbForRequest, getWardIdsForRequest, getEffectiveWardIdsForRequest } from '../utils/ulbAccessHelper.js';
 
 // Facilities
 export const getAllFacilities = async (req, res, next) => {
@@ -16,7 +16,7 @@ export const getAllFacilities = async (req, res, next) => {
             });
         }
         if (effectiveUlbId) {
-            const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+            const wardIds = await getWardIdsForRequest(req);
             if (!wardIds || wardIds.length === 0) {
                 return res.json({ success: true, data: { facilities: [], pagination: { total: 0, page, limit, pages: 0 } } });
             }
@@ -60,6 +60,13 @@ export const getFacilityById = async (req, res, next) => {
             ]
         });
         if (!facility) return res.status(404).json({ success: false, message: 'Gaushala facility not found' });
+        const isSfi = req.userType === 'admin_management' && (req.user?.role || '').toString().toUpperCase() === 'SFI';
+        if (isSfi) {
+            const sfiWardIds = await getEffectiveWardIdsForRequest(req);
+            if (!Array.isArray(sfiWardIds) || sfiWardIds.length === 0 || !sfiWardIds.includes(facility.ward_id)) {
+                return res.status(403).json({ success: false, message: 'Access denied. Facility is not in your assigned wards.' });
+            }
+        }
         res.json({ success: true, data: { facility } });
     } catch (error) {
         next(error);
@@ -81,7 +88,13 @@ export const updateFacility = async (req, res, next) => {
         const { id } = req.params;
         const facility = await GauShalaFacility.findByPk(id);
         if (!facility) return res.status(404).json({ success: false, message: 'Gaushala facility not found' });
-
+        const isSfi = req.userType === 'admin_management' && (req.user?.role || '').toString().toUpperCase() === 'SFI';
+        if (isSfi) {
+            const sfiWardIds = await getEffectiveWardIdsForRequest(req);
+            if (!Array.isArray(sfiWardIds) || sfiWardIds.length === 0 || !sfiWardIds.includes(facility.ward_id)) {
+                return res.status(403).json({ success: false, message: 'Access denied. Facility is not in your assigned wards.' });
+            }
+        }
         await facility.update(req.body);
         await auditLogger.logUpdate(req, req.user, 'GauShalaFacility', id, { name: facility.name }, `Updated Gaushala facility: ${facility.name}`);
         res.json({ success: true, data: { facility } });
@@ -95,7 +108,13 @@ export const deleteFacility = async (req, res, next) => {
         const { id } = req.params;
         const facility = await GauShalaFacility.findByPk(id);
         if (!facility) return res.status(404).json({ success: false, message: 'Gaushala facility not found' });
-
+        const isSfi = req.userType === 'admin_management' && (req.user?.role || '').toString().toUpperCase() === 'SFI';
+        if (isSfi) {
+            const sfiWardIds = await getEffectiveWardIdsForRequest(req);
+            if (!Array.isArray(sfiWardIds) || sfiWardIds.length === 0 || !sfiWardIds.includes(facility.ward_id)) {
+                return res.status(403).json({ success: false, message: 'Access denied. Facility is not in your assigned wards.' });
+            }
+        }
         await auditLogger.logDelete(req, req.user, 'GauShalaFacility', id, { name: facility.name }, `Deleted Gaushala facility: ${facility.name}`);
         await facility.destroy();
         res.json({ success: true, message: 'Gaushala facility deleted successfully' });
@@ -115,7 +134,7 @@ export const getAllCattle = async (req, res, next) => {
         }
         let facilityWhere = {};
         if (effectiveUlbId) {
-            const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+            const wardIds = await getWardIdsForRequest(req);
             if (!wardIds || wardIds.length === 0) {
                 return res.json({ success: true, data: { cattle: [] } });
             }
@@ -187,7 +206,7 @@ export const getAllFeedingRecords = async (req, res, next) => {
         }
         let facilityWhere = {};
         if (effectiveUlbId) {
-            const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+            const wardIds = await getWardIdsForRequest(req);
             if (!wardIds || wardIds.length === 0) {
                 return res.json({ success: true, data: { feedingRecords: [] } });
             }
@@ -238,7 +257,7 @@ export const getAllInspections = async (req, res, next) => {
         }
         let facilityWhere = {};
         if (effectiveUlbId) {
-            const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+            const wardIds = await getWardIdsForRequest(req);
             if (!wardIds || wardIds.length === 0) {
                 return res.json({ success: true, data: { inspections: [], pagination: { total: 0, page, limit, pages: 0 } } });
             }
@@ -323,7 +342,7 @@ export const getAllComplaints = async (req, res, next) => {
         }
         let facilityWhere = {};
         if (effectiveUlbId) {
-            const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+            const wardIds = await getWardIdsForRequest(req);
             if (!wardIds || wardIds.length === 0) {
                 return res.json({ success: true, data: { complaints: [] } });
             }
@@ -392,7 +411,7 @@ export const getReports = async (req, res, next) => {
         }
         let facilityWhere = {};
         if (effectiveUlbId) {
-            const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+            const wardIds = await getWardIdsForRequest(req);
             if (!wardIds || wardIds.length === 0) {
                 return res.json({
                     success: true,

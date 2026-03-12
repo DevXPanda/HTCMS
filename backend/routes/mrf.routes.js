@@ -28,22 +28,22 @@ router.use(authenticate);
 // Facility CRUD
 router.get('/facilities', getAllFacilities);
 router.get('/facilities/:id', getFacilityById);
-router.post('/facilities', authorize('admin'), createFacility);
-router.put('/facilities/:id', authorize('admin'), updateFacility);
-router.delete('/facilities/:id', authorize('admin'), deleteFacility);
+router.post('/facilities', authorize('admin', 'sfi'), createFacility);
+router.put('/facilities/:id', authorize('admin', 'sfi'), updateFacility);
+router.delete('/facilities/:id', authorize('admin', 'sfi'), deleteFacility);
 
 // Waste Entries
 router.get('/waste-entries', getWasteEntries);
-router.post('/waste-entries', authorize('admin', 'supervisor'), createWasteEntry);
+router.post('/waste-entries', authorize('admin', 'supervisor', 'sfi'), createWasteEntry);
 
 // Worker Assignments
 router.get('/assignments', getAssignments);
-router.post('/assignments', authorize('admin'), assignWorker);
-router.patch('/assignments/:id/deactivate', authorize('admin'), removeAssignment);
+router.post('/assignments', authorize('admin', 'sfi'), assignWorker);
+router.patch('/assignments/:id/deactivate', authorize('admin', 'sfi'), removeAssignment);
 
 // Tasks
 router.get('/tasks', getTasks);
-router.post('/tasks', authorize('admin', 'supervisor'), createTask);
+router.post('/tasks', authorize('admin', 'supervisor', 'sfi'), createTask);
 router.patch('/tasks/:id/status', updateTaskStatus);
 
 // Complaints
@@ -51,10 +51,10 @@ router.get('/facilities/:id/complaints', getLinkedComplaints);
 
 // Reports
 router.get('/reports/stats', getReports);
-router.get('/reports/export', authorize('admin'), exportWasteReport);
+router.get('/reports/export', authorize('admin', 'sfi'), exportWasteReport);
 
 // Sales
 router.get('/sales', getAllSales);
-router.post('/sales', authorize('admin'), createSale);
+router.post('/sales', authorize('admin', 'sfi'), createSale);
 
 export default router;

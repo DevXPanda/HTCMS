@@ -20,12 +20,14 @@ import {
   Clock
 } from 'lucide-react';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useToiletBasePath } from './useToiletBasePath';
 import api from '../../../services/api';
 
 const ToiletDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  useBackTo('/toilet-management/facilities');
+  const base = useToiletBasePath();
+  useBackTo(`${base}/facilities`);
   const [toilet, setToilet] = useState(null);
   const [loading, setLoading] = useState(true);
   const [inspections, setInspections] = useState([]);
@@ -106,7 +108,7 @@ const ToiletDetails = () => {
     return (
       <div className="empty-state">
         <p className="empty-state-text">Toilet facility not found</p>
-        <Link to="/toilet-management/facilities" className="btn btn-primary mt-4">
+        <Link to={`${base}/facilities`} className="btn btn-primary mt-4">
           Back to Facilities
         </Link>
       </div>
@@ -127,10 +129,10 @@ const ToiletDetails = () => {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link to={`/toilet-management/facilities/${id}/edit`} className="btn btn-secondary">
+          <Link to={`${base}/facilities/${id}/edit`} className="btn btn-secondary">
             <Edit className="h-4 w-4" /> Edit Facility
           </Link>
-          <Link to={`/toilet-management/facilities/${id}/staff`} className="btn btn-primary">
+          <Link to={`${base}/facilities/${id}/staff`} className="btn btn-primary">
             <UserPlus className="h-4 w-4" /> Staffing
           </Link>
         </div>
@@ -218,7 +220,7 @@ const ToiletDetails = () => {
                 <h2 className="form-section-title flex items-center gap-2 mb-0">
                   <ClipboardCheck className="w-4 h-4 text-primary-600" /> Audit Logs
                 </h2>
-                <Link to="/toilet-management/inspections" className="text-sm font-medium text-primary-600 hover:text-primary-700">All</Link>
+                <Link to={`${base}/inspections`} className="text-sm font-medium text-primary-600 hover:text-primary-700">All</Link>
               </div>
               <div className="space-y-3">
                 {inspections.slice(0, 3).map((inspection) => (
@@ -240,7 +242,7 @@ const ToiletDetails = () => {
                 ))}
                 {inspections.length === 0 && <p className="text-xs text-gray-400 italic text-center py-4">No inspection history found</p>}
               </div>
-              <Link to={`/toilet-management/inspections/new?facilityId=${id}`} className="btn btn-primary w-full justify-center mt-4">
+              <Link to={`${base}/inspections/new?facilityId=${id}`} className="btn btn-primary w-full justify-center mt-4">
                 <PlusCircle className="w-3.5 h-3.5" /> New Inspection
               </Link>
             </div>
@@ -251,7 +253,7 @@ const ToiletDetails = () => {
                 <h2 className="form-section-title flex items-center gap-2 mb-0">
                   <Wrench className="w-4 h-4 text-primary-600" /> Maintenance
                 </h2>
-                <Link to="/toilet-management/maintenance" className="text-sm font-medium text-primary-600 hover:text-primary-700">All</Link>
+                <Link to={`${base}/maintenance`} className="text-sm font-medium text-primary-600 hover:text-primary-700">All</Link>
               </div>
               <div className="space-y-3">
                 {maintenance.slice(0, 3).map((item) => (
@@ -270,7 +272,7 @@ const ToiletDetails = () => {
                 ))}
                 {maintenance.length === 0 && <p className="text-xs text-gray-400 italic text-center py-4">No maintenance history found</p>}
               </div>
-              <Link to={`/toilet-management/maintenance/new?facilityId=${id}`} className="btn btn-primary w-full justify-center mt-4">
+              <Link to={`${base}/maintenance/new?facilityId=${id}`} className="btn btn-primary w-full justify-center mt-4">
                 <PlusCircle className="w-3.5 h-3.5" /> Schedule Activity
               </Link>
             </div>
@@ -297,7 +299,7 @@ const ToiletDetails = () => {
                 <p className="text-sm text-gray-500">No Photos Recorded</p>
               </div>
             )}
-            <Link to={`/toilet-management/facilities/${id}/edit`} className="btn btn-secondary w-full justify-center mt-4">
+            <Link to={`${base}/facilities/${id}/edit`} className="btn btn-secondary w-full justify-center mt-4">
               Manage Media
             </Link>
           </div>
@@ -325,7 +327,7 @@ const ToiletDetails = () => {
                 <p className="text-[10px] text-gray-400 font-bold text-center py-4">No personnel deployed</p>
               )}
             </div>
-            <Link to={`/toilet-management/facilities/${id}/staff`} className="w-full py-2 bg-primary-50 text-primary-700 rounded-xl text-[10px] font-black uppercase text-center block hover:bg-primary-100 transition-colors">
+            <Link to={`${base}/facilities/${id}/staff`} className="w-full py-2 bg-primary-50 text-primary-700 rounded-xl text-[10px] font-black uppercase text-center block hover:bg-primary-100 transition-colors">
               Manage Deployment
             </Link>
           </div> */}

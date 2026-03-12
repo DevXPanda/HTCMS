@@ -54,6 +54,8 @@ const RoleBasedRedirect = () => {
     return <Navigate to="/eo/dashboard" replace />;
   } else if (normalizedRole === 'SUPERVISOR') {
     return <Navigate to="/supervisor/dashboard" replace />;
+  } else if (normalizedRole === 'SFI') {
+    return <Navigate to="/sfi/dashboard" replace />;
   } else if (normalizedRole === 'ADMIN' || normalizedRole === 'ASSESSOR' || normalizedRole === 'CASHIER') {
     return <Navigate to="/dashboard" replace />;
   }

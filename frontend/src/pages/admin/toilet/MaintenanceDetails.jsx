@@ -13,12 +13,14 @@ import {
     Camera
 } from 'lucide-react';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useToiletBasePath } from './useToiletBasePath';
 import api from '../../../services/api';
 
 const MaintenanceDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    useBackTo('/toilet-management/maintenance');
+    const base = useToiletBasePath();
+    useBackTo(`${base}/maintenance`);
     const [record, setRecord] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -74,7 +76,7 @@ const MaintenanceDetails = () => {
                     <p className="ds-page-subtitle">Ref ID: MNT-{record.id.toString().padStart(4, '0')}</p>
                 </div>
                 <Link
-                    to={`/toilet-management/maintenance/${record.id}/edit`}
+                    to={`${base}/maintenance/${record.id}/edit`}
                     className="btn btn-secondary flex items-center gap-2"
                 >
                     <Edit className="w-4 h-4" /> Edit Record

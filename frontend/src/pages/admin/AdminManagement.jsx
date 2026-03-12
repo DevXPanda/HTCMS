@@ -10,7 +10,8 @@ const ACTIVE_ROLES = [
   { value: 'EO', label: 'EO' },
   { value: 'SUPERVISOR', label: 'Supervisor' },
   { value: 'COLLECTOR', label: 'Collector' },
-  { value: 'FIELD_WORKER', label: 'Field Worker' }
+  { value: 'FIELD_WORKER', label: 'Field Worker' },
+  { value: 'SFI', label: 'SFI (Sanitary & Food Inspector)' }
 ];
 const DEPRECATED_ROLE_VALUES = ['CLERK', 'INSPECTOR', 'OFFICER', 'CONTRACTOR'];
 // Supervisor assigned modules (stored as values: toilet, mrf, gaushala)
@@ -19,6 +20,25 @@ const SUPERVISOR_MODULES = [
   { value: 'mrf', label: 'MRF' },
   { value: 'gaushala', label: 'Gau Shala' }
 ];
+const SFI_MODULES = [
+  { value: 'toilet', label: 'Toilet Management' },
+  { value: 'mrf', label: 'MRF' },
+  { value: 'gaushala', label: 'Gau Shala' },
+  { value: 'worker_management', label: 'Worker Management' }
+];
+// Map backend assigned_modules (any format) to SFI_MODULES values for edit form
+function normalizeAssignedModulesForForm(raw) {
+  if (Array.isArray(raw)) raw = raw.map(m => (m != null ? String(m).trim() : '')).filter(Boolean);
+  else if (typeof raw === 'string') raw = raw.split(/[\s,]+/).map(s => s.trim()).filter(Boolean);
+  else raw = [];
+  const values = SFI_MODULES.map(s => s.value);
+  const byValue = new Map(values.map(v => [v.toLowerCase(), v]));
+  const byLabel = new Map(SFI_MODULES.map(s => [s.label.toLowerCase(), s.value]));
+  return raw.map(m => {
+    const lower = m.toLowerCase();
+    return byValue.get(lower) || byLabel.get(lower) || (values.includes(lower) ? lower : null);
+  }).filter(Boolean);
+}
 const WORKER_TYPE_OPTIONS = [
   { value: 'ULB', label: 'ULB' },
   { value: 'CONTRACTUAL', label: 'Contractual' },
@@ -406,6 +426,9 @@ const AdminManagement = () => {
       if (normalizedRole === 'SUPERVISOR' && formData.assigned_modules !== undefined) {
         payload.assigned_modules = Array.isArray(formData.assigned_modules) ? formData.assigned_modules : [];
       }
+      if (normalizedRole === 'SFI' && formData.assigned_modules !== undefined) {
+        payload.assigned_modules = Array.isArray(formData.assigned_modules) ? formData.assigned_modules : [];
+      }
 
       console.log('📤 Sending payload:', payload);
 
@@ -479,10 +502,13 @@ const AdminManagement = () => {
     setSelectedEmployee(employee);
     // Normalize role to uppercase for form
     const normalizedRole = employee.role ? employee.role.toUpperCase().replace(/-/g, '_') : employee.role;
-    // For Clerk/Collector etc, ward can come from ward_ids or ward_id (sync from Ward Details uses ward_id)
-    const initialWardIds = (employee.ward_ids && employee.ward_ids.length > 0)
+    // Ward IDs: ensure numbers so dropdown/chips work; support ward_ids or single ward_id
+    const rawWardIds = (employee.ward_ids && employee.ward_ids.length > 0)
       ? employee.ward_ids
       : (employee.ward_id ? [employee.ward_id] : []);
+    const initialWardIds = rawWardIds.map(id => parseInt(id, 10)).filter(n => !isNaN(n));
+    // Assigned modules: normalize so checkboxes match SFI_MODULES (handles array, string, any casing/label)
+    const initialModules = normalizeAssignedModulesForForm(employee.assigned_modules);
     const formDataUpdate = {
       full_name: employee.full_name,
       role: normalizedRole,
@@ -500,7 +526,7 @@ const AdminManagement = () => {
       worker_type: employee.worker_type || '',
       company_name: employee.company_name || '',
       contact_details: employee.contact_details || '',
-      assigned_modules: Array.isArray(employee.assigned_modules) ? employee.assigned_modules : []
+      assigned_modules: initialModules
     };
     setFormData(formDataUpdate);
 
@@ -528,6 +554,7 @@ const AdminManagement = () => {
       SUPERVISOR: 'Supervisor',
       FIELD_WORKER: 'Field Worker',
       CONTRACTOR: 'Contractor',
+      SFI: 'SFI (Sanitary & Food Inspector)',
       CLERK: 'Clerk',
       INSPECTOR: 'Inspector',
       OFFICER: 'Officer',
@@ -547,6 +574,7 @@ const AdminManagement = () => {
       SUPERVISOR: 'bg-teal-100 text-teal-800',
       FIELD_WORKER: 'bg-amber-100 text-amber-800',
       CONTRACTOR: 'bg-slate-100 text-slate-800',
+      SFI: 'bg-cyan-100 text-cyan-800',
       ADMIN: 'bg-red-100 text-red-800'
     };
     return staffColors[normalizedRole] || 'bg-gray-100 text-gray-800';
@@ -733,6 +761,7 @@ const AdminManagement = () => {
             <option value="EO">EO</option>
             <option value="SUPERVISOR">Supervisor</option>
             <option value="FIELD_WORKER">Field Worker</option>
+            <option value="SFI">SFI</option>
             {/* <option value="CONTRACTOR">Contractor</option> */}
           </select>
           <select
@@ -962,10 +991,10 @@ const AdminManagement = () => {
                 {formData.role && formData.role.toUpperCase() !== 'ADMIN' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      ULB {formData.role.toUpperCase() === 'EO' && <span className="text-red-500">*</span>}
+                      ULB {(formData.role.toUpperCase() === 'EO' || formData.role.toUpperCase() === 'SFI') && <span className="text-red-500">*</span>}
                     </label>
                     <select
-                      required={formData.role.toUpperCase() === 'EO'}
+                      required={formData.role.toUpperCase() === 'EO' || formData.role.toUpperCase() === 'SFI'}
                       value={formData.ulb_id || ''}
                       onChange={(e) => {
                         const newUlbId = e.target.value;
@@ -1015,43 +1044,61 @@ const AdminManagement = () => {
                   />
                 </div>
 
-                {/* EO: Multi-select wards (ULB already selected above) */}
-                {formData.role && formData.role.toUpperCase() === 'EO' && (
+                {/* EO / SFI: Dropdown to add wards + chips for selected (EO required; SFI optional). */}
+                {formData.role && (formData.role.toUpperCase() === 'EO' || formData.role.toUpperCase() === 'SFI') && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Wards <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Assigned Wards
+                      {formData.role.toUpperCase() === 'EO' && <span className="text-red-500"> *</span>}
+                      {formData.role.toUpperCase() === 'SFI' && <span className="text-gray-500 text-xs ml-1">(restricts all module data to these wards)</span>}
+                    </label>
                     <select
-                      multiple
-                      required
-                      value={formData.ward_ids || []}
+                      value=""
                       onChange={(e) => {
-                        // Extract all selected ward IDs (integers) from selected options
-                        const selectedWardIds = Array.from(e.target.selectedOptions, option => {
-                          const wardId = parseInt(option.value);
-                          return isNaN(wardId) ? null : wardId;
-                        }).filter(id => id !== null);
-
-                        console.log('🔵 Ward selection changed:', {
-                          selectedOptions: Array.from(e.target.selectedOptions).map(o => ({ value: o.value, text: o.text })),
-                          selectedWardIds,
-                          previousWardIds: formData.ward_ids
-                        });
-
-                        setFormData({ ...formData, ward_ids: selectedWardIds });
+                        const wardId = e.target.value ? parseInt(e.target.value) : null;
+                        if (wardId && !isNaN(wardId)) {
+                          const current = formData.ward_ids || [];
+                          if (!current.includes(wardId)) setFormData({ ...formData, ward_ids: [...current, wardId] });
+                        }
+                        e.target.value = '';
                       }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       disabled={!formData.ulb_id}
-                      size={Math.min(wards.filter(w => !formData.ulb_id || w.ulb_id === formData.ulb_id).length, 6)}
                     >
+                      <option value="">Select ward to add...</option>
                       {wards
                         .filter(w => !formData.ulb_id || w.ulb_id === formData.ulb_id)
                         .filter((ward, index, self) =>
                           ward && ward.id && index === self.findIndex(w => w.id === ward.id)
                         )
+                        .filter(ward => !(formData.ward_ids || []).includes(ward.id))
                         .map(ward => (
                           <option key={ward.id} value={ward.id}>{ward.wardNumber} - {ward.wardName}</option>
                         ))}
                     </select>
-                    <p className="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple wards</p>
+                    {(formData.ward_ids || []).length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {(formData.ward_ids || []).map(wardId => {
+                          const ward = wards.find(w => w.id === wardId);
+                          return ward ? (
+                            <span
+                              key={wardId}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary-100 text-primary-800 text-sm"
+                            >
+                              {ward.wardNumber} - {ward.wardName}
+                              <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, ward_ids: (formData.ward_ids || []).filter(id => id !== wardId) })}
+                                className="text-primary-600 hover:text-primary-800 font-bold"
+                                aria-label="Remove ward"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ) : null;
+                        })}
+                      </div>
+                    )}
                     {!formData.ulb_id && <p className="text-xs text-red-500 mt-1">Please select ULB first</p>}
                   </div>
                 )}
@@ -1215,6 +1262,47 @@ const AdminManagement = () => {
                   </>
                 )}
 
+                {/* SFI: Optional Supervisor, Optional Assigned Modules */}
+                {formData.role && formData.role.toUpperCase() === 'SFI' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Supervisor (optional)</label>
+                      <select
+                        value={formData.supervisor_id || ''}
+                        onChange={(e) => setFormData({ ...formData, supervisor_id: e.target.value ? parseInt(e.target.value) : '' })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      >
+                        <option value="">None</option>
+                        {supervisorsList
+                          .filter(s => !formData.ulb_id || s.ulb_id === formData.ulb_id)
+                          .map(s => (
+                            <option key={s.id} value={s.id}>{s.full_name} ({s.employee_id})</option>
+                          ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Modules (optional)</label>
+                      <div className="flex flex-wrap gap-3">
+                        {SFI_MODULES.map(({ value, label }) => (
+                          <label key={value} className="inline-flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={(formData.assigned_modules || []).includes(value)}
+                              onChange={(e) => {
+                                const current = formData.assigned_modules || [];
+                                const next = e.target.checked ? [...current, value] : current.filter(m => m !== value);
+                                setFormData({ ...formData, assigned_modules: next });
+                              }}
+                              className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                            />
+                            <span className="text-sm text-gray-700">{label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
                 {/* Clerk, Inspector, Officer, Collector: single ward */}
                 {formData.role && ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR'].includes(formData.role.toUpperCase()) && (
                   <div>
@@ -1335,8 +1423,8 @@ const AdminManagement = () => {
                         ward_id: '',
                         eo_id: '',
                         supervisor_id: '',
-                        ulb_id: (newRole && (newRole.toUpperCase() === 'SUPERVISOR' || newRole.toUpperCase() === 'FIELD_WORKER')) ? formData.ulb_id : '',
-                        assigned_modules: newRole && newRole.toUpperCase() === 'SUPERVISOR' ? (formData.assigned_modules || []) : []
+                        ulb_id: (newRole && (newRole.toUpperCase() === 'SUPERVISOR' || newRole.toUpperCase() === 'FIELD_WORKER' || newRole.toUpperCase() === 'SFI')) ? formData.ulb_id : '',
+                        assigned_modules: (newRole && newRole.toUpperCase() === 'SUPERVISOR') ? (formData.assigned_modules || []) : (newRole && newRole.toUpperCase() === 'SFI' ? (formData.assigned_modules || []) : [])
                       });
                     }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -1361,10 +1449,10 @@ const AdminManagement = () => {
                 {formData.role && formData.role.toUpperCase() !== 'ADMIN' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      ULB {formData.role.toUpperCase() === 'EO' && <span className="text-red-500">*</span>}
+                      ULB {(formData.role.toUpperCase() === 'EO' || formData.role.toUpperCase() === 'SFI') && <span className="text-red-500">*</span>}
                     </label>
                     <select
-                      required={formData.role.toUpperCase() === 'EO'}
+                      required={formData.role.toUpperCase() === 'EO' || formData.role.toUpperCase() === 'SFI'}
                       value={formData.ulb_id || ''}
                       onChange={(e) => {
                         const newUlbId = e.target.value;
@@ -1413,40 +1501,56 @@ const AdminManagement = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
-                {formData.role && formData.role.toUpperCase() === 'EO' && (
+                {(formData.role && (formData.role.toUpperCase() === 'EO' || formData.role.toUpperCase() === 'SFI')) && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Wards</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Wards {formData.role.toUpperCase() === 'SFI' && <span className="text-gray-500 text-xs">(restricts module data)</span>}</label>
                     <select
-                      multiple
-                      value={formData.ward_ids || []}
+                      value=""
                       onChange={(e) => {
-                        // Extract all selected ward IDs (integers) from selected options
-                        const selectedWardIds = Array.from(e.target.selectedOptions, option => {
-                          const wardId = parseInt(option.value);
-                          return isNaN(wardId) ? null : wardId;
-                        }).filter(id => id !== null);
-
-                        console.log('🔵 Ward selection changed (edit):', {
-                          selectedOptions: Array.from(e.target.selectedOptions).map(o => ({ value: o.value, text: o.text })),
-                          selectedWardIds,
-                          previousWardIds: formData.ward_ids
-                        });
-
-                        setFormData({ ...formData, ward_ids: selectedWardIds });
+                        const wardId = e.target.value ? parseInt(e.target.value) : null;
+                        if (wardId && !isNaN(wardId)) {
+                          const current = formData.ward_ids || [];
+                          if (!current.includes(wardId)) setFormData({ ...formData, ward_ids: [...current, wardId] });
+                        }
+                        e.target.value = '';
                       }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       disabled={!formData.ulb_id}
-                      size={Math.min(wards.filter(w => !formData.ulb_id || w.ulb_id === formData.ulb_id).length, 6)}
                     >
+                      <option value="">Select ward to add...</option>
                       {wards
                         .filter(w => !formData.ulb_id || w.ulb_id === formData.ulb_id)
                         .filter((ward, index, self) =>
                           ward && ward.id && index === self.findIndex(w => w.id === ward.id)
                         )
+                        .filter(ward => !(formData.ward_ids || []).includes(ward.id))
                         .map(ward => (
                           <option key={ward.id} value={ward.id}>{ward.wardNumber} - {ward.wardName}</option>
                         ))}
                     </select>
+                    {(formData.ward_ids || []).length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {(formData.ward_ids || []).map(wardId => {
+                          const ward = allWards.find(w => w.id === wardId) || wards.find(w => w.id === wardId);
+                          return ward ? (
+                            <span
+                              key={wardId}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary-100 text-primary-800 text-sm"
+                            >
+                              {ward.wardNumber} - {ward.wardName}
+                              <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, ward_ids: (formData.ward_ids || []).filter(id => id !== wardId) })}
+                                className="text-primary-600 hover:text-primary-800 font-bold"
+                                aria-label="Remove ward"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ) : null;
+                        })}
+                      </div>
+                    )}
                     {!formData.ulb_id && <p className="text-xs text-red-500 mt-1">Please select ULB first</p>}
                   </div>
                 )}
@@ -1587,6 +1691,45 @@ const AdminManagement = () => {
                         rows={3}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       />
+                    </div>
+                  </>
+                )}
+                {formData.role && formData.role.toUpperCase() === 'SFI' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Supervisor (optional)</label>
+                      <select
+                        value={formData.supervisor_id || ''}
+                        onChange={(e) => setFormData({ ...formData, supervisor_id: e.target.value ? parseInt(e.target.value) : '' })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      >
+                        <option value="">None</option>
+                        {supervisorsList
+                          .filter(s => !formData.ulb_id || s.ulb_id === formData.ulb_id)
+                          .map(s => (
+                            <option key={s.id} value={s.id}>{s.full_name} ({s.employee_id})</option>
+                          ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Modules (optional)</label>
+                      <div className="flex flex-wrap gap-3">
+                        {SFI_MODULES.map(({ value, label }) => (
+                          <label key={value} className="inline-flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={(formData.assigned_modules || []).includes(value)}
+                              onChange={(e) => {
+                                const current = formData.assigned_modules || [];
+                                const next = e.target.checked ? [...current, value] : current.filter(m => m !== value);
+                                setFormData({ ...formData, assigned_modules: next });
+                              }}
+                              className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                            />
+                            <span className="text-sm text-gray-700">{label}</span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
                   </>
                 )}
@@ -1755,6 +1898,24 @@ const AdminManagement = () => {
                     <div>
                       <label className="text-sm font-medium text-gray-700">Contact Details</label>
                       <p className="text-gray-900 whitespace-pre-wrap">{selectedEmployee.contact_details}</p>
+                    </div>
+                  )}
+                </>
+              )}
+              {selectedEmployee.role && selectedEmployee.role.toUpperCase() === 'SFI' && (
+                <>
+                  {selectedEmployee.supervisor && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Supervisor</label>
+                      <p className="text-gray-900">{selectedEmployee.supervisor.full_name} ({selectedEmployee.supervisor.employee_id})</p>
+                    </div>
+                  )}
+                  {(selectedEmployee.assigned_modules?.length > 0) && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Assigned Modules</label>
+                      <p className="text-gray-900">
+                        {selectedEmployee.assigned_modules.map(m => SFI_MODULES.find(s => s.value === m)?.label || m).join(', ')}
+                      </p>
                     </div>
                   )}
                 </>

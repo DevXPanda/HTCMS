@@ -12,12 +12,14 @@ import {
     Edit
 } from 'lucide-react';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useToiletBasePath } from './useToiletBasePath';
 import api from '../../../services/api';
 
 const InspectionDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    useBackTo('/toilet-management/inspections');
+    const base = useToiletBasePath();
+    useBackTo(`${base}/inspections`);
     const [inspection, setInspection] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -111,7 +113,7 @@ const InspectionDetails = () => {
                     <p className="text-gray-500 text-sm">Reviewing audit as of {new Date(inspection.inspectionDate).toLocaleDateString()}</p>
                 </div>
                 <Link
-                    to={`/toilet-management/inspections/${inspection.id}/edit`}
+                    to={`${base}/inspections/${inspection.id}/edit`}
                     className="btn btn-secondary flex items-center gap-2 text-sm font-semibold"
                 >
                     <Edit className="w-4 h-4" /> Edit Report

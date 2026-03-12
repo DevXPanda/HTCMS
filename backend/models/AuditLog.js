@@ -15,7 +15,7 @@ export const AuditLog = sequelize.define('AuditLog', {
     comment: 'User who performed the action (null for system actions or when user is from admin_management table)'
   },
   actorRole: {
-    type: DataTypes.ENUM('admin', 'assessor', 'cashier', 'collector', 'citizen', 'clerk', 'inspector', 'officer', 'eo', 'supervisor', 'field_worker', 'contractor', 'system'),
+    type: DataTypes.ENUM('admin', 'assessor', 'cashier', 'collector', 'citizen', 'clerk', 'inspector', 'officer', 'eo', 'supervisor', 'field_worker', 'contractor', 'sfi', 'system'),
     allowNull: false,
     comment: 'Role of the user who performed the action'
   },

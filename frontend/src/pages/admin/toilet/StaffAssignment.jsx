@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, PlusCircle, Trash2, Shield, Clock, Users, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useToiletBasePath } from './useToiletBasePath';
 import { useConfirm } from '../../../components/ConfirmModal';
 import api from '../../../services/api';
 
@@ -10,7 +11,8 @@ const StaffAssignment = () => {
     const { confirm } = useConfirm();
     const { id } = useParams();
     const navigate = useNavigate();
-    useBackTo(id ? `/toilet-management/facilities/${id}` : '/toilet-management/facilities');
+    const base = useToiletBasePath();
+    useBackTo(id ? `${base}/facilities/${id}` : `${base}/facilities`);
     const [facility, setFacility] = useState(null);
     const [assignments, setAssignments] = useState([]);
     const [staffList, setStaffList] = useState([]);

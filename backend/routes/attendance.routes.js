@@ -55,13 +55,13 @@ router.post('/mark-all', markAllWorkersPresent);
 // Get attendance statistics (Admin, Assessor only)
 router.get('/stats/summary', authorize('admin', 'assessor'), getAttendanceStats);
 
-// Get worker attendance reports grouped by ULB (Admin, Assessor, EO)
+// Get worker attendance reports grouped by ULB (Admin, Assessor, EO, SFI)
 router.get('/worker/reports', (req, res, next) => {
-  // Allow admin, assessor, or eo roles
-  if (req.user && (req.user.role === 'admin' || req.user.role === 'assessor' || req.user.role === 'eo')) {
+  const role = (req.user?.role || '').toString().toUpperCase();
+  if (req.user && (req.user.role === 'admin' || req.user.role === 'assessor' || req.user.role === 'eo' || role === 'SFI')) {
     return next();
   }
-  return res.status(403).json({ success: false, message: 'Access denied. Admin, Assessor, or EO role required.' });
+  return res.status(403).json({ success: false, message: 'Access denied. Admin, Assessor, EO, or SFI role required.' });
 }, getWorkerAttendanceReports);
 
 // Get attendance records (role-based access)

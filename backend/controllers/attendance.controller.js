@@ -1,7 +1,7 @@
 import { CollectorAttendance, User, Ward, AdminManagement, Worker, WorkerAttendance, ULB } from '../models/index.js';
 import { Op } from 'sequelize';
 import { isPointInPolygon, parseWardBoundary } from '../utils/geoHelpers.js';
-import { getEffectiveUlbForRequest } from '../utils/ulbAccessHelper.js';
+import { getEffectiveUlbForRequest, getEffectiveWardIdsForRequest } from '../utils/ulbAccessHelper.js';
 
 /**
  * @route   GET /api/attendance
@@ -38,9 +38,14 @@ export const getAttendanceRecords = async (req, res, next) => {
       // Staff members (including collector / tax_collector) can only see their own attendance
       where.collectorId = user.id;
       where.usertype = 'admin_management';
-    } else if (user.role === 'admin' || user.role === 'assessor') {
-      // Admin and Assessor: apply ULB filter when effective ULB is set; super admin (no ULB) sees all
+    } else if (user.role === 'admin' || user.role === 'assessor' || normalizedRole === 'sfi') {
+      // Admin, Assessor, SFI: apply ULB filter when effective ULB is set; super admin (no ULB) sees all; SFI always uses own ULB
       const { effectiveUlbId, isSuperAdmin } = getEffectiveUlbForRequest(req);
+      if (normalizedRole === 'sfi' && !effectiveUlbId) {
+        return res.status(403).json({
+          message: 'Access denied. SFI must be assigned to an ULB to view attendance records.'
+        });
+      }
       if (effectiveUlbId) {
         const [adminStaff, usersInUlb, adminUsersNoUlb, allAdminUsers] = await Promise.all([
           AdminManagement.findAll({ where: { ulb_id: effectiveUlbId }, attributes: ['id'] }),
@@ -689,9 +694,18 @@ export const getWorkerAttendanceReports = async (req, res, next) => {
     const where = {};
 
     // Apply ULB filter based on user role
-    if (user.role === 'eo' && user.ulb_id) {
-      // EO can only see their own ULB's attendance
+    const roleUpper = (user.role || '').toString().toUpperCase();
+    if ((user.role === 'eo' || roleUpper === 'SFI') && user.ulb_id) {
+      // EO and SFI can only see their own ULB's attendance; SFI further restricted to assigned wards
       where.ulb_id = user.ulb_id;
+      if (roleUpper === 'SFI') {
+        const sfiWardIds = await getEffectiveWardIdsForRequest(req);
+        if (Array.isArray(sfiWardIds) && sfiWardIds.length > 0) {
+          where.ward_id = { [Op.in]: sfiWardIds };
+        } else {
+          where.ward_id = { [Op.in]: [] };
+        }
+      }
     } else if (ulb_id) {
       // Admin/Assessor can filter by specific ULB
       where.ulb_id = ulb_id;

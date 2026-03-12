@@ -18,7 +18,8 @@ const PrivateRoute = ({ children, allowedRoles }) => {
     location.pathname.startsWith('/inspector') ||
     location.pathname.startsWith('/officer') ||
     location.pathname.startsWith('/eo') ||
-    location.pathname.startsWith('/supervisor');
+    location.pathname.startsWith('/supervisor') ||
+    location.pathname.startsWith('/sfi');
   const isAuthenticated = isStaffRoute && staffAuth ? staffAuth.isAuthenticated : isUserAuthenticated;
   const loading = isStaffRoute && staffAuth ? staffAuth.loading : userLoading;
 
@@ -46,7 +47,7 @@ const PrivateRoute = ({ children, allowedRoles }) => {
       return <Navigate to="/staff/login" replace />;
     } else if (pathname.startsWith('/inspector')) {
       return <Navigate to="/inspector/login" replace />;
-    } else if (pathname.startsWith('/clerk') || pathname.startsWith('/officer') || pathname.startsWith('/eo') || pathname.startsWith('/supervisor')) {
+    } else if (pathname.startsWith('/clerk') || pathname.startsWith('/officer') || pathname.startsWith('/eo') || pathname.startsWith('/supervisor') || pathname.startsWith('/sfi')) {
       return <Navigate to="/staff/login" replace />;
     } else {
       return <Navigate to="/citizen/login" replace />;
@@ -65,7 +66,7 @@ const PrivateRoute = ({ children, allowedRoles }) => {
       return <Navigate to="/staff/login" replace />;
     } else if (pathname.startsWith('/inspector')) {
       return <Navigate to="/inspector/login" replace />;
-    } else if (pathname.startsWith('/clerk') || pathname.startsWith('/officer') || pathname.startsWith('/eo') || pathname.startsWith('/supervisor')) {
+    } else if (pathname.startsWith('/clerk') || pathname.startsWith('/officer') || pathname.startsWith('/eo') || pathname.startsWith('/supervisor') || pathname.startsWith('/sfi')) {
       return <Navigate to="/staff/login" replace />;
     } else {
       return <Navigate to="/citizen/login" replace />;

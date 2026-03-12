@@ -16,6 +16,7 @@ import InspectorLayout from './components/InspectorLayout';
 import OfficerLayout from './components/OfficerLayout';
 import EoLayout from './components/EoLayout';
 import SupervisorLayout from './components/SupervisorLayout';
+import SFILayout from './components/SFILayout';
 import RoleBasedRedirect from './components/RoleBasedRedirect';
 import D2DCModule from './pages/admin/d2dc/D2DCModule';
 import DiscountManagement from './pages/admin/discount/DiscountManagement';
@@ -205,6 +206,7 @@ import EoDashboard from './pages/eo/EoDashboard';
 import WorkerManagement from './pages/eo/WorkerManagement';
 import SupervisorDashboard from './pages/supervisor/SupervisorDashboard';
 import SupervisorWorkerManagement from './pages/supervisor/SupervisorWorkerManagement';
+import SFIDashboard from './pages/sfi/SFIDashboard';
 import OfficerDashboard from './pages/officer/OfficerDashboard';
 import OfficerPropertyApplications from './pages/officer/PropertyApplications';
 import OfficerWaterRequests from './pages/officer/WaterRequests';
@@ -451,6 +453,63 @@ function App() {
               <Route path="toilet-complaints" element={<ToiletComplaintsSupervisor />} />
               <Route path="mrf" element={<SupervisorMRFList />} />
               <Route path="mrf/facilities/:id" element={<SupervisorMRFDetails />} />
+              <Route path="notifications" element={<NotificationsPage />} />
+            </Route>
+
+            {/* Protected Routes - SFI (Sanitary & Food Inspector) Portal */}
+            <Route
+              path="/sfi"
+              element={
+                <StaffAuthProvider>
+                  <PrivateRoute allowedRoles={['sfi', 'SFI']}>
+                    <SFILayout />
+                  </PrivateRoute>
+                </StaffAuthProvider>
+              }
+            >
+              <Route index element={<Navigate to="/sfi/dashboard" replace />} />
+              <Route path="dashboard" element={<SFIDashboard />} />
+              <Route path="toilet-management" element={<ToiletManagementModule />} />
+              <Route path="toilet-management/facilities" element={<ToiletFacilities />} />
+              <Route path="toilet-management/facilities/new" element={<AddToilet />} />
+              <Route path="toilet-management/facilities/:id" element={<ToiletDetails />} />
+              <Route path="toilet-management/facilities/:id/edit" element={<AddToilet />} />
+              <Route path="toilet-management/inspections" element={<ToiletInspections />} />
+              <Route path="toilet-management/inspections/new" element={<AddInspection />} />
+              <Route path="toilet-management/inspections/:id" element={<InspectionDetails />} />
+              <Route path="toilet-management/inspections/:id/edit" element={<AddInspection />} />
+              <Route path="toilet-management/complaints" element={<ToiletComplaints />} />
+              <Route path="toilet-management/complaints/:id" element={<ComplaintDetails />} />
+              <Route path="toilet-management/maintenance" element={<ToiletMaintenance />} />
+              <Route path="toilet-management/maintenance/new" element={<AddMaintenance />} />
+              <Route path="toilet-management/maintenance/:id" element={<MaintenanceDetails />} />
+              <Route path="toilet-management/maintenance/:id/edit" element={<AddMaintenance />} />
+              <Route path="toilet-management/staff" element={<GlobalStaffAssignment />} />
+              <Route path="toilet-management/facilities/:id/staff" element={<StaffAssignment />} />
+              <Route path="toilet-management/reports" element={<ToiletReports />} />
+              <Route path="mrf" element={<MRFModule />} />
+              <Route path="mrf/management" element={<MRFManagement />} />
+              <Route path="mrf/worker-assignment" element={<MRFWorkerAssignmentPage />} />
+              <Route path="mrf/facilities/new" element={<AddMRF />} />
+              <Route path="mrf/facilities/:id" element={<MRFDetails />} />
+              <Route path="mrf/facilities/:id/edit" element={<AddMRF />} />
+              <Route path="mrf/reports" element={<MRFReports />} />
+              <Route path="gaushala/management" element={<GauShalaDashboard />} />
+              <Route path="gaushala/facilities" element={<GauShalaManagement />} />
+              <Route path="gaushala/facilities/new" element={<AddGauShala />} />
+              <Route path="gaushala/facilities/:id" element={<GauShalaDetails />} />
+              <Route path="gaushala/facilities/:id/edit" element={<AddGauShala />} />
+              <Route path="gaushala/facilities/:id/cattle" element={<CattleManagement />} />
+              <Route path="gaushala/all-cattle" element={<GauShalaCattleTotal />} />
+              <Route path="gaushala/all-cattle/new" element={<AddCattle />} />
+              <Route path="gaushala/inspections" element={<GauShalaInspections />} />
+              <Route path="gaushala/inspections/new" element={<AddGauShalaInspection />} />
+              <Route path="gaushala/inspections/:id" element={<InspectionDetail />} />
+              <Route path="gaushala/inspections/:id/edit" element={<AddGauShalaInspection />} />
+              <Route path="gaushala/feeding" element={<GauShalaFeeding />} />
+              <Route path="gaushala/complaints" element={<GauShalaComplaints />} />
+              <Route path="gaushala/reports" element={<GauShalaReports />} />
+              <Route path="workers" element={<WorkerManagement />} />
               <Route path="notifications" element={<NotificationsPage />} />
             </Route>
 

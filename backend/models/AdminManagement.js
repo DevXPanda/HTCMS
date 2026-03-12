@@ -17,9 +17,9 @@ export const AdminManagement = sequelize.define('AdminManagement', {
     allowNull: false,
     unique: true
   },
-  // Deprecated roles (kept for future use): Clerk, Inspector, Officer, Contractor. Active: EO, Supervisor, Collector, Field Worker.
+  // Deprecated roles (kept for future use): Clerk, Inspector, Officer, Contractor. Active: EO, Supervisor, Collector, Field Worker, SFI (Sanitary & Food Inspector).
   role: {
-    type: DataTypes.ENUM('CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'ADMIN'),
+    type: DataTypes.ENUM('CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'ADMIN', 'SFI'),
     allowNull: false
   },
   phone_number: {
@@ -133,7 +133,8 @@ AdminManagement.generateEmployeeId = async (role, attempt = 1) => {
     SUPERVISOR: 'SUP',
     FIELD_WORKER: 'FW',
     CONTRACTOR: 'CON',
-    ADMIN: 'ADM'
+    ADMIN: 'ADM',
+    SFI: 'SFI'
   };
 
   const prefix = prefixes[normalizedRole];

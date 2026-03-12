@@ -1,7 +1,7 @@
 import { ToiletFacility, ToiletInspection, ToiletMaintenance, ToiletComplaint, ToiletStaffAssignment, User, Ward, AdminManagement, Worker } from '../models/index.js';
 import { Op } from 'sequelize';
 import { auditLogger } from '../utils/auditLogger.js';
-import { getEffectiveUlbForRequest, getWardIdsByUlbId } from '../utils/ulbAccessHelper.js';
+import { getEffectiveUlbForRequest, getWardIdsForRequest, getEffectiveWardIdsForRequest } from '../utils/ulbAccessHelper.js';
 
 /**
  * @route   GET /api/toilet/facilities
@@ -21,7 +21,7 @@ export const getAllFacilities = async (req, res, next) => {
             });
         }
         if (effectiveUlbId) {
-            const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+            const wardIds = await getWardIdsForRequest(req);
             if (!wardIds || wardIds.length === 0) {
                 return res.json({
                     success: true,
@@ -127,7 +127,13 @@ export const getFacilityById = async (req, res, next) => {
                 message: 'Toilet facility not found'
             });
         }
-
+        const isSfi = req.userType === 'admin_management' && (req.user?.role || '').toString().toUpperCase() === 'SFI';
+        if (isSfi) {
+            const sfiWardIds = await getEffectiveWardIdsForRequest(req);
+            if (!Array.isArray(sfiWardIds) || sfiWardIds.length === 0 || !sfiWardIds.includes(facility.wardId)) {
+                return res.status(403).json({ success: false, message: 'Access denied. Facility is not in your assigned wards.' });
+            }
+        }
         res.json({
             success: true,
             data: { facility }
@@ -343,7 +349,13 @@ export const updateFacility = async (req, res, next) => {
                 message: 'Toilet facility not found'
             });
         }
-
+        const isSfi = req.userType === 'admin_management' && (req.user?.role || '').toString().toUpperCase() === 'SFI';
+        if (isSfi) {
+            const sfiWardIds = await getEffectiveWardIdsForRequest(req);
+            if (!Array.isArray(sfiWardIds) || sfiWardIds.length === 0 || !sfiWardIds.includes(facility.wardId)) {
+                return res.status(403).json({ success: false, message: 'Access denied. Facility is not in your assigned wards.' });
+            }
+        }
         const previousData = facility.toJSON();
         await facility.update(req.body);
 
@@ -391,7 +403,13 @@ export const deleteFacility = async (req, res, next) => {
                 message: 'Toilet facility not found'
             });
         }
-
+        const isSfiDelete = req.userType === 'admin_management' && (req.user?.role || '').toString().toUpperCase() === 'SFI';
+        if (isSfiDelete) {
+            const sfiWardIds = await getEffectiveWardIdsForRequest(req);
+            if (!Array.isArray(sfiWardIds) || sfiWardIds.length === 0 || !sfiWardIds.includes(facility.wardId)) {
+                return res.status(403).json({ success: false, message: 'Access denied. Facility is not in your assigned wards.' });
+            }
+        }
         const previousData = facility.toJSON();
         facility.status = 'inactive';
         await facility.save();
@@ -426,7 +444,7 @@ export const getAllInspections = async (req, res, next) => {
         }
         let facilityFilter = {};
         if (effectiveUlbId) {
-            const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+            const wardIds = await getWardIdsForRequest(req);
             if (!wardIds || wardIds.length === 0) {
                 return res.json({ success: true, data: { inspections: [], total: 0 } });
             }
@@ -602,7 +620,7 @@ export const getAllMaintenanceRecords = async (req, res, next) => {
         }
         let facilityFilter = {};
         if (effectiveUlbId) {
-            const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+            const wardIds = await getWardIdsForRequest(req);
             if (!wardIds || wardIds.length === 0) {
                 return res.json({ success: true, data: { maintenanceRecords: [], total: 0 } });
             }
@@ -678,7 +696,7 @@ export const getAllComplaints = async (req, res, next) => {
         }
         let facilityFilter = {};
         if (effectiveUlbId) {
-            const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+            const wardIds = await getWardIdsForRequest(req);
             if (!wardIds || wardIds.length === 0) {
                 return res.json({ success: true, data: { complaints: [], total: 0 } });
             }
@@ -864,7 +882,7 @@ export const getReports = async (req, res, next) => {
         }
         let facilityWhere = {};
         if (effectiveUlbId) {
-            const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+            const wardIds = await getWardIdsForRequest(req);
             if (!wardIds || wardIds.length === 0) {
                 return res.json({
                     success: true,

@@ -2,7 +2,19 @@ import { MrfFacility, MrfSale, Ward, MrfWasteEntry, MrfWorkerAssignment, MrfTask
 import { Op, fn, col, literal } from 'sequelize';
 import { auditLogger } from '../utils/auditLogger.js';
 import { sequelize } from '../config/database.js';
-import { getEffectiveUlbForRequest, getWardIdsByUlbId } from '../utils/ulbAccessHelper.js';
+import { getEffectiveUlbForRequest, getWardIdsByUlbId, getWardIdsForRequest, getEffectiveWardIdsForRequest } from '../utils/ulbAccessHelper.js';
+
+/** Returns true if non-SFI or if facility is in SFI's assigned wards (and ULB). */
+async function sfiCanAccessMrfFacility(req, facilityId) {
+    if (!facilityId) return true;
+    const isSfi = req.userType === 'admin_management' && (req.user?.role || '').toString().toUpperCase() === 'SFI';
+    if (!isSfi || !req.user?.ulb_id) return true;
+    const facility = await MrfFacility.findByPk(facilityId, { include: [{ model: Ward, as: 'ward', attributes: ['id', 'ulb_id'] }] });
+    if (!facility?.ward || facility.ward.ulb_id !== req.user.ulb_id) return false;
+    const sfiWardIds = await getEffectiveWardIdsForRequest(req);
+    if (!Array.isArray(sfiWardIds) || sfiWardIds.length === 0) return false;
+    return sfiWardIds.includes(facility.ward_id);
+}
 
 export const getAllFacilities = async (req, res, next) => {
     try {
@@ -25,7 +37,7 @@ export const getAllFacilities = async (req, res, next) => {
         }
         let ulbWardIds = null;
         if (effectiveUlbId) {
-            ulbWardIds = await getWardIdsByUlbId(effectiveUlbId);
+            ulbWardIds = await getWardIdsForRequest(req);
             if (!ulbWardIds || ulbWardIds.length === 0) {
                 return res.json({ success: true, data: { facilities: [], pagination: { total: 0, page: parseInt(page), limit: parseInt(limit), pages: 0 } } });
             }
@@ -108,6 +120,15 @@ export const getFacilityById = async (req, res, next) => {
         const isSupervisor = req.userType === 'admin_management' && (req.user.role || '').toString().toUpperCase() === 'SUPERVISOR';
         if (isSupervisor && facility.supervisor_id !== req.user.id) {
             return res.status(403).json({ success: false, message: 'Access denied. You can only view facilities assigned to you.' });
+        }
+
+        // SFI may only access facilities in their ULB
+        const isSfi = req.userType === 'admin_management' && (req.user.role || '').toString().toUpperCase() === 'SFI';
+        if (isSfi && req.user.ulb_id) {
+            const ward = facility.ward || await Ward.findByPk(facility.ward_id);
+            if (!ward || ward.ulb_id !== req.user.ulb_id) {
+                return res.status(403).json({ success: false, message: 'Access denied. Facility is not in your ULB.' });
+            }
         }
 
         const facilityIdNum = parseInt(id, 10);
@@ -228,6 +249,11 @@ export const getAssignments = async (req, res, next) => {
             if (!facility || facility.supervisor_id !== req.user.id) {
                 return res.status(403).json({ success: false, message: 'You can only view workers for your assigned facilities.' });
             }
+        } else {
+            const allowed = await sfiCanAccessMrfFacility(req, targetFacilityId);
+            if (!allowed) {
+                return res.status(403).json({ success: false, message: 'Access denied. Facility is not in your ULB.' });
+            }
         }
         const assignments = await MrfWorkerAssignment.findAll({
             where: { mrf_facility_id: targetFacilityId, isActive: true },
@@ -243,6 +269,10 @@ export const assignWorker = async (req, res, next) => {
     const t = await sequelize.transaction();
     try {
         const { worker_id, shift, mrf_facility_id } = req.body;
+        const allowed = await sfiCanAccessMrfFacility(req, mrf_facility_id);
+        if (!allowed) {
+            return res.status(403).json({ success: false, message: 'Access denied. Facility is not in your ULB.' });
+        }
 
         // Prevent duplicate active assignment for same shift
         const existing = await MrfWorkerAssignment.findOne({
@@ -269,6 +299,10 @@ export const removeAssignment = async (req, res, next) => {
         const { id } = req.params;
         const assignment = await MrfWorkerAssignment.findByPk(id);
         if (!assignment) return res.status(404).json({ success: false, message: 'Assignment not found' });
+        const allowed = await sfiCanAccessMrfFacility(req, assignment.mrf_facility_id);
+        if (!allowed) {
+            return res.status(403).json({ success: false, message: 'Access denied. Facility is not in your ULB.' });
+        }
 
         assignment.isActive = false;
         await assignment.save();
@@ -289,12 +323,18 @@ export const getTasks = async (req, res, next) => {
 
         const isSupervisor = req.userType === 'admin_management' && (req.user.role || '').toString().toUpperCase() === 'SUPERVISOR';
 
+        const isSfi = req.userType === 'admin_management' && (req.user.role || '').toString().toUpperCase() === 'SFI';
         if (targetFacilityId) {
             where.mrf_facility_id = targetFacilityId;
             if (isSupervisor) {
                 const facility = await MrfFacility.findByPk(targetFacilityId, { attributes: ['id', 'supervisor_id'] });
                 if (!facility || facility.supervisor_id !== req.user.id) {
                     return res.status(403).json({ success: false, message: 'You can only view tasks for your assigned facilities.' });
+                }
+            } else if (isSfi) {
+                const allowed = await sfiCanAccessMrfFacility(req, targetFacilityId);
+                if (!allowed) {
+                    return res.status(403).json({ success: false, message: 'Access denied. Facility is not in your ULB.' });
                 }
             }
         } else if (isSupervisor) {
@@ -303,6 +343,17 @@ export const getTasks = async (req, res, next) => {
                 attributes: ['id']
             });
             const facilityIds = myFacilities.map(f => f.id);
+            if (facilityIds.length === 0) {
+                return res.json({ success: true, data: { tasks: [] } });
+            }
+            where.mrf_facility_id = { [Op.in]: facilityIds };
+        } else if (isSfi && req.user.ulb_id) {
+            const wardIds = await getWardIdsForRequest(req);
+            if (!wardIds || wardIds.length === 0) {
+                return res.json({ success: true, data: { tasks: [] } });
+            }
+            const facilities = await MrfFacility.findAll({ where: { ward_id: { [Op.in]: wardIds } }, attributes: ['id'] });
+            const facilityIds = facilities.map(f => f.id);
             if (facilityIds.length === 0) {
                 return res.json({ success: true, data: { tasks: [] } });
             }
@@ -334,6 +385,11 @@ export const createTask = async (req, res, next) => {
             if (!facility || facility.supervisor_id !== req.user.id) {
                 return res.status(403).json({ success: false, message: 'You can only assign tasks to your assigned facilities.' });
             }
+        } else if (req.body.mrf_facility_id) {
+            const allowed = await sfiCanAccessMrfFacility(req, req.body.mrf_facility_id);
+            if (!allowed) {
+                return res.status(403).json({ success: false, message: 'Access denied. Facility is not in your ULB.' });
+            }
         }
         const task = await MrfTask.create(req.body);
         await auditLogger.logCreate(req, req.user, 'MrfTask', task.id, task.toJSON(), `Created MRF task: ${task.task_type} for worker ${task.worker_id}`);
@@ -348,18 +404,19 @@ export const updateTaskStatus = async (req, res, next) => {
         const { id } = req.params;
         const { status, remarks } = req.body;
         const task = await MrfTask.findByPk(id, {
-            include: [{ model: MrfFacility, as: 'facility', attributes: ['id', 'supervisor_id'] }]
+            include: [{ model: MrfFacility, as: 'facility', attributes: ['id', 'supervisor_id'], include: [{ model: Ward, as: 'ward', attributes: ['ulb_id'] }] }]
         });
         if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
 
-        // Non-admin: only facility's supervisor can update task status
+        // Non-admin: only facility's supervisor or SFI (for same ULB) can update task status
         const isAdmin = req.userType === 'user' && req.user.role === 'admin';
         const isSupervisor = req.userType === 'admin_management' && (req.user.role || '').toString().toUpperCase() === 'SUPERVISOR';
+        const isSfi = req.userType === 'admin_management' && (req.user.role || '').toString().toUpperCase() === 'SFI';
         if (!isAdmin && isSupervisor && task.facility?.supervisor_id !== req.user.id) {
             return res.status(403).json({ success: false, message: 'Access denied. You can only update tasks for your assigned facilities.' });
         }
-        if (!isAdmin && !isSupervisor) {
-            return res.status(403).json({ success: false, message: 'Only admin or facility supervisor can update task status.' });
+        if (!isAdmin && !isSupervisor && !(isSfi && task.facility?.ward?.ulb_id === req.user.ulb_id)) {
+            return res.status(403).json({ success: false, message: 'Only admin, facility supervisor, or SFI (for same ULB) can update task status.' });
         }
 
         const previousStatus = task.status;
@@ -382,6 +439,12 @@ export const getLinkedComplaints = async (req, res, next) => {
         const { id } = req.params; // MRF ID from URL
         const { facility_id } = req.query; // Fallback from query
         const targetFacilityId = id || facility_id;
+        if (targetFacilityId) {
+            const allowed = await sfiCanAccessMrfFacility(req, targetFacilityId);
+            if (!allowed) {
+                return res.status(403).json({ success: false, message: 'Access denied. Facility is not in your ULB.' });
+            }
+        }
 
         const complaints = await ToiletComplaint.findAll({
             where: { mrf_facility_id: targetFacilityId },
@@ -404,7 +467,7 @@ export const getReports = async (req, res, next) => {
         }
         let facilityWhere = {};
         if (effectiveUlbId) {
-            const wardIds = await getWardIdsByUlbId(effectiveUlbId);
+            const wardIds = await getWardIdsForRequest(req);
             if (!wardIds || wardIds.length === 0) {
                 return res.json({
                     success: true,

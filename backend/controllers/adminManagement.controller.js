@@ -4,9 +4,9 @@ import { getEffectiveUlbForRequest } from '../utils/ulbAccessHelper.js';
 
 // Deprecated roles (kept for future use): Clerk, Inspector, Officer, Contractor. Do not assign to new users.
 const DEPRECATED_ROLES = ['CLERK', 'INSPECTOR', 'OFFICER', 'CONTRACTOR'];
-const ASSIGNABLE_ROLES = ['EO', 'SUPERVISOR', 'COLLECTOR', 'FIELD_WORKER'];
+const ASSIGNABLE_ROLES = ['EO', 'SUPERVISOR', 'COLLECTOR', 'FIELD_WORKER', 'SFI'];
 // All staff roles (uppercase) for DB enum - used in bulk delete/status and listings
-const ALL_STAFF_ROLES = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR'];
+const ALL_STAFF_ROLES = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI'];
 
 /**
  * Get all employees managed by admin
@@ -26,7 +26,7 @@ export const getAllEmployees = async (req, res) => {
 
     // Build where clause - Only show staff roles (including field worker hierarchy)
     // Normalize role to uppercase for comparison, support multiple comma-separated roles
-    const staffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR'];
+    const staffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI'];
     let requestedRoles = [];
     if (role) {
       requestedRoles = role.toUpperCase().split(',').map(r => r.trim().replace(/-/g, '_'));
@@ -246,7 +246,7 @@ export const createEmployee = async (req, res) => {
     }
     if (role && !ASSIGNABLE_ROLES.includes(role)) {
       return res.status(400).json({
-        message: 'Invalid role. Allowed roles: EO, Supervisor, Collector, Field Worker.'
+        message: 'Invalid role. Allowed roles: EO, Supervisor, Collector, Field Worker, SFI (Sanitary & Food Inspector).'
       });
     }
 
@@ -281,6 +281,10 @@ export const createEmployee = async (req, res) => {
         finalUlbId = ward.ulb_id;
       }
     }
+    // For SFI, ulb_id is mandatory (validated in middleware)
+    if (role === 'SFI' && !finalUlbId && ulb_id) {
+      finalUlbId = ulb_id;
+    }
 
     // For EO, ulb_id is mandatory (already validated in middleware)
     // Validate that wards belong to the selected ULB
@@ -302,6 +306,21 @@ export const createEmployee = async (req, res) => {
         return res.status(400).json({
           message: `Selected wards do not belong to the selected ULB`
         });
+      }
+    }
+
+    // For SFI: validate assigned wards belong to the selected ULB (multiple wards allowed)
+    if (ward_ids && ward_ids.length > 0 && finalUlbId && role === 'SFI') {
+      const wards = await Ward.findAll({
+        where: { id: ward_ids },
+        attributes: ['id', 'ulb_id']
+      });
+      if (wards.length !== ward_ids.length) {
+        return res.status(400).json({ message: 'One or more ward IDs are invalid' });
+      }
+      const invalidWards = wards.filter(w => w.ulb_id !== finalUlbId);
+      if (invalidWards.length > 0) {
+        return res.status(400).json({ message: 'All selected wards must belong to the selected ULB' });
       }
     }
 
@@ -340,6 +359,11 @@ export const createEmployee = async (req, res) => {
     if (role === 'COLLECTOR' && ward_id) {
       assignedWardIds = [parseInt(ward_id)];
     }
+    if (role === 'SFI' && Array.isArray(ward_ids) && ward_ids.length > 0) {
+      assignedWardIds = ward_ids.map(id => parseInt(id, 10)).filter(n => !isNaN(n));
+    } else if (role === 'SFI') {
+      assignedWardIds = [];
+    }
     const createPayload = {
       full_name,
       employee_id,
@@ -365,9 +389,14 @@ export const createEmployee = async (req, res) => {
     if (company_name !== undefined) createPayload.company_name = company_name || null;
     if (contact_details !== undefined) createPayload.contact_details = contact_details || null;
     const allowedModules = ['toilet', 'mrf', 'gaushala'];
+    const sfiModules = ['toilet', 'mrf', 'gaushala', 'worker_management'];
     if (role === 'SUPERVISOR' && rawAssignedModules !== undefined) {
       const modules = Array.isArray(rawAssignedModules) ? rawAssignedModules : [];
       createPayload.assigned_modules = modules.filter(m => typeof m === 'string' && allowedModules.includes(m.toLowerCase()));
+    }
+    if (role === 'SFI' && rawAssignedModules !== undefined) {
+      const modules = Array.isArray(rawAssignedModules) ? rawAssignedModules : [];
+      createPayload.assigned_modules = modules.filter(m => typeof m === 'string' && sfiModules.includes((m || '').toLowerCase()));
     }
     const employee = await AdminManagement.create(createPayload);
     if (role === 'CLERK' && assignedWardIds.length > 0) {
@@ -413,7 +442,7 @@ export const updateEmployee = async (req, res) => {
       return res.status(404).json({ message: 'Employee not found' });
     }
 
-    const normalizedStaffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR'];
+    const normalizedStaffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI'];
     const normalizedEmployeeRole = employee.role ? employee.role.toUpperCase().replace(/-/g, '_') : employee.role;
     if (!normalizedStaffRoles.includes(normalizedEmployeeRole)) {
       return res.status(400).json({
@@ -446,7 +475,7 @@ export const updateEmployee = async (req, res) => {
 
     if (role && !normalizedStaffRoles.includes(role)) {
       return res.status(400).json({
-        message: 'Invalid role. Only staff roles (CLERK, INSPECTOR, OFFICER, COLLECTOR, EO, SUPERVISOR, FIELD_WORKER, CONTRACTOR) are allowed.'
+        message: 'Invalid role. Only staff roles (CLERK, INSPECTOR, OFFICER, COLLECTOR, EO, SUPERVISOR, FIELD_WORKER, CONTRACTOR, SFI) are allowed.'
       });
     }
     // Allow keeping existing deprecated role; do not allow changing to a deprecated role
@@ -457,7 +486,7 @@ export const updateEmployee = async (req, res) => {
     }
     if (role && !DEPRECATED_ROLES.includes(role) && !ASSIGNABLE_ROLES.includes(role)) {
       return res.status(400).json({
-        message: 'Invalid role. Allowed roles: EO, Supervisor, Collector, Field Worker.'
+        message: 'Invalid role. Allowed roles: EO, Supervisor, Collector, Field Worker, SFI.'
       });
     }
 
@@ -500,6 +529,13 @@ export const updateEmployee = async (req, res) => {
     if (currentRole === 'EO' && !finalUlbId && !employee.ulb_id) {
       return res.status(400).json({ message: 'ULB is required for EO role' });
     }
+    // For SFI, ulb_id is mandatory
+    if (currentRole === 'SFI' && ulb_id !== undefined && !finalUlbId && !employee.ulb_id) {
+      return res.status(400).json({ message: 'ULB is required for SFI role' });
+    }
+    if (currentRole === 'SFI' && ulb_id) {
+      finalUlbId = ulb_id;
+    }
 
     // Use existing ulb_id if not provided
     if (!finalUlbId && employee.ulb_id) {
@@ -519,8 +555,8 @@ export const updateEmployee = async (req, res) => {
         });
       }
 
-      // If ULB is specified, validate all wards belong to it
-      if (finalUlbId && currentRole === 'EO') {
+      // If ULB is specified, validate all wards belong to it (EO and SFI)
+      if (finalUlbId && (currentRole === 'EO' || currentRole === 'SFI')) {
         const invalidWards = wards.filter(w => w.ulb_id !== finalUlbId);
         if (invalidWards.length > 0) {
           return res.status(400).json({
@@ -572,6 +608,11 @@ export const updateEmployee = async (req, res) => {
         await Ward.update({ collectorId: employee.id }, { where: { id: assignedWardIds[0] } });
       }
     }
+    if (currentRole === 'SFI') {
+      assignedWardIds = Array.isArray(ward_ids) && ward_ids.length > 0
+        ? ward_ids.map(id => parseInt(id, 10)).filter(n => !isNaN(n))
+        : [];
+    }
     const updateData = {
       full_name,
       role,
@@ -593,9 +634,14 @@ export const updateEmployee = async (req, res) => {
     if (company_name !== undefined) updateData.company_name = company_name || null;
     if (contact_details !== undefined) updateData.contact_details = contact_details || null;
     const allowedModules = ['toilet', 'mrf', 'gaushala'];
+    const sfiModules = ['toilet', 'mrf', 'gaushala', 'worker_management'];
     if (currentRole === 'SUPERVISOR' && rawAssignedModules !== undefined) {
       const modules = Array.isArray(rawAssignedModules) ? rawAssignedModules : [];
       updateData.assigned_modules = modules.filter(m => typeof m === 'string' && allowedModules.includes(m.toLowerCase()));
+    }
+    if (currentRole === 'SFI' && rawAssignedModules !== undefined) {
+      const modules = Array.isArray(rawAssignedModules) ? rawAssignedModules : [];
+      updateData.assigned_modules = modules.filter(m => typeof m === 'string' && sfiModules.includes((m || '').toLowerCase()));
     }
     if (password && password.trim() !== '') {
       updateData.password = password;

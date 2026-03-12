@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useToiletBasePath } from './useToiletBasePath';
 import {
   Wrench,
   Plus,
@@ -15,7 +16,8 @@ import api from '../../../services/api';
 import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 
 const ToiletMaintenance = () => {
-  useBackTo('/toilet-management');
+  const base = useToiletBasePath();
+  useBackTo(base);
   const { effectiveUlbId } = useSelectedUlb();
   const [maintenance, setMaintenance] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -92,7 +94,7 @@ const ToiletMaintenance = () => {
           <p className="ds-page-subtitle">Schedule and track maintenance activities</p>
         </div>
         <Link
-          to="/toilet-management/maintenance/new"
+          to={`${base}/maintenance/new`}
           className="btn btn-primary flex items-center"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -213,7 +215,7 @@ const ToiletMaintenance = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <Link
-                      to={`/toilet-management/maintenance/${item.id}`}
+                      to={`${base}/maintenance/${item.id}`}
                       className="text-primary-600 hover:text-primary-900"
                     >
                       <Eye className="h-5 w-5" />

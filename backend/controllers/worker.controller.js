@@ -1,6 +1,7 @@
 import { Op } from 'sequelize';
 import { Worker, Ward, AdminManagement, ULB, WorkerTask, WorkerAttendance } from '../models/index.js';
 import { sequelize } from '../config/database.js';
+import { getEffectiveWardIdsForRequest } from '../utils/ulbAccessHelper.js';
 
 /** Allowed worker types (stored in DB as-is; used for validation) */
 export const WORKER_TYPES = [
@@ -68,11 +69,11 @@ export const createWorker = async (req, res) => {
     const user = req.user;
     const userRole = user?.role ? user.role.toUpperCase().replace(/-/g, '_') : null;
 
-    // Allowed roles: ADMIN, EO, SUPERVISOR
-    if (userRole !== 'ADMIN' && userRole !== 'EO' && userRole !== 'SUPERVISOR') {
+    // Allowed roles: ADMIN, EO, SUPERVISOR, SFI
+    if (userRole !== 'ADMIN' && userRole !== 'EO' && userRole !== 'SUPERVISOR' && userRole !== 'SFI') {
       return res.status(403).json({
         success: false,
-        message: 'Access denied. Only ADMIN, EO, and SUPERVISOR can create workers.'
+        message: 'Access denied. Only ADMIN, EO, SUPERVISOR, and SFI can create workers.'
       });
     }
 
@@ -172,6 +173,39 @@ export const createWorker = async (req, res) => {
         return res.status(403).json({
           success: false,
           message: 'Selected ward does not belong to your ULB'
+        });
+      }
+    } else if (userRole === 'SFI') {
+      // SFI: Get ulb_id from SFI's record (same as supervisor)
+      const sfi = await AdminManagement.findByPk(user.id, {
+        attributes: ['id', 'ulb_id', 'eo_id', 'role']
+      });
+
+      if (!sfi || !sfi.ulb_id) {
+        return res.status(400).json({
+          success: false,
+          message: 'SFI must be assigned to an ULB'
+        });
+      }
+
+      ulbId = sfi.ulb_id;
+      eoId = sfi.eo_id || null;
+
+      const ward = await Ward.findByPk(ward_id, { attributes: ['id', 'ulb_id'] });
+      if (!ward) {
+        return res.status(404).json({ success: false, message: 'Ward not found' });
+      }
+      if (ward.ulb_id !== ulbId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Selected ward does not belong to your ULB'
+        });
+      }
+      const sfiWardIds = await getEffectiveWardIdsForRequest(req);
+      if (Array.isArray(sfiWardIds) && sfiWardIds.length > 0 && !sfiWardIds.includes(parseInt(ward_id, 10))) {
+        return res.status(403).json({
+          success: false,
+          message: 'You can only create workers in your assigned wards'
         });
       }
     } else if (userRole === 'ADMIN') {
@@ -363,11 +397,11 @@ export const getAllWorkers = async (req, res) => {
     const user = req.user;
     const userRole = user?.role ? user.role.toUpperCase().replace(/-/g, '_') : null;
 
-    // Allowed roles: ADMIN, EO, SUPERVISOR
-    if (userRole !== 'ADMIN' && userRole !== 'EO' && userRole !== 'SUPERVISOR') {
+    // Allowed roles: ADMIN, EO, SUPERVISOR, SFI
+    if (userRole !== 'ADMIN' && userRole !== 'EO' && userRole !== 'SUPERVISOR' && userRole !== 'SFI') {
       return res.status(403).json({
         success: false,
-        message: 'Access denied. Only ADMIN, EO, and SUPERVISOR can view workers.'
+        message: 'Access denied. Only ADMIN, EO, SUPERVISOR, and SFI can view workers.'
       });
     }
 
@@ -432,6 +466,24 @@ export const getAllWorkers = async (req, res) => {
       if (status) {
         whereClause.status = status.toUpperCase();
       }
+    }
+    // SFI: Only show workers from their ULB and assigned wards
+    else if (userRole === 'SFI') {
+      const sfi = await AdminManagement.findByPk(user.id, { attributes: ['id', 'ulb_id'] });
+      if (!sfi || !sfi.ulb_id) {
+        return res.status(400).json({
+          success: false,
+          message: 'SFI must be assigned to an ULB'
+        });
+      }
+      whereClause.ulb_id = sfi.ulb_id;
+      const sfiWardIds = await getEffectiveWardIdsForRequest(req);
+      if (Array.isArray(sfiWardIds) && sfiWardIds.length > 0) {
+        whereClause.ward_id = { [Op.in]: sfiWardIds };
+      } else {
+        whereClause.ward_id = { [Op.in]: [] };
+      }
+      if (req.query.status) whereClause.status = req.query.status.toUpperCase();
     }
 
     const workers = await Worker.findAll({
@@ -629,10 +681,10 @@ export const updateWorker = async (req, res) => {
     const userRole = user?.role ? user.role.toUpperCase().replace(/-/g, '_') : null;
     const workerId = req.params.id;
 
-    if (userRole !== 'ADMIN' && userRole !== 'EO' && userRole !== 'SUPERVISOR') {
+    if (userRole !== 'ADMIN' && userRole !== 'EO' && userRole !== 'SUPERVISOR' && userRole !== 'SFI') {
       return res.status(403).json({
         success: false,
-        message: 'Access denied. Only ADMIN, EO, and SUPERVISOR can update workers.'
+        message: 'Access denied. Only ADMIN, EO, SUPERVISOR, and SFI can update workers.'
       });
     }
 
@@ -675,6 +727,21 @@ export const updateWorker = async (req, res) => {
           message: 'You can only update workers under your EO scope.'
         });
       }
+    } else if (userRole === 'SFI') {
+      const sfi = await AdminManagement.findByPk(user.id, { attributes: ['id', 'ulb_id'] });
+      if (!sfi || worker.ulb_id !== sfi.ulb_id) {
+        return res.status(403).json({
+          success: false,
+          message: 'You can only update workers in your ULB.'
+        });
+      }
+      const sfiWardIds = await getEffectiveWardIdsForRequest(req);
+      if (Array.isArray(sfiWardIds) && sfiWardIds.length > 0 && !sfiWardIds.includes(worker.ward_id)) {
+        return res.status(403).json({
+          success: false,
+          message: 'You can only update workers in your assigned wards.'
+        });
+      }
     }
     // ADMIN: can update any worker (optionally restrict by ulb_id in query if needed - not enforced here)
 
@@ -702,6 +769,12 @@ export const updateWorker = async (req, res) => {
       const ward = await Ward.findByPk(ward_id, { attributes: ['id', 'ulb_id'] });
       if (!ward || ward.ulb_id !== worker.ulb_id) {
         return res.status(400).json({ success: false, message: 'Ward not found or does not belong to worker ULB' });
+      }
+      if (userRole === 'SFI') {
+        const sfiWardIds = await getEffectiveWardIdsForRequest(req);
+        if (Array.isArray(sfiWardIds) && sfiWardIds.length > 0 && !sfiWardIds.includes(parseInt(ward_id, 10))) {
+          return res.status(403).json({ success: false, message: 'You can only assign workers to your assigned wards.' });
+        }
       }
       updateData.ward_id = parseInt(ward_id);
     }

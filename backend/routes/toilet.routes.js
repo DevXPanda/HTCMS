@@ -41,25 +41,25 @@ router.get('/facilities', getAllFacilities);
 router.get('/facilities/:id', getFacilityById);
 router.get('/inspectors', getInspectors);
 router.get('/supervisors', getSupervisors);
-router.post('/facilities', authorize('admin'), createFacility);
-router.put('/facilities/:id', authorize('admin'), updateFacility);
-router.delete('/facilities/:id', authorize('admin'), deleteFacility);
+router.post('/facilities', authorize('admin', 'sfi'), createFacility);
+router.put('/facilities/:id', authorize('admin', 'sfi'), updateFacility);
+router.delete('/facilities/:id', authorize('admin', 'sfi'), deleteFacility);
 
 // Staff Assignments
 router.get('/facilities/:id/staff', getFacilityStaff);
-router.post('/facilities/:id/staff', authorize('admin'), assignStaff);
-router.delete('/facilities/:id/staff/:assignmentId', authorize('admin'), removeStaffAssignment);
+router.post('/facilities/:id/staff', authorize('admin', 'sfi'), assignStaff);
+router.delete('/facilities/:id/staff/:assignmentId', authorize('admin', 'sfi'), removeStaffAssignment);
 
 // Inspections
 router.get('/inspections', getAllInspections);
 router.get('/inspections/:id', getInspectionById);
-router.post('/inspections', authorize('admin', 'inspector'), createInspection);
-router.put('/inspections/:id', authorize('admin', 'inspector'), updateInspection);
+router.post('/inspections', authorize('admin', 'inspector', 'sfi'), createInspection);
+router.put('/inspections/:id', authorize('admin', 'inspector', 'sfi'), updateInspection);
 
 // Maintenance
 router.get('/maintenance', getAllMaintenanceRecords);
 router.get('/maintenance/:id', getMaintenanceRecordById);
-router.post('/maintenance', authorize('admin'), createMaintenanceRecord);
+router.post('/maintenance', authorize('admin', 'sfi'), createMaintenanceRecord);
 
 // Complaints
 router.get('/complaints', getAllComplaints);
@@ -67,8 +67,8 @@ router.get('/complaints/citizen', getCitizenComplaints); // Citizen history
 router.get('/complaints/assigned/:supervisorId', getAssignedComplaints); // Supervisor view
 router.get('/complaints/:id', getComplaintById);
 router.post('/complaints', createComplaint);
-router.put('/complaints/:id', authorize('admin', 'supervisor'), updateComplaint);
-router.delete('/complaints/:id', authorize('admin'), deleteComplaint);
+router.put('/complaints/:id', authorize('admin', 'supervisor', 'sfi'), updateComplaint);
+router.delete('/complaints/:id', authorize('admin', 'sfi'), deleteComplaint);
 
 // Reports
 router.get('/reports/stats', getReports);

@@ -131,7 +131,7 @@ export const createAuditLog = async ({
     const actorUserId = (user?.userType === 'admin_management') ? null : (user?.id || null);
 
     // Normalize role to match AuditLog.actorRole enum (lowercase; staff roles: supervisor, eo, clerk, inspector, officer, field_worker, contractor)
-    const VALID_ACTOR_ROLES = ['admin', 'assessor', 'cashier', 'collector', 'citizen', 'clerk', 'inspector', 'officer', 'eo', 'supervisor', 'field_worker', 'contractor', 'system'];
+    const VALID_ACTOR_ROLES = ['admin', 'assessor', 'cashier', 'collector', 'citizen', 'clerk', 'inspector', 'officer', 'eo', 'supervisor', 'field_worker', 'contractor', 'sfi', 'system'];
     let actorRole = user?.role ? String(user.role).toLowerCase().replace(/-/g, '_') : 'system';
     if (!VALID_ACTOR_ROLES.includes(actorRole)) actorRole = 'system';
 

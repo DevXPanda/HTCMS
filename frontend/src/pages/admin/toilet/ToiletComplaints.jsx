@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useToiletBasePath } from './useToiletBasePath';
 import {
   AlertCircle,
   Search,
@@ -16,7 +17,8 @@ import api from '../../../services/api';
 import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 
 const ToiletComplaints = () => {
-  useBackTo('/toilet-management');
+  const base = useToiletBasePath();
+  useBackTo(base);
   const { effectiveUlbId } = useSelectedUlb();
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -250,7 +252,7 @@ const ToiletComplaints = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <Link
-                        to={`/toilet-management/complaints/${complaint.id}`}
+                        to={`${base}/complaints/${complaint.id}`}
                         className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors inline-block"
                         title="View & Edit Details"
                       >

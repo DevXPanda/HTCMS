@@ -3,11 +3,13 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { Save, MapPin, Recycle, Shield } from 'lucide-react';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
+import { useMrfBasePath } from './useMrfBasePath';
 
 const AddMRF = () => {
     const navigate = useNavigate();
     const { id } = useParams();
     const isEditMode = !!id;
+    const base = useMrfBasePath();
     const [wards, setWards] = useState([]);
     const [supervisors, setSupervisors] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -122,7 +124,7 @@ const AddMRF = () => {
                 await api.post('/mrf/facilities', payload);
                 toast.success('MRF center added successfully!');
             }
-            navigate('/mrf/management');
+            navigate(`${base}/management`);
         } catch (error) {
             console.error('Failed to save MRF center:', error);
             toast.error(error.response?.data?.message || 'Failed to save MRF center. Please try again.');
@@ -350,7 +352,7 @@ const AddMRF = () => {
 
                 {/* Form Actions */}
                 <div className="form-actions">
-                    <Link to="/mrf/management" className="btn btn-secondary">
+                    <Link to={`${base}/management`} className="btn btn-secondary">
                         Cancel
                     </Link>
                     <button type="submit" disabled={loading} className="btn btn-primary">

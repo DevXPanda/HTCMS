@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useToiletBasePath } from './useToiletBasePath';
 import {
     Bath,
     MapPin,
@@ -17,7 +18,8 @@ import {
 import api from '../../../services/api';
 
 const ToiletManagementModule = () => {
-    useBackTo('/dashboard');
+    const base = useToiletBasePath();
+    useBackTo(base === '/sfi/toilet-management' ? '/sfi/dashboard' : '/dashboard');
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -41,42 +43,42 @@ const ToiletManagementModule = () => {
             title: 'Toilet Facilities',
             description: 'View and manage all public toilet facilities',
             icon: Bath,
-            link: '/toilet-management/facilities',
+            link: `${base}/facilities`,
             color: 'bg-pink-500'
         },
         {
             title: 'Inspections',
             description: 'Schedule and track toilet inspections',
             icon: ClipboardCheck,
-            link: '/toilet-management/inspections',
+            link: `${base}/inspections`,
             color: 'bg-blue-500'
         },
         {
             title: 'Complaints',
             description: 'Manage citizen complaints and feedback',
             icon: AlertCircle,
-            link: '/toilet-management/complaints',
+            link: `${base}/complaints`,
             color: 'bg-red-500'
         },
         {
             title: 'Maintenance',
             description: 'Schedule and track maintenance activities',
             icon: Wrench,
-            link: '/toilet-management/maintenance',
+            link: `${base}/maintenance`,
             color: 'bg-orange-500'
         },
         {
             title: 'Staff Assignment',
             description: 'Assign staff to toilet facilities',
             icon: Users,
-            link: '/toilet-management/staff',
+            link: `${base}/staff`,
             color: 'bg-green-500'
         },
         {
             title: 'Reports & Analytics',
             description: 'View reports and analytics',
             icon: BarChart3,
-            link: '/toilet-management/reports',
+            link: `${base}/reports`,
             color: 'bg-purple-500'
         }
     ];
@@ -168,19 +170,19 @@ const ToiletManagementModule = () => {
                 <h2 className="ds-section-title mb-4">Quick Actions</h2>
                 <div className="flex flex-wrap gap-4">
                     <Link
-                        to="/toilet-management/facilities/new"
+                        to={`${base}/facilities/new`}
                         className="btn btn-primary flex items-center"
                     >
                         <PlusCircle className="h-4 w-4 mr-2" /> Add New Toilet Facility
                     </Link>
                     <Link
-                        to="/toilet-management/inspections/new"
+                        to={`${base}/inspections/new`}
                         className="btn btn-secondary flex items-center"
                     >
                         <ClipboardCheck className="h-4 w-4 mr-2" /> Schedule Inspection
                     </Link>
                     <Link
-                        to="/toilet-management/maintenance/new"
+                        to={`${base}/maintenance/new`}
                         className="btn btn-secondary flex items-center"
                     >
                         <Wrench className="h-4 w-4 mr-2" /> Schedule Maintenance

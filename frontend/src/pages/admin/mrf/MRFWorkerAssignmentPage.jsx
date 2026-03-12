@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useMrfBasePath } from './useMrfBasePath';
 import {
     Recycle,
     Users,
@@ -14,7 +15,8 @@ import api from '../../../services/api';
 import toast from 'react-hot-toast';
 
 const MRFWorkerAssignmentPage = () => {
-    useBackTo('/mrf');
+    const base = useMrfBasePath();
+    useBackTo(base);
     const [facilities, setFacilities] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -117,7 +119,7 @@ const MRFWorkerAssignmentPage = () => {
                         </div>
 
                         <Link
-                            to={`/mrf/facilities/${facility.id}?tab=workers`}
+                            to={`${base}/facilities/${facility.id}?tab=workers`}
                             className="btn btn-primary w-full justify-center mt-2"
                         >
                             <UserCheck className="w-4 h-4" /> Manage Assignments <ArrowRight className="w-4 h-4" />

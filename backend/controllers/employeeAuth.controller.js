@@ -14,7 +14,7 @@ export const employeeLogout = async (req, res) => {
 
     // Normalize role to uppercase for comparison
     const normalizedRole = employee.role ? employee.role.toUpperCase().replace(/-/g, '_') : employee.role;
-    const rolesWithAttendance = ['COLLECTOR', 'CLERK', 'INSPECTOR', 'OFFICER', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR'];
+    const rolesWithAttendance = ['COLLECTOR', 'CLERK', 'INSPECTOR', 'OFFICER', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI'];
     if (rolesWithAttendance.includes(normalizedRole)) {
       try {
         // Find active attendance session (no logout)
@@ -116,7 +116,7 @@ export const employeeLogin = async (req, res) => {
     // Create attendance record for all staff roles on login (including EO, Supervisor, Field Worker, Contractor)
     // Normalize role to uppercase for comparison
     const normalizedRole = employee.role ? employee.role.toUpperCase().replace(/-/g, '_') : employee.role;
-    const rolesWithAttendance = ['COLLECTOR', 'CLERK', 'INSPECTOR', 'OFFICER', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR'];
+    const rolesWithAttendance = ['COLLECTOR', 'CLERK', 'INSPECTOR', 'OFFICER', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI'];
     if (rolesWithAttendance.includes(normalizedRole)) {
       try {
         // Parse device information using the real device parser

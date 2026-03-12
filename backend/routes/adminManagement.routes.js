@@ -33,7 +33,7 @@ const createEmployeeValidation = [
   body('role')
     .custom((value) => {
       const normalizedValue = value ? value.toUpperCase().replace(/-/g, '_') : value;
-      const allowedRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'ADMIN'];
+      const allowedRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'ADMIN', 'SFI'];
       if (!allowedRoles.includes(normalizedValue)) {
         throw new Error(`Role must be one of: ${allowedRoles.join(', ')}`);
       }
@@ -124,6 +124,10 @@ const validateRoleBasedFields = (req, res, next) => {
   } else if (role === 'CONTRACTOR') {
     if (!req.body.company_name || String(req.body.company_name).trim() === '') errors.push({ msg: 'Company name is required for Contractor' });
     if (!req.body.contact_details || String(req.body.contact_details).trim() === '') errors.push({ msg: 'Contact details are required for Contractor' });
+  } else if (role === 'SFI') {
+    if (!req.body.ulb_id || String(req.body.ulb_id).trim() === '') {
+      errors.push({ msg: 'ULB is required for SFI (Sanitary & Food Inspector)' });
+    }
   }
   if (errors.length > 0) return res.status(400).json({ message: 'Validation failed', errors });
   next();
@@ -132,7 +136,7 @@ const validateRoleBasedFields = (req, res, next) => {
 const validateRoleBasedFieldsUpdate = (req, res, next) => {
   // Normalize role to uppercase for comparison
   const role = req.body.role ? req.body.role.toUpperCase().replace(/-/g, '_') : req.body.role;
-  if (!role || !['EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR'].includes(role)) return next();
+  if (!role || !['EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI'].includes(role)) return next();
   const errors = [];
   if (role === 'EO') {
     // Check for ulb_id (UUID) instead of assigned_ulb (name)
@@ -153,6 +157,8 @@ const validateRoleBasedFieldsUpdate = (req, res, next) => {
   } else if (role === 'CONTRACTOR') {
     if (req.body.company_name !== undefined && (!req.body.company_name || String(req.body.company_name).trim() === '')) errors.push({ msg: 'Company name is required for Contractor' });
     if (req.body.contact_details !== undefined && (!req.body.contact_details || String(req.body.contact_details).trim() === '')) errors.push({ msg: 'Contact details are required for Contractor' });
+  } else if (role === 'SFI') {
+    if (req.body.ulb_id !== undefined && (!req.body.ulb_id || String(req.body.ulb_id).trim() === '')) errors.push({ msg: 'ULB is required for SFI' });
   }
   if (errors.length > 0) return res.status(400).json({ message: 'Validation failed', errors });
   next();
@@ -172,7 +178,7 @@ const updateEmployeeValidation = [
     .custom((value) => {
       if (!value) return true; // Optional field
       const normalizedValue = value.toUpperCase().replace(/-/g, '_');
-      const allowedRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'ADMIN'];
+      const allowedRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'ADMIN', 'SFI'];
       if (!allowedRoles.includes(normalizedValue)) {
         throw new Error(`Role must be one of: ${allowedRoles.join(', ')}`);
       }

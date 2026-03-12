@@ -90,18 +90,18 @@ const validateRequest = (req, res, next) => {
   next();
 };
 
-// Role check middleware: ADMIN, EO, SUPERVISOR can create workers
+// Role check middleware: ADMIN, EO, SUPERVISOR, SFI can create/manage workers
 const checkRoleAccess = (req, res, next) => {
   const userRole = req.user?.role ? req.user.role.toUpperCase().replace(/-/g, '_') : null;
 
-  if (userRole !== 'ADMIN' && userRole !== 'EO' && userRole !== 'SUPERVISOR') {
+  if (userRole !== 'ADMIN' && userRole !== 'EO' && userRole !== 'SUPERVISOR' && userRole !== 'SFI') {
     return res.status(403).json({
       success: false,
-      message: 'Access denied. Only ADMIN, EO, and SUPERVISOR can create workers.'
+      message: 'Access denied. Only ADMIN, EO, SUPERVISOR, and SFI can create workers.'
     });
   }
 
-  // For ADMIN role only, require ulb_id and eo_id in request (EO and SUPERVISOR get from token)
+  // For ADMIN role only, require ulb_id and eo_id in request (EO, SUPERVISOR, SFI get from token)
   if (userRole === 'ADMIN') {
     if (!req.body.ulb_id || !req.body.eo_id) {
       return res.status(400).json({

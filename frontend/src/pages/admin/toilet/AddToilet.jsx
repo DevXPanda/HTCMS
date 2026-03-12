@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useToiletBasePath } from './useToiletBasePath';
 import { Save, Camera, X, Check, MapPin, Clock, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../../services/api';
@@ -9,7 +10,8 @@ const AddToilet = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditMode = !!id;
-  useBackTo('/toilet-management/facilities');
+  const base = useToiletBasePath();
+  useBackTo(`${base}/facilities`);
 
   const [wards, setWards] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -156,7 +158,7 @@ const AddToilet = () => {
         await api.post('/toilet/facilities', dataToSave);
         toast.success('Facility added successfully!');
       }
-      navigate('/toilet-management/facilities');
+      navigate(`${base}/facilities`);
     } catch (error) {
       console.error('Failed to save toilet:', error);
       const errorMessage = error.response?.data?.message || 'Failed to save facility. Please check if all required fields are filled.';

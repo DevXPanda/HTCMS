@@ -3,7 +3,7 @@ import { useAuth } from './AuthContext';
 
 const STORAGE_KEY = 'htcms_selected_ulb_id';
 
-const SelectedUlbContext = createContext(null);
+export const SelectedUlbContext = createContext(null);
 
 export const useSelectedUlb = () => {
   const context = useContext(SelectedUlbContext);

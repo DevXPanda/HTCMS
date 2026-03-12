@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useToiletBasePath } from './useToiletBasePath';
 import { Save, Clock, ShieldAlert, CheckCircle2, X, Camera, Plus, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../../services/api';
@@ -10,7 +11,8 @@ const AddMaintenance = () => {
     const { id } = useParams();
     const [searchParams] = useSearchParams();
     const preSelectedFacilityId = searchParams.get('facilityId');
-    useBackTo('/toilet-management/maintenance');
+    const base = useToiletBasePath();
+    useBackTo(`${base}/maintenance`);
 
     const isEditMode = !!id;
     const [facilities, setFacilities] = useState([]);
@@ -159,7 +161,7 @@ const AddMaintenance = () => {
                 await api.post('/toilet/maintenance', formData);
                 toast.success('Maintenance scheduled successfully!');
             }
-            navigate('/toilet-management/maintenance');
+            navigate(`${base}/maintenance`);
         } catch (error) {
             console.error('Failed to save maintenance:', error);
             const errorMessage = error.response?.data?.message || 'Failed to save maintenance record.';

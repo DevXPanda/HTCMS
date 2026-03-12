@@ -22,6 +22,7 @@ import {
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../../components/ConfirmModal';
+import { useMrfBasePath } from './useMrfBasePath';
 import MrfSalesLedger from './MrfSalesLedger';
 import MrfWasteLogs from './MrfWasteLogs';
 import MrfWorkerAssignment from './MrfWorkerAssignment';
@@ -31,6 +32,7 @@ import MrfLinkedComplaints from './MrfLinkedComplaints';
 const MRFDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const base = useMrfBasePath();
     const { confirm } = useConfirm();
     const [searchParams] = useSearchParams();
     const tabFromUrl = searchParams.get('tab');
@@ -81,7 +83,7 @@ const MRFDetails = () => {
         try {
             await api.delete(`/mrf/facilities/${id}`);
             toast.success('Facility deactivated successfully');
-            navigate('/mrf/management');
+            navigate(`${base}/management`);
         } catch (error) {
             console.error('Failed to delete facility:', error);
             toast.error('Failed to deactivate facility');
@@ -114,7 +116,7 @@ const MRFDetails = () => {
                 <XCircle className="empty-state-icon text-red-200 w-16 h-16 mx-auto mb-4" />
                 <h2 className="empty-state-title">Facility Not Found</h2>
                 <p className="empty-state-text">The Material Recovery Facility you are looking for does not exist or has been removed.</p>
-                <button type="button" onClick={() => navigate('/mrf/management')} className="btn btn-primary mt-6">
+                <button type="button" onClick={() => navigate(`${base}/management`)} className="btn btn-primary mt-6">
                     Back to Management
                 </button>
             </div>
@@ -145,7 +147,7 @@ const MRFDetails = () => {
                     </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                    <Link to={`/mrf/facilities/${id}/edit`} className="btn btn-secondary">
+                    <Link to={`${base}/facilities/${id}/edit`} className="btn btn-secondary">
                         <Edit className="w-4 h-4" /> Edit Facility
                     </Link>
                     <button type="button" onClick={handleDelete} className="btn btn-danger">

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useToiletBasePath } from './useToiletBasePath';
 import {
     Bath,
     Users,
@@ -15,7 +16,8 @@ import api from '../../../services/api';
 import toast from 'react-hot-toast';
 
 const GlobalStaffAssignment = () => {
-    useBackTo('/toilet-management');
+    const base = useToiletBasePath();
+    useBackTo(base);
     const [facilities, setFacilities] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -113,7 +115,7 @@ const GlobalStaffAssignment = () => {
                         </div>
 
                         <Link
-                            to={`/toilet-management/facilities/${facility.id}/staff`}
+                            to={`${base}/facilities/${facility.id}/staff`}
                             className="btn btn-primary w-full justify-center"
                         >
                             <UserCheck className="w-4 h-4" /> Manage Assignments <ArrowRight className="w-4 h-4" />

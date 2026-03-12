@@ -111,6 +111,7 @@ import gauShalaRoutes from "./routes/gauShala.routes.js";
 import inventoryRoutes from "./routes/inventory.routes.js";
 import utilityRoutes from "./routes/utility.routes.js";
 import feedbackRoutes from "./routes/feedback.routes.js";
+import sfiRoutes from "./routes/sfi.routes.js";
 
 import waterConnectionRequestRoutes from "./routes/waterConnectionRequest.routes.js";
 import propertyApplicationRoutes from "./routes/propertyApplication.routes.js";
@@ -181,7 +182,7 @@ app.use("/api/gaushala", gauShalaRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/utilities", utilityRoutes);
 app.use("/api/feedback", feedbackRoutes);
-
+app.use("/api/sfi", sfiRoutes);
 
 // Serve uploaded files statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useToiletBasePath } from './useToiletBasePath';
 import {
     Clock,
     CheckCircle,
@@ -24,7 +25,8 @@ import { useConfirm } from '../../../components/ConfirmModal';
 const ComplaintDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    useBackTo('/toilet-management/complaints');
+    const base = useToiletBasePath();
+    useBackTo(`${base}/complaints`);
     const { confirm } = useConfirm();
 
     const [complaint, setComplaint] = useState(null);
@@ -101,7 +103,7 @@ const ComplaintDetails = () => {
             const response = await api.delete(`/toilet/complaints/${id}`);
             if (response.data && response.data.success) {
                 toast.success('Complaint deleted successfully.');
-                navigate('/toilet-management/complaints');
+                navigate(`${base}/complaints`);
             }
         } catch (error) {
             console.error('Failed to delete complaint:', error);

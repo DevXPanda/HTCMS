@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { Shield, Building2, CreditCard } from 'lucide-react';
 
 const AdminLogin = () => {
-  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [formData, setFormData] = useState({ login_identifier: '', password: '' });
   const [loading, setLoading] = useState(false);
   const { login, user, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -55,7 +55,7 @@ const AdminLogin = () => {
     setLoading(true);
 
     try {
-      const result = await login(formData.email, formData.password);
+      const result = await login(formData.login_identifier, formData.password);
 
       if (result.success && result.user) {
         const loggedInUser = result.user;
@@ -110,18 +110,19 @@ const AdminLogin = () => {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="label">
-                Email Address
+              <label htmlFor="login_identifier" className="label">
+                Email or Phone Number
               </label>
               <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
+                type="text"
+                id="login_identifier"
+                name="login_identifier"
+                value={formData.login_identifier}
                 onChange={handleChange}
                 required
                 className="input"
-                placeholder="Enter your email"
+                placeholder="Enter your email or phone number"
+                autoComplete="username"
               />
             </div>
 

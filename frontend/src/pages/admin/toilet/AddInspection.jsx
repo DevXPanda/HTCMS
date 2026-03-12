@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useToiletBasePath } from './useToiletBasePath';
 import { Save, Camera, CheckCircle2, AlertCircle, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../../services/api';
@@ -10,7 +11,8 @@ const AddInspection = () => {
     const { id } = useParams(); // For edit mode
     const [searchParams] = useSearchParams();
     const preSelectedFacilityId = searchParams.get('facilityId');
-    useBackTo('/toilet-management/inspections');
+    const base = useToiletBasePath();
+    useBackTo(`${base}/inspections`);
 
     const isEditMode = !!id;
     const [facilities, setFacilities] = useState([]);
@@ -153,7 +155,7 @@ const AddInspection = () => {
                 await api.post('/toilet/inspections', payload);
                 toast.success('Inspection recorded successfully!');
             }
-            navigate('/toilet-management/inspections');
+            navigate(`${base}/inspections`);
         } catch (error) {
             console.error('Failed to save inspection:', error);
             const errorMessage = error.response?.data?.message || 'Failed to save inspection. Please check all fields.';

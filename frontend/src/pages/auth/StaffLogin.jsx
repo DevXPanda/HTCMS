@@ -32,6 +32,8 @@ const StaffLogin = () => {
         navigate('/eo/dashboard', { replace: true });
       } else if (normalizedRole === 'SUPERVISOR') {
         navigate('/supervisor/dashboard', { replace: true });
+      } else if (normalizedRole === 'SFI') {
+        navigate('/sfi/dashboard', { replace: true });
       } else if (normalizedRole === 'FIELD_WORKER') {
         navigate('/field-worker/dashboard', { replace: true });
       } else if (normalizedRole === 'ADMIN' || normalizedRole === 'ASSESSOR' || normalizedRole === 'CASHIER') {
@@ -79,6 +81,8 @@ const StaffLogin = () => {
         navigate('/eo/dashboard', { replace: true });
       } else if (normalizedRole === 'SUPERVISOR') {
         navigate('/supervisor/dashboard', { replace: true });
+      } else if (normalizedRole === 'SFI') {
+        navigate('/sfi/dashboard', { replace: true });
       } else if (normalizedRole === 'FIELD_WORKER') {
         navigate('/field-worker/dashboard', { replace: true });
       } else if (normalizedRole === 'CONTRACTOR') {

@@ -10,12 +10,14 @@ import {
     Download
 } from 'lucide-react';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useMrfBasePath } from './useMrfBasePath';
 import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 import api from '../../../services/api';
 import { exportToCSV } from '../../../utils/exportCSV';
 
 const MRFManagement = () => {
-    useBackTo('/mrf');
+    const base = useMrfBasePath();
+    useBackTo(base);
     const { effectiveUlbId } = useSelectedUlb();
     const [facilities, setFacilities] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -104,7 +106,7 @@ const MRFManagement = () => {
                 </div>
                 <div className="flex gap-2">
                     <Link
-                        to="/mrf/facilities/new"
+                        to={`${base}/facilities/new`}
                         className="btn btn-primary flex items-center"
                     >
                         <Plus className="w-4 h-4 mr-2" />
@@ -177,14 +179,14 @@ const MRFManagement = () => {
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div className="flex justify-end gap-2">
                                                 <Link
-                                                    to={`/mrf/facilities/${facility.id}`}
+                                                    to={`${base}/facilities/${facility.id}`}
                                                     className="text-primary-600 hover:text-primary-900"
                                                     title="View Details"
                                                 >
                                                     <Eye className="h-5 w-5" />
                                                 </Link>
                                                 <Link
-                                                    to={`/mrf/facilities/${facility.id}/edit`}
+                                                    to={`${base}/facilities/${facility.id}/edit`}
                                                     className="text-blue-600 hover:text-blue-900"
                                                     title="Edit"
                                                 >

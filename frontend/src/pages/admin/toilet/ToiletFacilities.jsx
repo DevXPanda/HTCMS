@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useToiletBasePath } from './useToiletBasePath';
 import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 import {
   Bath,
@@ -22,7 +23,8 @@ import api from '../../../services/api';
 import { exportToCSV } from '../../../utils/exportCSV';
 
 const ToiletFacilities = () => {
-  useBackTo('/toilet-management');
+  const base = useToiletBasePath();
+  useBackTo(base);
   const { effectiveUlbId } = useSelectedUlb();
   const [toilets, setToilets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -148,7 +150,7 @@ const ToiletFacilities = () => {
         <h1 className="ds-page-title">Toilet Facilities</h1>
         <div className="flex flex-wrap gap-2">
           <Link
-            to="/toilet-management/facilities/new"
+            to={`${base}/facilities/new`}
             className="btn btn-primary flex items-center"
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -311,21 +313,21 @@ const ToiletFacilities = () => {
                   <td>
                     <div className="flex gap-2">
                       <Link
-                        to={`/toilet-management/facilities/${toilet.id}`}
+                        to={`${base}/facilities/${toilet.id}`}
                         className="text-primary-600 hover:text-primary-900"
                         title="View Details"
                       >
                         <Eye className="h-5 w-5" />
                       </Link>
                       <Link
-                        to={`/toilet-management/facilities/${toilet.id}/staff`}
+                        to={`${base}/facilities/${toilet.id}/staff`}
                         className="text-green-600 hover:text-green-900"
                         title="Manage Staffing"
                       >
                         <Users className="h-5 w-5" />
                       </Link>
                       <Link
-                        to={`/toilet-management/facilities/${toilet.id}/edit`}
+                        to={`${base}/facilities/${toilet.id}/edit`}
                         className="text-blue-600 hover:text-blue-900"
                         title="Edit"
                       >

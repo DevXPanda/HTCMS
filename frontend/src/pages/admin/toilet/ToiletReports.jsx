@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useToiletBasePath } from './useToiletBasePath';
 import {
   BarChart3,
   TrendingUp,
@@ -12,7 +13,8 @@ import {
 import api from '../../../services/api';
 
 const ToiletReports = () => {
-  useBackTo('/toilet-management');
+  const base = useToiletBasePath();
+  useBackTo(base);
   const [stats, setStats] = useState({
     totalFacilities: 0,
     activeFacilities: 0,
