@@ -5,7 +5,8 @@ import {
   MrfFacility,
   GauShalaFacility,
   ToiletComplaint,
-  GauShalaComplaint
+  GauShalaComplaint,
+  AdminManagement
 } from '../models/index.js';
 import { Op } from 'sequelize';
 import { getEffectiveUlbForRequest, getEffectiveWardIdsForRequest } from '../utils/ulbAccessHelper.js';
@@ -36,7 +37,11 @@ export const getDashboard = async (req, res, next) => {
     const gaushalaWhere = allowedWardIds.length
       ? { ward_id: { [Op.in]: allowedWardIds } }
       : { id: { [Op.in]: [] } };
-    const workerWardWhere = allowedWardIds.length ? { ward_id: { [Op.in]: allowedWardIds } } : { ward_id: { [Op.in]: [] } };
+    // Workers: when SFI has no wards assigned, count all workers in ULB; otherwise filter by assigned wards
+    const workerWhere = allowedWardIds.length
+      ? { ulb_id: effectiveUlbId, ward_id: { [Op.in]: allowedWardIds } }
+      : { ulb_id: effectiveUlbId };
+    const attendanceWardFilter = allowedWardIds.length ? { ward_id: { [Op.in]: allowedWardIds } } : {};
 
     const today = new Date().toISOString().split('T')[0];
 
@@ -49,15 +54,16 @@ export const getDashboard = async (req, res, next) => {
       toiletComplaintsPending,
       gaushalaComplaintsPending,
       attendanceTodayTotal,
-      attendanceTodayGeoViolations
+      attendanceTodayGeoViolations,
+      supervisorsTotal
     ] = await Promise.all([
-      Worker.count({ where: { ulb_id: effectiveUlbId, ...workerWardWhere } }),
+      Worker.count({ where: workerWhere }),
       WorkerAttendance.count({
         where: {
           ulb_id: effectiveUlbId,
           attendance_date: today,
           checkin_time: { [Op.ne]: null },
-          ...(allowedWardIds.length ? { ward_id: { [Op.in]: allowedWardIds } } : {})
+          ...attendanceWardFilter
         }
       }),
       ToiletFacility.count({ where: facilityWhere }),
@@ -75,7 +81,7 @@ export const getDashboard = async (req, res, next) => {
         where: {
           ulb_id: effectiveUlbId,
           attendance_date: today,
-          ...(allowedWardIds.length ? { ward_id: { [Op.in]: allowedWardIds } } : {})
+          ...attendanceWardFilter
         }
       }),
       WorkerAttendance.count({
@@ -83,7 +89,14 @@ export const getDashboard = async (req, res, next) => {
           ulb_id: effectiveUlbId,
           attendance_date: today,
           geo_status: 'OUTSIDE_WARD',
-          ...(allowedWardIds.length ? { ward_id: { [Op.in]: allowedWardIds } } : {})
+          ...attendanceWardFilter
+        }
+      }),
+      AdminManagement.count({
+        where: {
+          ulb_id: effectiveUlbId,
+          role: 'SUPERVISOR',
+          status: 'active'
         }
       })
     ]);
@@ -99,6 +112,9 @@ export const getDashboard = async (req, res, next) => {
           total: workersTotal,
           presentToday: workersPresentToday,
           presencePercent
+        },
+        supervisors: {
+          total: supervisorsTotal
         },
         facilities: {
           toilet: toiletFacilitiesCount,

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Plus, Users, Search, Filter, Edit, Trash2, Eye, RefreshCw, Shield, CheckSquare, Square } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../components/ConfirmModal';
 import { useSelectedUlb } from '../../contexts/SelectedUlbContext';
+import { formatDateIST, formatDateTimeIST } from '../../utils/dateUtils';
 
 // Active roles for new staff. Deprecated roles (kept for future use): Clerk, Inspector, Officer, Contractor.
 const ACTIVE_ROLES = [
@@ -13,6 +15,8 @@ const ACTIVE_ROLES = [
   { value: 'FIELD_WORKER', label: 'Field Worker' },
   { value: 'SFI', label: 'SFI (Sanitary & Food Inspector)' }
 ];
+// SBM only for Super Admin (global monitoring, default read-only)
+const SBM_ROLE = { value: 'SBM', label: 'SBM (Global Monitoring)' };
 const DEPRECATED_ROLE_VALUES = ['CLERK', 'INSPECTOR', 'OFFICER', 'CONTRACTOR'];
 // Supervisor assigned modules (stored as values: toilet, mrf, gaushala)
 const SUPERVISOR_MODULES = [
@@ -20,11 +24,11 @@ const SUPERVISOR_MODULES = [
   { value: 'mrf', label: 'MRF' },
   { value: 'gaushala', label: 'Gau Shala' }
 ];
+// SFI can only be assigned Toilet, MRF, Gaushala (Worker Management is not assignable for SFI)
 const SFI_MODULES = [
   { value: 'toilet', label: 'Toilet Management' },
   { value: 'mrf', label: 'MRF' },
-  { value: 'gaushala', label: 'Gau Shala' },
-  { value: 'worker_management', label: 'Worker Management' }
+  { value: 'gaushala', label: 'Gau Shala' }
 ];
 // Map backend assigned_modules (any format) to SFI_MODULES values for edit form
 function normalizeAssignedModulesForForm(raw) {
@@ -53,6 +57,8 @@ const WORKER_TYPE_OPTIONS = [
 ];
 
 const AdminManagement = () => {
+  const location = useLocation();
+  const isSfiStaffView = location.pathname.startsWith('/sfi/staff-management');
   const { confirm } = useConfirm();
   const { effectiveUlbId, isSuperAdmin, selectedUlbId, setSelectedUlbId } = useSelectedUlb();
   const [employees, setEmployees] = useState([]);
@@ -91,7 +97,8 @@ const AdminManagement = () => {
     worker_type: '',
     company_name: '',
     contact_details: '',
-    assigned_modules: []
+    assigned_modules: [],
+    sbm_full_crud: false
   });
 
   // Role-based dropdown options (EO, Supervisor, Contractor lists)
@@ -128,6 +135,13 @@ const AdminManagement = () => {
     setSelectAll(false);
   }, [filterRole, filterStatus, searchTerm]);
 
+  // When Edit modal opens, ensure ULBs are loaded so dropdown has data
+  useEffect(() => {
+    if (showEditModal && ulbs.length === 0) {
+      fetchULBs();
+    }
+  }, [showEditModal]);
+
   const fetchEmployees = async () => {
     try {
       setLoading(true);
@@ -140,6 +154,8 @@ const AdminManagement = () => {
       if (filterStatus) params.append('status', filterStatus);
       if (searchTerm) params.append('search', searchTerm);
       if (effectiveUlbId) params.append('ulb_id', effectiveUlbId);
+      // SFI staff-management page: show only supervisors, not all staff (including SFI)
+      if (isSfiStaffView) params.set('role', 'SUPERVISOR');
 
       const response = await api.get(`/admin-management/employees?${params}`);
       const data = response?.data;
@@ -178,10 +194,10 @@ const AdminManagement = () => {
       }
 
       setAllWards(wardsList);
-      // Filter wards based on selected ULB if in form
-      if (ulbId && formData.ulb_id === ulbId) {
-        setWards(wardsList.filter(w => w.ulb_id === ulbId));
-      } else if (!ulbId) {
+      // When ulbId provided, set wards to that ULB only (so Edit modal has correct list)
+      if (ulbId != null && String(ulbId).trim() !== '') {
+        setWards(wardsList.filter(w => String(w.ulb_id) === String(ulbId)));
+      } else {
         setWards(wardsList);
       }
     } catch (error) {
@@ -253,8 +269,11 @@ const AdminManagement = () => {
 
   const fetchStatistics = async () => {
     try {
-      const params = effectiveUlbId ? `?ulb_id=${effectiveUlbId}` : '';
-      const response = await api.get(`/admin-management/employees/statistics${params}`);
+      const params = new URLSearchParams();
+      if (effectiveUlbId) params.append('ulb_id', effectiveUlbId);
+      if (isSfiStaffView) params.append('role', 'SUPERVISOR');
+      const qs = params.toString() ? `?${params.toString()}` : '';
+      const response = await api.get(`/admin-management/employees/statistics${qs}`);
       setStatistics(response?.data ?? null);
     } catch (error) {
       console.error('Error fetching statistics:', error);
@@ -320,6 +339,9 @@ const AdminManagement = () => {
       if (normalizedRole === 'SUPERVISOR' && formData.assigned_modules && Array.isArray(formData.assigned_modules)) {
         payload.assigned_modules = formData.assigned_modules;
       }
+      if (normalizedRole === 'SBM' && formData.sbm_full_crud !== undefined) {
+        payload.sbm_full_crud = Boolean(formData.sbm_full_crud);
+      }
 
       console.log('📤 Sending payload:', payload);
       console.log('📤 Payload ward_ids:', payload.ward_ids, 'Type:', typeof payload.ward_ids, 'IsArray:', Array.isArray(payload.ward_ids));
@@ -350,7 +372,8 @@ const AdminManagement = () => {
         worker_type: '',
         company_name: '',
         contact_details: '',
-        assigned_modules: []
+        assigned_modules: [],
+        sbm_full_crud: false
       });
 
       // Notify Wards page about ward assignment change
@@ -428,6 +451,9 @@ const AdminManagement = () => {
       }
       if (normalizedRole === 'SFI' && formData.assigned_modules !== undefined) {
         payload.assigned_modules = Array.isArray(formData.assigned_modules) ? formData.assigned_modules : [];
+      }
+      if (normalizedRole === 'SBM' && formData.sbm_full_crud !== undefined) {
+        payload.sbm_full_crud = Boolean(formData.sbm_full_crud);
       }
 
       console.log('📤 Sending payload:', payload);
@@ -526,11 +552,13 @@ const AdminManagement = () => {
       worker_type: employee.worker_type || '',
       company_name: employee.company_name || '',
       contact_details: employee.contact_details || '',
-      assigned_modules: initialModules
+      assigned_modules: initialModules,
+      sbm_full_crud: Boolean(employee.full_crud_enabled)
     };
     setFormData(formDataUpdate);
 
-    // Fetch filtered data based on employee's ULB
+    // Ensure ULBs and wards are loaded so dropdowns show data (fixes empty ULB dropdown in Edit)
+    await fetchULBs();
     if (formDataUpdate.ulb_id) {
       await fetchWards(formDataUpdate.ulb_id);
       await fetchEos(formDataUpdate.ulb_id);
@@ -559,7 +587,8 @@ const AdminManagement = () => {
       INSPECTOR: 'Inspector',
       OFFICER: 'Officer',
       COLLECTOR: 'Collector',
-      ADMIN: 'Admin'
+      ADMIN: 'Admin',
+      SBM: 'SBM (Global Monitoring)'
     };
     return labels[normalizedRole] || (role ? role.charAt(0).toUpperCase() + role.slice(1) : '');
   };
@@ -575,7 +604,8 @@ const AdminManagement = () => {
       FIELD_WORKER: 'bg-amber-100 text-amber-800',
       CONTRACTOR: 'bg-slate-100 text-slate-800',
       SFI: 'bg-cyan-100 text-cyan-800',
-      ADMIN: 'bg-red-100 text-red-800'
+      ADMIN: 'bg-red-100 text-red-800',
+      SBM: 'bg-violet-100 text-violet-800'
     };
     return staffColors[normalizedRole] || 'bg-gray-100 text-gray-800';
   };
@@ -654,11 +684,22 @@ const AdminManagement = () => {
         </div>
         <button
           type="button"
-          onClick={() => setShowAddModal(true)}
+          onClick={() => {
+            setShowAddModal(true);
+            if (isSfiStaffView) {
+              setFormData(prev => ({
+                ...prev,
+                role: 'SUPERVISOR',
+                ulb_id: effectiveUlbId || prev.ulb_id,
+                ward_ids: [],
+                assigned_modules: []
+              }));
+            }
+          }}
           className="btn btn-primary flex items-center"
         >
           <Plus className="w-4 h-4" />
-          Add Staff
+          {isSfiStaffView ? 'Add Supervisor' : 'Add Staff'}
         </button>
       </div>
 
@@ -748,22 +789,20 @@ const AdminManagement = () => {
               className="input pl-10"
             />
           </div>
-          <select
-            value={filterRole}
-            onChange={(e) => setFilterRole(e.target.value)}
-            className="input w-auto min-w-[140px]"
-          >
-            <option value="">All Roles</option>
-            {/* <option value="CLERK">Clerk</option>
-            <option value="INSPECTOR">Inspector</option>
-            <option value="OFFICER">Officer</option> */}
-            <option value="COLLECTOR">Collector</option>
-            <option value="EO">EO</option>
-            <option value="SUPERVISOR">Supervisor</option>
-            <option value="FIELD_WORKER">Field Worker</option>
-            <option value="SFI">SFI</option>
-            {/* <option value="CONTRACTOR">Contractor</option> */}
-          </select>
+          {!isSfiStaffView && (
+            <select
+              value={filterRole}
+              onChange={(e) => setFilterRole(e.target.value)}
+              className="input w-auto min-w-[140px]"
+            >
+              <option value="">All Roles</option>
+              <option value="COLLECTOR">Collector</option>
+              <option value="EO">EO</option>
+              <option value="SUPERVISOR">Supervisor</option>
+              <option value="FIELD_WORKER">Field Worker</option>
+              <option value="SFI">SFI</option>
+            </select>
+          )}
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
@@ -958,43 +997,53 @@ const AdminManagement = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                  <select
-                    required
-                    value={formData.role}
-                    onChange={(e) => {
-                      const newRole = e.target.value;
-                      setFormData({
-                        ...formData,
-                        role: newRole,
-                        ward_ids: [],
-                        ward_id: '',
-                        eo_id: '',
-                        supervisor_id: '',
-                        contractor_id: '',
-                        assigned_ulb: '',
-                        ulb_id: '',
-                        worker_type: '',
-                        company_name: '',
-                        contact_details: '',
-                        assigned_modules: []
-                      });
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  >
-                    <option value="">Select Role</option>
-                    {ACTIVE_ROLES.map(({ value, label }) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
+                  {isSfiStaffView ? (
+                    <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700">
+                      Supervisor
+                    </div>
+                  ) : (
+                    <select
+                      required
+                      value={formData.role}
+                      onChange={(e) => {
+                        const newRole = e.target.value;
+                        setFormData({
+                          ...formData,
+                          role: newRole,
+                          ward_ids: [],
+                          ward_id: '',
+                          eo_id: '',
+                          supervisor_id: '',
+                          contractor_id: '',
+                          assigned_ulb: '',
+                          ulb_id: '',
+                          worker_type: '',
+                          company_name: '',
+                          contact_details: '',
+                          assigned_modules: [],
+                          sbm_full_crud: newRole.toUpperCase() === 'SBM' ? formData.sbm_full_crud : false
+                        });
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                      <option value="">Select Role</option>
+                      {ACTIVE_ROLES.map(({ value, label }) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
+                      {isSuperAdmin && (
+                        <option value={SBM_ROLE.value}>{SBM_ROLE.label}</option>
+                      )}
+                    </select>
+                  )}
                 </div>
-                {/* ULB - shown below Role when role is selected (mandatory except ADMIN) */}
+                {/* ULB - shown below Role (mandatory for EO, SFI, SUPERVISOR, SBM) */}
                 {formData.role && formData.role.toUpperCase() !== 'ADMIN' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      ULB {(formData.role.toUpperCase() === 'EO' || formData.role.toUpperCase() === 'SFI') && <span className="text-red-500">*</span>}
+                      ULB {(formData.role.toUpperCase() === 'EO' || formData.role.toUpperCase() === 'SFI' || formData.role.toUpperCase() === 'SUPERVISOR' || formData.role.toUpperCase() === 'SBM') && <span className="text-red-500">*</span>}
                     </label>
                     <select
-                      required={formData.role.toUpperCase() === 'EO' || formData.role.toUpperCase() === 'SFI'}
+                      required={formData.role.toUpperCase() === 'EO' || formData.role.toUpperCase() === 'SFI' || formData.role.toUpperCase() === 'SUPERVISOR' || formData.role.toUpperCase() === 'SBM'}
                       value={formData.ulb_id || ''}
                       onChange={(e) => {
                         const newUlbId = e.target.value;
@@ -1044,6 +1093,22 @@ const AdminManagement = () => {
                   />
                 </div>
 
+                {/* SBM only (Super Admin): optional full CRUD toggle */}
+                {formData.role && formData.role.toUpperCase() === 'SBM' && isSuperAdmin && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.sbm_full_crud || false}
+                        onChange={(e) => setFormData({ ...formData, sbm_full_crud: e.target.checked })}
+                        className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                      />
+                      <span className="text-sm font-medium text-gray-800">Enable full CRUD permissions</span>
+                    </label>
+                    <p className="text-xs text-amber-800 mt-1">By default SBM has read-only access. Enable to allow create/edit/delete across modules.</p>
+                  </div>
+                )}
+
                 {/* EO / SFI: Dropdown to add wards + chips for selected (EO required; SFI optional). */}
                 {formData.role && (formData.role.toUpperCase() === 'EO' || formData.role.toUpperCase() === 'SFI') && (
                   <div>
@@ -1067,7 +1132,7 @@ const AdminManagement = () => {
                     >
                       <option value="">Select ward to add...</option>
                       {wards
-                        .filter(w => !formData.ulb_id || w.ulb_id === formData.ulb_id)
+                        .filter(w => !formData.ulb_id || String(w.ulb_id) === String(formData.ulb_id))
                         .filter((ward, index, self) =>
                           ward && ward.id && index === self.findIndex(w => w.id === ward.id)
                         )
@@ -1103,50 +1168,80 @@ const AdminManagement = () => {
                   </div>
                 )}
 
-                {/* SUPERVISOR: Ward + Department Assigned (ULB auto-selected from ward) */}
+                {/* SUPERVISOR: ULB required, Assigned Wards (multi) filtered by ULB, Assigned Modules (checkboxes) */}
                 {formData.role && formData.role.toUpperCase() === 'SUPERVISOR' && (
                   <>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Ward <span className="text-red-500">*</span></label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Assigned Wards <span className="text-red-500">*</span>
+                        <span className="text-gray-500 text-xs ml-1">(filtered by ULB above)</span>
+                      </label>
                       <select
-                        required
-                        value={formData.ward_id}
+                        value=""
                         onChange={(e) => {
-                          const wardId = e.target.value ? parseInt(e.target.value) : '';
-                          const selectedWard = allWards.find(w => w.id === wardId);
-                          const wardUlbId = selectedWard?.ulb_id;
-                          setFormData({
-                            ...formData,
-                            ward_id: wardId,
-                            ulb_id: wardUlbId || formData.ulb_id
-                          });
+                          const wardId = e.target.value ? parseInt(e.target.value) : null;
+                          if (wardId && !isNaN(wardId)) {
+                            const current = formData.ward_ids || [];
+                            if (!current.includes(wardId)) setFormData({ ...formData, ward_ids: [...current, wardId] });
+                          }
+                          e.target.value = '';
                         }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        disabled={!formData.ulb_id}
                       >
-                        <option value="">Select Ward</option>
-                        {allWards
-                          .filter((ward, index, self) =>
-                            ward && ward.id && index === self.findIndex(w => w.id === ward.id)
-                          )
+                        <option value="">Select ward to add...</option>
+                        {wards
+                          .filter(w => formData.ulb_id && String(w.ulb_id) === String(formData.ulb_id))
+                          .filter(ward => !(formData.ward_ids || []).includes(ward.id))
                           .map(ward => (
-                            <option key={ward.id} value={ward.id}>
-                              {ward.wardNumber} - {ward.wardName}
-                            </option>
+                            <option key={ward.id} value={ward.id}>{ward.wardNumber} - {ward.wardName}</option>
                           ))}
                       </select>
+                      {(formData.ward_ids || []).length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {(formData.ward_ids || []).map(wardId => {
+                            const ward = wards.find(w => w.id === wardId);
+                            return ward ? (
+                              <span
+                                key={wardId}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary-100 text-primary-800 text-sm"
+                              >
+                                {ward.wardNumber} - {ward.wardName}
+                                <button
+                                  type="button"
+                                  onClick={() => setFormData({ ...formData, ward_ids: (formData.ward_ids || []).filter(id => id !== wardId) })}
+                                  className="text-primary-600 hover:text-primary-800 font-bold"
+                                  aria-label="Remove ward"
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ) : null;
+                          })}
+                        </div>
+                      )}
+                      {!formData.ulb_id && <p className="text-xs text-red-500 mt-1">Please select ULB first</p>}
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Department Assigned</label>
-                      <select
-                        value={(formData.assigned_modules && formData.assigned_modules[0]) || ''}
-                        onChange={(e) => setFormData({ ...formData, assigned_modules: e.target.value ? [e.target.value] : [] })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      >
-                        <option value="">Select Department</option>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Modules (optional)</label>
+                      <p className="text-xs text-gray-500 mb-1">Supervisor will see filtered data for these modules only.</p>
+                      <div className="flex flex-wrap gap-3">
                         {SUPERVISOR_MODULES.map(({ value, label }) => (
-                          <option key={value} value={value}>{label}</option>
+                          <label key={value} className="inline-flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={(formData.assigned_modules || []).includes(value)}
+                              onChange={(e) => {
+                                const current = formData.assigned_modules || [];
+                                const next = e.target.checked ? [...current, value] : current.filter(m => m !== value);
+                                setFormData({ ...formData, assigned_modules: next });
+                              }}
+                              className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                            />
+                            <span className="text-sm text-gray-700">{label}</span>
+                          </label>
                         ))}
-                      </select>
+                      </div>
                     </div>
                   </>
                 )}
@@ -1274,7 +1369,7 @@ const AdminManagement = () => {
                       >
                         <option value="">None</option>
                         {supervisorsList
-                          .filter(s => !formData.ulb_id || s.ulb_id === formData.ulb_id)
+                          .filter(s => !formData.ulb_id || String(s.ulb_id) === String(formData.ulb_id))
                           .map(s => (
                             <option key={s.id} value={s.id}>{s.full_name} ({s.employee_id})</option>
                           ))}
@@ -1423,7 +1518,7 @@ const AdminManagement = () => {
                         ward_id: '',
                         eo_id: '',
                         supervisor_id: '',
-                        ulb_id: (newRole && (newRole.toUpperCase() === 'SUPERVISOR' || newRole.toUpperCase() === 'FIELD_WORKER' || newRole.toUpperCase() === 'SFI')) ? formData.ulb_id : '',
+                        ulb_id: (newRole && (newRole.toUpperCase() === 'SUPERVISOR' || newRole.toUpperCase() === 'FIELD_WORKER' || newRole.toUpperCase() === 'SFI' || newRole.toUpperCase() === 'SBM')) ? formData.ulb_id : '',
                         assigned_modules: (newRole && newRole.toUpperCase() === 'SUPERVISOR') ? (formData.assigned_modules || []) : (newRole && newRole.toUpperCase() === 'SFI' ? (formData.assigned_modules || []) : [])
                       });
                     }}
@@ -1433,6 +1528,7 @@ const AdminManagement = () => {
                     {(() => {
                       const normalizedCurrent = (selectedEmployee?.role || '').toUpperCase().replace(/-/g, '_');
                       const options = [...ACTIVE_ROLES];
+                      if (isSuperAdmin) options.push(SBM_ROLE);
                       if (selectedEmployee && DEPRECATED_ROLE_VALUES.includes(normalizedCurrent)) {
                         const label = (selectedEmployee.role || '').replace(/_/g, ' ');
                         if (!options.some(o => o.value === normalizedCurrent)) {
@@ -1445,14 +1541,14 @@ const AdminManagement = () => {
                     })()}
                   </select>
                 </div>
-                {/* ULB - shown below Role when role is selected (mandatory except ADMIN) */}
+                {/* ULB - shown below Role (mandatory for EO, SFI, SUPERVISOR, SBM) */}
                 {formData.role && formData.role.toUpperCase() !== 'ADMIN' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      ULB {(formData.role.toUpperCase() === 'EO' || formData.role.toUpperCase() === 'SFI') && <span className="text-red-500">*</span>}
+                      ULB {(formData.role.toUpperCase() === 'EO' || formData.role.toUpperCase() === 'SFI' || formData.role.toUpperCase() === 'SUPERVISOR' || formData.role.toUpperCase() === 'SBM') && <span className="text-red-500">*</span>}
                     </label>
                     <select
-                      required={formData.role.toUpperCase() === 'EO' || formData.role.toUpperCase() === 'SFI'}
+                      required={formData.role.toUpperCase() === 'EO' || formData.role.toUpperCase() === 'SFI' || formData.role.toUpperCase() === 'SUPERVISOR' || formData.role.toUpperCase() === 'SBM'}
                       value={formData.ulb_id || ''}
                       onChange={(e) => {
                         const newUlbId = e.target.value;
@@ -1501,9 +1597,23 @@ const AdminManagement = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
-                {(formData.role && (formData.role.toUpperCase() === 'EO' || formData.role.toUpperCase() === 'SFI')) && (
+                {formData.role && formData.role.toUpperCase() === 'SBM' && isSuperAdmin && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.sbm_full_crud || false}
+                        onChange={(e) => setFormData({ ...formData, sbm_full_crud: e.target.checked })}
+                        className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                      />
+                      <span className="text-sm font-medium text-gray-800">Enable full CRUD permissions</span>
+                    </label>
+                    <p className="text-xs text-amber-800 mt-1">When enabled, SBM can create/edit/delete across modules; otherwise read-only.</p>
+                  </div>
+                )}
+                {(formData.role && (formData.role.toUpperCase() === 'EO' || formData.role.toUpperCase() === 'SFI' || formData.role.toUpperCase() === 'SUPERVISOR')) && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Wards {formData.role.toUpperCase() === 'SFI' && <span className="text-gray-500 text-xs">(restricts module data)</span>}</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Wards {(formData.role.toUpperCase() === 'SFI' || formData.role.toUpperCase() === 'SUPERVISOR') && <span className="text-gray-500 text-xs">(filtered by ULB)</span>}</label>
                     <select
                       value=""
                       onChange={(e) => {
@@ -1519,7 +1629,7 @@ const AdminManagement = () => {
                     >
                       <option value="">Select ward to add...</option>
                       {wards
-                        .filter(w => !formData.ulb_id || w.ulb_id === formData.ulb_id)
+                        .filter(w => !formData.ulb_id || String(w.ulb_id) === String(formData.ulb_id))
                         .filter((ward, index, self) =>
                           ward && ward.id && index === self.findIndex(w => w.id === ward.id)
                         )
@@ -1555,43 +1665,27 @@ const AdminManagement = () => {
                   </div>
                 )}
                 {formData.role && formData.role.toUpperCase() === 'SUPERVISOR' && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Ward</label>
-                      <select
-                        value={formData.ward_id}
-                        onChange={(e) => {
-                          const wardId = e.target.value ? parseInt(e.target.value) : '';
-                          const selectedWard = allWards.find(w => w.id === wardId);
-                          const wardUlbId = selectedWard?.ulb_id;
-                          setFormData({
-                            ...formData,
-                            ward_id: wardId,
-                            ulb_id: wardUlbId || formData.ulb_id
-                          });
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      >
-                        <option value="">Select Ward</option>
-                        {allWards.map(ward => (
-                          <option key={ward.id} value={ward.id}>{ward.wardNumber} - {ward.wardName}</option>
-                        ))}
-                      </select>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Modules (optional)</label>
+                    <p className="text-xs text-gray-500 mb-1">Supervisor will see filtered data for these modules only.</p>
+                    <div className="flex flex-wrap gap-3">
+                      {SUPERVISOR_MODULES.map(({ value, label }) => (
+                        <label key={value} className="inline-flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={(formData.assigned_modules || []).includes(value)}
+                            onChange={(e) => {
+                              const current = formData.assigned_modules || [];
+                              const next = e.target.checked ? [...current, value] : current.filter(m => m !== value);
+                              setFormData({ ...formData, assigned_modules: next });
+                            }}
+                            className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                          />
+                          <span className="text-sm text-gray-700">{label}</span>
+                        </label>
+                      ))}
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Department Assigned</label>
-                      <select
-                        value={(formData.assigned_modules && formData.assigned_modules[0]) || ''}
-                        onChange={(e) => setFormData({ ...formData, assigned_modules: e.target.value ? [e.target.value] : [] })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      >
-                        <option value="">Select Department</option>
-                        {SUPERVISOR_MODULES.map(({ value, label }) => (
-                          <option key={value} value={value}>{label}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </>
+                  </div>
                 )}
                 {formData.role && formData.role.toUpperCase() === 'FIELD_WORKER' && (
                   <>
@@ -1705,7 +1799,7 @@ const AdminManagement = () => {
                       >
                         <option value="">None</option>
                         {supervisorsList
-                          .filter(s => !formData.ulb_id || s.ulb_id === formData.ulb_id)
+                          .filter(s => !formData.ulb_id || String(s.ulb_id) === String(formData.ulb_id))
                           .map(s => (
                             <option key={s.id} value={s.id}>{s.full_name} ({s.employee_id})</option>
                           ))}
@@ -1914,7 +2008,7 @@ const AdminManagement = () => {
                     <div>
                       <label className="text-sm font-medium text-gray-700">Assigned Modules</label>
                       <p className="text-gray-900">
-                        {selectedEmployee.assigned_modules.map(m => SFI_MODULES.find(s => s.value === m)?.label || m).join(', ')}
+                        {selectedEmployee.assigned_modules.map(m => SFI_MODULES.find(s => s.value === m)?.label || (m === 'worker_management' ? 'Worker Mgmt' : m)).join(', ')}
                       </p>
                     </div>
                   )}
@@ -1934,12 +2028,12 @@ const AdminManagement = () => {
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700">Created At</label>
-                <p className="text-gray-900">{new Date(selectedEmployee.created_at).toLocaleDateString()}</p>
+                <p className="text-gray-900">{formatDateIST(selectedEmployee.created_at)}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700">Last Login</label>
                 <p className="text-gray-900">
-                  {selectedEmployee.last_login ? new Date(selectedEmployee.last_login).toLocaleString() : 'Never logged in'}
+                  {selectedEmployee.last_login ? formatDateTimeIST(selectedEmployee.last_login) : 'Never logged in'}
                 </p>
               </div>
             </div>

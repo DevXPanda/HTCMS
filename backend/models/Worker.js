@@ -24,6 +24,11 @@ export const Worker = sequelize.define('Worker', {
     type: DataTypes.STRING(20),
     allowNull: false
   },
+  worker_type_other: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    comment: 'When worker_type is OTHER, user-specified description'
+  },
   ward_id: {
     type: DataTypes.INTEGER,
     allowNull: false,

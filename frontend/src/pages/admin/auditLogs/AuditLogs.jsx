@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { Search, Filter, X, Eye, Calendar, User, FileText } from 'lucide-react';
 import AuditLogDetailsModal from './AuditLogDetailsModal';
 import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
+import { formatDateIST, formatTimeIST } from '../../../utils/dateUtils';
 
 const AuditLogs = () => {
   const { effectiveUlbId } = useSelectedUlb();
@@ -267,11 +268,11 @@ const AuditLogs = () => {
                 <tr key={log.id} className="border-b border-gray-100 hover:bg-gray-50/80">
                   <td className="px-4 py-2 text-sm text-gray-900 border-b border-gray-100 align-top">
                     {(log.timestamp || log.createdAt) ? (() => {
-                      const d = new Date(log.timestamp || log.createdAt);
-                      const dateStr = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-                      const timeStr = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+                      const d = log.timestamp || log.createdAt;
+                      const dateStr = formatDateIST(d);
+                      const timeStr = formatTimeIST(d);
                       return (
-                        <div className="flex items-start gap-2" title={d.toISOString()}>
+                        <div className="flex items-start gap-2" title={new Date(d).toISOString()}>
                           <Calendar className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
                           <div className="leading-tight">
                             <div className="tabular-nums whitespace-nowrap">{dateStr}</div>

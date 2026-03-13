@@ -21,6 +21,7 @@ import {
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../../components/ConfirmModal';
+import { formatDateTimeIST } from '../../../utils/dateUtils';
 
 const ComplaintDetails = () => {
     const { id } = useParams();
@@ -140,7 +141,7 @@ const ComplaintDetails = () => {
             <div className="ds-page-header flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="ds-page-title">Complaint Details</h1>
-                    <p className="ds-page-subtitle">Ref: #COMP-{complaint.id} | Reported on {new Date(complaint.createdAt).toLocaleString()}</p>
+                    <p className="ds-page-subtitle">Ref: #COMP-{complaint.id} | Reported on {formatDateTimeIST(complaint.createdAt)}</p>
                 </div>
                 <div className="flex gap-2">
                     <button
@@ -386,12 +387,12 @@ const ComplaintDetails = () => {
                         <div className="space-y-4">
                             <div className="border-l-2 border-primary-700 pl-4 py-1">
                                 <p className="text-[10px] font-bold text-primary-300 uppercase tracking-widest">Reported On</p>
-                                <p className="text-sm font-bold">{new Date(complaint.createdAt).toLocaleString()}</p>
+                                <p className="text-sm font-bold">{formatDateTimeIST(complaint.createdAt)}</p>
                             </div>
                             {complaint.resolvedAt && (
                                 <div className="border-l-2 border-green-500 pl-4 py-1">
                                     <p className="text-[10px] font-bold text-green-400 uppercase tracking-widest">Resolved On</p>
-                                    <p className="text-sm font-bold underline decoration-green-500/50 underline-offset-4">{new Date(complaint.resolvedAt).toLocaleString()}</p>
+                                    <p className="text-sm font-bold underline decoration-green-500/50 underline-offset-4">{formatDateTimeIST(complaint.resolvedAt)}</p>
                                 </div>
                             )}
                             <div className="border-l-2 border-primary-700 pl-4 py-1">

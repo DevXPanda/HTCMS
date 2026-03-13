@@ -37,3 +37,57 @@ export const sortByCreatedDesc = (a, b) => {
   };
   return getTime(b) - getTime(a);
 };
+
+/** Indian Standard Time zone (IST, UTC+5:30) */
+const IST_TIMEZONE = 'Asia/Kolkata';
+
+/**
+ * Format date only in Indian timezone (IST).
+ * @param {string|Date|null|undefined} date
+ * @returns {string} e.g. "13/3/2026" or "—" if invalid/missing
+ */
+export const formatDateIST = (date) => {
+  if (date == null || date === '') return '—';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-IN', { timeZone: IST_TIMEZONE, day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
+/**
+ * Format date and time in Indian timezone (IST).
+ * @param {string|Date|null|undefined} date
+ * @returns {string} e.g. "13/3/2026, 12:26:55 pm" or "—" if invalid/missing
+ */
+export const formatDateTimeIST = (date) => {
+  if (date == null || date === '') return '—';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleString('en-IN', {
+    timeZone: IST_TIMEZONE,
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
+};
+
+/**
+ * Format time only in Indian timezone (IST).
+ * @param {string|Date|null|undefined} date
+ * @returns {string} e.g. "12:26:55 pm" or "—" if invalid/missing
+ */
+export const formatTimeIST = (date) => {
+  if (date == null || date === '') return '—';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleTimeString('en-IN', {
+    timeZone: IST_TIMEZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
+};

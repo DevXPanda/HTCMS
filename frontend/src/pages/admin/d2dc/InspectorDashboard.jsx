@@ -13,7 +13,7 @@ import {
     XCircle,
     Clock
 } from 'lucide-react';
-import { isRecentDate } from '../../../utils/dateUtils';
+import { isRecentDate, formatDateIST, formatDateTimeIST } from '../../../utils/dateUtils';
 
 const InspectorDashboard = () => {
     const { user } = useAuth();
@@ -276,7 +276,7 @@ const InspectorDashboard = () => {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {new Date(demand.createdAt).toLocaleDateString()}
+                                            {formatDateIST(demand.createdAt)}
                                         </td>
                                     </tr>
                                 ))
@@ -364,7 +364,7 @@ const InspectorDashboard = () => {
                                             }
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {new Date(payment.paymentDate).toLocaleString()}
+                                            {formatDateTimeIST(payment.paymentDate)}
                                         </td>
                                     </tr>
                                 ))
@@ -441,7 +441,7 @@ const InspectorDashboard = () => {
                                                 {activity.collector?.firstName} {activity.collector?.lastName}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {new Date(activity.timestamp).toLocaleString()}
+                                                {formatDateTimeIST(activity.timestamp)}
                                             </td>
                                         </tr>
                                     ))}

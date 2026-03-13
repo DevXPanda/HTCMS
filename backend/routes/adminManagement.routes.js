@@ -33,7 +33,7 @@ const createEmployeeValidation = [
   body('role')
     .custom((value) => {
       const normalizedValue = value ? value.toUpperCase().replace(/-/g, '_') : value;
-      const allowedRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'ADMIN', 'SFI'];
+      const allowedRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'ADMIN', 'SFI', 'SBM'];
       if (!allowedRoles.includes(normalizedValue)) {
         throw new Error(`Role must be one of: ${allowedRoles.join(', ')}`);
       }
@@ -116,7 +116,14 @@ const validateRoleBasedFields = (req, res, next) => {
       errors.push({ msg: 'At least one ward is required for EO' });
     }
   } else if (role === 'SUPERVISOR') {
-    if (!req.body.ward_id) errors.push({ msg: 'Ward is required for Supervisor' });
+    if (!req.body.ulb_id || String(req.body.ulb_id).trim() === '') {
+      errors.push({ msg: 'ULB is required for Supervisor' });
+    }
+    const hasWardId = req.body.ward_id != null && req.body.ward_id !== '';
+    const hasWardIds = Array.isArray(req.body.ward_ids) && req.body.ward_ids.length > 0;
+    if (!hasWardId && !hasWardIds) {
+      errors.push({ msg: 'At least one ward is required for Supervisor' });
+    }
   } else if (role === 'FIELD_WORKER') {
     if (!req.body.worker_type || !WORKER_TYPES.includes((req.body.worker_type || '').toUpperCase())) errors.push({ msg: `Worker Type (one of ${WORKER_TYPES.join(', ')}) is required for Field Worker` });
     if (!req.body.ward_id) errors.push({ msg: 'Ward is required for Field Worker' });
@@ -128,6 +135,10 @@ const validateRoleBasedFields = (req, res, next) => {
     if (!req.body.ulb_id || String(req.body.ulb_id).trim() === '') {
       errors.push({ msg: 'ULB is required for SFI (Sanitary & Food Inspector)' });
     }
+  } else if (role === 'SBM') {
+    if (!req.body.ulb_id || String(req.body.ulb_id).trim() === '') {
+      errors.push({ msg: 'ULB is required for SBM (Global Monitoring)' });
+    }
   }
   if (errors.length > 0) return res.status(400).json({ message: 'Validation failed', errors });
   next();
@@ -136,7 +147,7 @@ const validateRoleBasedFields = (req, res, next) => {
 const validateRoleBasedFieldsUpdate = (req, res, next) => {
   // Normalize role to uppercase for comparison
   const role = req.body.role ? req.body.role.toUpperCase().replace(/-/g, '_') : req.body.role;
-  if (!role || !['EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI'].includes(role)) return next();
+  if (!role || !['EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI', 'SBM'].includes(role)) return next();
   const errors = [];
   if (role === 'EO') {
     // Check for ulb_id (UUID) instead of assigned_ulb (name)
@@ -159,6 +170,8 @@ const validateRoleBasedFieldsUpdate = (req, res, next) => {
     if (req.body.contact_details !== undefined && (!req.body.contact_details || String(req.body.contact_details).trim() === '')) errors.push({ msg: 'Contact details are required for Contractor' });
   } else if (role === 'SFI') {
     if (req.body.ulb_id !== undefined && (!req.body.ulb_id || String(req.body.ulb_id).trim() === '')) errors.push({ msg: 'ULB is required for SFI' });
+  } else if (role === 'SBM') {
+    if (req.body.ulb_id !== undefined && (!req.body.ulb_id || String(req.body.ulb_id).trim() === '')) errors.push({ msg: 'ULB is required for SBM' });
   }
   if (errors.length > 0) return res.status(400).json({ message: 'Validation failed', errors });
   next();
@@ -178,7 +191,7 @@ const updateEmployeeValidation = [
     .custom((value) => {
       if (!value) return true; // Optional field
       const normalizedValue = value.toUpperCase().replace(/-/g, '_');
-      const allowedRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'ADMIN', 'SFI'];
+      const allowedRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'ADMIN', 'SFI', 'SBM'];
       if (!allowedRoles.includes(normalizedValue)) {
         throw new Error(`Role must be one of: ${allowedRoles.join(', ')}`);
       }
@@ -314,24 +327,34 @@ const bulkStatusUpdateValidation = [
     .withMessage('Status must be either activate or deactivate')
 ];
 
-// Middleware to allow EO access for specific endpoints
+// Middleware to allow EO, Supervisor, SFI, Admin, or SBM (GET only) access for specific endpoints
 const requireEoOrAdmin = (req, res, next) => {
   const normalizedRole = req.user?.role ? req.user.role.toUpperCase().replace(/-/g, '_') : null;
   const isEo = req.userType === 'admin_management' && normalizedRole === 'EO';
   const isSupervisor = req.userType === 'admin_management' && normalizedRole === 'SUPERVISOR';
+  const isSfi = req.userType === 'admin_management' && normalizedRole === 'SFI';
+  const isSbm = req.userType === 'admin_management' && normalizedRole === 'SBM';
   const isAdmin = req.userType === 'user' && req.user?.role === 'admin';
 
-  if (isEo || isSupervisor || isAdmin) {
-    return next();
-  }
+  if (isEo || isSupervisor || isSfi || isAdmin) return next();
+  if (isSbm && req.method === 'GET') return next();
 
-  return res.status(403).json({ message: 'EO, Supervisor, or Admin access required' });
+  return res.status(403).json({ message: 'EO, Supervisor, SFI, or Admin access required' });
 };
 
-// Apply admin authentication to all routes except wards endpoint and by-ulb endpoint
+// Routes that use authenticate only (role checks in controller or per-route middleware)
+const authOnlyPaths = [
+  '/employees',
+  '/employees/wards',
+  '/employees/by-ulb',
+  '/employees/statistics',
+  '/ulbs'
+];
+const isAuthOnlyPath = (path) =>
+  authOnlyPaths.some((p) => path === p || path.startsWith(p + '/'));
+
 router.use((req, res, next) => {
-  if (req.path === '/employees' || req.path === '/employees/wards' || req.path === '/employees/by-ulb') {
-    // Use basic authentication for these endpoints - allow authenticated users
+  if (isAuthOnlyPath(req.path)) {
     return authenticate(req, res, next);
   }
   return requireAdmin(req, res, next);
@@ -340,16 +363,16 @@ router.use((req, res, next) => {
 // Employee management routes
 router.get('/employees', getAllEmployees);
 router.get('/employees/by-ulb', requireEoOrAdmin, getEmployeesByUlb); // EO can access this
-router.get('/employees/statistics', getEmployeeStatistics);
+router.get('/employees/statistics', requireEoOrAdmin, getEmployeeStatistics);
 router.get('/employees/wards', getAvailableWards);
-router.get('/ulbs', getAllULBs);
+router.get('/ulbs', requireEoOrAdmin, getAllULBs);
 router.post('/ulbs', requireAdmin, createULB);
 router.put('/ulbs/:id', requireAdmin, updateULB);
-router.get('/employees/:id', getEmployeeById);
+router.get('/employees/:id', requireEoOrAdmin, getEmployeeById);
 
 router.post('/employees', createEmployeeValidation, validateRoleBasedFields, createEmployee);
-router.put('/employees/:id', updateEmployeeValidation, validateRoleBasedFieldsUpdate, updateEmployee);
-router.delete('/employees/:id', deleteEmployee);
+router.put('/employees/:id', requireEoOrAdmin, updateEmployeeValidation, validateRoleBasedFieldsUpdate, updateEmployee);
+router.delete('/employees/:id', requireEoOrAdmin, deleteEmployee);
 router.post('/employees/:id/reset-password', resetEmployeePassword);
 
 // Bulk operations routes

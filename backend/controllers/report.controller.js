@@ -120,8 +120,8 @@ const splitUnifiedPayment = (payment, demand) => {
  */
 export const getDashboardStats = async (req, res, next) => {
   try {
-    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
-    if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+    const { isSuperAdmin, effectiveUlbId, isSbmMonitor } = getEffectiveUlbForRequest(req);
+    if (!isSuperAdmin && !isSbmMonitor && (effectiveUlbId == null || effectiveUlbId === '')) {
       return res.status(403).json({
         success: false,
         message: 'Access denied. You must be assigned to an ULB to view dashboard data.'

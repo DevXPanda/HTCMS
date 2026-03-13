@@ -10,6 +10,7 @@
     "migrate": "sequelize-cli db:migrate",
     "migrate:assigned-modules": "node run-migrate-assigned-modules.js",
     "migrate:worker-type": "node run-migrate-worker-type.js",
+    "migrate:worker-type-other": "node run-migrate-worker-type-other.js",
     "migrate:attendance-photos": "node run-migrate-attendance-before-after-photos.js",
     "migrate:ward-number-001": "node run-migrate-ward-number-001.js",
     "seed": "sequelize-cli db:seed:all",

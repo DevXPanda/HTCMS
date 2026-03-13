@@ -4,6 +4,7 @@ import { clerkAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import { Edit, Send, FileText, MapPin, Home, Calendar } from 'lucide-react';
 import { useConfirm } from '../../components/ConfirmModal';
+import { formatDateTimeIST } from '../../utils/dateUtils';
 
 const PropertyApplicationDetails = () => {
     const { id } = useParams();
@@ -249,14 +250,14 @@ const PropertyApplicationDetails = () => {
                             <div>
                                 <dt className="text-sm font-medium text-gray-500">Created</dt>
                                 <dd className="mt-1 text-sm text-gray-900">
-                                    {new Date(application.createdAt).toLocaleString()}
+                                    {formatDateTimeIST(application.createdAt)}
                                 </dd>
                             </div>
                             {application.submittedAt && (
                                 <div>
                                     <dt className="text-sm font-medium text-gray-500">Submitted</dt>
                                     <dd className="mt-1 text-sm text-gray-900">
-                                        {new Date(application.submittedAt).toLocaleString()}
+                                        {formatDateTimeIST(application.submittedAt)}
                                     </dd>
                                 </div>
                             )}
@@ -264,7 +265,7 @@ const PropertyApplicationDetails = () => {
                                 <div>
                                     <dt className="text-sm font-medium text-gray-500">Inspected</dt>
                                     <dd className="mt-1 text-sm text-gray-900">
-                                        {new Date(application.inspectedAt).toLocaleString()}
+                                        {formatDateTimeIST(application.inspectedAt)}
                                     </dd>
                                 </div>
                             )}

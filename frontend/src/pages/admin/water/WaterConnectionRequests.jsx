@@ -5,6 +5,7 @@ import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { CheckCircle, XCircle, Eye, MapPin, Calendar, User, Trash2, Plus, Pencil } from 'lucide-react';
 import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
+import { formatDateIST } from '../../../utils/dateUtils';
 
 const WaterConnectionRequests = () => {
   const { effectiveUlbId } = useSelectedUlb();
@@ -271,7 +272,7 @@ const WaterConnectionRequests = () => {
                   <div>
                     <p className="text-sm text-gray-600">Requested Date</p>
                     <p className="font-medium text-gray-900">
-                      {new Date(request.createdAt).toLocaleDateString()}
+                      {formatDateIST(request.createdAt)}
                     </p>
                   </div>
                 </div>
@@ -282,7 +283,7 @@ const WaterConnectionRequests = () => {
                     <div>
                       <p className="text-sm text-gray-600">Processed Date</p>
                       <p className="font-medium text-gray-900">
-                        {new Date(request.processedAt).toLocaleDateString()}
+                        {formatDateIST(request.processedAt)}
                       </p>
                       {request.processor && (
                         <p className="text-xs text-gray-500">

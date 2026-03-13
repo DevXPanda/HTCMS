@@ -42,9 +42,14 @@ const createWorkerValidation = [
     .isInt()
     .withMessage('Ward ID must be an integer'),
 
+  body('worker_type_other')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Other work type must be at most 100 characters'),
+
   body('supervisor_id')
-    .notEmpty()
-    .withMessage('Supervisor ID is required')
+    .optional({ values: 'falsy' })
     .isInt()
     .withMessage('Supervisor ID must be an integer'),
 

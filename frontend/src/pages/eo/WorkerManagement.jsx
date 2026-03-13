@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, X, AlertTriangle, CheckCircle, RefreshCw, Eye, Image as ImageIcon, FileText, Calendar, MapPin } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { Users, Plus, X, AlertTriangle, CheckCircle, RefreshCw, Eye, Image as ImageIcon, FileText, Calendar, MapPin, ArrowLeft } from 'lucide-react';
 import { useStaffAuth } from '../../contexts/StaffAuthContext';
 import { workerAPI, wardAPI } from '../../services/api';
+import { formatDateIST } from '../../utils/dateUtils';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 
@@ -11,6 +13,7 @@ const WORKER_TYPE_OPTIONS = [
   { value: 'SWEEPING', label: 'Sweeping' },
   { value: 'TOILET', label: 'Toilet' },
   { value: 'MRF', label: 'MRF' },
+  { value: 'GAUSHALA', label: 'Gau Shala' },
   { value: 'CLEANING', label: 'Cleaning' },
   { value: 'DRAINAGE', label: 'Drainage' },
   { value: 'SOLID_WASTE', label: 'Solid Waste' },
@@ -18,8 +21,30 @@ const WORKER_TYPE_OPTIONS = [
   { value: 'OTHER', label: 'Other' }
 ];
 
+/** Map supervisor assigned_modules (toilet, mrf, gaushala) to worker type values */
+const MODULE_TO_WORKER_TYPE = {
+  toilet: 'TOILET',
+  mrf: 'MRF',
+  gaushala: 'GAUSHALA'
+};
+
 const WorkerManagement = () => {
   const { user } = useStaffAuth();
+  const location = useLocation();
+  const isSfiPortal = location.pathname.startsWith('/sfi');
+  const isSupervisor = (user?.role || '').toUpperCase().replace(/-/g, '_') === 'SUPERVISOR';
+  const assignedModules = Array.isArray(user?.assigned_modules)
+    ? user.assigned_modules.map((m) => (typeof m === 'string' ? m.toLowerCase().replace(/-/g, '_') : String(m)))
+    : [];
+  const allowedWorkerTypesForSupervisor = assignedModules
+    .map((mod) => MODULE_TO_WORKER_TYPE[mod])
+    .filter(Boolean);
+  const baseFiltered = isSupervisor && allowedWorkerTypesForSupervisor.length > 0
+    ? WORKER_TYPE_OPTIONS.filter((opt) => allowedWorkerTypesForSupervisor.includes(opt.value))
+    : WORKER_TYPE_OPTIONS;
+  const workerTypeOptions = baseFiltered.some((o) => o.value === 'OTHER')
+    ? baseFiltered
+    : [...baseFiltered, { value: 'OTHER', label: 'Other' }];
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [workers, setWorkers] = useState([]);
@@ -28,7 +53,6 @@ const WorkerManagement = () => {
   const [showWorkerDetailsModal, setShowWorkerDetailsModal] = useState(false);
   const [wards, setWards] = useState([]);
   const [supervisors, setSupervisors] = useState([]);
-  const [contractors, setContractors] = useState([]);
   const [loadingWards, setLoadingWards] = useState(false);
   const [loadingSupervisors, setLoadingSupervisors] = useState(false);
 
@@ -36,9 +60,9 @@ const WorkerManagement = () => {
     full_name: '',
     mobile: '',
     worker_type: 'ULB',
+    worker_type_other: '',
     ward_id: '',
     supervisor_id: '',
-    contractor_id: '',
     status: 'ACTIVE'
   });
 
@@ -47,7 +71,6 @@ const WorkerManagement = () => {
   useEffect(() => {
     fetchWards();
     fetchSupervisors();
-    fetchContractors();
     fetchWorkers();
   }, []);
 
@@ -73,7 +96,12 @@ const WorkerManagement = () => {
     try {
       setLoadingWards(true);
       const res = await wardAPI.getAll({ ulb_id: user?.ulb_id });
-      setWards(res?.data?.data?.wards || []);
+      let wardList = res?.data?.data?.wards || [];
+      if (isSfiPortal && user?.ward_ids && Array.isArray(user.ward_ids) && user.ward_ids.length > 0) {
+        const allowedIds = user.ward_ids.map((id) => parseInt(id, 10)).filter((n) => !isNaN(n));
+        wardList = wardList.filter((w) => allowedIds.includes(parseInt(w.id, 10)));
+      }
+      setWards(wardList);
     } catch (err) {
       console.error('Error fetching wards:', err);
       toast.error('Failed to load wards');
@@ -106,21 +134,6 @@ const WorkerManagement = () => {
     }
   };
 
-  const fetchContractors = async () => {
-    try {
-      // Fetch contractors under this EO's ULB using the new by-ulb endpoint
-      const res = await api.get(`/admin-management/employees/by-ulb?role=CONTRACTOR`);
-      if (res.data.success) {
-        setContractors(res.data.employees || []);
-      } else {
-        setContractors([]);
-      }
-    } catch (err) {
-      console.error('Error fetching contractors:', err);
-      // Contractors are optional, so don't show error
-      setContractors([]);
-    }
-  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -140,62 +153,48 @@ const WorkerManagement = () => {
 
   const validateForm = () => {
     const newErrors = {};
-    
+
     if (!formData.full_name.trim()) {
       newErrors.full_name = 'Full name is required';
     }
-    
+
     if (!formData.mobile.trim()) {
       newErrors.mobile = 'Mobile number is required';
     } else if (!/^[0-9+\-\s()]{10,20}$/.test(formData.mobile.trim())) {
       newErrors.mobile = 'Invalid mobile number format';
     }
-    
+
     if (!formData.ward_id) {
       newErrors.ward_id = 'Ward is required';
     }
-    
-    if (!formData.supervisor_id) {
-      newErrors.supervisor_id = 'Supervisor is required';
-    }
-    
+
     if (!formData.worker_type) {
       newErrors.worker_type = 'Worker type is required';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
 
     try {
       setLoading(true);
-      
-      // Validate required fields are not empty
-      if (!formData.ward_id || !formData.supervisor_id) {
-        toast.error('Please select ward and supervisor');
+
+      if (!formData.ward_id) {
+        toast.error('Please select ward');
         setLoading(false);
         return;
       }
 
-      // Validate IDs are valid integers
       const wardId = parseInt(formData.ward_id);
-      const supervisorId = parseInt(formData.supervisor_id);
-      
       if (isNaN(wardId) || wardId <= 0) {
         toast.error('Invalid ward selected');
-        setLoading(false);
-        return;
-      }
-      
-      if (isNaN(supervisorId) || supervisorId <= 0) {
-        toast.error('Invalid supervisor selected');
         setLoading(false);
         return;
       }
@@ -205,37 +204,33 @@ const WorkerManagement = () => {
         mobile: formData.mobile.trim(),
         worker_type: formData.worker_type.toUpperCase(),
         ward_id: wardId,
-        supervisor_id: supervisorId,
         status: (formData.status || 'ACTIVE').toUpperCase()
       };
+      if (formData.worker_type === 'OTHER' && formData.worker_type_other?.trim()) {
+        payload.worker_type_other = formData.worker_type_other.trim().slice(0, 100);
+      }
 
-      // Only include contractor_id if it's a valid non-empty value
-      // Don't send it at all if empty to avoid validation errors
-      if (formData.contractor_id && 
-          formData.contractor_id !== '' && 
-          formData.contractor_id !== 'null' && 
-          formData.contractor_id !== null &&
-          formData.contractor_id !== undefined) {
-        const contractorId = parseInt(formData.contractor_id);
-        if (!isNaN(contractorId) && contractorId > 0) {
-          payload.contractor_id = contractorId;
+      if (formData.supervisor_id && formData.supervisor_id !== '') {
+        const supervisorId = parseInt(formData.supervisor_id);
+        if (!isNaN(supervisorId) && supervisorId > 0) {
+          payload.supervisor_id = supervisorId;
         }
       }
 
       console.log('Creating worker with payload:', payload);
 
       const res = await workerAPI.createWorker(payload);
-      
+
       if (res.data.success) {
         toast.success(`Worker created successfully! Employee Code: ${res.data.worker.employee_code}`);
         setShowCreateModal(false);
         setFormData({
           full_name: '',
           mobile: '',
-          worker_type: 'ULB',
+          worker_type: workerTypeOptions[0]?.value || 'ULB',
+          worker_type_other: '',
           ward_id: '',
           supervisor_id: '',
-          contractor_id: '',
           status: 'ACTIVE'
         });
         setErrors({});
@@ -244,14 +239,14 @@ const WorkerManagement = () => {
     } catch (err) {
       console.error('Error creating worker:', err);
       console.error('Error response:', err.response?.data);
-      
+
       // Extract error message
       let errorMessage = 'Failed to create worker';
-      
+
       if (err.response?.data) {
         // Check for validation errors array
         if (err.response.data.errors && Array.isArray(err.response.data.errors)) {
-          const errorMessages = err.response.data.errors.map(e => 
+          const errorMessages = err.response.data.errors.map(e =>
             `${e.param || 'Field'}: ${e.msg || e.message || 'Invalid value'}`
           ).join(', ');
           errorMessage = `Validation failed: ${errorMessages}`;
@@ -259,9 +254,9 @@ const WorkerManagement = () => {
           errorMessage = err.response.data.message;
         }
       }
-      
+
       toast.error(errorMessage);
-      
+
       // Set field-specific errors if provided
       if (err.response?.data?.errors && Array.isArray(err.response.data.errors)) {
         const fieldErrors = {};
@@ -283,48 +278,78 @@ const WorkerManagement = () => {
     : supervisors;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
+    <div className="space-y-6">
+      {/* {isSfiPortal && (
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Worker Management</h1>
-          <p className="text-gray-600">Create and manage field workers</p>
+          <Link
+            to="/sfi/dashboard"
+            className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-primary-600"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to SFI Dashboard
+          </Link>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <Plus className="w-5 h-5" />
-          Create Worker
-        </button>
+      )} */}
+
+      <div className="ds-page-header">
+        <div>
+          <h1 className="ds-page-title">{isSfiPortal ? 'Staff Assignment' : 'Worker Management'}</h1>
+          <p className="ds-page-subtitle">
+            {isSfiPortal ? 'Create and manage workers and supervisors' : 'Create and manage field workers'}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {isSfiPortal && (
+            <Link
+              to="/sfi/staff-management"
+              className="btn btn-outline flex items-center gap-2"
+            >
+              <Users className="w-5 h-5" />
+              Manage Supervisors
+            </Link>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              if (isSupervisor && allowedWorkerTypesForSupervisor.length > 0 && !allowedWorkerTypesForSupervisor.includes(formData.worker_type)) {
+                setFormData((prev) => ({ ...prev, worker_type: workerTypeOptions[0]?.value || 'TOILET' }));
+              }
+              setShowCreateModal(true);
+            }}
+            className="btn btn-primary flex items-center gap-2"
+          >
+            <Plus className="w-5 h-5" />
+            Create Worker
+          </button>
+        </div>
       </div>
 
-      {/* Info Card */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+      {/* <div className="card border-l-4 border-l-blue-400">
         <div className="flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
           <div>
-            <h3 className="font-medium text-blue-900 mb-1">Worker Account Creation</h3>
-            <p className="text-sm text-blue-700">
-              Workers do not have login credentials. Attendance is marked by supervisors. 
-              Employee codes are auto-generated in the format: <strong>WRK-{'{WARD_CODE}'}-{'{NUMBER}'}</strong>
+            <h3 className="font-medium text-blue-900">Worker & Supervisor Account Creation</h3>
+            <p className="text-sm text-gray-600 mt-0.5">
+              Workers do not have login credentials; attendance is marked by supervisors. Use &quot;Manage Supervisors&quot; to create supervisor IDs.
+              Worker codes are auto-generated: <strong>WRK-{'{WARD_CODE}'}-{'{NUMBER}'}</strong>
             </p>
           </div>
         </div>
-      </div>
+      </div> */}
 
-      {/* Workers List */}
-      <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+      <div className="card p-0 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">All Workers</h2>
           <button
+            type="button"
             onClick={fetchWorkers}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
+            className="btn btn-ghost btn-sm"
           >
             <RefreshCw className="w-4 h-4" />
             Refresh
           </button>
         </div>
-        
+
         {loadingWorkers ? (
           <div className="p-8 text-center">
             <RefreshCw className="w-8 h-8 animate-spin text-gray-400 mx-auto mb-2" />
@@ -337,7 +362,7 @@ const WorkerManagement = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="table w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee Code</th>
@@ -364,12 +389,11 @@ const WorkerManagement = () => {
                       <div className="text-sm text-gray-900">{worker.mobile}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                        worker.worker_type === 'ULB' 
-                          ? 'bg-blue-100 text-blue-800' 
-                          : 'bg-purple-100 text-purple-800'
-                      }`}>
-                        {worker.worker_type}
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${worker.worker_type === 'ULB'
+                        ? 'bg-blue-100 text-blue-800'
+                        : 'bg-purple-100 text-purple-800'
+                        }`}>
+                        {worker.worker_type === 'OTHER' && worker.worker_type_other ? `${worker.worker_type} (${worker.worker_type_other})` : worker.worker_type}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -383,11 +407,10 @@ const WorkerManagement = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                        worker.status === 'ACTIVE' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${worker.status === 'ACTIVE'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                        }`}>
                         {worker.status}
                       </span>
                     </td>
@@ -440,7 +463,7 @@ const WorkerManagement = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="p-6 space-y-6">
               {/* Worker Basic Information */}
               <div>
@@ -461,12 +484,13 @@ const WorkerManagement = () => {
                   <div>
                     <label className="text-sm font-medium text-gray-700">Worker Type</label>
                     <p className="text-sm text-gray-900 mt-1">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                        selectedWorker?.worker_type === 'ULB' 
-                          ? 'bg-blue-100 text-blue-800' 
-                          : 'bg-purple-100 text-purple-800'
-                      }`}>
-                        {selectedWorker?.worker_type || 'N/A'}
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${selectedWorker?.worker_type === 'ULB'
+                        ? 'bg-blue-100 text-blue-800'
+                        : 'bg-purple-100 text-purple-800'
+                        }`}>
+                        {selectedWorker?.worker_type === 'OTHER' && selectedWorker?.worker_type_other
+                          ? `Other (${selectedWorker.worker_type_other})`
+                          : (selectedWorker?.worker_type || 'N/A')}
                       </span>
                     </p>
                   </div>
@@ -485,11 +509,10 @@ const WorkerManagement = () => {
                   <div>
                     <label className="text-sm font-medium text-gray-700">Status</label>
                     <p className="text-sm text-gray-900 mt-1">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                        selectedWorker?.status === 'ACTIVE' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${selectedWorker?.status === 'ACTIVE'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                        }`}>
                         {selectedWorker?.status || 'N/A'}
                       </span>
                     </p>
@@ -536,11 +559,11 @@ const WorkerManagement = () => {
                             </div>
                             <div className="flex items-center gap-2 text-xs text-gray-500">
                               <Calendar className="w-3 h-3" />
-                              <span>Assigned: {proof.assigned_date ? new Date(proof.assigned_date).toLocaleDateString() : 'N/A'}</span>
+                              <span>Assigned: {proof.assigned_date ? formatDateIST(proof.assigned_date) : 'N/A'}</span>
                               {proof.completed_at && (
                                 <>
                                   <span>•</span>
-                                  <span>Completed: {new Date(proof.completed_at).toLocaleDateString()}</span>
+                                  <span>Completed: {formatDateIST(proof.completed_at)}</span>
                                 </>
                               )}
                             </div>
@@ -556,21 +579,21 @@ const WorkerManagement = () => {
                             </span>
                           )}
                         </div>
-                        
+
                         {proof.work_proof_remarks && (
                           <div className="mb-3">
                             <label className="text-xs font-medium text-gray-700">Remarks:</label>
                             <p className="text-sm text-gray-600 mt-1">{proof.work_proof_remarks}</p>
                           </div>
                         )}
-                        
+
                         {proof.escalation_reason && (
                           <div className="mb-3 p-2 bg-orange-50 rounded">
                             <label className="text-xs font-medium text-orange-700">Escalation Reason:</label>
                             <p className="text-sm text-orange-600 mt-1">{proof.escalation_reason}</p>
                           </div>
                         )}
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {proof.before_photo_url && (
                             <div>
@@ -693,10 +716,10 @@ const WorkerManagement = () => {
                   setFormData({
                     full_name: '',
                     mobile: '',
-                    worker_type: 'ULB',
+                    worker_type: workerTypeOptions[0]?.value || 'ULB',
+                    worker_type_other: '',
                     ward_id: '',
                     supervisor_id: '',
-                    contractor_id: '',
                     status: 'ACTIVE'
                   });
                   setErrors({});
@@ -706,7 +729,7 @@ const WorkerManagement = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -718,9 +741,8 @@ const WorkerManagement = () => {
                     name="full_name"
                     value={formData.full_name}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 ${
-                      errors.full_name ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 ${errors.full_name ? 'border-red-500' : 'border-gray-300'
+                      }`}
                     placeholder="Enter full name"
                   />
                   {errors.full_name && (
@@ -737,9 +759,8 @@ const WorkerManagement = () => {
                     name="mobile"
                     value={formData.mobile}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 ${
-                      errors.mobile ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 ${errors.mobile ? 'border-red-500' : 'border-gray-300'
+                      }`}
                     placeholder="Enter mobile number"
                   />
                   {errors.mobile && (
@@ -754,17 +775,38 @@ const WorkerManagement = () => {
                   <select
                     name="worker_type"
                     value={formData.worker_type}
-                    onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 ${
-                      errors.worker_type ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    onChange={(e) => {
+                      handleInputChange(e);
+                      if (e.target.value !== 'OTHER') {
+                        setFormData(prev => ({ ...prev, worker_type_other: '' }));
+                      }
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 ${errors.worker_type ? 'border-red-500' : 'border-gray-300'
+                      }`}
                   >
-                    {WORKER_TYPE_OPTIONS.map((opt) => (
+                    {workerTypeOptions.map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>
                   {errors.worker_type && (
                     <p className="mt-1 text-sm text-red-600">{errors.worker_type}</p>
+                  )}
+                  {(formData.worker_type || '').toUpperCase() === 'OTHER' && (
+                    <div className="mt-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Specify other work type
+                      </label>
+                      <input
+                        type="text"
+                        name="worker_type_other"
+                        value={formData.worker_type_other || ''}
+                        onChange={handleInputChange}
+                        placeholder="e.g. Gardening, Security"
+                        maxLength={100}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">Describe the type of work (optional but recommended)</p>
+                    </div>
                   )}
                 </div>
 
@@ -808,9 +850,8 @@ const WorkerManagement = () => {
                           await fetchSupervisors();
                         }
                       }}
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 ${
-                        errors.ward_id ? 'border-red-500' : 'border-gray-300'
-                      }`}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 ${errors.ward_id ? 'border-red-500' : 'border-gray-300'
+                        }`}
                     >
                       <option value="">Select Ward</option>
                       {wards.map((ward) => (
@@ -827,7 +868,7 @@ const WorkerManagement = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Supervisor <span className="text-red-500">*</span>
+                    Supervisor (Optional)
                   </label>
                   {loadingSupervisors ? (
                     <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 flex items-center gap-2">
@@ -840,12 +881,11 @@ const WorkerManagement = () => {
                       value={formData.supervisor_id}
                       onChange={handleInputChange}
                       disabled={!formData.ward_id}
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 ${
-                        errors.supervisor_id ? 'border-red-500' : 'border-gray-300'
-                      } ${!formData.ward_id ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 ${errors.supervisor_id ? 'border-red-500' : 'border-gray-300'
+                        } ${!formData.ward_id ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                     >
                       <option value="">
-                        {formData.ward_id ? 'Select Supervisor' : 'Select Ward First'}
+                        {formData.ward_id ? 'Select Supervisor (optional)' : 'Select Ward First'}
                       </option>
                       {filteredSupervisors.map((sup) => (
                         <option key={sup.id} value={sup.id}>
@@ -858,31 +898,10 @@ const WorkerManagement = () => {
                     <p className="mt-1 text-sm text-red-600">{errors.supervisor_id}</p>
                   )}
                   {formData.ward_id && filteredSupervisors.length === 0 && (
-                    <p className="mt-1 text-sm text-yellow-600">
-                      No supervisors available for this ward
+                    <p className="mt-1 text-sm text-gray-500">
+                      No supervisors available for this ward. You can still create the worker.
                     </p>
                   )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Contractor (Optional)
-                  </label>
-                  <select
-                    name="contractor_id"
-                    value={formData.contractor_id}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
-                  >
-                    <option value="">None (Direct ULB Worker)</option>
-                    {contractors.filter((contractor, index, self) => 
-                      index === self.findIndex(c => c.id === contractor.id)
-                    ).map((contractor) => (
-                      <option key={contractor.id} value={contractor.id}>
-                        {contractor.company_name || contractor.full_name} ({contractor.employee_id})
-                      </option>
-                    ))}
-                  </select>
                 </div>
               </div>
 
@@ -911,10 +930,10 @@ const WorkerManagement = () => {
                     setFormData({
                       full_name: '',
                       mobile: '',
-                      worker_type: 'ULB',
+                      worker_type: workerTypeOptions[0]?.value || 'ULB',
+                      worker_type_other: '',
                       ward_id: '',
                       supervisor_id: '',
-                      contractor_id: '',
                       status: 'ACTIVE'
                     });
                     setErrors({});

@@ -12,8 +12,8 @@ const router = express.Router();
 // All routes require authentication
 router.use(authenticate);
 
-// Dashboard stats (Admin, Assessor, Cashier)
-router.get('/dashboard', authorize('admin', 'assessor', 'cashier'), getDashboardStats);
+// Dashboard stats (Admin, Assessor, Cashier, SBM read-only)
+router.get('/dashboard', authorize('admin', 'assessor', 'cashier', 'SBM'), getDashboardStats);
 
 // Revenue report (Admin, Cashier)
 router.get('/revenue', authorize('admin', 'cashier'), getRevenueReport);

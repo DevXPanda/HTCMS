@@ -21,6 +21,7 @@ import {
     XCircle
 } from 'lucide-react';
 import api from '../../services/api';
+import { formatDateIST, formatDateTimeIST } from '../../utils/dateUtils';
 import toast from 'react-hot-toast';
 import { useStaffAuth } from '../../contexts/StaffAuthContext';
 
@@ -402,7 +403,7 @@ const ToiletComplaintsSupervisor = () => {
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">
                                                 <Calendar className="w-3 h-3" />
-                                                {new Date(complaint.createdAt).toLocaleDateString()}
+                                                {formatDateIST(complaint.createdAt)}
                                                 <span className="text-gray-200">|</span>
                                                 <span className={getPriorityStyle(complaint.priority)}>{complaint.priority} Priority</span>
                                             </div>
@@ -537,7 +538,7 @@ const ToiletComplaintsSupervisor = () => {
                                         {complaint.resolvedAt && (
                                             <div className="text-center pt-2 border-t border-gray-100 mt-2">
                                                 <p className="text-[10px] font-bold text-green-600 uppercase">Resolved On</p>
-                                                <p className="text-[10px] font-medium text-gray-500">{new Date(complaint.resolvedAt).toLocaleString()}</p>
+                                                <p className="text-[10px] font-medium text-gray-500">{formatDateTimeIST(complaint.resolvedAt)}</p>
                                                 {complaint.worker && (
                                                     <p className="text-[10px] font-bold text-gray-700 mt-1 capitalize">By: {complaint.worker.full_name}</p>
                                                 )}

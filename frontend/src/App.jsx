@@ -17,6 +17,7 @@ import OfficerLayout from './components/OfficerLayout';
 import EoLayout from './components/EoLayout';
 import SupervisorLayout from './components/SupervisorLayout';
 import SFILayout from './components/SFILayout';
+import SBMLayout from './components/SBMLayout';
 import RoleBasedRedirect from './components/RoleBasedRedirect';
 import D2DCModule from './pages/admin/d2dc/D2DCModule';
 import DiscountManagement from './pages/admin/discount/DiscountManagement';
@@ -207,6 +208,19 @@ import WorkerManagement from './pages/eo/WorkerManagement';
 import SupervisorDashboard from './pages/supervisor/SupervisorDashboard';
 import SupervisorWorkerManagement from './pages/supervisor/SupervisorWorkerManagement';
 import SFIDashboard from './pages/sfi/SFIDashboard';
+import SBMDashboard from './pages/sbm/SBMDashboard';
+import SBMUlbs from './pages/sbm/SBMUlbs';
+import SBMProperties from './pages/sbm/SBMProperties';
+import SBMPropertyDetails from './pages/sbm/SBMPropertyDetails';
+import SBMDemands from './pages/sbm/SBMDemands';
+import SBMDemandDetails from './pages/sbm/SBMDemandDetails';
+import SBMPayments from './pages/sbm/SBMPayments';
+import SBMPaymentDetails from './pages/sbm/SBMPaymentDetails';
+import SBMWorkers from './pages/sbm/SBMWorkers';
+import SBMStaff from './pages/sbm/SBMStaff';
+import SBMToilet from './pages/sbm/SBMToilet';
+import SBMMrf from './pages/sbm/SBMMrf';
+import SBMGaushala from './pages/sbm/SBMGaushala';
 import OfficerDashboard from './pages/officer/OfficerDashboard';
 import OfficerPropertyApplications from './pages/officer/PropertyApplications';
 import OfficerWaterRequests from './pages/officer/WaterRequests';
@@ -510,6 +524,35 @@ function App() {
               <Route path="gaushala/complaints" element={<GauShalaComplaints />} />
               <Route path="gaushala/reports" element={<GauShalaReports />} />
               <Route path="workers" element={<WorkerManagement />} />
+              <Route path="staff-management" element={<AdminManagement />} />
+              <Route path="notifications" element={<NotificationsPage />} />
+            </Route>
+
+            {/* Protected Routes - SBM (Global Monitoring) Portal */}
+            <Route
+              path="/sbm"
+              element={
+                <StaffAuthProvider>
+                  <PrivateRoute allowedRoles={['sbm', 'SBM']}>
+                    <SBMLayout />
+                  </PrivateRoute>
+                </StaffAuthProvider>
+              }
+            >
+              <Route index element={<Navigate to="/sbm/dashboard" replace />} />
+              <Route path="dashboard" element={<SBMDashboard />} />
+              <Route path="ulbs" element={<SBMUlbs />} />
+              <Route path="properties" element={<SBMProperties />} />
+              <Route path="properties/:id" element={<SBMPropertyDetails />} />
+              <Route path="demands" element={<SBMDemands />} />
+              <Route path="demands/:id" element={<SBMDemandDetails />} />
+              <Route path="payments" element={<SBMPayments />} />
+              <Route path="payments/:id" element={<SBMPaymentDetails />} />
+              <Route path="workers" element={<SBMWorkers />} />
+              <Route path="staff" element={<SBMStaff />} />
+              <Route path="toilet" element={<SBMToilet />} />
+              <Route path="mrf" element={<SBMMrf />} />
+              <Route path="gaushala" element={<SBMGaushala />} />
               <Route path="notifications" element={<NotificationsPage />} />
             </Route>
 

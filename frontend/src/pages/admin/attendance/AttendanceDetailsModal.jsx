@@ -1,16 +1,10 @@
 import { X, Calendar, Clock, MapPin, Monitor, Smartphone, Tablet, Globe, User, Info } from 'lucide-react';
+import { formatDateTimeIST } from '../../../utils/dateUtils';
 
 const AttendanceDetailsModal = ({ record, onClose }) => {
   const formatDateTime = (dateString) => {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
+    return formatDateTimeIST(dateString);
   };
 
   const formatDuration = (minutes) => {

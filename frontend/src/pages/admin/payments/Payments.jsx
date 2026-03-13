@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import { Plus, Eye, Search, Filter, X, Download, Receipt } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
-import { isRecentWithinMinutes, sortByCreatedDesc } from '../../../utils/dateUtils';
+import { isRecentWithinMinutes, sortByCreatedDesc, formatDateIST } from '../../../utils/dateUtils';
 
 const Payments = () => {
   const { effectiveUlbId } = useSelectedUlb();
@@ -241,7 +241,7 @@ const Payments = () => {
                     ₹{parseFloat(payment.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </td>
                   <td className="capitalize">{payment.paymentMode}</td>
-                  <td>{new Date(payment.paymentDate).toLocaleDateString()}</td>
+                  <td>{formatDateIST(payment.paymentDate)}</td>
                   <td>
                     {payment.cashier ?
                       `${payment.cashier.firstName} ${payment.cashier.lastName}` :

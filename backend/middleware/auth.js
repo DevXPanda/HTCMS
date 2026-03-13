@@ -48,6 +48,18 @@ export const authenticate = async (req, res, next) => {
 
     // Attach user to request (user has role, ulb_id from DB)
     req.user = user;
+
+    // SBM read-only: block non-GET when full_crud_enabled is false
+    const roleUpper = (req.user.role || '').toString().toUpperCase();
+    if (req.userType === 'admin_management' && roleUpper === 'SBM') {
+      const fullCrud = Boolean(req.user.full_crud_enabled);
+      if (!fullCrud && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+        return res.status(403).json({
+          message: 'SBM role has read-only access. Full CRUD is disabled for your account.'
+        });
+      }
+    }
+
     next();
   } catch (error) {
     if (error.name === 'JsonWebTokenError') {

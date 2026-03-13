@@ -5,6 +5,7 @@ import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { FileText, Droplet, Home, Hash, Calendar, Wallet } from 'lucide-react';
 import DetailPageLayout, { DetailRow } from '../../../components/DetailPageLayout';
+import { formatDateTimeIST } from '../../../utils/dateUtils';
 
 const formatAmt = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -175,7 +176,7 @@ const WaterTaxAssessmentDetails = () => {
                 <DetailRow label="Approval Date" value={new Date(assessment.approvalDate).toLocaleDateString()} />
               )}
               {assessment.createdAt && (
-                <DetailRow label="Created At" value={new Date(assessment.createdAt).toLocaleString()} />
+                <DetailRow label="Created At" value={formatDateTimeIST(assessment.createdAt)} />
               )}
               {assessment.updatedAt && (
                 <DetailRow label="Last Updated" value={new Date(assessment.updatedAt).toLocaleString()} />

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import api from '../../../services/api';
 import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
+import { formatDateIST } from '../../../utils/dateUtils';
 
 const ToiletInspections = () => {
   const base = useToiletBasePath();
@@ -176,7 +177,7 @@ const ToiletInspections = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center text-sm text-gray-900">
                         <Calendar className="w-4 h-4 mr-1 text-gray-400" />
-                        {new Date(inspection.date).toLocaleDateString()}
+                        {formatDateIST(inspection.date)}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

@@ -3,6 +3,7 @@ import { auditLogAPI } from '../../services/api';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
 import { Search, Filter, X, Calendar, History } from 'lucide-react';
+import { formatDateTimeIST } from '../../utils/dateUtils';
 
 const ActivityHistory = () => {
   const [auditLogs, setAuditLogs] = useState([]);
@@ -196,7 +197,7 @@ const ActivityHistory = () => {
                     {log.entityId != null && ` #${log.entityId}`}
                   </span>
                   <span className="text-sm text-gray-400 ml-auto">
-                    {new Date(log.timestamp).toLocaleString()}
+                    {formatDateTimeIST(log.timestamp)}
                   </span>
                 </div>
                 <p className="text-gray-900 text-sm leading-snug">{log.description}</p>

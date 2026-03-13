@@ -5,6 +5,7 @@ import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { Download, Printer, Loader2, Receipt, CreditCard, TrendingUp, Wallet } from 'lucide-react';
 import DetailPageLayout, { DetailRow } from '../../../components/DetailPageLayout';
+import { formatDateIST } from '../../../utils/dateUtils';
 import { PaymentReceiptView } from '../../../components/ReceiptView';
 
 const formatAmt = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -108,7 +109,7 @@ const PaymentDetails = () => {
             </div>
             <div className="stat-card">
               <div className="stat-card-title"><span>Date</span></div>
-              <p className="stat-card-value text-lg">{new Date(payment.paymentDate).toLocaleDateString('en-IN')}</p>
+              <p className="stat-card-value text-lg">{formatDateIST(payment.paymentDate)}</p>
             </div>
           </div>
         </>
@@ -125,7 +126,7 @@ const PaymentDetails = () => {
             <DetailRow label="Payment Number" value={payment.paymentNumber} />
             <DetailRow label="Amount" value={formatAmt(payment.amount)} valueClass="text-green-600 font-bold" />
             <DetailRow label="Payment Mode" value={payment.paymentMode} valueClass="capitalize" />
-            <DetailRow label="Payment Date" value={new Date(payment.paymentDate).toLocaleDateString()} />
+            <DetailRow label="Payment Date" value={formatDateIST(payment.paymentDate)} />
             <DetailRow
               label="Status"
               value={<span className={`badge capitalize ${statusBadge()}`}>{payment.status}</span>}
@@ -139,7 +140,7 @@ const PaymentDetails = () => {
                 value={payment.chequeNumber || payment.transactionId}
               />
             )}
-            {payment.chequeDate && <DetailRow label="Cheque/DD Date" value={new Date(payment.chequeDate).toLocaleDateString()} />}
+            {payment.chequeDate && <DetailRow label="Cheque/DD Date" value={formatDateIST(payment.chequeDate)} />}
             {payment.bankName && <DetailRow label="Bank Name" value={payment.bankName} />}
           </dl>
         </div>

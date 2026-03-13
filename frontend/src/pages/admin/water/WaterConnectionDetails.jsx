@@ -7,6 +7,7 @@ import { FileText, Upload, Trash2, Download, AlertCircle, CheckCircle, Power, Pl
 import { useConfirm } from '../../../components/ConfirmModal';
 import DocumentUploadModal from './DocumentUploadModal';
 import AddMeterReadingModal from './AddMeterReadingModal';
+import { formatDateIST } from '../../../utils/dateUtils';
 
 const DOCUMENT_TYPE_LABELS = {
   APPLICATION_FORM: 'Application Form',
@@ -235,7 +236,7 @@ const WaterConnectionDetails = () => {
               <dt className="text-sm font-medium text-gray-500">Connection Date</dt>
               <dd>
                 {connection.connectionDate
-                  ? new Date(connection.connectionDate).toLocaleDateString()
+                  ? formatDateIST(connection.connectionDate)
                   : '-'
                 }
               </dd>
@@ -345,7 +346,7 @@ const WaterConnectionDetails = () => {
                   {meterReadings.map((r) => (
                     <tr key={r.id}>
                       <td className="font-medium">{r.readingNumber}</td>
-                      <td>{r.readingDate ? new Date(r.readingDate).toLocaleDateString('en-IN') : '–'}</td>
+                      <td>{r.readingDate ? formatDateIST(r.readingDate) : '–'}</td>
                       <td>{r.previousReading != null ? Number(r.previousReading).toLocaleString() : '–'}</td>
                       <td>{Number(r.currentReading).toLocaleString()}</td>
                       <td>{r.consumption != null ? Number(r.consumption).toLocaleString() : '–'}</td>
@@ -415,7 +416,7 @@ const WaterConnectionDetails = () => {
                       }
                     </td>
                     <td>
-                      {new Date(doc.uploadedAt).toLocaleDateString()}
+                      {formatDateIST(doc.uploadedAt)}
                     </td>
                     <td>
                       <div className="flex items-center space-x-2">

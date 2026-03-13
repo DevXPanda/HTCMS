@@ -4,6 +4,7 @@ import { citizenAPI } from '../../services/api';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
 import { CreditCard, Eye, AlertCircle, Filter } from 'lucide-react';
+import { formatDateIST } from '../../utils/dateUtils';
 
 const CitizenDemands = () => {
   const [demands, setDemands] = useState([]);
@@ -211,7 +212,7 @@ const CitizenDemands = () => {
                       ₹{parseFloat(demand.balanceAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </td>
                     <td className={isOverdue ? 'text-red-600 font-semibold' : ''}>
-                      {new Date(demand.dueDate).toLocaleDateString()}
+                      {formatDateIST(demand.dueDate)}
                       {isOverdue && <span className="ml-1">⚠️</span>}
                     </td>
                     <td>

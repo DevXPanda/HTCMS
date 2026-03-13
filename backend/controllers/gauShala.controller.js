@@ -8,8 +8,8 @@ export const getAllFacilities = async (req, res, next) => {
     try {
         const { ward_id, status, search, page = 1, limit = 10 } = req.query;
         const where = {};
-        const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
-        if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+        const { isSuperAdmin, effectiveUlbId, isSbmMonitor } = getEffectiveUlbForRequest(req);
+        if (!isSuperAdmin && !isSbmMonitor && (effectiveUlbId == null || effectiveUlbId === '')) {
             return res.status(403).json({
                 success: false,
                 message: 'Access denied. You must be assigned to an ULB to view Gaushala facilities.'
@@ -128,8 +128,8 @@ export const getAllCattle = async (req, res, next) => {
     try {
         const { facility_id, animal_type, health_status, tag_number } = req.query;
         const where = {};
-        const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
-        if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+        const { isSuperAdmin, effectiveUlbId, isSbmMonitor } = getEffectiveUlbForRequest(req);
+        if (!isSuperAdmin && !isSbmMonitor && (effectiveUlbId == null || effectiveUlbId === '')) {
             return res.status(403).json({ success: false, message: 'Access denied. You must be assigned to an ULB to view cattle.' });
         }
         let facilityWhere = {};
@@ -200,8 +200,8 @@ export const getAllFeedingRecords = async (req, res, next) => {
     try {
         const { facility_id } = req.query;
         const where = {};
-        const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
-        if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+        const { isSuperAdmin, effectiveUlbId, isSbmMonitor } = getEffectiveUlbForRequest(req);
+        if (!isSuperAdmin && !isSbmMonitor && (effectiveUlbId == null || effectiveUlbId === '')) {
             return res.status(403).json({ success: false, message: 'Access denied. You must be assigned to an ULB to view feeding records.' });
         }
         let facilityWhere = {};
@@ -251,8 +251,8 @@ export const getAllInspections = async (req, res, next) => {
     try {
         const { facility_id, inspector_id, status, page = 1, limit = 10 } = req.query;
         const where = {};
-        const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
-        if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+        const { isSuperAdmin, effectiveUlbId, isSbmMonitor } = getEffectiveUlbForRequest(req);
+        if (!isSuperAdmin && !isSbmMonitor && (effectiveUlbId == null || effectiveUlbId === '')) {
             return res.status(403).json({ success: false, message: 'Access denied. You must be assigned to an ULB to view inspections.' });
         }
         let facilityWhere = {};
@@ -336,8 +336,8 @@ export const getAllComplaints = async (req, res, next) => {
     try {
         const { facility_id, status } = req.query;
         const where = {};
-        const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
-        if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+        const { isSuperAdmin, effectiveUlbId, isSbmMonitor } = getEffectiveUlbForRequest(req);
+        if (!isSuperAdmin && !isSbmMonitor && (effectiveUlbId == null || effectiveUlbId === '')) {
             return res.status(403).json({ success: false, message: 'Access denied. You must be assigned to an ULB to view complaints.' });
         }
         let facilityWhere = {};
@@ -402,8 +402,8 @@ export const deleteComplaint = async (req, res, next) => {
 
 export const getReports = async (req, res, next) => {
     try {
-        const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
-        if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+        const { isSuperAdmin, effectiveUlbId, isSbmMonitor } = getEffectiveUlbForRequest(req);
+        if (!isSuperAdmin && !isSbmMonitor && (effectiveUlbId == null || effectiveUlbId === '')) {
             return res.status(403).json({
                 success: false,
                 message: 'Access denied. You must be assigned to an ULB to view Gaushala stats.'

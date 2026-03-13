@@ -67,8 +67,8 @@ export const getAllProperties = async (req, res, next) => {
 
     const where = { isActive: true };
 
-    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
-    if (req.user.role !== 'citizen' && !isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+    const { isSuperAdmin, effectiveUlbId, isSbmMonitor } = getEffectiveUlbForRequest(req);
+    if (req.user.role !== 'citizen' && !isSuperAdmin && !isSbmMonitor && (effectiveUlbId == null || effectiveUlbId === '')) {
       return res.status(403).json({
         success: false,
         message: 'Access denied. You must be assigned to an ULB to view properties.'
@@ -203,8 +203,8 @@ export const getPropertyById = async (req, res, next) => {
       }
     } else {
       // ULB isolation: non–super-admin can only view properties in their assigned ULB
-      const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
-      if (!isSuperAdmin && effectiveUlbId) {
+      const { isSuperAdmin, effectiveUlbId, isSbmMonitor } = getEffectiveUlbForRequest(req);
+      if (!isSuperAdmin && !isSbmMonitor && effectiveUlbId) {
         const ward = property.ward || await Ward.findByPk(property.wardId, { attributes: ['ulb_id'] });
         if (!ward || ward.ulb_id !== effectiveUlbId) {
           return res.status(403).json({
@@ -572,8 +572,8 @@ export const updateProperty = async (req, res, next) => {
       });
     }
 
-    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
-    if (!isSuperAdmin && effectiveUlbId) {
+    const { isSuperAdmin, effectiveUlbId, isSbmMonitor } = getEffectiveUlbForRequest(req);
+    if (!isSuperAdmin && !isSbmMonitor && effectiveUlbId) {
       const ward = property.ward || await Ward.findByPk(property.wardId, { attributes: ['ulb_id'] });
       if (!ward || ward.ulb_id !== effectiveUlbId) {
         return res.status(403).json({
@@ -796,8 +796,8 @@ export const deleteProperty = async (req, res, next) => {
       });
     }
 
-    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
-    if (!isSuperAdmin && effectiveUlbId) {
+    const { isSuperAdmin, effectiveUlbId, isSbmMonitor } = getEffectiveUlbForRequest(req);
+    if (!isSuperAdmin && !isSbmMonitor && effectiveUlbId) {
       const ward = property.ward || await Ward.findByPk(property.wardId, { attributes: ['ulb_id'] });
       if (!ward || ward.ulb_id !== effectiveUlbId) {
         return res.status(403).json({

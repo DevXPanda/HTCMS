@@ -13,8 +13,8 @@ export const getAllFacilities = async (req, res, next) => {
         const { wardId, type, status, search, page = 1, limit = 10 } = req.query;
 
         const where = {};
-        const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
-        if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+        const { isSuperAdmin, effectiveUlbId, isSbmMonitor } = getEffectiveUlbForRequest(req);
+        if (!isSuperAdmin && !isSbmMonitor && (effectiveUlbId == null || effectiveUlbId === '')) {
             return res.status(403).json({
                 success: false,
                 message: 'Access denied. You must be assigned to an ULB to view toilet facilities.'
@@ -438,8 +438,8 @@ export const getAllInspections = async (req, res, next) => {
     try {
         const { facilityId, inspectorId, status, page = 1, limit = 10 } = req.query;
         const where = {};
-        const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
-        if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+        const { isSuperAdmin, effectiveUlbId, isSbmMonitor } = getEffectiveUlbForRequest(req);
+        if (!isSuperAdmin && !isSbmMonitor && (effectiveUlbId == null || effectiveUlbId === '')) {
             return res.status(403).json({ success: false, message: 'Access denied. You must be assigned to an ULB to view toilet inspections.' });
         }
         let facilityFilter = {};
@@ -614,8 +614,8 @@ export const getAllMaintenanceRecords = async (req, res, next) => {
     try {
         const { facilityId, status, priority, page = 1, limit = 10 } = req.query;
         const where = {};
-        const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
-        if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+        const { isSuperAdmin, effectiveUlbId, isSbmMonitor } = getEffectiveUlbForRequest(req);
+        if (!isSuperAdmin && !isSbmMonitor && (effectiveUlbId == null || effectiveUlbId === '')) {
             return res.status(403).json({ success: false, message: 'Access denied. You must be assigned to an ULB to view toilet maintenance.' });
         }
         let facilityFilter = {};
@@ -690,8 +690,8 @@ export const getAllComplaints = async (req, res, next) => {
     try {
         const { facilityId, status, priority, page = 1, limit = 10 } = req.query;
         const where = {};
-        const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
-        if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+        const { isSuperAdmin, effectiveUlbId, isSbmMonitor } = getEffectiveUlbForRequest(req);
+        if (!isSuperAdmin && !isSbmMonitor && (effectiveUlbId == null || effectiveUlbId === '')) {
             return res.status(403).json({ success: false, message: 'Access denied. You must be assigned to an ULB to view toilet complaints.' });
         }
         let facilityFilter = {};
@@ -873,8 +873,8 @@ export const getAssignedComplaints = async (req, res, next) => {
  */
 export const getReports = async (req, res, next) => {
     try {
-        const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
-        if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+        const { isSuperAdmin, effectiveUlbId, isSbmMonitor } = getEffectiveUlbForRequest(req);
+        if (!isSuperAdmin && !isSbmMonitor && (effectiveUlbId == null || effectiveUlbId === '')) {
             return res.status(403).json({
                 success: false,
                 message: 'Access denied. You must be assigned to an ULB to view toilet stats.'

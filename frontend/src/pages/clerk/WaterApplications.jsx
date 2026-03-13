@@ -4,6 +4,7 @@ import { clerkAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import { Droplet, Plus, Eye, Edit, Trash2, Send, ArrowRight, X } from 'lucide-react';
 import { useConfirm } from '../../components/ConfirmModal';
+import { formatDateIST } from '../../utils/dateUtils';
 
 const WaterApplications = () => {
     const [applications, setApplications] = useState([]);
@@ -203,7 +204,7 @@ const WaterApplications = () => {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                        {new Date(app.createdAt).toLocaleDateString()}
+                                        {formatDateIST(app.createdAt)}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                         <div className="flex items-center gap-2">

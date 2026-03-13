@@ -532,6 +532,15 @@ export const requireAdmin = async (req, res, next) => {
     return res.status(401).json({ message: 'Invalid token' });
   }
 
+  // SBM (admin_management): allow GET only for read-only monitoring
+  const roleUpper = (req.user.role ?? '').toString().toUpperCase().replace(/-/g, '_');
+  if (req.userType === 'admin_management' && roleUpper === 'SBM') {
+    if (req.method === 'GET') return next();
+    return res.status(403).json({
+      message: 'SBM has read-only access. Full CRUD is disabled for your account.'
+    });
+  }
+
   // Check if user has admin role from users table
   if (req.userType !== 'user' || req.user.role !== 'admin') {
     if (req.userType !== 'user') {

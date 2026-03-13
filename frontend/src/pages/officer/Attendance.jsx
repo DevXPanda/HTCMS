@@ -3,6 +3,7 @@ import { attendanceAPI } from '../../services/api';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
 import { Calendar, Clock, MapPin, Monitor, Smartphone, Tablet, Globe, Filter, X } from 'lucide-react';
+import { formatDateTimeIST } from '../../utils/dateUtils';
 
 const Attendance = () => {
     const [attendance, setAttendance] = useState([]);
@@ -65,13 +66,7 @@ const Attendance = () => {
 
     const formatDateTime = (dateString) => {
         if (!dateString) return 'N/A';
-        return new Date(dateString).toLocaleString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+        return formatDateTimeIST(dateString);
     };
 
     const getDeviceIcon = (deviceType) => {

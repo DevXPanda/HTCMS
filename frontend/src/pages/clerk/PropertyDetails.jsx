@@ -5,6 +5,7 @@ import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
 import { Eye, Home, MapPin, User, FileText, Calendar, TrendingUp, Building2, Droplet, Camera } from 'lucide-react';
 import DetailPageLayout, { DetailRow } from '../../components/DetailPageLayout';
+import { formatDateIST } from '../../utils/dateUtils';
 
 const PropertyDetails = () => {
   const { id } = useParams();
@@ -106,7 +107,7 @@ const PropertyDetails = () => {
             <DetailRow label="Usage Type" value={property.usageType} valueClass="capitalize" />
             <DetailRow label="Status" value={<span className={`badge capitalize ${statusBadgeClass()}`}>{property.status || 'active'}</span>} />
             <DetailRow label="Construction Type" value={property.constructionType} />
-            <DetailRow label="Created Date" value={property.createdAt ? new Date(property.createdAt).toLocaleDateString() : null} />
+            <DetailRow label="Created Date" value={property.createdAt ? formatDateIST(property.createdAt) : null} />
             <DetailRow label="Plot Area" value={property.plotArea != null ? `${property.plotArea} sq.ft` : property.area != null ? `${property.area} sq. m` : null} />
             <DetailRow label="Built-up Area" value={property.builtUpArea != null ? `${property.builtUpArea} sq.ft` : null} />
             <DetailRow label="Number of Floors" value={property.numberOfFloors ?? property.floors} />
@@ -202,7 +203,7 @@ const PropertyDetails = () => {
           </h2>
           <dl>
             <DetailRow label="Annual Tax" value={property.annualTax != null ? `₹${Number(property.annualTax).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : null} />
-            <DetailRow label="Last Assessment Date" value={property.lastAssessmentDate ? new Date(property.lastAssessmentDate).toLocaleDateString() : null} />
+            <DetailRow label="Last Assessment Date" value={property.lastAssessmentDate ? formatDateIST(property.lastAssessmentDate) : null} />
           </dl>
         </div>
       </div>

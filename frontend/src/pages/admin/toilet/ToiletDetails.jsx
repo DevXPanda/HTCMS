@@ -22,6 +22,7 @@ import {
 import { useBackTo } from '../../../contexts/NavigationContext';
 import { useToiletBasePath } from './useToiletBasePath';
 import api from '../../../services/api';
+import { formatDateIST, formatDateTimeIST } from '../../../utils/dateUtils';
 
 const ToiletDetails = () => {
   const { id } = useParams();
@@ -228,7 +229,7 @@ const ToiletDetails = () => {
                     <div className="flex justify-between items-start mb-2">
                       <div className="space-y-0.5">
                         <p className="text-xs font-bold text-gray-900">{inspection.inspector}</p>
-                        <p className="text-[10px] text-gray-500 font-medium">{new Date(inspection.date).toLocaleDateString()}</p>
+                        <p className="text-[10px] text-gray-500 font-medium">{formatDateIST(inspection.date)}</p>
                       </div>
                       <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${inspection.status === 'Pass' || inspection.status === 'passed' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                         {inspection.status}
@@ -261,7 +262,7 @@ const ToiletDetails = () => {
                     <div className="flex justify-between items-start mb-2">
                       <div className="space-y-0.5">
                         <p className="text-xs font-bold text-gray-900">{item.type}</p>
-                        <p className="text-[10px] text-gray-500 font-medium">{new Date(item.date).toLocaleDateString()}</p>
+                        <p className="text-[10px] text-gray-500 font-medium">{formatDateIST(item.date)}</p>
                       </div>
                       <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${item.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
                         {item.status?.replace('_', ' ')}
@@ -338,11 +339,11 @@ const ToiletDetails = () => {
             <div className="space-y-3">
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase">Registered</p>
-                <p className="text-sm font-medium text-gray-900 mt-0.5">{new Date(toilet.createdAt).toLocaleString()}</p>
+                <p className="text-sm font-medium text-gray-900 mt-0.5">{formatDateTimeIST(toilet.createdAt)}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase">Last Updated</p>
-                <p className="text-sm font-medium text-gray-900 mt-0.5">{new Date(toilet.updatedAt).toLocaleString()}</p>
+                <p className="text-sm font-medium text-gray-900 mt-0.5">{formatDateTimeIST(toilet.updatedAt)}</p>
               </div>
             </div>
           </div>

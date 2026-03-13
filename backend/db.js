@@ -208,6 +208,7 @@ if (!process.env.DATABASE_URL) {
 
 const connectionString = process.env.DATABASE_URL;
 const isSupabase = connectionString.includes('supabase.co');
+const isLocalhost = /localhost|127\.0\.0\.1/i.test(connectionString);
 
 let poolConfig;
 
@@ -245,10 +246,7 @@ if (isSupabase) {
 } else {
   poolConfig = {
     connectionString,
-    ssl: {
-      require: true,
-      rejectUnauthorized: false
-    },
+    ssl: isLocalhost ? false : { require: true, rejectUnauthorized: false },
     max: 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 2000,
@@ -269,7 +267,11 @@ export const testConnection = async () => {
     await client.query('SELECT NOW()');
     return { success: true };
   } catch (error) {
-    return { success: false };
+    const message = error?.message || String(error);
+    const code = error?.code;
+    console.error('Database connection failed:', message);
+    if (code) console.error('  Code:', code);
+    return { success: false, message, code };
   } finally {
     if (client) client.release();
   }

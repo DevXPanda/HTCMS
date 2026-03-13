@@ -14,6 +14,7 @@ import {
 import { useBackTo } from '../../../contexts/NavigationContext';
 import { useToiletBasePath } from './useToiletBasePath';
 import api from '../../../services/api';
+import { formatDateIST, formatDateTimeIST } from '../../../utils/dateUtils';
 
 const InspectionDetails = () => {
     const { id } = useParams();
@@ -110,7 +111,7 @@ const InspectionDetails = () => {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="ds-page-title">Inspection Report</h1>
-                    <p className="text-gray-500 text-sm">Reviewing audit as of {new Date(inspection.inspectionDate).toLocaleDateString()}</p>
+                    <p className="text-gray-500 text-sm">Reviewing audit as of {formatDateIST(inspection.inspectionDate)}</p>
                 </div>
                 <Link
                     to={`${base}/inspections/${inspection.id}/edit`}
@@ -227,14 +228,14 @@ const InspectionDetails = () => {
                                 <div className="h-1 w-1 rounded-full bg-primary-400 mt-2"></div>
                                 <div>
                                     <p className="text-xs font-semibold">Report Generated</p>
-                                    <p className="text-[10px] opacity-60">{new Date(inspection.createdAt).toLocaleString()}</p>
+                                    <p className="text-[10px] opacity-60">{formatDateTimeIST(inspection.createdAt)}</p>
                                 </div>
                             </div>
                             <div className="flex gap-3">
                                 <div className="h-1 w-1 rounded-full bg-primary-400 mt-2"></div>
                                 <div>
                                     <p className="text-xs font-semibold">Last Modified</p>
-                                    <p className="text-[10px] opacity-60">{new Date(inspection.updatedAt).toLocaleString()}</p>
+                                    <p className="text-[10px] opacity-60">{formatDateTimeIST(inspection.updatedAt)}</p>
                                 </div>
                             </div>
                         </div>

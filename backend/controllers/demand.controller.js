@@ -36,7 +36,7 @@ export const getAllDemands = async (req, res, next) => {
     const where = {};
     const whereConditions = []; // For combining conditions
 
-    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+    const { isSuperAdmin, effectiveUlbId, isSbmMonitor } = getEffectiveUlbForRequest(req);
 
     if (propertyId) where.propertyId = propertyId;
     if (financialYear) where.financialYear = financialYear;
@@ -198,7 +198,7 @@ export const getAllDemands = async (req, res, next) => {
 
     // ULB filter for admin/assessor/cashier (not citizen, collector, clerk)
     if (req.user.role !== 'citizen' && req.user.role !== 'collector' && req.user.role !== 'tax_collector' && req.user.role !== 'clerk') {
-      if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+      if (!isSuperAdmin && !isSbmMonitor && (effectiveUlbId == null || effectiveUlbId === '')) {
         return res.status(403).json({
           success: false,
           message: 'Access denied. You must be assigned to an ULB to view demands.'
@@ -460,8 +460,8 @@ export const getDemandById = async (req, res, next) => {
 
     // ULB isolation: admin/assessor/cashier/EO can only view demands in their assigned ULB
     if (userRole !== 'citizen' && userRole !== 'clerk' && userRole !== 'collector' && userRole !== 'tax_collector') {
-      const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
-      if (!isSuperAdmin && effectiveUlbId) {
+      const { isSuperAdmin, effectiveUlbId, isSbmMonitor } = getEffectiveUlbForRequest(req);
+      if (!isSuperAdmin && !isSbmMonitor && effectiveUlbId) {
         const wardUlbId = demand.property?.ward?.ulb_id ?? demand.shopTaxAssessment?.shop?.ward?.ulb_id;
         if (wardUlbId !== effectiveUlbId) {
           return res.status(403).json({

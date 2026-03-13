@@ -31,8 +31,8 @@ export const getAllWards = async (req, res, next) => {
       Object.assign(where, req.wardFilter);
     }
 
-    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
-    if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+    const { isSuperAdmin, effectiveUlbId, isSbmMonitor } = getEffectiveUlbForRequest(req);
+    if (!isSuperAdmin && !isSbmMonitor && (effectiveUlbId == null || effectiveUlbId === '')) {
       return res.status(403).json({
         success: false,
         message: 'Access denied. You must be assigned to an ULB to view wards.'
@@ -144,8 +144,8 @@ export const getWardById = async (req, res, next) => {
     }
 
     // ULB isolation: non–super-admin can only view wards in their assigned ULB
-    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
-    if (!isSuperAdmin && effectiveUlbId && ward.ulb_id !== effectiveUlbId) {
+    const { isSuperAdmin, effectiveUlbId, isSbmMonitor } = getEffectiveUlbForRequest(req);
+    if (!isSuperAdmin && !isSbmMonitor && effectiveUlbId && ward.ulb_id !== effectiveUlbId) {
       return res.status(403).json({
         success: false,
         message: 'Access denied. Ward does not belong to your assigned ULB.'

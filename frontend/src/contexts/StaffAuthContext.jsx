@@ -39,7 +39,7 @@ export const StaffAuthProvider = ({ children }) => {
       const storedRole = localStorage.getItem('role');
       // Normalize role to uppercase for comparison
       const normalizedStoredRole = storedRole ? storedRole.toUpperCase().replace(/-/g, '_') : storedRole;
-      const staffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'TAX_COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI'];
+      const staffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'TAX_COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI', 'SBM'];
 
       if (normalizedStoredRole && !staffRoles.includes(normalizedStoredRole)) {
         console.log(`ℹ️ StaffAuthContext - Skipping staff auth for role: ${storedRole}`);

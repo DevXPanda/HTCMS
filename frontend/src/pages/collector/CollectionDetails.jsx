@@ -5,6 +5,7 @@ import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
 import { Download, Receipt, FileText } from 'lucide-react';
 import DetailPageLayout, { DetailRow } from '../../components/DetailPageLayout';
+import { formatDateIST } from '../../utils/dateUtils';
 
 const CollectionDetails = () => {
   const { id } = useParams();
@@ -90,7 +91,7 @@ const CollectionDetails = () => {
           </div>
           <div className="stat-card">
             <div className="stat-card-title"><span>Date</span></div>
-            <p className="stat-card-value">{new Date(payment.paymentDate).toLocaleDateString('en-IN', { dateStyle: 'medium' })}</p>
+            <p className="stat-card-value">{formatDateIST(payment.paymentDate)}</p>
           </div>
         </div>
       }
@@ -106,7 +107,7 @@ const CollectionDetails = () => {
             <DetailRow label="Payment / Receipt number" value={payment.paymentNumber || '—'} />
             <DetailRow label="Amount" value={formatCurrency(payment.amount)} valueClass="text-green-600 font-semibold" />
             <DetailRow label="Payment mode" value={<span className="badge badge-secondary capitalize">{payment.paymentMode}</span>} />
-            <DetailRow label="Payment date" value={new Date(payment.paymentDate).toLocaleDateString('en-IN', { dateStyle: 'medium' })} />
+            <DetailRow label="Payment date" value={formatDateIST(payment.paymentDate)} />
             <DetailRow label="Status" value={<span className={`badge ${payment.status === 'completed' ? 'badge-success' : 'badge-secondary'}`}>{payment.status}</span>} />
             <DetailRow label="Remarks" value={payment.remarks} />
           </dl>

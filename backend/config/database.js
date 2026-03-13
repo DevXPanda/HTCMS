@@ -76,6 +76,7 @@ if (!process.env.DATABASE_URL) {
 }
 
 const connectionString = process.env.DATABASE_URL;
+const isLocalhost = /localhost|127\.0\.0\.1/i.test(connectionString);
 
 let sequelizeConfig;
 
@@ -89,7 +90,7 @@ try {
         host: url.hostname,
         port: parseInt(url.port) || 5432,
         dialect: 'postgres',
-        dialectOptions: {
+        dialectOptions: isLocalhost ? {} : {
             ssl: {
                 require: true,
                 rejectUnauthorized: false
@@ -97,9 +98,9 @@ try {
         },
         logging: false,   // 🔥 STRICTLY DISABLED
         pool: {
-            max: 5,
+            max: 10,
             min: 0,
-            acquire: 30000,
+            acquire: 60000,
             idle: 10000
         }
     };
@@ -109,7 +110,7 @@ try {
     sequelizeConfig = {
         url: connectionString,
         dialect: 'postgres',
-        dialectOptions: {
+        dialectOptions: isLocalhost ? {} : {
             ssl: {
                 require: true,
                 rejectUnauthorized: false
@@ -117,9 +118,9 @@ try {
         },
         logging: false,   // 🔥 STRICTLY DISABLED
         pool: {
-            max: 5,
+            max: 10,
             min: 0,
-            acquire: 30000,
+            acquire: 60000,
             idle: 10000
         }
     };

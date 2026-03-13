@@ -14,7 +14,7 @@ export const employeeLogout = async (req, res) => {
 
     // Normalize role to uppercase for comparison
     const normalizedRole = employee.role ? employee.role.toUpperCase().replace(/-/g, '_') : employee.role;
-    const rolesWithAttendance = ['COLLECTOR', 'CLERK', 'INSPECTOR', 'OFFICER', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI'];
+    const rolesWithAttendance = ['COLLECTOR', 'CLERK', 'INSPECTOR', 'OFFICER', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI', 'SBM'];
     if (rolesWithAttendance.includes(normalizedRole)) {
       try {
         // Find active attendance session (no logout)
@@ -116,7 +116,7 @@ export const employeeLogin = async (req, res) => {
     // Create attendance record for all staff roles on login (including EO, Supervisor, Field Worker, Contractor)
     // Normalize role to uppercase for comparison
     const normalizedRole = employee.role ? employee.role.toUpperCase().replace(/-/g, '_') : employee.role;
-    const rolesWithAttendance = ['COLLECTOR', 'CLERK', 'INSPECTOR', 'OFFICER', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI'];
+    const rolesWithAttendance = ['COLLECTOR', 'CLERK', 'INSPECTOR', 'OFFICER', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI', 'SBM'];
     if (rolesWithAttendance.includes(normalizedRole)) {
       try {
         // Parse device information using the real device parser
@@ -176,6 +176,9 @@ export const employeeLogin = async (req, res) => {
     if (employee.eo_id) tokenPayload.eo_id = employee.eo_id;
     if (employee.supervisor_id) tokenPayload.supervisor_id = employee.supervisor_id;
     if (employee.contractor_id) tokenPayload.contractor_id = employee.contractor_id;
+    if (normalizedRole === 'SBM' && employee.full_crud_enabled !== undefined) {
+      tokenPayload.full_crud_enabled = Boolean(employee.full_crud_enabled);
+    }
 
     const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: '24h' });
 
@@ -213,7 +216,8 @@ export const employeeLogin = async (req, res) => {
       status: employee.status,
       last_login: employee.last_login,
       password_changed: employee.password_changed,
-      assigned_modules: employee.assigned_modules || []
+      assigned_modules: employee.assigned_modules || [],
+      full_crud_enabled: (employee.role || '').toString().toUpperCase() === 'SBM' ? Boolean(employee.full_crud_enabled) : undefined
     };
 
     res.json({

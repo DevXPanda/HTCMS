@@ -26,6 +26,7 @@ import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../components/ConfirmModal';
 import MrfProofCapture from '../../components/MrfProofCapture';
+import { formatTimeIST } from '../../utils/dateUtils';
 
 const SupervisorDashboard = () => {
   const { confirm } = useConfirm();
@@ -817,7 +818,7 @@ const SupervisorDashboard = () => {
                 <p className="text-sm font-medium text-yellow-800">Geo violations today:</p>
                 <ul className="text-sm text-yellow-700 ml-4 list-disc">
                   {alerts.geo_violations.map((v, idx) => (
-                    <li key={idx}>{v.worker_name} - Check-in at {v.checkin_time ? new Date(v.checkin_time).toLocaleTimeString() : 'N/A'}</li>
+                    <li key={idx}>{v.worker_name} - Check-in at {v.checkin_time ? formatTimeIST(v.checkin_time) : 'N/A'}</li>
                   ))}
                 </ul>
               </div>
@@ -862,7 +863,7 @@ const SupervisorDashboard = () => {
                   </td>
                   <td>{getStatusBadge(worker.status)}</td>
                   <td className="text-sm text-gray-900">
-                    {worker.checkin_time ? new Date(worker.checkin_time).toLocaleTimeString() : '-'}
+                    {worker.checkin_time ? formatTimeIST(worker.checkin_time) : '-'}
                   </td>
                   <td>{getGeoStatusBadge(worker.geo_status)}</td>
                   <td>

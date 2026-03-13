@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { ClipboardList, Clock, CheckCircle2, AlertCircle, Calendar, MessageSquare, MapPin, PlusCircle } from 'lucide-react';
 import api from '../../services/api';
+import { formatDateIST, formatDateTimeIST } from '../../utils/dateUtils';
 
 const ToiletComplaintHistory = () => {
     const { user } = useAuth();
@@ -106,7 +107,7 @@ const ToiletComplaintHistory = () => {
                                                     </div>
                                                     <div className="flex items-center gap-1">
                                                         <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                                                        {new Date(complaint.createdAt).toLocaleDateString()}
+                                                        {formatDateIST(complaint.createdAt)}
                                                     </div>
                                                 </div>
                                             </div>
@@ -129,7 +130,7 @@ const ToiletComplaintHistory = () => {
                                                 </p>
                                                 {complaint.resolvedAt && (
                                                     <p className="text-[10px] text-green-600 mt-2 font-bold uppercase">
-                                                        Resolved on: {new Date(complaint.resolvedAt).toLocaleString()}
+                                                        Resolved on: {formatDateTimeIST(complaint.resolvedAt)}
                                                     </p>
                                                 )}
                                             </div>

@@ -256,7 +256,8 @@ const sfiRoutes = [
   { path: 'gaushala/feeding', label: 'Feeding', parentPath: 'gaushala/management' },
   { path: 'gaushala/complaints', label: 'Complaints', parentPath: 'gaushala/management' },
   { path: 'gaushala/reports', label: 'Reports', parentPath: 'gaushala/management' },
-  { path: 'workers', label: 'Worker Management', parentPath: 'dashboard' },
+  { path: 'workers', label: 'Staff Assignment', parentPath: 'dashboard' },
+  { path: 'staff-management', label: 'Staff Assignment', parentPath: 'dashboard' },
   { path: 'notifications', label: 'Notifications', parentPath: 'dashboard' },
 ];
 
@@ -363,6 +364,29 @@ export function getSfiBreadcrumbs(pathname) {
   return buildBreadcrumbsForRole(rest, prefix, sfiRoutes, {});
 }
 
+const sbmRoutes = [
+  { path: 'dashboard', label: 'SBM Dashboard', parentPath: null },
+  { path: 'ulbs', label: 'ULBs', parentPath: 'dashboard' },
+  { path: 'properties', label: 'Properties', parentPath: 'dashboard' },
+  { path: 'properties/:id', label: 'Property Details', parentPath: 'properties' },
+  { path: 'demands', label: 'House Tax / Demands', parentPath: 'dashboard' },
+  { path: 'demands/:id', label: 'Demand Details', parentPath: 'demands' },
+  { path: 'payments', label: 'Payments', parentPath: 'dashboard' },
+  { path: 'payments/:id', label: 'Payment Details', parentPath: 'payments' },
+  { path: 'workers', label: 'Field Workers', parentPath: 'dashboard' },
+  { path: 'staff', label: 'Staff', parentPath: 'dashboard' },
+  { path: 'toilet', label: 'Toilet Management', parentPath: 'dashboard' },
+  { path: 'mrf', label: 'MRF Management', parentPath: 'dashboard' },
+  { path: 'gaushala', label: 'Gaushala Management', parentPath: 'dashboard' },
+  { path: 'notifications', label: 'Notifications', parentPath: 'dashboard' }
+];
+
+export function getSbmBreadcrumbs(pathname) {
+  const prefix = '/sbm';
+  const rest = pathname.replace(/^\/sbm\/?/, '') || 'dashboard';
+  return buildBreadcrumbsForRole(rest, prefix, sbmRoutes, {});
+}
+
 /**
  * Returns breadcrumb items for current pathname (all roles).
  * Normalizes pathname (trim trailing slash) so links and matching work correctly.
@@ -378,6 +402,7 @@ export function getBreadcrumbs(pathname) {
   if (p.startsWith('supervisor/') || p === 'supervisor') return getSupervisorBreadcrumbs(normalized);
   if (p.startsWith('eo/') || p === 'eo') return getEoBreadcrumbs(normalized);
   if (p.startsWith('sfi/') || p === 'sfi') return getSfiBreadcrumbs(normalized);
+  if (p.startsWith('sbm/') || p === 'sbm') return getSbmBreadcrumbs(normalized);
   return getAdminBreadcrumbs(normalized);
 }
 

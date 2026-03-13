@@ -5,7 +5,7 @@ import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { Search, Percent, IndianRupee, FileText, Calendar, History, Download, CheckCircle, Printer } from 'lucide-react';
 import { getDemandOriginalAmount, getDemandPenaltyAmount, calculateDiscount, calculateFinalAmount } from '../../../utils/financialCalculations';
-import { isRecentDate, sortByCreatedDesc } from '../../../utils/dateUtils';
+import { isRecentDate, sortByCreatedDesc, formatDateIST } from '../../../utils/dateUtils';
 
 const MODULE_OPTIONS = [
   { value: 'PROPERTY', label: 'Property Tax' },
@@ -480,7 +480,7 @@ const DiscountManagement = () => {
     computedDiscount <= originalAmount &&
     !discountError;
 
-  const formatDate = (d) => (d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—');
+  const formatDate = (d) => (d ? formatDateIST(d) : '—');
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto px-2">

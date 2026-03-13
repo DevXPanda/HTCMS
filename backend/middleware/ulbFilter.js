@@ -16,6 +16,14 @@ export const ulbFilter = async (req, res, next) => {
       return next();
     }
 
+    // SBM (read-only monitor): allow access; optional ulb_id from query
+    const roleUpper = (req.user?.role ?? '').toString().toUpperCase().replace(/-/g, '_');
+    if (req.userType === 'admin_management' && roleUpper === 'SBM') {
+      const queryUlb = req.query?.ulb_id || req.query?.ulbId;
+      if (queryUlb) req.ulbFilter = { ulb_id: queryUlb };
+      return next();
+    }
+
     // Extract ulb_id from user (from JWT token or database)
     const ulbId = req.user?.ulb_id || req.user?.dataValues?.ulb_id;
 
@@ -26,7 +34,6 @@ export const ulbFilter = async (req, res, next) => {
       };
     } else {
       // For non-admin users without ulb_id, deny access
-      // This ensures all non-admin users must have an assigned ULB
       if (req.user && req.user.role !== 'admin') {
         return res.status(403).json({
           success: false,

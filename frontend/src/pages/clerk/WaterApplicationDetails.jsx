@@ -4,6 +4,7 @@ import { clerkAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import { Edit, Send, Droplet, MapPin, Calendar } from 'lucide-react';
 import { useConfirm } from '../../components/ConfirmModal';
+import { formatDateIST, formatDateTimeIST } from '../../utils/dateUtils';
 
 const WaterApplicationDetails = () => {
     const { id } = useParams();
@@ -170,7 +171,7 @@ const WaterApplicationDetails = () => {
                                 {application.decidedat && (
                                     <div>
                                         <span className="font-medium">Decided At:</span>{' '}
-                                        {new Date(application.decidedat).toLocaleString()}
+                                        {formatDateTimeIST(application.decidedat)}
                                     </div>
                                 )}
                                 {application.officerremarks && (
@@ -223,7 +224,7 @@ const WaterApplicationDetails = () => {
                                                     {doc.fileSize ? `${(doc.fileSize / 1024).toFixed(2)} KB` : 'N/A'}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : 'N/A'}
+                                                    {doc.uploadedAt ? formatDateIST(doc.uploadedAt) : 'N/A'}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                     {doc.filePath && (
@@ -260,14 +261,14 @@ const WaterApplicationDetails = () => {
                             <div>
                                 <dt className="text-sm font-medium text-gray-500">Created</dt>
                                 <dd className="mt-1 text-sm text-gray-900">
-                                    {new Date(application.createdAt).toLocaleString()}
+                                    {formatDateTimeIST(application.createdAt)}
                                 </dd>
                             </div>
                             {application.submittedAt && (
                                 <div>
                                     <dt className="text-sm font-medium text-gray-500">Submitted</dt>
                                     <dd className="mt-1 text-sm text-gray-900">
-                                        {new Date(application.submittedAt).toLocaleString()}
+                                        {formatDateTimeIST(application.submittedAt)}
                                     </dd>
                                 </div>
                             )}
@@ -275,7 +276,7 @@ const WaterApplicationDetails = () => {
                                 <div>
                                     <dt className="text-sm font-medium text-gray-500">Inspected</dt>
                                     <dd className="mt-1 text-sm text-gray-900">
-                                        {new Date(application.inspectedAt).toLocaleString()}
+                                        {formatDateTimeIST(application.inspectedAt)}
                                     </dd>
                                 </div>
                             )}
@@ -283,14 +284,14 @@ const WaterApplicationDetails = () => {
                                 <div>
                                     <dt className="text-sm font-medium text-gray-500">Processed</dt>
                                     <dd className="mt-1 text-sm text-gray-900">
-                                        {new Date(application.processedAt).toLocaleString()}
+                                        {formatDateTimeIST(application.processedAt)}
                                     </dd>
                                 </div>
                             )}
                             <div>
                                 <dt className="text-sm font-medium text-gray-500">Last Updated</dt>
                                 <dd className="mt-1 text-sm text-gray-900">
-                                    {new Date(application.updatedAt).toLocaleString()}
+                                    {formatDateTimeIST(application.updatedAt)}
                                 </dd>
                             </div>
                         </div>

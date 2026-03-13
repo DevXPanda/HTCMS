@@ -49,11 +49,12 @@ const checkWorkersNotPresentBy9AM = async () => {
   });
   if (workers.length === 0) return [];
 
-  const [presentTodayRows] = await sequelize.query(
+  const presentTodayRows = await sequelize.query(
     'SELECT worker_id FROM worker_attendance WHERE attendance_date = :today',
     { replacements: { today }, type: sequelize.QueryTypes.SELECT }
   );
-  const presentSet = new Set((presentTodayRows || []).map(r => r.worker_id));
+  const rows = Array.isArray(presentTodayRows) ? presentTodayRows : [];
+  const presentSet = new Set(rows.map(r => r.worker_id));
 
   const created = [];
   for (const w of workers) {
@@ -94,11 +95,12 @@ const checkSupervisorsInactive = async () => {
   });
   if (supervisors.length === 0) return [];
 
-  const [markedToday] = await sequelize.query(
+  const markedTodayRows = await sequelize.query(
     'SELECT supervisor_id FROM worker_attendance WHERE attendance_date = :today',
     { replacements: { today }, type: sequelize.QueryTypes.SELECT }
   );
-  const markedSet = new Set((markedToday || []).map(r => r.supervisor_id).filter(Boolean));
+  const markedList = Array.isArray(markedTodayRows) ? markedTodayRows : [];
+  const markedSet = new Set(markedList.map(r => r.supervisor_id).filter(Boolean));
 
   const created = [];
   for (const sup of supervisors) {
@@ -134,7 +136,7 @@ const checkGeoViolationsThreshold = async () => {
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
   const start = sevenDaysAgo.toISOString().slice(0, 10);
 
-  const [rows] = await sequelize.query(
+  const rows = await sequelize.query(
     `SELECT worker_id, COUNT(*) AS cnt FROM worker_attendance
      WHERE attendance_date >= :start AND attendance_date <= :today AND geo_status = 'OUTSIDE_WARD'
      GROUP BY worker_id HAVING COUNT(*) > :threshold`,
@@ -143,16 +145,17 @@ const checkGeoViolationsThreshold = async () => {
       type: sequelize.QueryTypes.SELECT
     }
   );
-  if (!rows || rows.length === 0) return [];
+  const rowsList = Array.isArray(rows) ? rows : [];
+  if (rowsList.length === 0) return [];
 
   const workers = await Worker.findAll({
-    where: { id: rows.map(r => r.worker_id) },
+    where: { id: rowsList.map(r => r.worker_id) },
     attributes: ['id', 'full_name', 'eo_id', 'ward_id']
   });
   const workerMap = Object.fromEntries(workers.map(w => [w.id, w]));
 
   const created = [];
-  for (const row of rows) {
+  for (const row of rowsList) {
     const workerId = row.worker_id;
     const count = Number(row.cnt);
     if (await hasExistingAlertToday('geo_violations_threshold', 'worker', workerId)) continue;
@@ -196,7 +199,7 @@ const checkThreeConsecutiveAbsences = async () => {
   if (workers.length === 0) return [];
 
   const workerIds = workers.map(w => w.id);
-  const [presentIn3Days] = await sequelize.query(
+  const presentIn3DaysRows = await sequelize.query(
     `SELECT DISTINCT worker_id FROM worker_attendance
      WHERE worker_id IN (:workerIds) AND attendance_date IN (:d1, :d2, :d3)`,
     {
@@ -204,7 +207,8 @@ const checkThreeConsecutiveAbsences = async () => {
       type: sequelize.QueryTypes.SELECT
     }
   );
-  const presentSet = new Set((presentIn3Days || []).map(r => r.worker_id));
+  const presentList = Array.isArray(presentIn3DaysRows) ? presentIn3DaysRows : [];
+  const presentSet = new Set(presentList.map(r => r.worker_id));
   const absent3 = workers.filter(w => !presentSet.has(w.id));
 
   const created = [];

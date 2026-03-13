@@ -5,6 +5,7 @@ import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { FileText, Droplet, Home, Hash, Wallet } from 'lucide-react';
 import DetailPageLayout, { DetailRow } from '../../../components/DetailPageLayout';
+import { formatDateIST, formatDateTimeIST } from '../../../utils/dateUtils';
 
 const formatAmt = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -93,7 +94,7 @@ const WaterBillDetails = () => {
           <div className="space-y-0">
             <DetailRow label="Bill Number" value={bill.billNumber} />
             <DetailRow label="Billing Period" value={formatBillingPeriod(bill.billingPeriod)} />
-            <DetailRow label="Due Date" value={bill.dueDate ? new Date(bill.dueDate).toLocaleDateString('en-IN') : 'N/A'} />
+            <DetailRow label="Due Date" value={bill.dueDate ? formatDateIST(bill.dueDate) : 'N/A'} />
             <DetailRow label="Total Amount" value={<span className="font-semibold">{formatAmt(bill.totalAmount)}</span>} />
             <DetailRow label="Paid Amount" value={<span className="text-green-600">{formatAmt(bill.paidAmount)}</span>} />
             <DetailRow
@@ -183,7 +184,7 @@ const WaterBillDetails = () => {
               {bill.meterReading.readingDate && (
                 <DetailRow
                   label="Reading Date"
-                  value={new Date(bill.meterReading.readingDate).toLocaleDateString('en-IN')}
+                  value={formatDateIST(bill.meterReading.readingDate)}
                 />
               )}
             </div>
@@ -204,10 +205,10 @@ const WaterBillDetails = () => {
                 />
               )}
               {bill.createdAt && (
-                <DetailRow label="Generated At" value={new Date(bill.createdAt).toLocaleString('en-IN')} />
+                <DetailRow label="Generated At" value={formatDateTimeIST(bill.createdAt)} />
               )}
               {bill.updatedAt && (
-                <DetailRow label="Last Updated" value={new Date(bill.updatedAt).toLocaleString('en-IN')} />
+                <DetailRow label="Last Updated" value={formatDateTimeIST(bill.updatedAt)} />
               )}
             </div>
           </div>

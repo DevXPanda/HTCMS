@@ -4,9 +4,11 @@ import { getEffectiveUlbForRequest } from '../utils/ulbAccessHelper.js';
 
 // Deprecated roles (kept for future use): Clerk, Inspector, Officer, Contractor. Do not assign to new users.
 const DEPRECATED_ROLES = ['CLERK', 'INSPECTOR', 'OFFICER', 'CONTRACTOR'];
-const ASSIGNABLE_ROLES = ['EO', 'SUPERVISOR', 'COLLECTOR', 'FIELD_WORKER', 'SFI'];
+const ASSIGNABLE_ROLES = ['EO', 'SUPERVISOR', 'COLLECTOR', 'FIELD_WORKER', 'SFI', 'SBM'];
+// SBM can only be assigned by Super Admin (user table admin with no ULB)
+const SUPER_ADMIN_ONLY_ROLES = ['SBM'];
 // All staff roles (uppercase) for DB enum - used in bulk delete/status and listings
-const ALL_STAFF_ROLES = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI'];
+const ALL_STAFF_ROLES = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI', 'SBM'];
 
 /**
  * Get all employees managed by admin
@@ -16,29 +18,27 @@ export const getAllEmployees = async (req, res) => {
     const { role, status, search, page = 1, limit = 10 } = req.query;
     const offset = (page - 1) * limit;
 
-    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
-    if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+    const { isSuperAdmin, effectiveUlbId, isSbmMonitor } = getEffectiveUlbForRequest(req);
+    if (!isSuperAdmin && !isSbmMonitor && (effectiveUlbId == null || effectiveUlbId === '')) {
       return res.status(403).json({
         success: false,
         message: 'Access denied. You must be assigned to an ULB to view staff.'
       });
     }
 
-    // Build where clause - Only show staff roles (including field worker hierarchy)
-    // Normalize role to uppercase for comparison, support multiple comma-separated roles
-    const staffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI'];
+    // Build where clause - Only show staff roles (including SBM for super admin)
+    const staffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI', 'SBM'];
     let requestedRoles = [];
     if (role) {
       requestedRoles = role.toUpperCase().split(',').map(r => r.trim().replace(/-/g, '_'));
-      // Filter out non-staff roles
       requestedRoles = requestedRoles.filter(r => staffRoles.includes(r));
     }
+    const rolesToQuery = requestedRoles.length > 0 ? requestedRoles : staffRoles;
 
     const whereClause = {
-      role: {
-        [AdminManagement.sequelize.Sequelize.Op.in]: requestedRoles.length > 0 ? requestedRoles : staffRoles
-      }
+      role: { [AdminManagement.sequelize.Sequelize.Op.in]: rolesToQuery }
     };
+    // SBM has no ULB (global); when filtering by ULB, SBM won't match so they only appear for "All ULBs" (super admin)
     if (effectiveUlbId) {
       whereClause.ulb_id = effectiveUlbId;
     }
@@ -78,18 +78,30 @@ export const getAllEmployees = async (req, res) => {
       wardMap[ward.id] = `${ward.wardNumber} - ${ward.wardName}`;
     });
 
-    const formattedEmployees = employees.rows.map(employee => {
+    const formattedEmployees = await Promise.all(employees.rows.map(async (employee) => {
       const empData = employee.get({ plain: true });
       let ward_names = empData.ward_ids ? empData.ward_ids.map(wardId => wardMap[wardId] || `Ward ${wardId}`) : [];
       if (ward_names.length === 0 && empData.ward_id && wardMap[empData.ward_id]) {
         ward_names = [wardMap[empData.ward_id]];
       }
+      let creator = empData.creator;
+      const creatorStaff = await AdminManagement.findByPk(empData.created_by_admin_id, { attributes: ['id', 'full_name', 'employee_id'] });
+      if (creatorStaff) {
+        const parts = (creatorStaff.full_name || '').trim().split(/\s+/);
+        creator = {
+          id: creatorStaff.id,
+          firstName: parts[0] || creatorStaff.full_name || 'Staff',
+          lastName: parts.slice(1).join(' ') || '',
+          full_name: creatorStaff.full_name
+        };
+      }
       return {
         ...empData,
+        creator,
         ward_names,
         password: undefined
       };
-    });
+    }));
 
     res.json({
       employees: formattedEmployees,
@@ -195,6 +207,19 @@ export const getEmployeeById = async (req, res) => {
     const employeeData = employee.get({ plain: true });
     employeeData.ward_names = wards.map(ward => `${ward.wardNumber} - ${ward.wardName}`);
     employeeData.password = undefined;
+
+    // Created by: when staff (SFI/EO) creates, created_by_admin_id stores admin_management id, not users id - resolve correctly
+    const creatorStaff = await AdminManagement.findByPk(employee.created_by_admin_id, { attributes: ['id', 'full_name', 'employee_id'] });
+    if (creatorStaff) {
+      const parts = (creatorStaff.full_name || '').trim().split(/\s+/);
+      employeeData.creator = {
+        id: creatorStaff.id,
+        firstName: parts[0] || creatorStaff.full_name || 'Staff',
+        lastName: parts.slice(1).join(' ') || '',
+        full_name: creatorStaff.full_name
+      };
+    }
+
     res.json(employeeData);
   } catch (error) {
     console.error('Error fetching employee:', error);
@@ -232,11 +257,28 @@ export const createEmployee = async (req, res) => {
       supervisor_id,
       company_name,
       contact_details,
-      assigned_modules: rawAssignedModules
+      assigned_modules: rawAssignedModules,
+      sbm_full_crud
     } = req.body;
 
     // Normalize role to uppercase to match database CHECK constraint
     const role = rawRole ? rawRole.toUpperCase().replace(/-/g, '_') : rawRole;
+
+    // SFI can only create Supervisor accounts within their own ULB
+    const callerRole = (req.user?.role ?? req.user?.dataValues?.role ?? '').toString().toUpperCase().replace(/-/g, '_');
+    const isSfiCaller = req.userType === 'admin_management' && callerRole === 'SFI';
+    if (isSfiCaller) {
+      if (role !== 'SUPERVISOR') {
+        return res.status(403).json({ message: 'SFI can only create Supervisor accounts.' });
+      }
+      const sfiUlbId = req.user?.ulb_id ?? req.user?.dataValues?.ulb_id ?? null;
+      if (!sfiUlbId) {
+        return res.status(403).json({ message: 'SFI must be assigned to an ULB to create supervisors.' });
+      }
+      if (ulb_id && ulb_id !== sfiUlbId) {
+        return res.status(403).json({ message: 'SFI can only create supervisors for their assigned ULB.' });
+      }
+    }
 
     // Do not allow assigning deprecated roles to new staff
     if (role && DEPRECATED_ROLES.includes(role)) {
@@ -246,8 +288,17 @@ export const createEmployee = async (req, res) => {
     }
     if (role && !ASSIGNABLE_ROLES.includes(role)) {
       return res.status(400).json({
-        message: 'Invalid role. Allowed roles: EO, Supervisor, Collector, Field Worker, SFI (Sanitary & Food Inspector).'
+        message: 'Invalid role. Allowed roles: EO, Supervisor, Collector, Field Worker, SFI, SBM (SBM only for Super Admin).'
       });
+    }
+    // SBM can only be created by Super Admin (users table admin with no ULB)
+    if (role === 'SBM') {
+      const { isSuperAdmin } = getEffectiveUlbForRequest(req);
+      if (!isSuperAdmin) {
+        return res.status(403).json({
+          message: 'Only Super Admin can create SBM (global monitoring) staff.'
+        });
+      }
     }
 
     // Check if email, phone, or username already exists
@@ -274,7 +325,10 @@ export const createEmployee = async (req, res) => {
     // Determine ulb_id based on role and provided data
     let finalUlbId = ulb_id;
 
-    // For supervisor/field_worker, get ulb_id from ward if not provided
+    // For supervisor: ulb_id is mandatory (from form); for field_worker, get from ward if not provided
+    if (role === 'SUPERVISOR' && ulb_id) {
+      finalUlbId = ulb_id;
+    }
     if ((role === 'SUPERVISOR' || role === 'FIELD_WORKER') && ward_id && !finalUlbId) {
       const ward = await Ward.findByPk(ward_id, { attributes: ['id', 'ulb_id'] });
       if (ward && ward.ulb_id) {
@@ -283,6 +337,16 @@ export const createEmployee = async (req, res) => {
     }
     // For SFI, ulb_id is mandatory (validated in middleware)
     if (role === 'SFI' && !finalUlbId && ulb_id) {
+      finalUlbId = ulb_id;
+    }
+    if (role === 'SUPERVISOR' && !finalUlbId) {
+      return res.status(400).json({ message: 'ULB is required for Supervisor. Select ULB and then assign wards.' });
+    }
+    // SBM: require ULB (DB has NOT NULL on ulb_id; SBM can monitor across ULBs but is associated with one)
+    if (role === 'SBM') {
+      if (!ulb_id || String(ulb_id).trim() === '') {
+        return res.status(400).json({ message: 'ULB is required for SBM. Please select an ULB.' });
+      }
       finalUlbId = ulb_id;
     }
 
@@ -311,6 +375,21 @@ export const createEmployee = async (req, res) => {
 
     // For SFI: validate assigned wards belong to the selected ULB (multiple wards allowed)
     if (ward_ids && ward_ids.length > 0 && finalUlbId && role === 'SFI') {
+      const wards = await Ward.findAll({
+        where: { id: ward_ids },
+        attributes: ['id', 'ulb_id']
+      });
+      if (wards.length !== ward_ids.length) {
+        return res.status(400).json({ message: 'One or more ward IDs are invalid' });
+      }
+      const invalidWards = wards.filter(w => w.ulb_id !== finalUlbId);
+      if (invalidWards.length > 0) {
+        return res.status(400).json({ message: 'All selected wards must belong to the selected ULB' });
+      }
+    }
+
+    // For SUPERVISOR: validate assigned wards belong to the selected ULB (multiple wards allowed)
+    if (ward_ids && ward_ids.length > 0 && finalUlbId && role === 'SUPERVISOR') {
       const wards = await Ward.findAll({
         where: { id: ward_ids },
         attributes: ['id', 'ulb_id']
@@ -364,6 +443,11 @@ export const createEmployee = async (req, res) => {
     } else if (role === 'SFI') {
       assignedWardIds = [];
     }
+    if (role === 'SUPERVISOR' && Array.isArray(ward_ids) && ward_ids.length > 0) {
+      assignedWardIds = ward_ids.map(id => parseInt(id, 10)).filter(n => !isNaN(n));
+    } else if (role === 'SUPERVISOR') {
+      assignedWardIds = [];
+    }
     const createPayload = {
       full_name,
       employee_id,
@@ -389,7 +473,8 @@ export const createEmployee = async (req, res) => {
     if (company_name !== undefined) createPayload.company_name = company_name || null;
     if (contact_details !== undefined) createPayload.contact_details = contact_details || null;
     const allowedModules = ['toilet', 'mrf', 'gaushala'];
-    const sfiModules = ['toilet', 'mrf', 'gaushala', 'worker_management'];
+    // SFI: only Toilet, MRF, Gaushala (Worker Management is not assignable for SFI)
+    const sfiModules = ['toilet', 'mrf', 'gaushala'];
     if (role === 'SUPERVISOR' && rawAssignedModules !== undefined) {
       const modules = Array.isArray(rawAssignedModules) ? rawAssignedModules : [];
       createPayload.assigned_modules = modules.filter(m => typeof m === 'string' && allowedModules.includes(m.toLowerCase()));
@@ -397,6 +482,9 @@ export const createEmployee = async (req, res) => {
     if (role === 'SFI' && rawAssignedModules !== undefined) {
       const modules = Array.isArray(rawAssignedModules) ? rawAssignedModules : [];
       createPayload.assigned_modules = modules.filter(m => typeof m === 'string' && sfiModules.includes((m || '').toLowerCase()));
+    }
+    if (role === 'SBM' && sbm_full_crud !== undefined) {
+      createPayload.full_crud_enabled = Boolean(sbm_full_crud);
     }
     const employee = await AdminManagement.create(createPayload);
     if (role === 'CLERK' && assignedWardIds.length > 0) {
@@ -418,7 +506,15 @@ export const createEmployee = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error creating employee:', error);
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      const field = error.errors?.[0]?.path || 'field';
+      const value = error.errors?.[0]?.value;
+      const msg = field === 'employee_id'
+        ? `Employee ID "${value}" already exists. Please use a different ID.`
+        : `A staff member with this ${field} already exists.`;
+      return res.status(400).json({ message: msg });
+    }
+    console.error('Error creating employee:', error.message);
     res.status(500).json({ message: 'Error creating employee', error: error.message });
   }
 };
@@ -442,7 +538,20 @@ export const updateEmployee = async (req, res) => {
       return res.status(404).json({ message: 'Employee not found' });
     }
 
-    const normalizedStaffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI'];
+    const callerRole = (req.user?.role ?? req.user?.dataValues?.role ?? '').toString().toUpperCase().replace(/-/g, '_');
+    const isSfiCaller = req.userType === 'admin_management' && callerRole === 'SFI';
+    if (isSfiCaller) {
+      const targetRole = (employee.role || '').toUpperCase().replace(/-/g, '_');
+      if (targetRole !== 'SUPERVISOR') {
+        return res.status(403).json({ message: 'SFI can only edit Supervisor accounts.' });
+      }
+      const sfiUlbId = req.user?.ulb_id ?? req.user?.dataValues?.ulb_id ?? null;
+      if (!sfiUlbId || String(employee.ulb_id) !== String(sfiUlbId)) {
+        return res.status(403).json({ message: 'SFI can only edit supervisors in their assigned ULB.' });
+      }
+    }
+
+    const normalizedStaffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI', 'SBM'];
     const normalizedEmployeeRole = employee.role ? employee.role.toUpperCase().replace(/-/g, '_') : employee.role;
     if (!normalizedStaffRoles.includes(normalizedEmployeeRole)) {
       return res.status(400).json({
@@ -467,7 +576,8 @@ export const updateEmployee = async (req, res) => {
       supervisor_id,
       company_name,
       contact_details,
-      assigned_modules: rawAssignedModules
+      assigned_modules: rawAssignedModules,
+      sbm_full_crud
     } = req.body;
 
     // Normalize role to uppercase to match database CHECK constraint
@@ -475,7 +585,7 @@ export const updateEmployee = async (req, res) => {
 
     if (role && !normalizedStaffRoles.includes(role)) {
       return res.status(400).json({
-        message: 'Invalid role. Only staff roles (CLERK, INSPECTOR, OFFICER, COLLECTOR, EO, SUPERVISOR, FIELD_WORKER, CONTRACTOR, SFI) are allowed.'
+        message: 'Invalid role. Only staff roles (CLERK, INSPECTOR, OFFICER, COLLECTOR, EO, SUPERVISOR, FIELD_WORKER, CONTRACTOR, SFI, SBM) are allowed.'
       });
     }
     // Allow keeping existing deprecated role; do not allow changing to a deprecated role
@@ -486,8 +596,17 @@ export const updateEmployee = async (req, res) => {
     }
     if (role && !DEPRECATED_ROLES.includes(role) && !ASSIGNABLE_ROLES.includes(role)) {
       return res.status(400).json({
-        message: 'Invalid role. Allowed roles: EO, Supervisor, Collector, Field Worker, SFI.'
+        message: 'Invalid role. Allowed roles: EO, Supervisor, Collector, Field Worker, SFI, SBM.'
       });
+    }
+    // SBM can only be assigned/updated by Super Admin
+    if (role === 'SBM' || normalizedEmployeeRole === 'SBM') {
+      const { isSuperAdmin } = getEffectiveUlbForRequest(req);
+      if (!isSuperAdmin) {
+        return res.status(403).json({
+          message: 'Only Super Admin can create or edit SBM staff.'
+        });
+      }
     }
 
     // Check if email or phone already exists for another employee
@@ -536,6 +655,12 @@ export const updateEmployee = async (req, res) => {
     if (currentRole === 'SFI' && ulb_id) {
       finalUlbId = ulb_id;
     }
+    if (currentRole === 'SUPERVISOR' && ulb_id) {
+      finalUlbId = ulb_id;
+    }
+    if (currentRole === 'SBM' && ulb_id) {
+      finalUlbId = ulb_id;
+    }
 
     // Use existing ulb_id if not provided
     if (!finalUlbId && employee.ulb_id) {
@@ -555,8 +680,8 @@ export const updateEmployee = async (req, res) => {
         });
       }
 
-      // If ULB is specified, validate all wards belong to it (EO and SFI)
-      if (finalUlbId && (currentRole === 'EO' || currentRole === 'SFI')) {
+      // If ULB is specified, validate all wards belong to it (EO, SFI, SUPERVISOR)
+      if (finalUlbId && (currentRole === 'EO' || currentRole === 'SFI' || currentRole === 'SUPERVISOR')) {
         const invalidWards = wards.filter(w => w.ulb_id !== finalUlbId);
         if (invalidWards.length > 0) {
           return res.status(400).json({
@@ -613,6 +738,11 @@ export const updateEmployee = async (req, res) => {
         ? ward_ids.map(id => parseInt(id, 10)).filter(n => !isNaN(n))
         : [];
     }
+    if (currentRole === 'SUPERVISOR') {
+      assignedWardIds = Array.isArray(ward_ids) && ward_ids.length > 0
+        ? ward_ids.map(id => parseInt(id, 10)).filter(n => !isNaN(n))
+        : [];
+    }
     const updateData = {
       full_name,
       role,
@@ -634,7 +764,8 @@ export const updateEmployee = async (req, res) => {
     if (company_name !== undefined) updateData.company_name = company_name || null;
     if (contact_details !== undefined) updateData.contact_details = contact_details || null;
     const allowedModules = ['toilet', 'mrf', 'gaushala'];
-    const sfiModules = ['toilet', 'mrf', 'gaushala', 'worker_management'];
+    // SFI: only Toilet, MRF, Gaushala (Worker Management is not assignable for SFI)
+    const sfiModules = ['toilet', 'mrf', 'gaushala'];
     if (currentRole === 'SUPERVISOR' && rawAssignedModules !== undefined) {
       const modules = Array.isArray(rawAssignedModules) ? rawAssignedModules : [];
       updateData.assigned_modules = modules.filter(m => typeof m === 'string' && allowedModules.includes(m.toLowerCase()));
@@ -642,6 +773,9 @@ export const updateEmployee = async (req, res) => {
     if (currentRole === 'SFI' && rawAssignedModules !== undefined) {
       const modules = Array.isArray(rawAssignedModules) ? rawAssignedModules : [];
       updateData.assigned_modules = modules.filter(m => typeof m === 'string' && sfiModules.includes((m || '').toLowerCase()));
+    }
+    if (currentRole === 'SBM' && sbm_full_crud !== undefined) {
+      updateData.full_crud_enabled = Boolean(sbm_full_crud);
     }
     if (password && password.trim() !== '') {
       updateData.password = password;
@@ -734,6 +868,10 @@ export const getAllULBs = async (req, res) => {
   try {
     const includeInactive = req.query.includeInactive === 'true';
     const where = includeInactive ? {} : { status: 'ACTIVE' };
+    const userUlbId = req.user?.ulb_id ?? req.user?.dataValues?.ulb_id ?? null;
+    if (userUlbId != null && String(userUlbId).trim() !== '') {
+      where.id = userUlbId;
+    }
     const attributes = includeInactive ? ['id', 'name', 'ulb_type', 'state', 'district', 'status', 'created_at'] : ['id', 'name', 'ulb_type', 'state', 'district'];
 
     const ulbs = await ULB.findAll({
@@ -855,13 +993,18 @@ export const resetEmployeePassword = async (req, res) => {
 export const getEmployeeStatistics = async (req, res) => {
   try {
     const staffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR'];
-    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+    const roleFilter = req.query.role ? String(req.query.role).toUpperCase().replace(/-/g, '_') : null;
+    const allowedRoleFilter = ['SUPERVISOR', 'EO', 'CONTRACTOR'];
+    const rolesToCount = (roleFilter && allowedRoleFilter.includes(roleFilter))
+      ? [roleFilter]
+      : staffRoles;
     const baseWhere = {
       role: {
-        [AdminManagement.sequelize.Sequelize.Op.in]: staffRoles
+        [AdminManagement.sequelize.Sequelize.Op.in]: rolesToCount
       }
     };
-    if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+    const { isSuperAdmin, effectiveUlbId, isSbmMonitor } = getEffectiveUlbForRequest(req);
+    if (!isSuperAdmin && !isSbmMonitor && (effectiveUlbId == null || effectiveUlbId === '')) {
       return res.status(403).json({
         success: false,
         message: 'Access denied. You must be assigned to an ULB to view statistics.'
@@ -893,10 +1036,8 @@ export const getEmployeeStatistics = async (req, res) => {
     });
     const inactiveEmployees = await AdminManagement.count({
       where: {
-        status: 'inactive',
-        role: {
-          [AdminManagement.sequelize.Sequelize.Op.in]: staffRoles
-        }
+        ...baseWhere,
+        status: 'inactive'
       }
     });
 

@@ -87,7 +87,7 @@ export const getAllPayments = async (req, res, next) => {
     } = req.query;
 
     const where = {};
-    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+    const { isSuperAdmin, effectiveUlbId, isSbmMonitor } = getEffectiveUlbForRequest(req);
 
     if (demandId) where.demandId = demandId;
     if (propertyId) where.propertyId = propertyId;
@@ -125,7 +125,7 @@ export const getAllPayments = async (req, res, next) => {
       where.propertyId = { [Op.in]: propertyIds };
     } else {
       // ULB filter for non-citizen
-      if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+      if (!isSuperAdmin && !isSbmMonitor && (effectiveUlbId == null || effectiveUlbId === '')) {
         return res.status(403).json({
           success: false,
           message: 'Access denied. You must be assigned to an ULB to view payments.'
@@ -236,8 +236,8 @@ export const getPaymentById = async (req, res, next) => {
       }
     } else {
       // ULB isolation: non–super-admin can only view payments in their assigned ULB
-      const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
-      if (!isSuperAdmin && effectiveUlbId && payment.property) {
+      const { isSuperAdmin, effectiveUlbId, isSbmMonitor } = getEffectiveUlbForRequest(req);
+      if (!isSuperAdmin && !isSbmMonitor && effectiveUlbId && payment.property) {
         const ward = payment.property.ward || await Ward.findByPk(payment.property.wardId, { attributes: ['ulb_id'] });
         if (!ward || ward.ulb_id !== effectiveUlbId) {
           return res.status(403).json({

@@ -15,6 +15,7 @@ import {
 import { useBackTo } from '../../../contexts/NavigationContext';
 import { useToiletBasePath } from './useToiletBasePath';
 import api from '../../../services/api';
+import { formatDateIST } from '../../../utils/dateUtils';
 
 const MaintenanceDetails = () => {
     const { id } = useParams();
@@ -110,7 +111,7 @@ const MaintenanceDetails = () => {
                                 <p className="ds-section-title-muted">Date Scheduled</p>
                                 <div className="flex items-center gap-2 text-sm font-bold text-gray-900">
                                     <Calendar className="w-4 h-4 text-gray-400" />
-                                    {new Date(record.scheduledDate).toLocaleDateString()}
+                                    {formatDateIST(record.scheduledDate)}
                                 </div>
                             </div>
                             <div className="space-y-1">
@@ -124,7 +125,7 @@ const MaintenanceDetails = () => {
                                 <p className="ds-section-title-muted">Completion Date</p>
                                 <div className="flex items-center gap-2 text-sm font-bold text-gray-900">
                                     <Clock className="w-4 h-4 text-gray-400" />
-                                    {record.completedDate ? new Date(record.completedDate).toLocaleDateString() : 'Pending'}
+                                    {record.completedDate ? formatDateIST(record.completedDate) : 'Pending'}
                                 </div>
                             </div>
                             <div className="space-y-1">

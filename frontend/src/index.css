@@ -327,15 +327,32 @@
   }
 }
 
-/* ========== Print: receipt only, no UI ========== */
+/* ========== Print: data only, no full UI ========== */
+/* Hide on screen; show only when printing (e.g. print page title) */
+.print-only {
+  display: none !important;
+}
+
 @media print {
   .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  /* Table column that should be hidden in print (e.g. Actions with View links) */
+  .print-hide-col {
     display: none !important;
   }
   body {
     background: #fff;
   }
-  /* Minimize browser header/footer space so receipt is prominent */
+  /* Main content: full width, no layout chrome */
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+  /* Minimize browser header/footer space */
   @page {
     margin: 1cm;
   }
@@ -343,5 +360,15 @@
   .receipt-print-area {
     box-shadow: none !important;
     border: 1px solid #000 !important;
+  }
+  /* Keep tables readable: avoid breaking rows across pages where possible */
+  table {
+    border-collapse: collapse;
+  }
+  thead {
+    display: table-header-group;
+  }
+  tr {
+    page-break-inside: avoid;
   }
 }

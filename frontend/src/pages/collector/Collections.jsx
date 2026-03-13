@@ -5,6 +5,7 @@ import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
 import { Eye, Search, Receipt, Download, Filter, X } from 'lucide-react';
 import { useStaffAuth } from '../../contexts/StaffAuthContext';
+import { formatDateIST } from '../../utils/dateUtils';
 
 const Collections = () => {
   const { user } = useStaffAuth();
@@ -232,7 +233,7 @@ const Collections = () => {
                           {payment.paymentMode}
                         </span>
                       </td>
-                      <td>{new Date(payment.paymentDate).toLocaleDateString()}</td>
+                      <td>{formatDateIST(payment.paymentDate)}</td>
                       <td>
                         <Link
                           to={`/collector/collections/${payment.id}`}

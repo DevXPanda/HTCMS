@@ -16,6 +16,7 @@ import {
     AlertTriangle
 } from 'lucide-react';
 import api from '../../../services/api';
+import { formatDateIST, formatDateTimeIST } from '../../../utils/dateUtils';
 
 const InspectionDetail = () => {
     const { id } = useParams();
@@ -85,7 +86,7 @@ const InspectionDetail = () => {
             <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Inspection Report</h1>
-                    <p className="text-gray-500 text-sm">Reviewing audit as of {new Date(inspection.inspection_date).toLocaleDateString()}</p>
+                    <p className="text-gray-500 text-sm">Reviewing audit as of {formatDateIST(inspection.inspection_date)}</p>
                 </div>
                 <Link
                     to={`/gaushala/inspections/${id}/edit`}
@@ -125,11 +126,7 @@ const InspectionDetail = () => {
                             <div className="space-y-1 text-right">
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none">Date of Audit</p>
                                 <p className="text-sm font-bold text-gray-900">
-                                    {new Date(inspection.inspection_date).toLocaleDateString('en-US', {
-                                        year: 'numeric',
-                                        month: 'long',
-                                        day: 'numeric'
-                                    })}
+                                    {formatDateIST(inspection.inspection_date)}
                                 </p>
                             </div>
                         </div>
@@ -174,11 +171,7 @@ const InspectionDetail = () => {
                             <div>
                                 <p className="text-[10px] font-bold text-gray-400 uppercase mb-0.5 tracking-widest">Next Inspection Due</p>
                                 <p className="text-sm font-bold text-gray-900 font-mono">
-                                    {inspection.next_inspection_due ? new Date(inspection.next_inspection_due).toLocaleDateString('en-US', {
-                                        year: 'numeric',
-                                        month: 'long',
-                                        day: 'numeric'
-                                    }) : 'Not Scheduled'}
+                                    {inspection.next_inspection_due ? formatDateIST(inspection.next_inspection_due) : 'Not Scheduled'}
                                 </p>
                             </div>
                         </div>
@@ -191,7 +184,7 @@ const InspectionDetail = () => {
                                 <div className="h-1 w-1 rounded-full bg-primary-400 mt-2"></div>
                                 <div>
                                     <p className="text-xs font-semibold">Report Generated</p>
-                                    <p className="text-[10px] opacity-60 tracking-wider font-mono">{new Date(inspection.createdAt).toLocaleString()}</p>
+                                    <p className="text-[10px] opacity-60 tracking-wider font-mono">{formatDateTimeIST(inspection.createdAt)}</p>
                                 </div>
                             </div>
                         </div>

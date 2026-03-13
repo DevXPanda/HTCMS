@@ -1,4 +1,4 @@
-import { DataTypes } from 'sequelize';
+import { DataTypes, Op } from 'sequelize';
 import { sequelize } from '../config/database.js';
 import bcrypt from 'bcryptjs';
 
@@ -17,10 +17,16 @@ export const AdminManagement = sequelize.define('AdminManagement', {
     allowNull: false,
     unique: true
   },
-  // Deprecated roles (kept for future use): Clerk, Inspector, Officer, Contractor. Active: EO, Supervisor, Collector, Field Worker, SFI (Sanitary & Food Inspector).
+  // Deprecated roles (kept for future use): Clerk, Inspector, Officer, Contractor. Active: EO, Supervisor, Collector, Field Worker, SFI, SBM (global monitoring).
   role: {
-    type: DataTypes.ENUM('CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'ADMIN', 'SFI'),
+    type: DataTypes.ENUM('CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'ADMIN', 'SFI', 'SBM'),
     allowNull: false
+  },
+  // SBM only: when true, full CRUD; when false, read-only across all modules (Super Admin can toggle on creation).
+  full_crud_enabled: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false
   },
   phone_number: {
     type: DataTypes.STRING(20),
@@ -134,7 +140,8 @@ AdminManagement.generateEmployeeId = async (role, attempt = 1) => {
     FIELD_WORKER: 'FW',
     CONTRACTOR: 'CON',
     ADMIN: 'ADM',
-    SFI: 'SFI'
+    SFI: 'SFI',
+    SBM: 'SBM'
   };
 
   const prefix = prefixes[normalizedRole];
@@ -148,23 +155,31 @@ AdminManagement.generateEmployeeId = async (role, attempt = 1) => {
   }
 
   try {
-    // Get the count of existing employees with the same role (normalize for comparison)
-    const count = await AdminManagement.count({
+    // Find max existing number for this prefix to avoid duplicates (count can be wrong with deletes/race)
+    const existing = await AdminManagement.findAll({
       where: {
-        role: normalizedRole
-      }
+        role: normalizedRole,
+        employee_id: { [Op.like]: `${prefix}-%` }
+      },
+      attributes: ['employee_id'],
+      raw: true
     });
-
-    // Generate employee ID with attempt-based offset to avoid conflicts
-    const employeeId = `${prefix}-${String(count + attempt).padStart(4, '0')}`;
+    const numbers = existing
+      .map((row) => {
+        const match = (row.employee_id || '').match(/^(.+)-(\d+)$/);
+        return match ? parseInt(match[2], 10) : 0;
+      })
+      .filter((n) => !Number.isNaN(n));
+    const maxNum = numbers.length > 0 ? Math.max(...numbers) : 0;
+    const nextNum = maxNum + attempt;
+    const employeeId = `${prefix}-${String(nextNum).padStart(4, '0')}`;
 
     // Double-check if this ID already exists (race condition protection)
-    const existing = await AdminManagement.findOne({
+    const existingId = await AdminManagement.findOne({
       where: { employee_id: employeeId }
     });
 
-    if (existing) {
-      // If it exists, try with a higher number (recursive call with attempt counter)
+    if (existingId) {
       return AdminManagement.generateEmployeeId(role, attempt + 1);
     }
 

@@ -34,6 +34,7 @@ import {
 } from 'recharts';
 import { fieldWorkerMonitoringAPI } from '../../services/api';
 import toast from 'react-hot-toast';
+import { formatTimeIST } from '../../utils/dateUtils';
 
 const EoDashboard = () => {
   const navigate = useNavigate();
@@ -460,7 +461,7 @@ const EoDashboard = () => {
                   <td className="px-6 py-4 text-sm text-gray-900">{a.ward_name || '-'}</td>
                   <td className="px-6 py-4 text-sm text-gray-900">{a.location || 'N/A'}</td>
                   <td className="px-6 py-4 text-sm text-gray-900">
-                    {a.checkin_time ? new Date(a.checkin_time).toLocaleTimeString() : '-'}
+                    {a.checkin_time ? formatTimeIST(a.checkin_time) : '-'}
                   </td>
                   <td className="px-6 py-4">
                     {a.photo_url ? (

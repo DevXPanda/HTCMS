@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { Search, Filter, X, Eye, Calendar, User, Clock, MapPin, Monitor, Smartphone, Tablet, Globe, Users, Briefcase, Shield, UserCheck, ClipboardList, UserCog } from 'lucide-react';
 import AttendanceDetailsModal from './AttendanceDetailsModal';
 import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
+import { formatDateTimeIST } from '../../../utils/dateUtils';
 
 // Normalize role from API (backend may return uppercase e.g. CLERK, COLLECTOR)
 const getRecordRole = (record) => {
@@ -23,7 +24,7 @@ const Attendance = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [collectors, setCollectors] = useState([]);
-  // Active roles only: all | admin | eo | collector | supervisor | field_worker (deprecated: clerk, inspector, officer)
+  // Active roles only: all | admin | eo | collector | supervisor | sfi (replaced field_worker)
   const [selectedRole, setSelectedRole] = useState('all');
   const [filters, setFilters] = useState({
     collectorId: '',
@@ -116,13 +117,7 @@ const Attendance = () => {
 
   const formatDateTime = (dateString) => {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    return formatDateTimeIST(dateString);
   };
 
   const getDeviceIcon = (deviceType) => {
@@ -242,17 +237,17 @@ const Attendance = () => {
 
         <button
           type="button"
-          onClick={() => setSelectedRole('field_worker')}
-          className={`card p-4 cursor-pointer transition-all hover:shadow-lg ${selectedRole === 'field_worker' ? 'ring-2 ring-cyan-500 bg-cyan-50' : ''}`}
+          onClick={() => setSelectedRole('sfi')}
+          className={`card p-4 cursor-pointer transition-all hover:shadow-lg ${selectedRole === 'sfi' ? 'ring-2 ring-cyan-500 bg-cyan-50' : ''}`}
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Field Worker Attendance</p>
+              <p className="text-sm text-gray-600">SFI Attendance</p>
               <p className="text-2xl font-bold text-gray-900">
-                {allAttendance.filter(r => getRecordRole(r) === 'field_worker').length}
+                {allAttendance.filter(r => getRecordRole(r) === 'sfi').length}
               </p>
             </div>
-            <UserCheck className="w-8 h-8 text-cyan-500" />
+            <Shield className="w-8 h-8 text-cyan-500" />
           </div>
         </button>
       </div>

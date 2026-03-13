@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Send, Camera, X, ClipboardList, CheckCircle2, AlertCircle, Clock, Calendar, MessageSquare, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { formatDateIST, formatDateTimeIST } from '../../utils/dateUtils';
 import api from '../../services/api';
 
 const FileToiletComplaint = () => {
@@ -379,7 +380,7 @@ const FileToiletComplaint = () => {
                                                     </div>
                                                     <div className="flex items-center gap-1">
                                                         <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                                                        {new Date(complaint.createdAt).toLocaleDateString()}
+                                                        {formatDateIST(complaint.createdAt)}
                                                     </div>
                                                 </div>
                                             </div>
@@ -395,7 +396,7 @@ const FileToiletComplaint = () => {
                                                     <p className="text-sm text-green-700 font-medium">{complaint.resolutionNotes}</p>
                                                     {complaint.resolvedAt && (
                                                         <p className="text-[10px] text-green-600 mt-2 font-bold uppercase">
-                                                            Resolved on: {new Date(complaint.resolvedAt).toLocaleString()}
+                                                            Resolved on: {formatDateTimeIST(complaint.resolvedAt)}
                                                         </p>
                                                     )}
                                                 </div>

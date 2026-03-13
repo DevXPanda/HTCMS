@@ -1,7 +1,7 @@
 import { Op } from 'sequelize';
 import { Worker, Ward, AdminManagement, ULB, WorkerTask, WorkerAttendance } from '../models/index.js';
 import { sequelize } from '../config/database.js';
-import { getEffectiveWardIdsForRequest } from '../utils/ulbAccessHelper.js';
+import { getEffectiveWardIdsForRequest, getEffectiveUlbForRequest } from '../utils/ulbAccessHelper.js';
 
 /** Allowed worker types (stored in DB as-is; used for validation) */
 export const WORKER_TYPES = [
@@ -10,6 +10,7 @@ export const WORKER_TYPES = [
   'SWEEPING',
   'TOILET',
   'MRF',
+  'GAUSHALA',
   'CLEANING',
   'DRAINAGE',
   'SOLID_WASTE',
@@ -81,17 +82,18 @@ export const createWorker = async (req, res) => {
       full_name,
       mobile,
       worker_type,
+      worker_type_other,
       ward_id,
       supervisor_id,
       contractor_id,
       status = 'ACTIVE'
     } = req.body;
 
-    // Validation
-    if (!full_name || !mobile || !ward_id || !supervisor_id || !worker_type) {
+    // Validation (supervisor_id is optional)
+    if (!full_name || !mobile || !ward_id || !worker_type) {
       return res.status(400).json({
         success: false,
-        message: 'full_name, mobile, ward_id, supervisor_id, and worker_type are required'
+        message: 'full_name, mobile, ward_id, and worker_type are required'
       });
     }
 
@@ -276,40 +278,43 @@ export const createWorker = async (req, res) => {
       }
     }
 
-    // Validate supervisor exists and belongs to same ULB
-    const supervisor = await AdminManagement.findByPk(supervisor_id, {
-      attributes: ['id', 'ulb_id', 'ward_id', 'role']
-    });
-
-    if (!supervisor) {
-      return res.status(404).json({
-        success: false,
-        message: 'Supervisor not found'
+    // Validate supervisor if provided (optional)
+    let finalSupervisorId = null;
+    if (supervisor_id) {
+      const supervisor = await AdminManagement.findByPk(supervisor_id, {
+        attributes: ['id', 'ulb_id', 'ward_id', 'role']
       });
-    }
 
-    const normalizedSupervisorRole = supervisor.role ? supervisor.role.toUpperCase().replace(/-/g, '_') : null;
-    if (normalizedSupervisorRole !== 'SUPERVISOR') {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid supervisor ID provided'
-      });
-    }
+      if (!supervisor) {
+        return res.status(404).json({
+          success: false,
+          message: 'Supervisor not found'
+        });
+      }
 
-    // Validate supervisor belongs to same ULB
-    if (supervisor.ulb_id !== ulbId) {
-      return res.status(403).json({
-        success: false,
-        message: 'Supervisor does not belong to the same ULB'
-      });
-    }
+      const normalizedSupervisorRole = supervisor.role ? supervisor.role.toUpperCase().replace(/-/g, '_') : null;
+      if (normalizedSupervisorRole !== 'SUPERVISOR') {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid supervisor ID provided'
+        });
+      }
 
-    // Validate supervisor belongs to same ward (if specified)
-    if (supervisor.ward_id && supervisor.ward_id !== parseInt(ward_id)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Supervisor does not belong to the selected ward'
-      });
+      if (supervisor.ulb_id !== ulbId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Supervisor does not belong to the same ULB'
+        });
+      }
+
+      if (supervisor.ward_id && supervisor.ward_id !== parseInt(ward_id)) {
+        return res.status(403).json({
+          success: false,
+          message: 'Supervisor does not belong to the selected ward'
+        });
+      }
+
+      finalSupervisorId = parseInt(supervisor_id);
     }
 
     // Validate contractor if provided
@@ -350,10 +355,11 @@ export const createWorker = async (req, res) => {
       full_name: full_name.trim(),
       mobile: mobile.trim(),
       worker_type: normalizedWorkerType,
+      worker_type_other: normalizedWorkerType === 'OTHER' && worker_type_other ? String(worker_type_other).trim().slice(0, 100) : null,
       ulb_id: ulbId,
       ward_id: parseInt(ward_id),
       eo_id: eoId,
-      supervisor_id: parseInt(supervisor_id),
+      supervisor_id: finalSupervisorId,
       contractor_id: contractor_id ? parseInt(contractor_id) : null,
       status: status.toUpperCase()
     });
@@ -397,16 +403,26 @@ export const getAllWorkers = async (req, res) => {
     const user = req.user;
     const userRole = user?.role ? user.role.toUpperCase().replace(/-/g, '_') : null;
 
-    // Allowed roles: ADMIN, EO, SUPERVISOR, SFI
-    if (userRole !== 'ADMIN' && userRole !== 'EO' && userRole !== 'SUPERVISOR' && userRole !== 'SFI') {
+    // Allowed roles: ADMIN, EO, SUPERVISOR, SFI, SBM (read-only)
+    if (userRole !== 'ADMIN' && userRole !== 'EO' && userRole !== 'SUPERVISOR' && userRole !== 'SFI' && userRole !== 'SBM') {
       return res.status(403).json({
         success: false,
-        message: 'Access denied. Only ADMIN, EO, SUPERVISOR, and SFI can view workers.'
+        message: 'Access denied. Only ADMIN, EO, SUPERVISOR, SFI, or SBM can view workers.'
       });
     }
 
     let whereClause = {};
 
+    // SBM: Global read-only; filter by ulb_id from query if provided
+    if (userRole === 'SBM') {
+      const { effectiveUlbId } = getEffectiveUlbForRequest(req);
+      if (effectiveUlbId) whereClause.ulb_id = effectiveUlbId;
+      if (req.query.ward_id) {
+        const wardIdNum = parseInt(req.query.ward_id, 10);
+        if (!Number.isNaN(wardIdNum)) whereClause.ward_id = wardIdNum;
+      }
+      if (req.query.status) whereClause.status = req.query.status.toUpperCase();
+    }
     // SUPERVISOR: Only show workers assigned to this supervisor (filtered by ULB/modules in dashboard)
     if (userRole === 'SUPERVISOR') {
       whereClause = {
@@ -749,6 +765,7 @@ export const updateWorker = async (req, res) => {
       full_name,
       mobile,
       worker_type,
+      worker_type_other,
       ward_id,
       supervisor_id,
       contractor_id,
@@ -764,6 +781,10 @@ export const updateWorker = async (req, res) => {
         return res.status(400).json({ success: false, message: `worker_type must be one of: ${WORKER_TYPES.join(', ')}` });
       }
       updateData.worker_type = normalized;
+    }
+    if (worker_type_other !== undefined) {
+      const effectiveType = (req.body.worker_type !== undefined ? (req.body.worker_type || '').toUpperCase().replace(/\s/g, '_') : worker.worker_type) || '';
+      updateData.worker_type_other = effectiveType === 'OTHER' && worker_type_other ? String(worker_type_other).trim().slice(0, 100) : null;
     }
     if (ward_id !== undefined) {
       const ward = await Ward.findByPk(ward_id, { attributes: ['id', 'ulb_id'] });
