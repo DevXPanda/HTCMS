@@ -15,7 +15,7 @@ import api from '../../../services/api';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../../components/ConfirmModal';
 
-const MrfWorkerAssignment = ({ facilityId, wardId }) => {
+const MrfWorkerAssignment = ({ facilityId, wardId, readOnly = false }) => {
     const { confirm } = useConfirm();
     const [assignments, setAssignments] = useState([]);
     const [availableWorkers, setAvailableWorkers] = useState([]);
@@ -127,9 +127,11 @@ const MrfWorkerAssignment = ({ facilityId, wardId }) => {
                     </h3>
                     <p className="text-sm text-gray-500 mt-0.5">Manage active workers and shift rotations</p>
                 </div>
-                <button type="button" onClick={openModal} className="btn btn-primary">
-                    <UserPlus className="w-4 h-4" /> Assign Worker
-                </button>
+                {!readOnly && (
+                    <button type="button" onClick={openModal} className="btn btn-primary">
+                        <UserPlus className="w-4 h-4" /> Assign Worker
+                    </button>
+                )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -137,8 +139,8 @@ const MrfWorkerAssignment = ({ facilityId, wardId }) => {
                     <div className="md:col-span-3 empty-state">
                         <User className="empty-state-icon text-gray-300" />
                         <h4 className="empty-state-title">No Workers Assigned</h4>
-                        <p className="empty-state-text max-w-sm mx-auto">Assign street sweepers or collection staff to this MRF facility for task management.</p>
-                        <button type="button" onClick={openModal} className="btn btn-primary mt-4">Assign First Worker</button>
+                        <p className="empty-state-text max-w-sm mx-auto">{readOnly ? 'No active worker assignments for this facility.' : 'Assign street sweepers or collection staff to this MRF facility for task management.'}</p>
+                        {!readOnly && <button type="button" onClick={openModal} className="btn btn-primary mt-4">Assign First Worker</button>}
                     </div>
                 ) : (
                     assignments.map((asgn) => (
@@ -169,7 +171,7 @@ const MrfWorkerAssignment = ({ facilityId, wardId }) => {
                                 </div>
                             </div>
 
-                            {asgn.isActive && (
+                            {asgn.isActive && !readOnly && (
                                 <button
                                     type="button"
                                     onClick={() => handleDeactivate(asgn.id)}
@@ -191,7 +193,7 @@ const MrfWorkerAssignment = ({ facilityId, wardId }) => {
             </div>
 
             {/* Assignment Modal */}
-            {showAssignModal && (
+            {!readOnly && showAssignModal && (
                 <div className="modal-overlay">
                     <div className="modal-panel modal-panel-lg max-w-lg">
                         <div className="modal-header">

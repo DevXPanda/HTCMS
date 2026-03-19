@@ -15,10 +15,12 @@ import {
 import api from '../../../services/api';
 import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 import { formatDateIST } from '../../../utils/dateUtils';
+import { useToiletPermissions } from './useToiletPermissions';
 
 const ToiletInspections = () => {
   const base = useToiletBasePath();
   useBackTo(base);
+  const { isSbm, canCrud } = useToiletPermissions();
   const { effectiveUlbId } = useSelectedUlb();
   const [inspections, setInspections] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -97,13 +99,15 @@ const ToiletInspections = () => {
           <h1 className="ds-page-title">Toilet Inspections</h1>
           <p className="ds-page-subtitle">Schedule and track toilet facility inspections</p>
         </div>
-        <Link
-          to={`${base}/inspections/new`}
-          className="btn btn-primary flex items-center"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Schedule Inspection
-        </Link>
+        {(!isSbm || canCrud) && (
+          <Link
+            to={`${base}/inspections/new`}
+            className="btn btn-primary flex items-center"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Schedule Inspection
+          </Link>
+        )}
       </div>
 
       <div className="card">

@@ -4,6 +4,7 @@ import { User, LogOut, Home, X } from 'lucide-react';
 import { useState } from 'react';
 import Breadcrumbs from './Breadcrumbs';
 import HeaderNotificationBell from './HeaderNotificationBell';
+import GlobalHeaderSearch from './GlobalHeaderSearch';
 
 const CollectorLayout = () => {
   const { user, logout } = useStaffAuth();
@@ -28,6 +29,7 @@ const CollectorLayout = () => {
               <div className="flex items-center min-w-0 shrink-0">
                 <h1 className="layout-header-title">ULB System</h1>
               </div>
+              <GlobalHeaderSearch role="collector" />
               <div className="layout-header-actions">
                 <button
                   onClick={() => navigate('/collector/dashboard')}

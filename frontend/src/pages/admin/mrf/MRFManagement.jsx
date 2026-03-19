@@ -14,10 +14,12 @@ import { useMrfBasePath } from './useMrfBasePath';
 import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 import api from '../../../services/api';
 import { exportToCSV } from '../../../utils/exportCSV';
+import { useMrfPermissions } from './useMrfPermissions';
 
 const MRFManagement = () => {
     const base = useMrfBasePath();
     useBackTo(base);
+    const { isSbm, canCrud } = useMrfPermissions();
     const { effectiveUlbId } = useSelectedUlb();
     const [facilities, setFacilities] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -44,13 +46,20 @@ const MRFManagement = () => {
     const fetchFacilities = async () => {
         try {
             setLoading(true);
-            const params = effectiveUlbId ? { ulb_id: effectiveUlbId } : {};
+            const sbmUlbId = (() => {
+                if (!isSbm || typeof window === 'undefined') return '';
+                try { return sessionStorage.getItem('htcms_sbm_selected_ulb_id') || ''; } catch { return ''; }
+            })();
+            const ulbForQuery = sbmUlbId || effectiveUlbId;
+            const params = ulbForQuery ? { ulb_id: ulbForQuery } : {};
             const response = await api.get('/mrf/facilities', { params });
             if (response.data && response.data.success) {
-                setFacilities(response.data.data.facilities);
+                const list = response.data?.data?.facilities ?? response.data?.facilities ?? [];
+                setFacilities(Array.isArray(list) ? list : []);
             }
         } catch (error) {
             console.error('Failed to fetch MRF facilities:', error);
+            setFacilities([]);
         } finally {
             setLoading(false);
         }
@@ -105,13 +114,15 @@ const MRFManagement = () => {
                     <p className="ds-page-subtitle">Manage recycling and waste processing centers</p>
                 </div>
                 <div className="flex gap-2">
-                    <Link
-                        to={`${base}/facilities/new`}
-                        className="btn btn-primary flex items-center"
-                    >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add MRF Center
-                    </Link>
+                    {(!isSbm || canCrud) && (
+                        <Link
+                            to={`${base}/facilities/new`}
+                            className="btn btn-primary flex items-center"
+                        >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add MRF Center
+                        </Link>
+                    )}
                     <button
                         type="button"
                         onClick={handleExport}
@@ -185,13 +196,15 @@ const MRFManagement = () => {
                                                 >
                                                     <Eye className="h-5 w-5" />
                                                 </Link>
-                                                <Link
-                                                    to={`${base}/facilities/${facility.id}/edit`}
-                                                    className="text-blue-600 hover:text-blue-900"
-                                                    title="Edit"
-                                                >
-                                                    <Edit className="h-5 w-5" />
-                                                </Link>
+                                                {(!isSbm || canCrud) && (
+                                                    <Link
+                                                        to={`${base}/facilities/${facility.id}/edit`}
+                                                        className="text-blue-600 hover:text-blue-900"
+                                                        title="Edit"
+                                                    >
+                                                        <Edit className="h-5 w-5" />
+                                                    </Link>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { staffAuthAPI } from '../services/api';
 
-const StaffAuthContext = createContext(null);
+export const StaffAuthContext = createContext(null);
 
 export const useStaffAuth = () => {
   const context = useContext(StaffAuthContext);
@@ -39,7 +39,7 @@ export const StaffAuthProvider = ({ children }) => {
       const storedRole = localStorage.getItem('role');
       // Normalize role to uppercase for comparison
       const normalizedStoredRole = storedRole ? storedRole.toUpperCase().replace(/-/g, '_') : storedRole;
-      const staffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'TAX_COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI', 'SBM'];
+      const staffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'TAX_COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI', 'SBM', 'ACCOUNT_OFFICER'];
 
       if (normalizedStoredRole && !staffRoles.includes(normalizedStoredRole)) {
         console.log(`ℹ️ StaffAuthContext - Skipping staff auth for role: ${storedRole}`);

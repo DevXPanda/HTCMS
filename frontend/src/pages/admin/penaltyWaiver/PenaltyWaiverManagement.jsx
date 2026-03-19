@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { demandAPI, penaltyWaiverAPI, propertyAPI, waterConnectionAPI, shopsAPI } from '../../../services/api';
+import { demandAPI, paymentApprovalRequestAPI, penaltyWaiverAPI, propertyAPI, waterConnectionAPI, shopsAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { Search, Shield, IndianRupee, FileText, Calendar, History, Download, CheckCircle, Printer } from 'lucide-react';
@@ -70,6 +70,8 @@ const PenaltyWaiverManagement = () => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [detailDownloading, setDetailDownloading] = useState(false);
   const [formMessage, setFormMessage] = useState(null);
+  const role = (localStorage.getItem('role') || '').toString().toUpperCase().replace(/-/g, '_');
+  const isAccountOfficer = role === 'ACCOUNT_OFFICER';
 
   useEffect(() => {
     if (showSuccessModal || showDetailModal) {
@@ -333,20 +335,36 @@ const PenaltyWaiverManagement = () => {
     setSubmitting(true);
     setFormMessage(null);
     try {
-      const res = await penaltyWaiverAPI.create({
-        module_type: module,
-        entity_id: entityId,
-        demand_id: selectedDemand.id,
-        waiver_type: waiverType,
-        waiver_value: waiverValNum,
-        reason: reason.trim(),
-        document_url: documentUrl
-      });
-      if (!res.data?.success || !res.data?.data?.waiver?.id) {
+      const res = isAccountOfficer
+        ? await paymentApprovalRequestAPI.create({
+          request_type: 'PENALTY_WAIVER',
+          module_type: module,
+          entity_id: entityId,
+          demand_id: selectedDemand.id,
+          adjustment_type: waiverType,
+          adjustment_value: waiverValNum,
+          reason: reason.trim(),
+          document_url: documentUrl
+        })
+        : await penaltyWaiverAPI.create({
+          module_type: module,
+          entity_id: entityId,
+          demand_id: selectedDemand.id,
+          waiver_type: waiverType,
+          waiver_value: waiverValNum,
+          reason: reason.trim(),
+          document_url: documentUrl
+        });
+      if (!res.data?.success) {
         toast.error(res.data?.message || 'Invalid response');
         return;
       }
-      const { waiver, demand: resDemand } = res.data.data;
+      const waiver = res.data?.data?.waiver || res.data?.data?.request;
+      const resDemand = res.data?.data?.demand || selectedDemand;
+      if (!waiver?.id) {
+        toast.error('Invalid response');
+        return;
+      }
       const origTax = parseFloat(resDemand?.totalAmount || 0) - (parseFloat(resDemand?.penaltyWaived ?? 0) || 0);
       const waiverDate = waiver.createdAt ?? waiver.created_at;
       setCreatedAdjustment({
@@ -355,11 +373,13 @@ const PenaltyWaiverManagement = () => {
         citizenName: '—',
         demandNumber: resDemand?.demandNumber || selectedDemand?.demandNumber || '—',
         originalAmount: penaltyAmountTotal,
-        adjustmentAmount: waiver.waiverAmount,
+        adjustmentAmount: waiver.waiverAmount ?? waiver.adjustmentValue,
         adjustmentLabel: 'Waived Amount',
-        type: waiver.waiverType === 'PERCENTAGE' ? `Percentage (${waiver.waiverValue}%)` : 'Fixed',
+        type: (waiver.waiverType || waiver.adjustmentType) === 'PERCENTAGE'
+          ? `Percentage (${waiver.waiverValue ?? waiver.adjustmentValue}%)`
+          : 'Fixed',
         finalAmount: resDemand?.finalAmount,
-        approvedBy: waiver.approvedBy != null ? `ID ${waiver.approvedBy}` : '—',
+        approvedBy: isAccountOfficer ? 'Pending Super Admin approval' : (waiver.approvedBy != null ? `ID ${waiver.approvedBy}` : '—'),
         date: waiverDate,
         reason: waiver.reason || '',
         documentUrl: waiver.documentUrl
@@ -393,7 +413,7 @@ const PenaltyWaiverManagement = () => {
     demandAPI.getByModuleEntity(module, entityId, { forPenaltyWaiver: '1' }).then((res) => setDemands(res.data.data?.demands || []));
     penaltyWaiverAPI.getSummary().then((res) => res.data?.success && res.data?.data && setSummary(res.data.data));
     refreshHistory();
-    toast.success('Adjustment recorded successfully');
+    toast.success(isAccountOfficer ? 'Approval request submitted successfully' : 'Adjustment recorded successfully');
   };
 
   const handleSuccessYes = () => {
@@ -412,7 +432,7 @@ const PenaltyWaiverManagement = () => {
     demandAPI.getByModuleEntity(module, entityId, { forPenaltyWaiver: '1' }).then((res) => setDemands(res.data.data?.demands || []));
     penaltyWaiverAPI.getSummary().then((res) => res.data?.success && res.data?.data && setSummary(res.data.data));
     refreshHistory();
-    toast.success('Adjustment recorded successfully');
+    toast.success(isAccountOfficer ? 'Approval request submitted successfully' : 'Adjustment recorded successfully');
   };
 
   const handleDetailDownloadPdf = async () => {
@@ -472,8 +492,12 @@ const PenaltyWaiverManagement = () => {
     <div className="space-y-8 max-w-7xl mx-auto px-2">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="ds-page-title">Penalty Waiver Management</h1>
-          <p className="ds-page-subtitle">Manual penalty or late fee relief management</p>
+          <h1 className="ds-page-title">{isAccountOfficer ? 'Penalty Waiver Requests' : 'Penalty Waiver Management'}</h1>
+          <p className="ds-page-subtitle">
+            {isAccountOfficer
+              ? 'Submit penalty waiver requests for Super Admin approval.'
+              : 'Manual penalty or late fee relief management'}
+          </p>
         </div>
       </div>
 
@@ -866,7 +890,7 @@ const PenaltyWaiverManagement = () => {
                 {!documentUrl && <p className="text-sm text-amber-600 mt-1">PDF or image is required.</p>}
               </div>
               <button type="submit" disabled={submitting || !canSubmit} className="btn btn-primary">
-                {submitting ? 'Applying…' : 'Apply Penalty Waiver'}
+                {submitting ? (isAccountOfficer ? 'Submitting…' : 'Applying…') : (isAccountOfficer ? 'Submit for Approval' : 'Apply Penalty Waiver')}
               </button>
             </form>
           </section>

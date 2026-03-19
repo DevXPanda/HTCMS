@@ -28,11 +28,14 @@ import MrfWasteLogs from './MrfWasteLogs';
 import MrfWorkerAssignment from './MrfWorkerAssignment';
 import MrfTaskBoard from './MrfTaskBoard';
 import MrfLinkedComplaints from './MrfLinkedComplaints';
+import { useMrfPermissions } from './useMrfPermissions';
 
 const MRFDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const base = useMrfBasePath();
+    const { isSbm, canCrud } = useMrfPermissions();
+    const readOnly = isSbm && !canCrud;
     const { confirm } = useConfirm();
     const [searchParams] = useSearchParams();
     const tabFromUrl = searchParams.get('tab');
@@ -147,12 +150,16 @@ const MRFDetails = () => {
                     </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                    <Link to={`${base}/facilities/${id}/edit`} className="btn btn-secondary">
-                        <Edit className="w-4 h-4" /> Edit Facility
-                    </Link>
-                    <button type="button" onClick={handleDelete} className="btn btn-danger">
-                        <Trash2 className="w-4 h-4" /> Deactivate
-                    </button>
+                    {!readOnly && (
+                        <>
+                            <Link to={`${base}/facilities/${id}/edit`} className="btn btn-secondary">
+                                <Edit className="w-4 h-4" /> Edit Facility
+                            </Link>
+                            <button type="button" onClick={handleDelete} className="btn btn-danger">
+                                <Trash2 className="w-4 h-4" /> Deactivate
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -267,12 +274,14 @@ const MRFDetails = () => {
                     <MrfWorkerAssignment
                         facilityId={id}
                         wardId={facility.ward_id}
+                        readOnly={readOnly}
                     />
                 )}
 
                 {activeTab === 'tasks' && (
                     <MrfTaskBoard
                         facilityId={id}
+                        readOnly={readOnly}
                     />
                 )}
 
@@ -280,6 +289,7 @@ const MRFDetails = () => {
                     <MrfWasteLogs
                         facilityId={id}
                         wasteTypes={facility.waste_types}
+                        readOnly={readOnly}
                     />
                 )}
 

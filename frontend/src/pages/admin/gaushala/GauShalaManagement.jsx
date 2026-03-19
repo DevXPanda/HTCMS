@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useGaushalaBasePath } from './useGaushalaBasePath';
 import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 import {
     Beef,
@@ -18,9 +19,12 @@ import {
 } from 'lucide-react';
 import api from '../../../services/api';
 import { exportToCSV } from '../../../utils/exportCSV';
+import { useGaushalaPermissions } from './useGaushalaPermissions';
 
 const GauShalaManagement = () => {
-    useBackTo('/gaushala/management');
+    const base = useGaushalaBasePath();
+    useBackTo(`${base}/management`);
+    const { isSbm, canCrud } = useGaushalaPermissions();
     const { effectiveUlbId } = useSelectedUlb();
     const [facilities, setFacilities] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -56,7 +60,12 @@ const GauShalaManagement = () => {
     const fetchData = async () => {
         try {
             setLoading(true);
-            const params = effectiveUlbId ? { ulb_id: effectiveUlbId } : {};
+            const sbmUlbId = (() => {
+                if (!isSbm || typeof window === 'undefined') return '';
+                try { return sessionStorage.getItem('htcms_sbm_selected_ulb_id') || ''; } catch { return ''; }
+            })();
+            const ulbForQuery = sbmUlbId || effectiveUlbId;
+            const params = ulbForQuery ? { ulb_id: ulbForQuery } : {};
             const [facRes, cattleRes, inspRes, compRes] = await Promise.all([
                 api.get('/gaushala/facilities', { params }),
                 api.get('/gaushala/cattle', { params }),
@@ -65,19 +74,27 @@ const GauShalaManagement = () => {
             ]);
 
             if (facRes.data && facRes.data.success) {
-                setFacilities(facRes.data.data.facilities);
+                const facilities = facRes.data?.data?.facilities ?? facRes.data?.facilities ?? [];
+                setFacilities(Array.isArray(facilities) ? facilities : []);
             }
             if (cattleRes.data && cattleRes.data.success) {
-                setCattle(cattleRes.data.data.cattle);
+                const cattle = cattleRes.data?.data?.cattle ?? cattleRes.data?.cattle ?? [];
+                setCattle(Array.isArray(cattle) ? cattle : []);
             }
             if (inspRes.data && inspRes.data.success) {
-                setInspections(inspRes.data.data.inspections);
+                const inspections = inspRes.data?.data?.inspections ?? inspRes.data?.inspections ?? [];
+                setInspections(Array.isArray(inspections) ? inspections : []);
             }
             if (compRes.data && compRes.data.success) {
-                setComplaints(compRes.data.data.complaints);
+                const complaints = compRes.data?.data?.complaints ?? compRes.data?.complaints ?? [];
+                setComplaints(Array.isArray(complaints) ? complaints : []);
             }
         } catch (error) {
             console.error('Failed to fetch Gaushala data:', error);
+            setFacilities([]);
+            setCattle([]);
+            setInspections([]);
+            setComplaints([]);
         } finally {
             setLoading(false);
         }
@@ -173,13 +190,15 @@ const GauShalaManagement = () => {
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold text-gray-900">Gaushala Facilities</h1>
                 <div className="flex gap-2">
-                    <Link
-                        to="/gaushala/facilities/new"
-                        className="btn btn-primary flex items-center"
-                    >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Gaushala
-                    </Link>
+                    {(!isSbm || canCrud) && (
+                        <Link
+                            to={`${base}/facilities/new`}
+                            className="btn btn-primary flex items-center"
+                        >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add Gaushala
+                        </Link>
+                    )}
                     <button
                         onClick={() => setShowFilters(!showFilters)}
                         className="btn btn-secondary flex items-center"
@@ -345,19 +364,21 @@ const GauShalaManagement = () => {
                                         <td>
                                             <div className="flex justify-end gap-2">
                                                 <Link
-                                                    to={`/gaushala/facilities/${facility.id}`}
+                                                    to={`${base}/facilities/${facility.id}`}
                                                     className="text-primary-600 hover:text-primary-900"
                                                     title="View Details"
                                                 >
                                                     <Eye className="h-5 w-5" />
                                                 </Link>
-                                                <Link
-                                                    to={`/gaushala/facilities/${facility.id}/edit`}
-                                                    className="text-blue-600 hover:text-blue-900"
-                                                    title="Edit"
-                                                >
-                                                    <Edit className="h-5 w-5" />
-                                                </Link>
+                                                {(!isSbm || canCrud) && (
+                                                    <Link
+                                                        to={`${base}/facilities/${facility.id}/edit`}
+                                                        className="text-blue-600 hover:text-blue-900"
+                                                        title="Edit"
+                                                    >
+                                                        <Edit className="h-5 w-5" />
+                                                    </Link>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

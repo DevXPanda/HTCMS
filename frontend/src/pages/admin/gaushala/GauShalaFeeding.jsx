@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useGaushalaBasePath } from './useGaushalaBasePath';
 import {
     Plus,
     Search,
@@ -10,9 +11,12 @@ import {
 } from 'lucide-react';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
+import { useGaushalaPermissions } from './useGaushalaPermissions';
 
 const GauShalaFeeding = () => {
-    useBackTo('/gaushala/management');
+    const base = useGaushalaBasePath();
+    useBackTo(`${base}/management`);
+    const { isSbm, canCrud } = useGaushalaPermissions();
     const [records, setRecords] = useState([]);
     const [facilities, setFacilities] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -139,13 +143,15 @@ const GauShalaFeeding = () => {
                     <h1 className="text-2xl font-bold text-gray-900">Feeding & Fodder Logs</h1>
                     <p className="text-gray-600 text-sm">Track animal nutrition and fodder inventory</p>
                 </div>
-                <button
-                    onClick={() => setShowModal(true)}
-                    className="btn btn-primary flex items-center"
-                >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Log Feeding
-                </button>
+                {(!isSbm || canCrud) && (
+                    <button
+                        onClick={() => setShowModal(true)}
+                        className="btn btn-primary flex items-center"
+                    >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Log Feeding
+                    </button>
+                )}
             </div>
 
             {/* Summary Stats */}
@@ -231,7 +237,7 @@ const GauShalaFeeding = () => {
                                             {record.notes || 'No notes'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <Link to={`/gaushala/facilities/${record.gau_shala_facility_id}`} className="text-primary-600 hover:text-primary-900">
+                                            <Link to={`${base}/facilities/${record.gau_shala_facility_id}`} className="text-primary-600 hover:text-primary-900">
                                                 <Eye className="h-5 w-5" />
                                             </Link>
                                         </td>
@@ -244,7 +250,7 @@ const GauShalaFeeding = () => {
             </div>
 
             {/* Modal */}
-            {showModal && (
+            {showModal && (!isSbm || canCrud) && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
                     <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
                         <div className="flex items-center justify-between px-6 py-4 border-b">

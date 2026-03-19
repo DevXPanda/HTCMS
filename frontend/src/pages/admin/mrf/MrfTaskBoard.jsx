@@ -15,7 +15,7 @@ import api from '../../../services/api';
 import toast from 'react-hot-toast';
 import MrfProofCapture from '../../../components/MrfProofCapture';
 
-const MrfTaskBoard = ({ facilityId, allowProofOnUpdate = false }) => {
+const MrfTaskBoard = ({ facilityId, allowProofOnUpdate = false, readOnly = false }) => {
     const [tasks, setTasks] = useState([]);
     const [assignedWorkers, setAssignedWorkers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -157,15 +157,17 @@ const MrfTaskBoard = ({ facilityId, allowProofOnUpdate = false }) => {
                     </h3>
                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight mt-1">Assign and monitor real-time facility operations</p>
                 </div>
-                <button
-                    onClick={() => setShowTaskForm(!showTaskForm)}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-700 transition-all shadow-lg shadow-primary-500/20 active:scale-95"
-                >
-                    {showTaskForm ? 'Cancel Assignment' : <><Plus className="w-4 h-4" /> New Task Assignment</>}
-                </button>
+                {!readOnly && (
+                    <button
+                        onClick={() => setShowTaskForm(!showTaskForm)}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-700 transition-all shadow-lg shadow-primary-500/20 active:scale-95"
+                    >
+                        {showTaskForm ? 'Cancel Assignment' : <><Plus className="w-4 h-4" /> New Task Assignment</>}
+                    </button>
+                )}
             </div>
 
-            {showTaskForm && (
+            {!readOnly && showTaskForm && (
                 <form onSubmit={handleCreateTask} className="bg-gray-50 border border-gray-100 rounded-2xl p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-top-4 duration-300">
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Select Worker</label>
@@ -242,7 +244,7 @@ const MrfTaskBoard = ({ facilityId, allowProofOnUpdate = false }) => {
                                                 {task.task_type}
                                             </span>
                                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                {status === 'Assigned' && (
+                                                {!readOnly && status === 'Assigned' && (
                                                     <button
                                                         onClick={() => (allowProofOnUpdate ? openStatusUpdate(task.id, 'In Progress', task.task_type, task.worker?.full_name) : handleUpdateStatus(task.id, 'In Progress'))}
                                                         className="p-1.5 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100"
@@ -251,7 +253,7 @@ const MrfTaskBoard = ({ facilityId, allowProofOnUpdate = false }) => {
                                                         <Clock className="w-3.5 h-3.5" />
                                                     </button>
                                                 )}
-                                                {status !== 'Completed' && (
+                                                {!readOnly && status !== 'Completed' && (
                                                     <button
                                                         onClick={() => (allowProofOnUpdate ? openStatusUpdate(task.id, 'Completed', task.task_type, task.worker?.full_name) : handleUpdateStatus(task.id, 'Completed'))}
                                                         className="p-1.5 bg-green-50 text-green-600 rounded-lg hover:bg-green-100"

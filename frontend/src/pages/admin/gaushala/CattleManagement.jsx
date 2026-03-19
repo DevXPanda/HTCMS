@@ -17,12 +17,16 @@ import {
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../../components/ConfirmModal';
+import { useGaushalaBasePath } from './useGaushalaBasePath';
+import { useGaushalaPermissions } from './useGaushalaPermissions';
 
 const CattleManagement = () => {
     const { confirm } = useConfirm();
     const { id } = useParams();
     const navigate = useNavigate();
-    useBackTo(`/gaushala/facilities/${id}`);
+    const base = useGaushalaBasePath();
+    useBackTo(`${base}/facilities/${id}`);
+    const { isSbm, canCrud } = useGaushalaPermissions();
     const [cattle, setCattle] = useState([]);
     const [facility, setFacility] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -128,12 +132,14 @@ const CattleManagement = () => {
                     <h1 className="text-2xl font-bold text-gray-900">Cattle Management</h1>
                     <p className="text-gray-500 text-sm">{facility?.name}</p>
                 </div>
-                <button
-                    onClick={() => { setEditingAnimal(null); setShowAddModal(true); }}
-                    className="btn btn-primary flex items-center gap-2"
-                >
-                    <Plus className="w-4 h-4" /> Add New Animal
-                </button>
+                {(!isSbm || canCrud) && (
+                    <button
+                        onClick={() => { setEditingAnimal(null); setShowAddModal(true); }}
+                        className="btn btn-primary flex items-center gap-2"
+                    >
+                        <Plus className="w-4 h-4" /> Add New Animal
+                    </button>
+                )}
             </div>
 
             {/* Search and Filter */}
@@ -199,12 +205,16 @@ const CattleManagement = () => {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end gap-2">
-                                                <button onClick={() => handleEdit(animal)} className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all">
-                                                    <Edit className="w-4 h-4" />
-                                                </button>
-                                                <button onClick={() => handleDelete(animal.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
+                                                {(!isSbm || canCrud) && (
+                                                    <>
+                                                        <button onClick={() => handleEdit(animal)} className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all">
+                                                            <Edit className="w-4 h-4" />
+                                                        </button>
+                                                        <button onClick={() => handleDelete(animal.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -220,7 +230,7 @@ const CattleManagement = () => {
             </div>
 
             {/* Add/Edit Modal */}
-            {showAddModal && (
+            {showAddModal && (!isSbm || canCrud) && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
                         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">

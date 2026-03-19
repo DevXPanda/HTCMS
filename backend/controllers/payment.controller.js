@@ -72,6 +72,8 @@ const validateOverpaymentProtection = (paymentAmount, balanceAmount, demandNumbe
  */
 export const getAllPayments = async (req, res, next) => {
   try {
+    const normalizedRole = (req.user?.role || '').toString().toUpperCase().replace(/-/g, '_');
+    const isAccountOfficer = req.userType === 'admin_management' && normalizedRole === 'ACCOUNT_OFFICER';
     const {
       demandId,
       propertyId,
@@ -125,13 +127,13 @@ export const getAllPayments = async (req, res, next) => {
       where.propertyId = { [Op.in]: propertyIds };
     } else {
       // ULB filter for non-citizen
-      if (!isSuperAdmin && !isSbmMonitor && (effectiveUlbId == null || effectiveUlbId === '')) {
+      if (!isSuperAdmin && !isSbmMonitor && !isAccountOfficer && (effectiveUlbId == null || effectiveUlbId === '')) {
         return res.status(403).json({
           success: false,
           message: 'Access denied. You must be assigned to an ULB to view payments.'
         });
       }
-      if (effectiveUlbId) {
+      if (effectiveUlbId && !isAccountOfficer) {
         const wardIds = await getWardIdsByUlbId(effectiveUlbId);
         if (!wardIds || wardIds.length === 0) {
           return res.json({

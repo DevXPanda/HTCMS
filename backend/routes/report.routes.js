@@ -16,12 +16,12 @@ router.use(authenticate);
 router.get('/dashboard', authorize('admin', 'assessor', 'cashier', 'SBM'), getDashboardStats);
 
 // Revenue report (Admin, Cashier)
-router.get('/revenue', authorize('admin', 'cashier'), getRevenueReport);
+router.get('/revenue', authorize('admin', 'cashier', 'SBM'), getRevenueReport);
 
 // Outstanding report (Admin, Tax Collector)
-router.get('/outstanding', authorize('admin', 'tax_collector'), getOutstandingReport);
+router.get('/outstanding', authorize('admin', 'tax_collector', 'SBM'), getOutstandingReport);
 
 // Ward-wise report (Admin only)
-router.get('/ward-wise', authorize('admin'), getWardWiseReport);
+router.get('/ward-wise', authorize('admin', 'SBM'), getWardWiseReport);
 
 export default router;

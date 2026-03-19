@@ -4,10 +4,14 @@ import { useBackTo } from '../../../contexts/NavigationContext';
 import { Save } from 'lucide-react';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
+import { useGaushalaBasePath } from './useGaushalaBasePath';
+import { useGaushalaPermissions } from './useGaushalaPermissions';
 
 const AddCattle = () => {
     const navigate = useNavigate();
-    useBackTo('/gaushala/all-cattle');
+    const base = useGaushalaBasePath();
+    useBackTo(`${base}/all-cattle`);
+    const { isSbm, canCrud } = useGaushalaPermissions();
     const [facilities, setFacilities] = useState([]);
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -21,8 +25,13 @@ const AddCattle = () => {
     });
 
     useEffect(() => {
+        if (isSbm && !canCrud) {
+            toast.error('Read-only access: editing is disabled.');
+            navigate(`${base}/all-cattle`);
+            return;
+        }
         fetchFacilities();
-    }, []);
+    }, [isSbm, canCrud, navigate, base]);
 
     const fetchFacilities = async () => {
         try {
@@ -52,7 +61,7 @@ const AddCattle = () => {
             const response = await api.post('/gaushala/cattle', formData);
             if (response.data && response.data.success) {
                 toast.success('Animal registered successfully!');
-                navigate('/gaushala/all-cattle');
+                navigate(`${base}/all-cattle`);
             }
         } catch (error) {
             console.error('Failed to register animal:', error);
@@ -200,7 +209,7 @@ const AddCattle = () => {
                 {/* Form Actions */}
                 <div className="flex justify-end gap-4 pt-4 border-t border-gray-200">
                     <Link
-                        to="/gaushala/all-cattle"
+                        to={`${base}/all-cattle`}
                         className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
                     >
                         Cancel

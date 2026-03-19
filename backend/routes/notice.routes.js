@@ -22,11 +22,11 @@ router.get('/pdfs/:filename', downloadNoticePdf);
 // Generate notice (Admin, Assessor only - Collector has NO access)
 router.post('/generate', authorize('admin', 'assessor'), generateNotice);
 
-// List all notices (Admin, Assessor)
-router.get('/', authorize('admin', 'assessor'), getAllNotices);
+// List all notices (Admin, Assessor, SBM read-only)
+router.get('/', authorize('admin', 'assessor', 'SBM'), getAllNotices);
 
-// Get notice by ID (Admin, Assessor)
-router.get('/:id', authorize('admin', 'assessor'), getNoticeById);
+// Get notice by ID (Admin, Assessor, SBM read-only)
+router.get('/:id', authorize('admin', 'assessor', 'SBM'), getNoticeById);
 
 // Generate notice PDF (Admin, Assessor, Citizen - own notices)
 router.post('/:id/generate-pdf', generateNoticePdf);

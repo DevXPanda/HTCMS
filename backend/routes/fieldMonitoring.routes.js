@@ -11,8 +11,8 @@ const router = express.Router();
 // All routes require authentication
 router.use(authenticate);
 
-// All routes require admin or assessor role
-router.use(authorize('admin', 'assessor'));
+// All routes require admin, assessor, or SBM (read-only)
+router.use(authorize('admin', 'assessor', 'SBM'));
 
 // Get field operations dashboard
 router.get('/dashboard', getFieldDashboard);

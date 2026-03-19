@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useGaushalaBasePath } from './useGaushalaBasePath';
 import {
     ClipboardCheck,
     Plus,
@@ -13,9 +14,12 @@ import {
     Edit
 } from 'lucide-react';
 import api from '../../../services/api';
+import { useGaushalaPermissions } from './useGaushalaPermissions';
 
 const GauShalaInspections = () => {
-    useBackTo('/gaushala/management');
+    const base = useGaushalaBasePath();
+    useBackTo(`${base}/management`);
+    const { isSbm, canCrud } = useGaushalaPermissions();
     const [inspections, setInspections] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -123,13 +127,15 @@ const GauShalaInspections = () => {
                     <h1 className="text-2xl font-bold text-gray-900">Gaushala Inspections</h1>
                     <p className="text-gray-600 text-sm">Schedule and track veterinary and facility inspections</p>
                 </div>
-                <Link
-                    to="/gaushala/inspections/new"
-                    className="btn btn-primary flex items-center"
-                >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Schedule Inspection
-                </Link>
+                {(!isSbm || canCrud) && (
+                    <Link
+                        to={`${base}/inspections/new`}
+                        className="btn btn-primary flex items-center"
+                    >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Schedule Inspection
+                    </Link>
+                )}
             </div>
 
             {/* Filters */}
@@ -244,12 +250,14 @@ const GauShalaInspections = () => {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div className="flex justify-end gap-2">
-                                                <Link to={`/gaushala/inspections/${inspection.id}`} className="text-primary-600 hover:text-primary-900" title="View Inspection">
+                                                <Link to={`${base}/inspections/${inspection.id}`} className="text-primary-600 hover:text-primary-900" title="View Inspection">
                                                     <Eye className="h-5 w-5" />
                                                 </Link>
-                                                <Link to={`/gaushala/inspections/${inspection.id}/edit`} className="text-blue-600 hover:text-blue-900" title="Edit Inspection">
-                                                    <Edit className="h-5 w-5" />
-                                                </Link>
+                                                {(!isSbm || canCrud) && (
+                                                    <Link to={`${base}/inspections/${inspection.id}/edit`} className="text-blue-600 hover:text-blue-900" title="Edit Inspection">
+                                                        <Edit className="h-5 w-5" />
+                                                    </Link>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

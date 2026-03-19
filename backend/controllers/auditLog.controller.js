@@ -143,7 +143,7 @@ export const getAuditLogs = async (req, res, next) => {
           ]
         }
       ];
-    } else if (user.role === 'admin' || user.role === 'assessor') {
+    } else if (user.role === 'admin' || user.role === 'assessor' || String(user.role || '').toUpperCase() === 'SBM') {
       // Admin/Assessor with effective ULB: restrict to entities and actors in that ULB
       const { effectiveUlbId } = getEffectiveUlbForRequest(req);
       if (effectiveUlbId) {

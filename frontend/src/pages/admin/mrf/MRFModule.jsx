@@ -13,10 +13,12 @@ import {
     CheckCircle
 } from 'lucide-react';
 import api from '../../../services/api';
+import { useMrfPermissions } from './useMrfPermissions';
 
 const MRFModule = () => {
     const base = useMrfBasePath();
-    useBackTo(base === '/sfi/mrf' ? '/sfi/dashboard' : '/dashboard');
+    useBackTo(base === '/sfi/mrf' ? '/sfi/dashboard' : (base === '/sbm/mrf' ? '/sbm/dashboard' : '/dashboard'));
+    const { isSbm, canCrud } = useMrfPermissions();
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -66,7 +68,7 @@ const MRFModule = () => {
             <div className="ds-page-header">
                 <div>
                     <h1 className="ds-page-title">Material Recovery Facility (MRF)</h1>
-                    <p className="ds-page-subtitle">Manage recycling and waste processing centers</p>
+                    <p className="ds-page-subtitle">{isSbm && !canCrud ? 'View recycling and waste processing centers (read-only)' : 'Manage recycling and waste processing centers'}</p>
                 </div>
             </div>
 
@@ -152,26 +154,30 @@ const MRFModule = () => {
 
             <div className="card">
                 <h2 className="ds-section-title mb-4">Quick Actions</h2>
-                <div className="flex flex-wrap gap-4">
-                    <Link
-                        to={`${base}/facilities/new`}
-                        className="btn btn-primary flex items-center"
-                    >
-                        <PlusCircle className="h-4 w-4 mr-2" /> Add MRF Center
-                    </Link>
-                    <Link
-                        to={`${base}/management`}
-                        className="btn btn-secondary flex items-center"
-                    >
-                        <Recycle className="h-4 w-4 mr-2" /> View All Centers
-                    </Link>
-                    <Link
-                        to={`${base}/reports`}
-                        className="btn btn-secondary flex items-center"
-                    >
-                        <BarChart3 className="h-4 w-4 mr-2" /> View Reports
-                    </Link>
-                </div>
+                {isSbm && !canCrud ? (
+                    <p className="text-sm text-gray-500">Quick create actions are disabled for read-only access.</p>
+                ) : (
+                    <div className="flex flex-wrap gap-4">
+                        <Link
+                            to={`${base}/facilities/new`}
+                            className="btn btn-primary flex items-center"
+                        >
+                            <PlusCircle className="h-4 w-4 mr-2" /> Add MRF Center
+                        </Link>
+                        <Link
+                            to={`${base}/management`}
+                            className="btn btn-secondary flex items-center"
+                        >
+                            <Recycle className="h-4 w-4 mr-2" /> View All Centers
+                        </Link>
+                        <Link
+                            to={`${base}/reports`}
+                            className="btn btn-secondary flex items-center"
+                        >
+                            <BarChart3 className="h-4 w-4 mr-2" /> View Reports
+                        </Link>
+                    </div>
+                )}
             </div>
         </div>
     );

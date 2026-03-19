@@ -55,6 +55,7 @@ import { FacilityUtilityBill } from './FacilityUtilityBill.js';
 import { MrfSale } from './MrfSale.js';
 import { CitizenFeedback } from './CitizenFeedback.js';
 import { Notification } from './Notification.js';
+import { PaymentApprovalRequest } from './PaymentApprovalRequest.js';
 
 
 // Define Relationships
@@ -108,6 +109,8 @@ Demand.hasMany(TaxDiscount, { foreignKey: 'demandId', as: 'taxDiscounts' });
 TaxDiscount.belongsTo(Demand, { foreignKey: 'demandId', as: 'demand' });
 Demand.hasMany(PenaltyWaiver, { foreignKey: 'demandId', as: 'penaltyWaivers' });
 PenaltyWaiver.belongsTo(Demand, { foreignKey: 'demandId', as: 'demand' });
+Demand.hasMany(PaymentApprovalRequest, { foreignKey: 'demandId', as: 'approvalRequests' });
+PaymentApprovalRequest.belongsTo(Demand, { foreignKey: 'demandId', as: 'demand' });
 
 // Payment Relationships
 Payment.belongsTo(Demand, { foreignKey: 'demandId', as: 'demand' });
@@ -304,6 +307,8 @@ AdminManagement.belongsTo(AdminManagement, { foreignKey: 'contractor_id', as: 'c
 AdminManagement.hasMany(AdminManagement, { foreignKey: 'eo_id', as: 'subordinates' });
 AdminManagement.hasMany(AdminManagement, { foreignKey: 'supervisor_id', as: 'fieldWorkers' });
 AdminManagement.hasMany(AdminManagement, { foreignKey: 'contractor_id', as: 'contractWorkers' });
+AdminManagement.hasMany(PaymentApprovalRequest, { foreignKey: 'requestedBy', as: 'paymentApprovalRequests' });
+PaymentApprovalRequest.belongsTo(AdminManagement, { foreignKey: 'requestedBy', as: 'requester' });
 
 // D2DCRecord Relationships
 D2DCRecord.belongsTo(User, { foreignKey: 'collectorId', as: 'collector' });
@@ -502,6 +507,7 @@ export {
   ULB,
   TaxDiscount,
   PenaltyWaiver,
+  PaymentApprovalRequest,
   ToiletFacility,
   ToiletInspection,
   ToiletMaintenance,

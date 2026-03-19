@@ -23,10 +23,10 @@ router.post('/payment-proof', authorize('collector', 'tax_collector'), upload.si
 router.post('/shop-registration-document', authorize('citizen', 'admin', 'clerk'), upload.single('file'), uploadShopRegistrationDocument);
 
 // Upload discount application document - PDF only (Admin)
-router.post('/discount-document', authorize('admin'), upload.single('document'), uploadDiscountDocument);
+router.post('/discount-document', authorize('admin', 'ACCOUNT_OFFICER'), upload.single('document'), uploadDiscountDocument);
 
 // Upload penalty waiver application document - PDF only (Admin)
-router.post('/penalty-waiver-document', authorize('admin'), upload.single('document'), uploadPenaltyWaiverDocument);
+router.post('/penalty-waiver-document', authorize('admin', 'ACCOUNT_OFFICER'), upload.single('document'), uploadPenaltyWaiverDocument);
 
 // Upload toilet module photos (Admin, Inspector, Citizen, Supervisor)
 router.post('/toilet-photo', authorize('admin', 'inspector', 'citizen', 'supervisor'), upload.single('photo'), uploadToiletPhoto);

@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticate } from '../middleware/enhancedAuth.js';
-import { createWorker, getAllWorkers, getWorkersBySupervisor, updateWorker, WORKER_TYPES } from '../controllers/worker.controller.js';
+import { createWorker, getAllWorkers, getWorkerById, getWorkersBySupervisor, updateWorker, WORKER_TYPES } from '../controllers/worker.controller.js';
 import { body, validationResult } from 'express-validator';
 
 const router = express.Router();
@@ -121,17 +121,18 @@ const checkRoleAccess = (req, res, next) => {
 
 router.use(authenticate);
 
-// Get all workers with details and proofs (ADMIN, EO, SUPERVISOR)
+// Get all workers with details and proofs (ADMIN, EO, SUPERVISOR, SFI, SBM)
 router.get('/', getAllWorkers);
+
+// Get single worker (ADMIN, EO, SUPERVISOR, SFI, SBM)
+router.get('/supervisor/:supervisorId', getWorkersBySupervisor);
+router.get('/:id', getWorkerById);
 
 // Create worker (ADMIN, EO, SUPERVISOR)
 router.post('/', createWorkerValidation, validateRequest, checkRoleAccess, createWorker);
 
 // Update worker (ADMIN, EO, SUPERVISOR - scope by role)
 router.put('/:id', updateWorker);
-
-// Get workers for a supervisor
-router.get('/supervisor/:supervisorId', getWorkersBySupervisor);
 
 
 export default router;

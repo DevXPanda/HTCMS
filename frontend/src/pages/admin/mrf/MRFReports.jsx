@@ -31,10 +31,12 @@ import { useBackTo } from '../../../contexts/NavigationContext';
 import { useMrfBasePath } from './useMrfBasePath';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
+import { useMrfPermissions } from './useMrfPermissions';
 
 const MRFReports = () => {
     const base = useMrfBasePath();
     useBackTo(base);
+    const { isSbm } = useMrfPermissions();
     const [stats, setStats] = useState({
         totalFacilities: 0,
         activeFacilities: 0,
@@ -109,6 +111,65 @@ const MRFReports = () => {
                         <div className="absolute inset-0 border-4 border-primary-900 border-t-transparent rounded-full animate-spin"></div>
                     </div>
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest animate-pulse">Synthesizing Operational Intelligence...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (isSbm) {
+        return (
+            <div className="space-y-6">
+                <div className="ds-page-header flex flex-wrap justify-between items-start gap-4">
+                    <div>
+                        <h1 className="ds-page-title">MRF Reports</h1>
+                        <p className="ds-page-subtitle">Operational efficiency and sustainability snapshot</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="date"
+                            value={dateRange.start}
+                            onChange={e => setDateRange({ ...dateRange, start: e.target.value })}
+                            className="input w-auto"
+                        />
+                        <input
+                            type="date"
+                            value={dateRange.end}
+                            onChange={e => setDateRange({ ...dateRange, end: e.target.value })}
+                            className="input w-auto"
+                        />
+                        <button onClick={handleExport} className="btn btn-primary flex items-center gap-2">
+                            <Download className="w-4 h-4" /> Export CSV
+                        </button>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="stat-card"><div className="stat-card-title">Active Facilities</div><p className="stat-card-value">{stats.activeFacilities} / {stats.totalFacilities}</p></div>
+                    <div className="stat-card"><div className="stat-card-title">Monthly Processing</div><p className="stat-card-value">{stats.totalProcessing} Tons</p></div>
+                    <div className="stat-card"><div className="stat-card-title">System Efficiency</div><p className="stat-card-value">{stats.efficiency}%</p></div>
+                    <div className="stat-card"><div className="stat-card-title">Maintenance</div><p className="stat-card-value">{stats.maintenanceFacilities || 0}</p></div>
+                </div>
+
+                <div className="card">
+                    <h3 className="form-section-title mb-4">Material Breakdown</h3>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Material</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Distribution</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                                {chartData.map((m) => (
+                                    <tr key={m.name}>
+                                        <td className="px-4 py-3 text-sm text-gray-900">{m.name}</td>
+                                        <td className="px-4 py-3 text-sm text-gray-700">{m.value}%</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         );

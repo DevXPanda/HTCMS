@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useGaushalaBasePath } from './useGaushalaBasePath';
 import {
     Beef,
     MapPin,
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react';
 import api from '../../../services/api';
 import CattleMedicalHistory from './CattleMedicalHistory';
+import { useGaushalaPermissions } from './useGaushalaPermissions';
 
 const GauShalaDetails = () => {
     const { id } = useParams();
@@ -25,7 +27,9 @@ const GauShalaDetails = () => {
     const [cattleCount, setCattleCount] = useState(0);
     const [feedingRecords, setFeedingRecords] = useState([]);
 
-    useBackTo('/gaushala/facilities');
+    const base = useGaushalaBasePath();
+    useBackTo(`${base}/facilities`);
+    const { isSbm, canCrud } = useGaushalaPermissions();
 
     useEffect(() => {
         fetchGaushalaDetails();
@@ -106,12 +110,14 @@ const GauShalaDetails = () => {
                         <MapPin className="w-3.5 h-3.5" /> {facility.location}
                     </p>
                 </div>
-                <Link
-                    to={`/gaushala/facilities/${id}/edit`}
-                    className="btn btn-secondary flex items-center gap-2 text-sm"
-                >
-                    <Edit className="w-4 h-4" /> Edit
-                </Link>
+                {(!isSbm || canCrud) && (
+                    <Link
+                        to={`${base}/facilities/${id}/edit`}
+                        className="btn btn-secondary flex items-center gap-2 text-sm"
+                    >
+                        <Edit className="w-4 h-4" /> Edit
+                    </Link>
+                )}
             </div>
 
             {/* Section 1: Top Summary Row — 4 equal stat cards */}
@@ -148,7 +154,9 @@ const GauShalaDetails = () => {
                                 <Activity className="w-4 h-4 text-orange-600" />
                                 Animal Records
                             </h3>
-                            <Link to={`/gaushala/facilities/${id}/cattle`} className="text-xs font-semibold text-primary-600 hover:underline">Manage Cattle</Link>
+                            <Link to={`${base}/facilities/${id}/cattle`} className="text-xs font-semibold text-primary-600 hover:underline">
+                                {isSbm && !canCrud ? 'View Cattle' : 'Manage Cattle'}
+                            </Link>
                         </div>
                         <div className="p-6">
                             {facility.cattle?.length > 0 ? (
@@ -173,10 +181,12 @@ const GauShalaDetails = () => {
                             ) : (
                                 <div className="text-center py-8">
                                     <p className="text-gray-400 text-sm">No animals registered in this facility.</p>
-                                    <Link to={`/gaushala/facilities/${id}/cattle`} className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-orange-50 text-orange-700 rounded-lg text-xs font-bold hover:bg-orange-100 transition-colors">
-                                        <PlusCircle className="w-3.5 h-3.5" />
-                                        Add First Animal
-                                    </Link>
+                                    {(!isSbm || canCrud) && (
+                                        <Link to={`${base}/facilities/${id}/cattle`} className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-orange-50 text-orange-700 rounded-lg text-xs font-bold hover:bg-orange-100 transition-colors">
+                                            <PlusCircle className="w-3.5 h-3.5" />
+                                            Add First Animal
+                                        </Link>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -189,7 +199,7 @@ const GauShalaDetails = () => {
                                 <ClipboardList className="w-4 h-4 text-orange-600" />
                                 Recent Feeding Logs
                             </h3>
-                            <Link to="/gaushala/feeding" className="text-xs font-semibold text-primary-600 hover:underline">View All</Link>
+                            <Link to={`${base}/feeding`} className="text-xs font-semibold text-primary-600 hover:underline">View All</Link>
                         </div>
                         <div className="p-6">
                             {recentFeedings.length > 0 ? (
@@ -217,7 +227,7 @@ const GauShalaDetails = () => {
                             ) : (
                                 <div className="text-center py-8">
                                     <p className="text-gray-400 text-sm">No feeding records yet.</p>
-                                    <Link to="/gaushala/feeding" className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg text-xs font-bold hover:bg-green-100 transition-colors">
+                                    <Link to={`${base}/feeding`} className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg text-xs font-bold hover:bg-green-100 transition-colors">
                                         <PlusCircle className="w-3.5 h-3.5" />
                                         Log First Feeding
                                     </Link>
@@ -259,7 +269,7 @@ const GauShalaDetails = () => {
                         </h3>
                         <div className="space-y-2">
                             <Link
-                                to={`/gaushala/facilities/${id}/cattle`}
+                                to={`${base}/facilities/${id}/cattle`}
                                 className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
                             >
                                 <div className="h-8 w-8 bg-orange-50 rounded-lg flex items-center justify-center">
@@ -271,7 +281,7 @@ const GauShalaDetails = () => {
                                 </div>
                             </Link>
                             <Link
-                                to="/gaushala/feeding"
+                                to={`${base}/feeding`}
                                 className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
                             >
                                 <div className="h-8 w-8 bg-green-50 rounded-lg flex items-center justify-center">
@@ -283,7 +293,7 @@ const GauShalaDetails = () => {
                                 </div>
                             </Link>
                             <Link
-                                to="/gaushala/inspections"
+                                to={`${base}/inspections`}
                                 className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
                             >
                                 <div className="h-8 w-8 bg-blue-50 rounded-lg flex items-center justify-center">

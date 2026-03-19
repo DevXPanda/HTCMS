@@ -3,6 +3,8 @@ import { Op } from 'sequelize';
 import { User } from '../models/index.js';
 import { AdminManagement } from '../models/AdminManagement.js';
 
+const normalizeRole = (role) => (role || '').toString().toUpperCase().replace(/-/g, '_');
+
 /**
  * Enhanced Authentication Middleware
  * Verifies JWT token and attaches user to request object
@@ -321,8 +323,8 @@ export const requireWardAccess = (req, res, next) => {
       return next();
     }
 
-    // Officer can access ALL wards (supervisory role)
-    if (req.userType === 'admin_management' && req.user.role === 'officer') {
+    // Officer and Account Officer can access ALL wards (supervisory roles)
+    if (req.userType === 'admin_management' && (req.user.role === 'officer' || normalizeRole(req.user.role) === 'ACCOUNT_OFFICER')) {
       // Officers should also get ward filter for consistency
       if (req.user.ward_ids && req.user.ward_ids.length > 0) {
         req.wardFilter = {
@@ -400,8 +402,8 @@ export const validateWardAccess = (user, userType, wardId) => {
     return user.ward_ids.includes(wardId);
   }
 
-  // Officer can access ALL wards
-  if (userType === 'admin_management' && user.role === 'officer') {
+  // Officer and Account Officer can access ALL wards
+  if (userType === 'admin_management' && (user.role === 'officer' || normalizeRole(user.role) === 'ACCOUNT_OFFICER')) {
     return true;
   }
 

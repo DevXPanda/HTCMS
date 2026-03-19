@@ -15,8 +15,8 @@ export const getAllUsers = async (req, res, next) => {
 
     const where = {};
 
-    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
-    if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+    const { isSuperAdmin, effectiveUlbId, isSbmMonitor } = getEffectiveUlbForRequest(req);
+    if (!isSuperAdmin && !isSbmMonitor && (effectiveUlbId == null || effectiveUlbId === '')) {
       return res.status(403).json({
         success: false,
         message: 'Access denied. You must be assigned to an ULB to view users.'
@@ -96,9 +96,12 @@ export const getAllUsers = async (req, res, next) => {
 export const getUserById = async (req, res, next) => {
   try {
     const { id } = req.params;
+    const roleLower = (req.user.role || '').toString().toLowerCase();
+    const roleUpper = (req.user.role || '').toString().toUpperCase();
+    const isAdmin = roleLower === 'admin';
+    const isSbm = req.userType === 'admin_management' && roleUpper === 'SBM';
 
-    const isAdmin = (req.user.role || '').toString().toLowerCase() === 'admin';
-    if (!isAdmin && req.user.id !== parseInt(id)) {
+    if (!isAdmin && !isSbm && req.user.id !== parseInt(id, 10)) {
       return res.status(403).json({
         success: false,
         message: 'Access denied'

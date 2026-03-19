@@ -14,10 +14,12 @@ import {
 } from 'lucide-react';
 import api from '../../../services/api';
 import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
+import { useToiletPermissions } from './useToiletPermissions';
 
 const ToiletMaintenance = () => {
   const base = useToiletBasePath();
   useBackTo(base);
+  const { isSbm, canCrud } = useToiletPermissions();
   const { effectiveUlbId } = useSelectedUlb();
   const [maintenance, setMaintenance] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -93,13 +95,15 @@ const ToiletMaintenance = () => {
           <h1 className="ds-page-title">Maintenance Management</h1>
           <p className="ds-page-subtitle">Schedule and track maintenance activities</p>
         </div>
-        <Link
-          to={`${base}/maintenance/new`}
-          className="btn btn-primary flex items-center"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Schedule Maintenance
-        </Link>
+        {(!isSbm || canCrud) && (
+          <Link
+            to={`${base}/maintenance/new`}
+            className="btn btn-primary flex items-center"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Schedule Maintenance
+          </Link>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -4,8 +4,10 @@ import { propertyAPI, wardAPI, uploadAPI } from '../services/api';
 import toast from 'react-hot-toast';
 import { X, Plus, Upload, Camera, User, Image as ImageIcon } from 'lucide-react';
 import Loading from './Loading';
+import useLockBodyScroll from '../hooks/useLockBodyScroll';
 
 const AddPropertyModal = ({ onClose, onSuccess }) => {
+  useLockBodyScroll(true);
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [wards, setWards] = useState([]);

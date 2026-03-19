@@ -6,8 +6,8 @@ const router = express.Router();
 
 router.use(authenticate);
 
-router.get('/summary', authorize('admin'), getDiscountSummary);
-router.get('/history', authorize('admin'), getDiscountHistory);
+router.get('/summary', authorize('admin', 'ACCOUNT_OFFICER'), getDiscountSummary);
+router.get('/history', authorize('admin', 'ACCOUNT_OFFICER'), getDiscountHistory);
 router.get('/:id/pdf', getDiscountPdf);
 router.post('/', authorize('admin'), createDiscount);
 

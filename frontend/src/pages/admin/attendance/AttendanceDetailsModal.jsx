@@ -1,7 +1,9 @@
 import { X, Calendar, Clock, MapPin, Monitor, Smartphone, Tablet, Globe, User, Info } from 'lucide-react';
 import { formatDateTimeIST } from '../../../utils/dateUtils';
+import useLockBodyScroll from '../../../hooks/useLockBodyScroll';
 
 const AttendanceDetailsModal = ({ record, onClose }) => {
+  useLockBodyScroll(true);
   const formatDateTime = (dateString) => {
     if (!dateString) return 'N/A';
     return formatDateTimeIST(dateString);

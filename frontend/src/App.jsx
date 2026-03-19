@@ -216,11 +216,38 @@ import SBMDemands from './pages/sbm/SBMDemands';
 import SBMDemandDetails from './pages/sbm/SBMDemandDetails';
 import SBMPayments from './pages/sbm/SBMPayments';
 import SBMPaymentDetails from './pages/sbm/SBMPaymentDetails';
+import AccountOfficerDashboard from './pages/accountOfficer/AccountOfficerDashboard';
+import PaymentApprovalRequests from './pages/admin/payments/PaymentApprovalRequests';
 import SBMWorkers from './pages/sbm/SBMWorkers';
 import SBMStaff from './pages/sbm/SBMStaff';
 import SBMToilet from './pages/sbm/SBMToilet';
 import SBMMrf from './pages/sbm/SBMMrf';
 import SBMGaushala from './pages/sbm/SBMGaushala';
+import SBMTaxManagement from './pages/sbm/SBMTaxManagement';
+import SBMCitizen from './pages/sbm/SBMCitizen';
+import SBMAdminAccounts from './pages/sbm/SBMAdminAccounts';
+import SBMNotifications from './pages/sbm/SBMNotifications';
+import SBMAttendance from './pages/sbm/SBMAttendance';
+import SBMReports from './pages/sbm/SBMReports';
+import SBMAuditLogs from './pages/sbm/SBMAuditLogs';
+import SBMWards from './pages/sbm/SBMWards';
+import SBMWardDetails from './pages/sbm/SBMWardDetails';
+import SBMFieldMonitoring from './pages/sbm/SBMFieldMonitoring';
+import SBMFieldWorkerMonitoring from './pages/sbm/SBMFieldWorkerMonitoring';
+import SBMStaffDetail from './pages/sbm/SBMStaffDetail';
+import SBMCitizenDetail from './pages/sbm/SBMCitizenDetail';
+import SBMAdminAccountDetail from './pages/sbm/SBMAdminAccountDetail';
+import SBMUlbDetail from './pages/sbm/SBMUlbDetail';
+import SBMWorkerDetail from './pages/sbm/SBMWorkerDetail';
+import SBMPropertyTaxModule from './pages/sbm/SBMPropertyTaxModule';
+import SBMWaterTaxModule from './pages/sbm/SBMWaterTaxModule';
+import SBMShopTaxModule from './pages/sbm/SBMShopTaxModule';
+import SBMD2DCModule from './pages/sbm/SBMD2DCModule';
+import SBMUnifiedTaxDemand from './pages/sbm/SBMUnifiedTaxDemand';
+import SBMAssessments from './pages/sbm/SBMAssessments';
+import SBMAssessmentDetails from './pages/sbm/SBMAssessmentDetails';
+import SBMNotices from './pages/sbm/SBMNotices';
+import SBMNoticeDetails from './pages/sbm/SBMNoticeDetails';
 import OfficerDashboard from './pages/officer/OfficerDashboard';
 import OfficerPropertyApplications from './pages/officer/PropertyApplications';
 import OfficerWaterRequests from './pages/officer/WaterRequests';
@@ -541,18 +568,106 @@ function App() {
             >
               <Route index element={<Navigate to="/sbm/dashboard" replace />} />
               <Route path="dashboard" element={<SBMDashboard />} />
+              <Route path="tax-management" element={<SBMTaxManagement />} />
+              {/* Tax module aliases - keep workflow same as Super Admin (read-only) */}
+              <Route path="property-tax" element={<SBMPropertyTaxModule />} />
+              <Route path="water-tax" element={<SBMWaterTaxModule />} />
+              <Route path="shop-tax" element={<SBMShopTaxModule />} />
+              <Route path="tax-management/d2dc" element={<SelectedUlbProvider><SBMD2DCModule /></SelectedUlbProvider>} />
+              <Route path="demands/unified" element={<SBMUnifiedTaxDemand />} />
+              <Route path="notifications" element={<SBMNotifications />} />
               <Route path="ulbs" element={<SBMUlbs />} />
+              <Route path="ulbs/:id" element={<SBMUlbDetail />} />
+              <Route path="citizen" element={<SBMCitizen />} />
+              <Route path="citizen/:id" element={<SBMCitizenDetail />} />
+              <Route path="admin-accounts" element={<SBMAdminAccounts />} />
+              <Route path="admin-accounts/:id" element={<SBMAdminAccountDetail />} />
               <Route path="properties" element={<SBMProperties />} />
               <Route path="properties/:id" element={<SBMPropertyDetails />} />
+              <Route path="assessments" element={<SBMAssessments />} />
+              <Route path="assessments/:id" element={<SBMAssessmentDetails />} />
+              <Route path="notices" element={<SBMNotices />} />
+              <Route path="notices/:id" element={<SBMNoticeDetails />} />
               <Route path="demands" element={<SBMDemands />} />
               <Route path="demands/:id" element={<SBMDemandDetails />} />
               <Route path="payments" element={<SBMPayments />} />
               <Route path="payments/:id" element={<SBMPaymentDetails />} />
               <Route path="workers" element={<SBMWorkers />} />
+              <Route path="workers/:id" element={<SBMWorkerDetail />} />
               <Route path="staff" element={<SBMStaff />} />
-              <Route path="toilet" element={<SBMToilet />} />
-              <Route path="mrf" element={<SBMMrf />} />
-              <Route path="gaushala" element={<SBMGaushala />} />
+              <Route path="staff/:id" element={<SBMStaffDetail />} />
+              <Route path="wards" element={<SBMWards />} />
+              <Route path="wards/:id" element={<SBMWardDetails />} />
+              <Route path="field-monitoring" element={<SBMFieldMonitoring />} />
+              <Route path="field-worker-monitoring" element={<SBMFieldWorkerMonitoring />} />
+              <Route path="field-worker-monitoring/eos/:eoId/dashboard" element={<FieldWorkerEoDashboard />} />
+              <Route path="attendance" element={<SBMAttendance />} />
+              <Route path="reports" element={<SBMReports />} />
+              <Route path="audit-logs" element={<SBMAuditLogs />} />
+              <Route path="toilet" element={<Navigate to="/sbm/toilet-management" replace />} />
+              <Route path="toilet-management" element={<SelectedUlbProvider><ToiletManagementModule /></SelectedUlbProvider>} />
+              <Route path="toilet-management/facilities" element={<SelectedUlbProvider><ToiletFacilities /></SelectedUlbProvider>} />
+              <Route path="toilet-management/facilities/new" element={<SelectedUlbProvider><AddToilet /></SelectedUlbProvider>} />
+              <Route path="toilet-management/facilities/:id" element={<SelectedUlbProvider><ToiletDetails /></SelectedUlbProvider>} />
+              <Route path="toilet-management/facilities/:id/edit" element={<SelectedUlbProvider><AddToilet /></SelectedUlbProvider>} />
+              <Route path="toilet-management/inspections" element={<SelectedUlbProvider><ToiletInspections /></SelectedUlbProvider>} />
+              <Route path="toilet-management/inspections/new" element={<SelectedUlbProvider><AddInspection /></SelectedUlbProvider>} />
+              <Route path="toilet-management/inspections/:id" element={<SelectedUlbProvider><InspectionDetails /></SelectedUlbProvider>} />
+              <Route path="toilet-management/inspections/:id/edit" element={<SelectedUlbProvider><AddInspection /></SelectedUlbProvider>} />
+              <Route path="toilet-management/complaints" element={<SelectedUlbProvider><ToiletComplaints /></SelectedUlbProvider>} />
+              <Route path="toilet-management/complaints/:id" element={<SelectedUlbProvider><ComplaintDetails /></SelectedUlbProvider>} />
+              <Route path="toilet-management/maintenance" element={<SelectedUlbProvider><ToiletMaintenance /></SelectedUlbProvider>} />
+              <Route path="toilet-management/maintenance/new" element={<SelectedUlbProvider><AddMaintenance /></SelectedUlbProvider>} />
+              <Route path="toilet-management/maintenance/:id" element={<SelectedUlbProvider><MaintenanceDetails /></SelectedUlbProvider>} />
+              <Route path="toilet-management/maintenance/:id/edit" element={<SelectedUlbProvider><AddMaintenance /></SelectedUlbProvider>} />
+              <Route path="toilet-management/staff" element={<SelectedUlbProvider><GlobalStaffAssignment /></SelectedUlbProvider>} />
+              <Route path="toilet-management/facilities/:id/staff" element={<SelectedUlbProvider><StaffAssignment /></SelectedUlbProvider>} />
+              <Route path="toilet-management/reports" element={<SelectedUlbProvider><ToiletReports /></SelectedUlbProvider>} />
+              <Route path="mrf" element={<SelectedUlbProvider><MRFModule /></SelectedUlbProvider>} />
+              <Route path="mrf/management" element={<SelectedUlbProvider><MRFManagement /></SelectedUlbProvider>} />
+              <Route path="mrf/worker-assignment" element={<SelectedUlbProvider><MRFWorkerAssignmentPage /></SelectedUlbProvider>} />
+              <Route path="mrf/facilities/new" element={<SelectedUlbProvider><AddMRF /></SelectedUlbProvider>} />
+              <Route path="mrf/facilities/:id" element={<SelectedUlbProvider><MRFDetails /></SelectedUlbProvider>} />
+              <Route path="mrf/facilities/:id/edit" element={<SelectedUlbProvider><AddMRF /></SelectedUlbProvider>} />
+              <Route path="mrf/reports" element={<SelectedUlbProvider><MRFReports /></SelectedUlbProvider>} />
+              <Route path="gaushala" element={<Navigate to="/sbm/gaushala/management" replace />} />
+              <Route path="gaushala/management" element={<SelectedUlbProvider><GauShalaDashboard /></SelectedUlbProvider>} />
+              <Route path="gaushala/facilities" element={<SelectedUlbProvider><GauShalaManagement /></SelectedUlbProvider>} />
+              <Route path="gaushala/facilities/new" element={<SelectedUlbProvider><AddGauShala /></SelectedUlbProvider>} />
+              <Route path="gaushala/facilities/:id" element={<SelectedUlbProvider><GauShalaDetails /></SelectedUlbProvider>} />
+              <Route path="gaushala/facilities/:id/edit" element={<SelectedUlbProvider><AddGauShala /></SelectedUlbProvider>} />
+              <Route path="gaushala/facilities/:id/cattle" element={<SelectedUlbProvider><CattleManagement /></SelectedUlbProvider>} />
+              <Route path="gaushala/all-cattle" element={<SelectedUlbProvider><GauShalaCattleTotal /></SelectedUlbProvider>} />
+              <Route path="gaushala/all-cattle/new" element={<SelectedUlbProvider><AddCattle /></SelectedUlbProvider>} />
+              <Route path="gaushala/inspections" element={<SelectedUlbProvider><GauShalaInspections /></SelectedUlbProvider>} />
+              <Route path="gaushala/inspections/new" element={<SelectedUlbProvider><AddGauShalaInspection /></SelectedUlbProvider>} />
+              <Route path="gaushala/inspections/:id" element={<SelectedUlbProvider><InspectionDetail /></SelectedUlbProvider>} />
+              <Route path="gaushala/inspections/:id/edit" element={<SelectedUlbProvider><AddGauShalaInspection /></SelectedUlbProvider>} />
+              <Route path="gaushala/feeding" element={<SelectedUlbProvider><GauShalaFeeding /></SelectedUlbProvider>} />
+              <Route path="gaushala/complaints" element={<SelectedUlbProvider><GauShalaComplaints /></SelectedUlbProvider>} />
+              <Route path="gaushala/reports" element={<SelectedUlbProvider><GauShalaReports /></SelectedUlbProvider>} />
+            </Route>
+
+            {/* Protected Routes - Account Officer Portal */}
+            <Route
+              path="/account-officer"
+              element={
+                <StaffAuthProvider>
+                  <PrivateRoute allowedRoles={['account_officer', 'ACCOUNT_OFFICER']}>
+                    <SelectedUlbProvider>
+                      <SBMLayout />
+                    </SelectedUlbProvider>
+                  </PrivateRoute>
+                </StaffAuthProvider>
+              }
+            >
+              <Route index element={<Navigate to="/account-officer/dashboard" replace />} />
+              <Route path="dashboard" element={<AccountOfficerDashboard />} />
+              <Route path="payments" element={<Payments />} />
+              <Route path="payments/:id" element={<PaymentDetails />} />
+              <Route path="discounts" element={<DiscountManagement />} />
+              <Route path="penalty-waivers" element={<PenaltyWaiverManagement />} />
+              <Route path="approval-requests" element={<PaymentApprovalRequests />} />
               <Route path="notifications" element={<NotificationsPage />} />
             </Route>
 
@@ -581,11 +696,13 @@ function App() {
             <Route
               path="/tax-management/d2dc"
               element={
-                <StaffAuthProvider>
-                  <PrivateRoute allowedRoles={['admin', 'collector', 'tax_collector', 'inspector', 'officer']}>
-                    <D2DCModule />
-                  </PrivateRoute>
-                </StaffAuthProvider>
+                <SelectedUlbProvider>
+                  <StaffAuthProvider>
+                    <PrivateRoute allowedRoles={['admin', 'collector', 'tax_collector', 'inspector', 'officer']}>
+                      <D2DCModule />
+                    </PrivateRoute>
+                  </StaffAuthProvider>
+                </SelectedUlbProvider>
               }
             />
 
@@ -716,6 +833,9 @@ function App() {
 
               {/* Admin Management (Staff / EO) */}
               <Route path="admin-management" element={<AdminManagement />} />
+
+              {/* Approval Requests (Super Admin) */}
+              <Route path="approval-requests" element={<PaymentApprovalRequests />} />
 
               {/* Reports */}
               <Route path="reports" element={<Reports />} />

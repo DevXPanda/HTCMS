@@ -10,7 +10,8 @@ export default function Breadcrumbs() {
   const location = useLocation();
   const pathname = location.pathname;
 
-  const items = getBreadcrumbs(pathname);
+  // Pass search too so roles like SBM can adjust breadcrumb flow by query (e.g. demands?module=PROPERTY)
+  const items = getBreadcrumbs(pathname + (location.search || ''));
 
   if (items.length <= 1) return null;
 

@@ -4,6 +4,7 @@ import { User, LogOut, Home, X } from 'lucide-react';
 import { useStaffAuth } from '../contexts/StaffAuthContext';
 import Breadcrumbs from './Breadcrumbs';
 import HeaderNotificationBell from './HeaderNotificationBell';
+import GlobalHeaderSearch from './GlobalHeaderSearch';
 
 const SBMLayout = () => {
   const { user, logout } = useStaffAuth();
@@ -16,6 +17,13 @@ const SBMLayout = () => {
   };
 
   const userData = user || JSON.parse(localStorage.getItem('user') || 'null');
+  const normalizedRole = (userData?.role || localStorage.getItem('role') || '').toString().toUpperCase().replace(/-/g, '_');
+  const isAccountOfficer = normalizedRole === 'ACCOUNT_OFFICER';
+  const homePath = isAccountOfficer ? '/account-officer/dashboard' : '/sbm/dashboard';
+  const roleLabel = isAccountOfficer ? 'Account Officer' : 'SBM';
+  const roleDescription = isAccountOfficer
+    ? 'Account Officer'
+    : 'SBM - read-only unless Full CRUD enabled';
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -27,9 +35,10 @@ const SBMLayout = () => {
               <div className="flex items-center min-w-0 shrink-0">
                 <h1 className="layout-header-title">ULB System</h1>
               </div>
+              <GlobalHeaderSearch role={normalizedRole || 'SBM'} />
               <div className="layout-header-actions">
                 <button
-                  onClick={() => navigate('/sbm/dashboard')}
+                  onClick={() => navigate(homePath)}
                   className="header-icon-btn p-2 text-gray-600 hover:text-primary-600 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center"
                   title="Dashboard Home"
                 >
@@ -90,9 +99,9 @@ const SBMLayout = () => {
                   </div>
                   <div>
                     <h4 className="text-lg font-medium text-gray-900">
-                      {userData?.full_name || userData?.firstName || 'SBM'}
+                      {userData?.full_name || userData?.firstName || roleLabel}
                     </h4>
-                    <p className="text-sm text-gray-500">SBM — read-only unless Full CRUD enabled</p>
+                    <p className="text-sm text-gray-500">{roleDescription}</p>
                     {userData?.full_crud_enabled && (
                       <p className="text-xs text-primary-600 mt-1">Full CRUD enabled</p>
                     )}

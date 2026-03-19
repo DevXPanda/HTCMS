@@ -66,8 +66,9 @@ export const getAllAssessments = async (req, res, next) => {
       where.propertyId = { [Op.in]: propertyIds };
     } else {
       // ULB isolation: non–super-admin can only view assessments in their assigned ULB
-      const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
-      if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+      // SBM is global read-only and can optionally filter by ulb_id query.
+      const { isSuperAdmin, effectiveUlbId, isSbmMonitor } = getEffectiveUlbForRequest(req);
+      if (!isSuperAdmin && !isSbmMonitor && (effectiveUlbId == null || effectiveUlbId === '')) {
         return res.status(403).json({
           success: false,
           message: 'Access denied. You must be assigned to an ULB to view assessments.'
@@ -164,8 +165,8 @@ export const getAssessmentById = async (req, res, next) => {
       }
     } else {
       // ULB isolation: non–super-admin can only view assessments in their assigned ULB
-      const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
-      if (!isSuperAdmin && effectiveUlbId && assessment.property?.ward) {
+      const { isSuperAdmin, effectiveUlbId, isSbmMonitor } = getEffectiveUlbForRequest(req);
+      if (!isSuperAdmin && !isSbmMonitor && effectiveUlbId && assessment.property?.ward) {
         if (assessment.property.ward.ulb_id !== effectiveUlbId) {
           return res.status(403).json({
             success: false,

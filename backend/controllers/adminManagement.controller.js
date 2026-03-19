@@ -4,11 +4,11 @@ import { getEffectiveUlbForRequest } from '../utils/ulbAccessHelper.js';
 
 // Deprecated roles (kept for future use): Clerk, Inspector, Officer, Contractor. Do not assign to new users.
 const DEPRECATED_ROLES = ['CLERK', 'INSPECTOR', 'OFFICER', 'CONTRACTOR'];
-const ASSIGNABLE_ROLES = ['EO', 'SUPERVISOR', 'COLLECTOR', 'FIELD_WORKER', 'SFI', 'SBM'];
+const ASSIGNABLE_ROLES = ['EO', 'SUPERVISOR', 'COLLECTOR', 'FIELD_WORKER', 'SFI', 'SBM', 'ACCOUNT_OFFICER'];
 // SBM can only be assigned by Super Admin (user table admin with no ULB)
 const SUPER_ADMIN_ONLY_ROLES = ['SBM'];
 // All staff roles (uppercase) for DB enum - used in bulk delete/status and listings
-const ALL_STAFF_ROLES = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI', 'SBM'];
+const ALL_STAFF_ROLES = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI', 'SBM', 'ACCOUNT_OFFICER'];
 
 /**
  * Get all employees managed by admin
@@ -27,7 +27,7 @@ export const getAllEmployees = async (req, res) => {
     }
 
     // Build where clause - Only show staff roles (including SBM for super admin)
-    const staffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI', 'SBM'];
+    const staffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI', 'SBM', 'ACCOUNT_OFFICER'];
     let requestedRoles = [];
     if (role) {
       requestedRoles = role.toUpperCase().split(',').map(r => r.trim().replace(/-/g, '_'));
@@ -551,7 +551,7 @@ export const updateEmployee = async (req, res) => {
       }
     }
 
-    const normalizedStaffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI', 'SBM'];
+      const normalizedStaffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI', 'SBM', 'ACCOUNT_OFFICER'];
     const normalizedEmployeeRole = employee.role ? employee.role.toUpperCase().replace(/-/g, '_') : employee.role;
     if (!normalizedStaffRoles.includes(normalizedEmployeeRole)) {
       return res.status(400).json({
@@ -820,7 +820,7 @@ export const deleteEmployee = async (req, res) => {
 
     // Normalize role to uppercase for comparison
     const normalizedEmployeeRole = employee.role ? employee.role.toUpperCase().replace(/-/g, '_') : employee.role;
-    const staffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR'];
+    const staffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI', 'SBM', 'ACCOUNT_OFFICER'];
     if (!staffRoles.includes(normalizedEmployeeRole)) {
       return res.status(400).json({
         message: 'Cannot delete non-staff roles through Staff Management. Use Citizen Management for citizen accounts.'
@@ -992,7 +992,7 @@ export const resetEmployeePassword = async (req, res) => {
  */
 export const getEmployeeStatistics = async (req, res) => {
   try {
-    const staffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR'];
+    const staffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI', 'SBM', 'ACCOUNT_OFFICER'];
     const roleFilter = req.query.role ? String(req.query.role).toUpperCase().replace(/-/g, '_') : null;
     const allowedRoleFilter = ['SUPERVISOR', 'EO', 'CONTRACTOR'];
     const rolesToCount = (roleFilter && allowedRoleFilter.includes(roleFilter))

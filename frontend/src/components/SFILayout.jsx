@@ -5,6 +5,7 @@ import { useStaffAuth } from '../contexts/StaffAuthContext';
 import { SelectedUlbContext } from '../contexts/SelectedUlbContext';
 import Breadcrumbs from './Breadcrumbs';
 import HeaderNotificationBell from './HeaderNotificationBell';
+import GlobalHeaderSearch from './GlobalHeaderSearch';
 
 const SFILayout = () => {
   const { user, logout } = useStaffAuth();
@@ -35,6 +36,7 @@ const SFILayout = () => {
               <div className="flex items-center min-w-0 shrink-0">
                 <h1 className="layout-header-title">ULB System</h1>
               </div>
+              <GlobalHeaderSearch role="sfi" />
               <div className="layout-header-actions">
                 <button
                   onClick={() => navigate('/sfi/dashboard')}

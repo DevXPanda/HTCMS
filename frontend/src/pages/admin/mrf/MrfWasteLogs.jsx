@@ -16,7 +16,7 @@ import {
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
 
-const MrfWasteLogs = ({ facilityId, wasteTypes = [] }) => {
+const MrfWasteLogs = ({ facilityId, wasteTypes = [], readOnly = false }) => {
     const [entries, setEntries] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -98,15 +98,17 @@ const MrfWasteLogs = ({ facilityId, wasteTypes = [] }) => {
                     </h3>
                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight mt-1">Showing last 30 daily entries for this facility</p>
                 </div>
-                <button
-                    onClick={() => setShowForm(!showForm)}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-700 transition-all shadow-lg shadow-primary-500/20 active:scale-95"
-                >
-                    {showForm ? 'Cancel' : <><Plus className="w-4 h-4" /> Log Entry</>}
-                </button>
+                {!readOnly && (
+                    <button
+                        onClick={() => setShowForm(!showForm)}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-700 transition-all shadow-lg shadow-primary-500/20 active:scale-95"
+                    >
+                        {showForm ? 'Cancel' : <><Plus className="w-4 h-4" /> Log Entry</>}
+                    </button>
+                )}
             </div>
 
-            {showForm && (
+            {!readOnly && showForm && (
                 <form onSubmit={handleSubmit} className="bg-gray-50 border border-gray-100 rounded-2xl p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-in fade-in slide-in-from-top-4 duration-300">
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Date</label>

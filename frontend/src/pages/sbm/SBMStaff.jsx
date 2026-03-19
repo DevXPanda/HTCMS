@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { exportToCSV } from '../../utils/exportCSV';
-import { UserCog, Download, RefreshCw, Search, FileDown } from 'lucide-react';
+import { UserCog, Download, RefreshCw, Search, FileDown, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const SBMStaff = () => {
@@ -133,6 +134,7 @@ const SBMStaff = () => {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase print-hide-col">View</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -147,6 +149,11 @@ const SBMStaff = () => {
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${(emp.status || '').toLowerCase() === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
                         {emp.status || '—'}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 print-hide-col">
+                      <Link to={`/sbm/staff/${emp.id}`} className="text-violet-600 hover:text-violet-800 flex items-center gap-1 text-sm">
+                        <Eye className="w-4 h-4" /> View
+                      </Link>
                     </td>
                   </tr>
                 ))}

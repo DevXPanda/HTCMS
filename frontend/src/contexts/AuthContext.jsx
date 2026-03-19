@@ -25,7 +25,7 @@ export const AuthProvider = ({ children }) => {
           // Normalize role to uppercase for comparison
           const normalizedRole = storedRole ? storedRole.toUpperCase().replace(/-/g, '_') : storedRole;
           // Deprecated roles (kept for future use): Clerk, Inspector, Officer, Contractor. Included so existing users still use StaffAuth.
-          const staffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR'];
+          const staffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI', 'SBM', 'ACCOUNT_OFFICER'];
           if (normalizedRole && staffRoles.includes(normalizedRole)) {
             // Staff users use StaffAuthContext, skip AuthContext check
             setLoading(false);

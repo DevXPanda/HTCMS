@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { workerAPI } from '../../services/api';
 import { exportToCSV } from '../../utils/exportCSV';
-import { Users, Download, RefreshCw, Search, FileDown } from 'lucide-react';
+import { Users, Download, RefreshCw, Search, FileDown, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const SBMWorkers = () => {
@@ -50,11 +51,12 @@ const SBMWorkers = () => {
 
   const handleExport = () => {
     const rows = workers.map((w) => ({
-      id: w.id,
-      name: w.name,
+      employee_code: w.employee_code,
+      full_name: w.full_name ?? w.name,
+      mobile: w.mobile ?? w.phone,
       worker_type: w.worker_type,
-      phone: w.phone,
-      ward: w.ward?.wardName ?? w.ward_id,
+      ward: w.ward ? `${w.ward.wardNumber || ''} - ${w.ward.wardName || ''}`.trim() : (w.ward_id ?? ''),
+      supervisor: w.supervisor ? `${w.supervisor.full_name} (${w.supervisor.employee_id || ''})` : '',
       status: w.status
     }));
     exportToCSV(rows, `sbm_workers_${new Date().toISOString().slice(0, 10)}`);
@@ -69,7 +71,7 @@ const SBMWorkers = () => {
           <Users className="w-7 h-7 text-violet-600" />
           Field Workers (Read-only)
         </h1>
-        <p className="text-gray-600 text-sm">View all field workers across ULBs. Filter by ULB, search by name/ID, export CSV.</p>
+        <p className="text-gray-600 text-sm">Same workflow as Admin/EO — view all field workers across ULBs. Filter by ULB, search by name/phone, export CSV.</p>
       </div>
 
       <div className="no-print flex flex-wrap gap-3 items-end">
@@ -116,23 +118,43 @@ const SBMWorkers = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee Code</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mobile</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Worker Type</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ward</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Supervisor</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase print-hide-col">View</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {workers.map((w) => (
                   <tr key={w.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-900">{w.id}</td>
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{w.name}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{w.worker_type || '—'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{w.phone || '—'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{w.ward?.wardName ?? w.ward_id ?? '—'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{w.status || '—'}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{w.employee_code ?? '—'}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{w.full_name ?? w.name ?? '—'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{w.mobile ?? w.phone ?? '—'}</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${(w.worker_type || '').toUpperCase() === 'ULB' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
+                        {w.worker_type === 'OTHER' && w.worker_type_other ? `Other (${w.worker_type_other})` : (w.worker_type || '—')}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {w.ward ? [w.ward.wardNumber, w.ward.wardName].filter(Boolean).join(' - ') : (w.ward_id ?? '—')}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {w.supervisor ? `${w.supervisor.full_name || ''}${w.supervisor.employee_id ? ` (${w.supervisor.employee_id})` : ''}`.trim() || '—' : '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${(w.status || '').toUpperCase() === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        {w.status || '—'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 print-hide-col">
+                      <Link to={`/sbm/workers/${w.id}`} className="text-violet-600 hover:text-violet-800 flex items-center gap-1 text-sm">
+                        <Eye className="w-4 h-4" /> View
+                      </Link>
+                    </td>
                   </tr>
                 ))}
               </tbody>

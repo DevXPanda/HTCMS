@@ -93,7 +93,7 @@ const SBMDashboard = () => {
   };
 
   const quickActions = [
-    { name: 'Tax Management', icon: FileText, link: '/sbm/demands', color: 'bg-blue-600' },
+    { name: 'Tax Management', icon: FileText, link: '/sbm/tax-management', color: 'bg-blue-600' },
     { name: 'Field Worker Management', icon: Store, link: '/sbm/workers', color: 'bg-yellow-600' },
     { name: 'Toilet Management', icon: Bath, link: '/sbm/toilet', color: 'bg-pink-600' },
     { name: 'MRF', icon: ClipboardList, link: '/sbm/mrf', color: 'bg-green-600' },
@@ -110,15 +110,16 @@ const SBMDashboard = () => {
 
   const adminItems = [
     { name: 'Notifications', icon: Bell, link: '/sbm/notifications' },
-    { name: 'ULBs', icon: Building2, link: '/sbm/ulbs' },
+    { name: 'Wards', icon: MapPin, link: '/sbm/wards' },
+    { name: 'ULB Management', icon: Building2, link: '/sbm/ulbs' },
+    { name: 'Citizen Management', icon: Users, link: '/sbm/citizen' },
+    { name: 'Admin Management', icon: Shield, link: '/sbm/admin-accounts' },
     { name: 'Staff Management', icon: UserCog, link: '/sbm/staff' },
-    { name: 'Properties', icon: Building2, link: '/sbm/properties' },
-    { name: 'Demands', icon: FileText, link: '/sbm/demands' },
-    { name: 'Payments', icon: DollarSign, link: '/sbm/payments' },
-    { name: 'Field Workers', icon: Users, link: '/sbm/workers' },
-    { name: 'Attendance', icon: Clock, link: '/sbm/workers' },
-    { name: 'Reports', icon: BarChart3, link: '/sbm/demands' },
-    { name: 'Audit Logs', icon: Shield, link: '/sbm/payments' }
+    { name: 'Attendance', icon: Clock, link: '/sbm/attendance' },
+    { name: 'Field Monitoring', icon: ClipboardList, link: '/sbm/field-monitoring' },
+    { name: 'Field Worker Monitoring', icon: Users, link: '/sbm/field-worker-monitoring' },
+    { name: 'Reports', icon: BarChart3, link: '/sbm/reports' },
+    { name: 'Audit Logs', icon: Shield, link: '/sbm/audit-logs' }
   ];
 
   if (loading && !stats.totalProperties && !stats.totalDemands) {

@@ -1,16 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useGaushalaBasePath } from './useGaushalaBasePath';
 import { Save, ClipboardCheck, AlertCircle, Calendar } from 'lucide-react';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
+import { useGaushalaPermissions } from './useGaushalaPermissions';
 
 const AddGauShalaInspection = () => {
     const navigate = useNavigate();
     const { id } = useParams(); // For edit mode
     const isEditMode = !!id;
 
-    useBackTo('/gaushala/inspections');
+    const base = useGaushalaBasePath();
+    useBackTo(`${base}/inspections`);
+    const { isSbm, canCrud } = useGaushalaPermissions();
 
     const [facilities, setFacilities] = useState([]);
     const [inspectors, setInspectors] = useState([]);
@@ -29,6 +33,11 @@ const AddGauShalaInspection = () => {
 
     useEffect(() => {
         const loadInitialData = async () => {
+            if (isSbm && !canCrud) {
+                toast.error('Read-only access: editing is disabled.');
+                navigate(`${base}/inspections`);
+                return;
+            }
             setLoading(true);
             await Promise.all([
                 fetchFacilities(),
@@ -40,7 +49,7 @@ const AddGauShalaInspection = () => {
             setLoading(false);
         };
         loadInitialData();
-    }, [id]);
+    }, [id, isSbm, canCrud, navigate, base]);
 
     const fetchFacilities = async () => {
         try {
@@ -124,7 +133,7 @@ const AddGauShalaInspection = () => {
                 await api.post('/gaushala/inspections', submitData);
                 toast.success('Gaushala inspection scheduled successfully!');
             }
-            navigate('/gaushala/inspections');
+            navigate(`${base}/inspections`);
         } catch (error) {
             console.error('Failed to save inspection:', error);
             toast.error('Failed to save inspection. Please check all fields.');

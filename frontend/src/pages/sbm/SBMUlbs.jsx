@@ -1,8 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { exportToCSV } from '../../utils/exportCSV';
-import { Building2, Download, RefreshCw, Search, FileDown } from 'lucide-react';
+import { Building2, Download, RefreshCw, Search, MapPin, FileDown, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+const ULB_TYPE_OPTIONS = [
+  { value: 'NAGAR_NIGAM', label: 'Nagar Nigam' },
+  { value: 'NAGAR_PALIKA_PARISHAD', label: 'Nagar Palika Parishad' },
+  { value: 'NAGAR_PANCHAYAT', label: 'Nagar Panchayat' }
+];
+const ulbTypeLabel = (value) => ULB_TYPE_OPTIONS.find((o) => o.value === value)?.label || value || '—';
 
 const SBMUlbs = () => {
   const [list, setList] = useState([]);
@@ -55,9 +63,9 @@ const SBMUlbs = () => {
       <div className="no-print">
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <Building2 className="w-7 h-7 text-violet-600" />
-          ULBs (Read-only)
+          ULB Management (Read-only)
         </h1>
-        <p className="text-gray-600 text-sm">Global view of all Urban Local Bodies. Search and export only.</p>
+        <p className="text-gray-600 text-sm">Same view as Super Admin — create and manage ULBs. SBM view-only.</p>
       </div>
 
       <div className="no-print flex flex-wrap gap-3 items-center">
@@ -85,45 +93,60 @@ const SBMUlbs = () => {
         </button>
       </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+      {/* Card grid — same as Super Admin ULB Management, read-only */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading && !list.length ? (
-          <div className="p-8 flex justify-center">
-            <RefreshCw className="w-8 h-8 animate-spin text-violet-500" />
+          <div className="col-span-full card text-center py-12">
+            <div className="spinner spinner-md mx-auto" />
+            <p className="text-gray-500 mt-2">Loading ULBs...</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="col-span-full card text-center py-12">
+            <Building2 className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+            <p className="text-gray-500">No ULBs found.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">State</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">District</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filtered.map((u) => (
-                  <tr key={u.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-900">{u.id}</td>
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{u.name}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{u.ulb_type || '—'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{u.state || '—'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{u.district || '—'}</td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${u.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                        {u.status || '—'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {!loading && filtered.length === 0 && (
-          <div className="p-8 text-center text-gray-500">No ULBs found.</div>
+          filtered.map((ulb) => (
+            <div key={ulb.id} className="card hover:shadow-lg transition-shadow">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-5 h-5 text-primary-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">{ulb.name}</h3>
+                </div>
+                <span className={`badge ${ulb.status === 'ACTIVE' ? 'badge-success' : 'badge-danger'}`}>
+                  {ulb.status === 'ACTIVE' ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+              {ulb.ulb_type && (
+                <div className="text-sm text-gray-600 mb-2">
+                  <span className="font-medium text-gray-700">Type: </span>
+                  {ulbTypeLabel(ulb.ulb_type)}
+                </div>
+              )}
+              <div className="space-y-2 mb-4">
+                {ulb.state && (
+                  <div className="flex items-center text-sm text-gray-600">
+                    <MapPin className="w-4 h-4 mr-2 text-gray-400 shrink-0" />
+                    <span>State: {ulb.state}</span>
+                  </div>
+                )}
+                {ulb.district && (
+                  <div className="flex items-center text-sm text-gray-600">
+                    <MapPin className="w-4 h-4 mr-2 text-gray-400 shrink-0" />
+                    <span>District: {ulb.district}</span>
+                  </div>
+                )}
+                {!ulb.state && !ulb.district && (
+                  <p className="text-sm text-gray-500">No location set</p>
+                )}
+              </div>
+              <div className="flex justify-end pt-4 border-t border-gray-100">
+                <Link to={`/sbm/ulbs/${ulb.id}`} className="text-violet-600 hover:text-violet-800 flex items-center gap-1 text-sm font-medium">
+                  <Eye className="w-4 h-4" /> View Details
+                </Link>
+              </div>
+            </div>
+          ))
         )}
       </div>
     </div>

@@ -4,6 +4,7 @@ import { User, LogOut, Home, X } from 'lucide-react';
 import { useStaffAuth } from '../contexts/StaffAuthContext';
 import Breadcrumbs from './Breadcrumbs';
 import HeaderNotificationBell from './HeaderNotificationBell';
+import GlobalHeaderSearch from './GlobalHeaderSearch';
 
 const EoLayout = () => {
   const { user, logout } = useStaffAuth();
@@ -27,6 +28,7 @@ const EoLayout = () => {
               <div className="flex items-center min-w-0 shrink-0">
                 <h1 className="layout-header-title">ULB System</h1>
               </div>
+              <GlobalHeaderSearch role="eo" />
               <div className="layout-header-actions">
                 <button
                   onClick={() => navigate('/eo/dashboard')}

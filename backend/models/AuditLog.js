@@ -15,7 +15,7 @@ export const AuditLog = sequelize.define('AuditLog', {
     comment: 'User who performed the action (null for system actions or when user is from admin_management table)'
   },
   actorRole: {
-    type: DataTypes.ENUM('admin', 'assessor', 'cashier', 'collector', 'citizen', 'clerk', 'inspector', 'officer', 'eo', 'supervisor', 'field_worker', 'contractor', 'sfi', 'system'),
+    type: DataTypes.ENUM('admin', 'assessor', 'cashier', 'collector', 'citizen', 'clerk', 'inspector', 'officer', 'eo', 'supervisor', 'field_worker', 'contractor', 'sfi', 'account_officer', 'system'),
     allowNull: false,
     comment: 'Role of the user who performed the action'
   },
@@ -34,7 +34,7 @@ export const AuditLog = sequelize.define('AuditLog', {
       'GauShalaFacility', 'GauShalaCattle', 'GauShalaComplaint', 'GauShalaFeedingRecord', 'GauShalaInspection', 'CattleMedicalRecord',
       'Worker', 'WorkerAttendance', 'WorkerPayroll', 'WorkerTask',
       'InventoryItem', 'InventoryTransaction', 'FacilityUtilityBill', 'CitizenFeedback',
-      'Alert', 'ULB', 'TaxDiscount', 'PenaltyWaiver'
+      'Alert', 'ULB', 'TaxDiscount', 'PenaltyWaiver', 'PaymentApprovalRequest'
     ),
     allowNull: false,
     comment: 'Type of entity affected'

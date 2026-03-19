@@ -192,6 +192,15 @@ export const penaltyWaiverAPI = {
   uploadDocument: (formData) => api.post('/upload/penalty-waiver-document', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
 };
 
+// Account Officer / Super Admin approval workflow API
+export const paymentApprovalRequestAPI = {
+  getAll: (params) => api.get('/payment-approval-requests', { params }),
+  getById: (id) => api.get(`/payment-approval-requests/${id}`),
+  create: (data) => api.post('/payment-approval-requests', data),
+  approve: (id) => api.patch(`/payment-approval-requests/${id}/approve`),
+  reject: (id, data) => api.patch(`/payment-approval-requests/${id}/reject`, data || {})
+};
+
 // Tax API (Unified Tax Summary)
 export const taxAPI = {
   getUnifiedSummary: (params) => api.get('/tax/unified-summary', { params })
@@ -350,10 +359,11 @@ export const workerTaskAPI = {
   })
 };
 
-// Worker API (ADMIN, EO, SUPERVISOR - create/update/list workers)
+// Worker API (ADMIN, EO, SUPERVISOR, SFI, SBM - create/update/list workers)
 export const workerAPI = {
   createWorker: (data) => api.post('/workers', data),
   getAllWorkers: (params) => api.get('/workers', { params }),
+  getById: (id) => api.get(`/workers/${id}`),
   updateWorker: (id, data) => api.put(`/workers/${id}`, data)
 };
 
@@ -539,6 +549,11 @@ export const toiletComplaintAPI = {
   getAssigned: (supervisorId) => api.get(`/toilet/complaints/assigned/${supervisorId}`),
   getById: (id) => api.get(`/toilet/complaints/${id}`),
   update: (id, data) => api.put(`/toilet/complaints/${id}`, data)
+};
+
+// Global Search API
+export const globalSearchAPI = {
+  search: (q) => api.get('/global-search', { params: { q } }),
 };
 
 export default api;

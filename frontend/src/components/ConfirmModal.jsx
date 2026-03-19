@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback } from 'react';
+import useLockBodyScroll from '../hooks/useLockBodyScroll';
 
 const ConfirmContext = createContext(null);
 
@@ -56,6 +57,7 @@ export function ConfirmProvider({ children }) {
 }
 
 function ConfirmModalView({ title, message, confirmLabel, cancelLabel, variant, onConfirm, onCancel }) {
+  useLockBodyScroll(true);
   return (
     <div className="modal-overlay" onClick={onCancel}>
       <div

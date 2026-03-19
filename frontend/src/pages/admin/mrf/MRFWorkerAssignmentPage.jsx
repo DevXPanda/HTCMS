@@ -13,10 +13,12 @@ import {
 } from 'lucide-react';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
+import { useMrfPermissions } from './useMrfPermissions';
 
 const MRFWorkerAssignmentPage = () => {
     const base = useMrfBasePath();
     useBackTo(base);
+    const { isSbm, canCrud } = useMrfPermissions();
     const [facilities, setFacilities] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -122,7 +124,7 @@ const MRFWorkerAssignmentPage = () => {
                             to={`${base}/facilities/${facility.id}?tab=workers`}
                             className="btn btn-primary w-full justify-center mt-2"
                         >
-                            <UserCheck className="w-4 h-4" /> Manage Assignments <ArrowRight className="w-4 h-4" />
+                            <UserCheck className="w-4 h-4" /> {isSbm && !canCrud ? 'View Assignments' : 'Manage Assignments'} <ArrowRight className="w-4 h-4" />
                         </Link>
                     </div>
                 ))}

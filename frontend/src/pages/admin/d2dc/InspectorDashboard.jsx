@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useStaffAuth } from '../../../contexts/StaffAuthContext';
 import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 import api from '../../../services/api';
 import { toast } from 'react-hot-toast';
@@ -16,7 +17,9 @@ import {
 import { isRecentDate, formatDateIST, formatDateTimeIST } from '../../../utils/dateUtils';
 
 const InspectorDashboard = () => {
-    const { user } = useAuth();
+    const { user: authUser } = useAuth();
+    const { user: staffUser } = useStaffAuth();
+    const user = authUser || staffUser;
     const { effectiveUlbId } = useSelectedUlb();
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);

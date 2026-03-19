@@ -10,14 +10,17 @@ const D2DCLayout = () => {
     const { user: authUser } = useAuth();
     const { user: staffUser } = useStaffAuth();
 
-    const user = authUser || staffUser;
+    // Prefer staff user when available (SBM/staff portal),
+    // otherwise fall back to admin auth user.
+    const user = staffUser || authUser;
 
     if (!user) {
         return <Navigate to="/login" replace />;
     }
 
     const renderDashboard = () => {
-        switch (user.role) {
+        const role = String(user?.role || '').toLowerCase();
+        switch (role) {
             case 'collector':
             case 'tax_collector':
                 return <CollectorDashboard />;
@@ -25,7 +28,14 @@ const D2DCLayout = () => {
             case 'admin':
                 // Admin sees what Inspector sees (Monitoring View)
                 return <InspectorDashboard />;
+            case 'sbm':
+                // SBM is a global monitoring role (read-only view)
+                return <InspectorDashboard />;
             default:
+                // Some deployments use extended SBM role names (e.g. sbm_monitor)
+                if (role.includes('sbm')) {
+                    return <InspectorDashboard />;
+                }
                 return (
                     <div className="p-8 text-center bg-gray-50 rounded-lg">
                         <h2 className="text-xl font-bold text-red-600 mb-2">Access Denied</h2>

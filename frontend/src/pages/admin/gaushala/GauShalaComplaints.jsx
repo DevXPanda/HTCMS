@@ -22,10 +22,14 @@ import api from '../../../services/api';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../../components/ConfirmModal';
 import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
+import { useGaushalaBasePath } from './useGaushalaBasePath';
+import { useGaushalaPermissions } from './useGaushalaPermissions';
 
 const GauShalaComplaints = () => {
+    const base = useGaushalaBasePath();
     const { confirm } = useConfirm();
-    useBackTo('/gaushala/management');
+    useBackTo(`${base}/management`);
+    const { isSbm, canCrud } = useGaushalaPermissions();
     const { effectiveUlbId } = useSelectedUlb();
     const [complaints, setComplaints] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -278,12 +282,16 @@ const GauShalaComplaints = () => {
                                                 <button onClick={() => handleView(complaint)} className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all" title="View Details">
                                                     <Eye className="w-4 h-4" />
                                                 </button>
-                                                <button onClick={() => handleEdit(complaint)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Edit">
-                                                    <Edit className="w-4 h-4" />
-                                                </button>
-                                                <button onClick={() => handleDelete(complaint.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete">
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
+                                                {(!isSbm || canCrud) && (
+                                                    <>
+                                                        <button onClick={() => handleEdit(complaint)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Edit">
+                                                            <Edit className="w-4 h-4" />
+                                                        </button>
+                                                        <button onClick={() => handleDelete(complaint.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete">
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -435,20 +443,22 @@ const GauShalaComplaints = () => {
                                         >
                                             Close
                                         </button>
-                                        <button
-                                            onClick={() => {
-                                                setEditForm({
-                                                    status: selectedComplaint.status,
-                                                    priority: selectedComplaint.priority || 'medium',
-                                                    resolution_notes: selectedComplaint.resolution_notes || ''
-                                                });
-                                                setIsEditing(true);
-                                            }}
-                                            className="flex-1 py-2 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-700 transition-colors flex items-center justify-center gap-2"
-                                        >
-                                            <Edit className="w-4 h-4" />
-                                            Edit Complaint
-                                        </button>
+                                        {(!isSbm || canCrud) && (
+                                            <button
+                                                onClick={() => {
+                                                    setEditForm({
+                                                        status: selectedComplaint.status,
+                                                        priority: selectedComplaint.priority || 'medium',
+                                                        resolution_notes: selectedComplaint.resolution_notes || ''
+                                                    });
+                                                    setIsEditing(true);
+                                                }}
+                                                className="flex-1 py-2 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-700 transition-colors flex items-center justify-center gap-2"
+                                            >
+                                                <Edit className="w-4 h-4" />
+                                                Edit Complaint
+                                            </button>
+                                        )}
                                     </div>
                                 </>
                             )}

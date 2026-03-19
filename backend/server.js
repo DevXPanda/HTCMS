@@ -9,6 +9,7 @@ import path from "path";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { testConnection as testPgConnection, closePool } from "./db.js";
+import { ensureRoleEnums } from "./db/ensureRoleEnums.js";
 import { attachNotificationSocket } from "./socket/notificationSocket.js";
 import { setNotificationIO } from "./services/notificationService.js";
 
@@ -130,6 +131,8 @@ import { startTaskGeneratorCronJob } from "./services/taskGeneratorCron.js";
 import { startAlertCronJob } from "./services/alertCron.js";
 import d2dcRoutes from "./routes/d2dc.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
+import paymentApprovalRequestRoutes from "./routes/paymentApprovalRequest.routes.js";
+import globalSearchRoutes from "./routes/globalSearch.routes.js";
 
 // API Routes prefix
 app.use("/api/auth", authRoutes);
@@ -177,6 +180,7 @@ app.use("/api/admin-management", adminManagementRoutes);
 app.use("/api/employee-auth", employeeAuthRoutes);
 app.use("/api/d2dc", d2dcRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/payment-approval-requests", paymentApprovalRequestRoutes);
 app.use("/api/toilet", toiletRoutes);
 app.use("/api/mrf", mrfRoutes);
 app.use("/api/gaushala", gauShalaRoutes);
@@ -185,6 +189,7 @@ app.use("/api/utilities", utilityRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/sfi", sfiRoutes);
 app.use("/api/sbm", sbmRoutes);
+app.use("/api/global-search", globalSearchRoutes);
 
 // Serve uploaded files statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -268,6 +273,7 @@ const startServer = async () => {
   try {
     await sequelize.authenticate();
     console.log("Sequelize connected");
+    await ensureRoleEnums();
   } catch (err) {
     console.error("Sequelize error:", err.message);
   }

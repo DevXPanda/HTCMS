@@ -4,10 +4,13 @@ import { User, LogOut, Home, X } from 'lucide-react';
 import { useState } from 'react';
 import Breadcrumbs from './Breadcrumbs';
 import HeaderNotificationBell from './HeaderNotificationBell';
+import GlobalHeaderSearch from './GlobalHeaderSearch';
+import useLockBodyScroll from '../hooks/useLockBodyScroll';
 
 const CitizenLayout = () => {
   const { user, logout } = useAuth();
   const [showProfileModal, setShowProfileModal] = useState(false);
+  useLockBodyScroll(showProfileModal);
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -28,6 +31,7 @@ const CitizenLayout = () => {
               <div className="flex items-center min-w-0 shrink-0">
                 <h1 className="layout-header-title">ULB System</h1>
               </div>
+              <GlobalHeaderSearch role="citizen" />
               <div className="layout-header-actions">
                 <button
                   onClick={() => navigate('/citizen/dashboard')}

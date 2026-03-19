@@ -32,8 +32,8 @@ router.get('/statistics/summary', getDemandStatistics);
 // Get demands by property
 router.get('/property/:propertyId', getDemandsByProperty);
 
-// Get demands by module and entity (Admin only - for discount workflow)
-router.get('/by-entity/:module/:entityId', authorize('admin'), getDemandsByModuleAndEntity);
+// Get demands by module and entity (Admin + Account Officer - for discount/waiver workflow)
+router.get('/by-entity/:module/:entityId', authorize('admin', 'ACCOUNT_OFFICER'), getDemandsByModuleAndEntity);
 
 // Get all demands (filtered by role)
 router.get('/', (req, res, next) => {

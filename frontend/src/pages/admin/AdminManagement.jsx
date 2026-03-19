@@ -13,7 +13,8 @@ const ACTIVE_ROLES = [
   { value: 'SUPERVISOR', label: 'Supervisor' },
   { value: 'COLLECTOR', label: 'Collector' },
   { value: 'FIELD_WORKER', label: 'Field Worker' },
-  { value: 'SFI', label: 'SFI (Sanitary & Food Inspector)' }
+  { value: 'SFI', label: 'SFI (Sanitary & Food Inspector)' },
+  { value: 'ACCOUNT_OFFICER', label: 'Account Officer' }
 ];
 // SBM only for Super Admin (global monitoring, default read-only)
 const SBM_ROLE = { value: 'SBM', label: 'SBM (Global Monitoring)' };
@@ -588,7 +589,8 @@ const AdminManagement = () => {
       OFFICER: 'Officer',
       COLLECTOR: 'Collector',
       ADMIN: 'Admin',
-      SBM: 'SBM (Global Monitoring)'
+      SBM: 'SBM (Global Monitoring)',
+      ACCOUNT_OFFICER: 'Account Officer'
     };
     return labels[normalizedRole] || (role ? role.charAt(0).toUpperCase() + role.slice(1) : '');
   };
@@ -605,7 +607,8 @@ const AdminManagement = () => {
       CONTRACTOR: 'bg-slate-100 text-slate-800',
       SFI: 'bg-cyan-100 text-cyan-800',
       ADMIN: 'bg-red-100 text-red-800',
-      SBM: 'bg-violet-100 text-violet-800'
+      SBM: 'bg-violet-100 text-violet-800',
+      ACCOUNT_OFFICER: 'bg-indigo-100 text-indigo-800'
     };
     return staffColors[normalizedRole] || 'bg-gray-100 text-gray-800';
   };
@@ -801,6 +804,7 @@ const AdminManagement = () => {
               <option value="SUPERVISOR">Supervisor</option>
               <option value="FIELD_WORKER">Field Worker</option>
               <option value="SFI">SFI</option>
+              <option value="ACCOUNT_OFFICER">Account Officer</option>
             </select>
           )}
           <select
@@ -1036,14 +1040,14 @@ const AdminManagement = () => {
                     </select>
                   )}
                 </div>
-                {/* ULB - shown below Role (mandatory for EO, SFI, SUPERVISOR, SBM) */}
+                {/* ULB - shown below Role (mandatory for EO, SFI, SUPERVISOR, SBM, ACCOUNT_OFFICER) */}
                 {formData.role && formData.role.toUpperCase() !== 'ADMIN' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      ULB {(formData.role.toUpperCase() === 'EO' || formData.role.toUpperCase() === 'SFI' || formData.role.toUpperCase() === 'SUPERVISOR' || formData.role.toUpperCase() === 'SBM') && <span className="text-red-500">*</span>}
+                      ULB {(formData.role.toUpperCase() === 'EO' || formData.role.toUpperCase() === 'SFI' || formData.role.toUpperCase() === 'SUPERVISOR' || formData.role.toUpperCase() === 'SBM' || formData.role.toUpperCase() === 'ACCOUNT_OFFICER') && <span className="text-red-500">*</span>}
                     </label>
                     <select
-                      required={formData.role.toUpperCase() === 'EO' || formData.role.toUpperCase() === 'SFI' || formData.role.toUpperCase() === 'SUPERVISOR' || formData.role.toUpperCase() === 'SBM'}
+                      required={formData.role.toUpperCase() === 'EO' || formData.role.toUpperCase() === 'SFI' || formData.role.toUpperCase() === 'SUPERVISOR' || formData.role.toUpperCase() === 'SBM' || formData.role.toUpperCase() === 'ACCOUNT_OFFICER'}
                       value={formData.ulb_id || ''}
                       onChange={(e) => {
                         const newUlbId = e.target.value;
@@ -1518,7 +1522,7 @@ const AdminManagement = () => {
                         ward_id: '',
                         eo_id: '',
                         supervisor_id: '',
-                        ulb_id: (newRole && (newRole.toUpperCase() === 'SUPERVISOR' || newRole.toUpperCase() === 'FIELD_WORKER' || newRole.toUpperCase() === 'SFI' || newRole.toUpperCase() === 'SBM')) ? formData.ulb_id : '',
+                        ulb_id: (newRole && (newRole.toUpperCase() === 'SUPERVISOR' || newRole.toUpperCase() === 'FIELD_WORKER' || newRole.toUpperCase() === 'SFI' || newRole.toUpperCase() === 'SBM' || newRole.toUpperCase() === 'ACCOUNT_OFFICER')) ? formData.ulb_id : '',
                         assigned_modules: (newRole && newRole.toUpperCase() === 'SUPERVISOR') ? (formData.assigned_modules || []) : (newRole && newRole.toUpperCase() === 'SFI' ? (formData.assigned_modules || []) : [])
                       });
                     }}
@@ -1541,14 +1545,14 @@ const AdminManagement = () => {
                     })()}
                   </select>
                 </div>
-                {/* ULB - shown below Role (mandatory for EO, SFI, SUPERVISOR, SBM) */}
+                {/* ULB - shown below Role (mandatory for EO, SFI, SUPERVISOR, SBM, ACCOUNT_OFFICER) */}
                 {formData.role && formData.role.toUpperCase() !== 'ADMIN' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      ULB {(formData.role.toUpperCase() === 'EO' || formData.role.toUpperCase() === 'SFI' || formData.role.toUpperCase() === 'SUPERVISOR' || formData.role.toUpperCase() === 'SBM') && <span className="text-red-500">*</span>}
+                      ULB {(formData.role.toUpperCase() === 'EO' || formData.role.toUpperCase() === 'SFI' || formData.role.toUpperCase() === 'SUPERVISOR' || formData.role.toUpperCase() === 'SBM' || formData.role.toUpperCase() === 'ACCOUNT_OFFICER') && <span className="text-red-500">*</span>}
                     </label>
                     <select
-                      required={formData.role.toUpperCase() === 'EO' || formData.role.toUpperCase() === 'SFI' || formData.role.toUpperCase() === 'SUPERVISOR' || formData.role.toUpperCase() === 'SBM'}
+                      required={formData.role.toUpperCase() === 'EO' || formData.role.toUpperCase() === 'SFI' || formData.role.toUpperCase() === 'SUPERVISOR' || formData.role.toUpperCase() === 'SBM' || formData.role.toUpperCase() === 'ACCOUNT_OFFICER'}
                       value={formData.ulb_id || ''}
                       onChange={(e) => {
                         const newUlbId = e.target.value;

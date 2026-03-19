@@ -4,12 +4,16 @@ import { useBackTo } from '../../../contexts/NavigationContext';
 import { Save } from 'lucide-react';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
+import { useGaushalaBasePath } from './useGaushalaBasePath';
+import { useGaushalaPermissions } from './useGaushalaPermissions';
 
 const AddGauShala = () => {
     const navigate = useNavigate();
     const { id } = useParams();
     const isEditMode = !!id;
-    useBackTo('/gaushala/facilities');
+    const base = useGaushalaBasePath();
+    useBackTo(`${base}/facilities`);
+    const { isSbm, canCrud } = useGaushalaPermissions();
     const [wards, setWards] = useState([]);
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -20,11 +24,16 @@ const AddGauShala = () => {
     });
 
     useEffect(() => {
+        if (isSbm && !canCrud) {
+            toast.error('Read-only access: editing is disabled.');
+            navigate(`${base}/management`);
+            return;
+        }
         fetchWards();
         if (isEditMode) {
             fetchFacilityDetails();
         }
-    }, [id]);
+    }, [id, isSbm, canCrud, navigate, base]);
 
     const fetchWards = async () => {
         try {
@@ -67,7 +76,7 @@ const AddGauShala = () => {
                 await api.post('/gaushala/facilities', formData);
                 toast.success('Gaushala added successfully!');
             }
-            navigate('/gaushala/management');
+            navigate(`${base}/management`);
         } catch (error) {
             console.error('Failed to save Gaushala:', error);
             toast.error('Failed to save. Please try again.');
@@ -110,7 +119,7 @@ const AddGauShala = () => {
                     </div>
                 </div>
                 <div className="flex justify-end gap-4 border-t pt-4">
-                    <Link to="/gaushala/management" className="btn btn-secondary px-4 py-2 border rounded-lg text-gray-700">Cancel</Link>
+                    <Link to={`${base}/management`} className="btn btn-secondary px-4 py-2 border rounded-lg text-gray-700">Cancel</Link>
                     <button type="submit" disabled={loading} className="btn btn-primary px-4 py-2 bg-blue-600 text-white rounded-lg">{loading ? 'Saving...' : 'Save Gaushala'}</button>
                 </div>
             </form>

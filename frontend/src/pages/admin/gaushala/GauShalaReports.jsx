@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useGaushalaBasePath } from './useGaushalaBasePath';
 import {
     Beef,
     TrendingUp,
@@ -19,7 +20,8 @@ import {
 import api from '../../../services/api';
 
 const GauShalaReports = () => {
-    useBackTo('/gaushala/management');
+    const base = useGaushalaBasePath();
+    useBackTo(`${base}/management`);
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -272,7 +274,7 @@ const GauShalaReports = () => {
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{f.feedingCount}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{f.totalFodder}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right">
-                                                <Link to={`/gaushala/facilities/${f.id}`} className="p-1.5 text-gray-400 hover:text-primary-600 inline-block">
+                                                <Link to={`${base}/facilities/${f.id}`} className="p-1.5 text-gray-400 hover:text-primary-600 inline-block">
                                                     <Eye className="w-4 h-4" />
                                                 </Link>
                                             </td>

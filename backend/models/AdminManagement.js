@@ -19,7 +19,7 @@ export const AdminManagement = sequelize.define('AdminManagement', {
   },
   // Deprecated roles (kept for future use): Clerk, Inspector, Officer, Contractor. Active: EO, Supervisor, Collector, Field Worker, SFI, SBM (global monitoring).
   role: {
-    type: DataTypes.ENUM('CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'ADMIN', 'SFI', 'SBM'),
+    type: DataTypes.ENUM('CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'ADMIN', 'SFI', 'SBM', 'ACCOUNT_OFFICER'),
     allowNull: false
   },
   // SBM only: when true, full CRUD; when false, read-only across all modules (Super Admin can toggle on creation).
@@ -141,7 +141,8 @@ AdminManagement.generateEmployeeId = async (role, attempt = 1) => {
     CONTRACTOR: 'CON',
     ADMIN: 'ADM',
     SFI: 'SFI',
-    SBM: 'SBM'
+    SBM: 'SBM',
+    ACCOUNT_OFFICER: 'AOF'
   };
 
   const prefix = prefixes[normalizedRole];

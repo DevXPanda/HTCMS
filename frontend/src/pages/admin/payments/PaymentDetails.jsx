@@ -14,7 +14,8 @@ const PaymentDetails = () => {
   const { id } = useParams();
   const location = useLocation();
   const isCitizenRoute = location.pathname.startsWith('/citizen');
-  const basePath = isCitizenRoute ? '/citizen' : '';
+  const isAccountOfficerRoute = location.pathname.startsWith('/account-officer');
+  const basePath = isCitizenRoute ? '/citizen' : (isAccountOfficerRoute ? '/account-officer' : '');
   const [payment, setPayment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [pdfLoading, setPdfLoading] = useState(false);

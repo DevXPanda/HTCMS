@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useGaushalaBasePath } from './useGaushalaBasePath';
 import {
     ClipboardCheck,
     Calendar,
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react';
 import api from '../../../services/api';
 import { formatDateIST, formatDateTimeIST } from '../../../utils/dateUtils';
+import { useGaushalaPermissions } from './useGaushalaPermissions';
 
 const InspectionDetail = () => {
     const { id } = useParams();
@@ -24,7 +26,9 @@ const InspectionDetail = () => {
     const [inspection, setInspection] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    useBackTo('/gaushala/inspections');
+    const base = useGaushalaBasePath();
+    useBackTo(`${base}/inspections`);
+    const { isSbm, canCrud } = useGaushalaPermissions();
 
     useEffect(() => {
         fetchInspectionDetails();
@@ -88,12 +92,14 @@ const InspectionDetail = () => {
                     <h1 className="text-2xl font-bold text-gray-900">Inspection Report</h1>
                     <p className="text-gray-500 text-sm">Reviewing audit as of {formatDateIST(inspection.inspection_date)}</p>
                 </div>
-                <Link
-                    to={`/gaushala/inspections/${id}/edit`}
-                    className="btn btn-secondary flex items-center gap-2 text-sm font-semibold px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                    <Edit className="w-4 h-4" /> Edit Report
-                </Link>
+                {(!isSbm || canCrud) && (
+                    <Link
+                        to={`${base}/inspections/${id}/edit`}
+                        className="btn btn-secondary flex items-center gap-2 text-sm font-semibold px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                        <Edit className="w-4 h-4" /> Edit Report
+                    </Link>
+                )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

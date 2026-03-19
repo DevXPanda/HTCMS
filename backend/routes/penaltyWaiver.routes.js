@@ -6,8 +6,8 @@ const router = express.Router();
 
 router.use(authenticate);
 
-router.get('/summary', authorize('admin'), getPenaltyWaiverSummary);
-router.get('/history', authorize('admin'), getPenaltyWaiverHistory);
+router.get('/summary', authorize('admin', 'ACCOUNT_OFFICER'), getPenaltyWaiverSummary);
+router.get('/history', authorize('admin', 'ACCOUNT_OFFICER'), getPenaltyWaiverHistory);
 router.get('/:id/pdf', getPenaltyWaiverPdf);
 router.post('/', authorize('admin'), createPenaltyWaiver);
 

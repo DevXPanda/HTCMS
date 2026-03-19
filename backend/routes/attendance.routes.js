@@ -58,7 +58,7 @@ router.get('/stats/summary', authorize('admin', 'assessor'), getAttendanceStats)
 // Get worker attendance reports grouped by ULB (Admin, Assessor, EO, SFI)
 router.get('/worker/reports', (req, res, next) => {
   const role = (req.user?.role || '').toString().toUpperCase();
-  if (req.user && (req.user.role === 'admin' || req.user.role === 'assessor' || req.user.role === 'eo' || role === 'SFI')) {
+  if (req.user && (req.user.role === 'admin' || req.user.role === 'assessor' || req.user.role === 'eo' || role === 'SFI' || role === 'SBM')) {
     return next();
   }
   return res.status(403).json({ success: false, message: 'Access denied. Admin, Assessor, EO, or SFI role required.' });

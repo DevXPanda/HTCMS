@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { demandAPI, discountAPI, propertyAPI, waterConnectionAPI, shopsAPI } from '../../../services/api';
+import { demandAPI, discountAPI, paymentApprovalRequestAPI, propertyAPI, waterConnectionAPI, shopsAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { Search, Percent, IndianRupee, FileText, Calendar, History, Download, CheckCircle, Printer } from 'lucide-react';
@@ -70,6 +70,8 @@ const DiscountManagement = () => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [detailDownloading, setDetailDownloading] = useState(false);
   const [formMessage, setFormMessage] = useState(null);
+  const role = (localStorage.getItem('role') || '').toString().toUpperCase().replace(/-/g, '_');
+  const isAccountOfficer = role === 'ACCOUNT_OFFICER';
 
   useEffect(() => {
     if (showSuccessModal || showDetailModal) {
@@ -340,31 +342,49 @@ const DiscountManagement = () => {
     setSubmitting(true);
     setFormMessage(null);
     try {
-      const res = await discountAPI.create({
-        module_type: module,
-        entity_id: entityId,
-        demand_id: selectedDemand.id,
-        discount_type: discountType,
-        discount_value: discountValNum,
-        reason: reason.trim(),
-        document_url: documentUrl
-      });
-      if (!res.data?.success || !res.data?.data?.discount?.id) {
+      const res = isAccountOfficer
+        ? await paymentApprovalRequestAPI.create({
+          request_type: 'DISCOUNT',
+          module_type: module,
+          entity_id: entityId,
+          demand_id: selectedDemand.id,
+          adjustment_type: discountType,
+          adjustment_value: discountValNum,
+          reason: reason.trim(),
+          document_url: documentUrl
+        })
+        : await discountAPI.create({
+          module_type: module,
+          entity_id: entityId,
+          demand_id: selectedDemand.id,
+          discount_type: discountType,
+          discount_value: discountValNum,
+          reason: reason.trim(),
+          document_url: documentUrl
+        });
+      if (!res.data?.success) {
         toast.error(res.data?.message || 'Invalid response');
         return;
       }
-      const { discount, demand: resDemand } = res.data.data;
+      const discount = res.data?.data?.discount || res.data?.data?.request;
+      const resDemand = res.data?.data?.demand || selectedDemand;
+      if (!discount?.id) {
+        toast.error('Invalid response');
+        return;
+      }
       setCreatedAdjustment({
         id: discount.id,
         moduleType: discount.moduleType,
         citizenName: '—',
         demandNumber: resDemand?.demandNumber || selectedDemand?.demandNumber || '—',
         originalAmount: originalAmount,
-        adjustmentAmount: discount.discountAmount,
+        adjustmentAmount: discount.discountAmount ?? discount.adjustmentValue,
         adjustmentLabel: 'Discount Amount',
-        type: discount.discountType === 'PERCENTAGE' ? `Percentage (${discount.discountValue}%)` : 'Fixed',
+        type: (discount.discountType || discount.adjustmentType) === 'PERCENTAGE'
+          ? `Percentage (${discount.discountValue ?? discount.adjustmentValue}%)`
+          : 'Fixed',
         finalAmount: resDemand?.finalAmount,
-        approvedBy: discount.approvedBy != null ? `ID ${discount.approvedBy}` : '—',
+        approvedBy: isAccountOfficer ? 'Pending Super Admin approval' : (discount.approvedBy != null ? `ID ${discount.approvedBy}` : '—'),
         date: discount.createdAt || discount.created_at,
         reason: discount.reason || '',
         documentUrl: discount.documentUrl
@@ -401,7 +421,7 @@ const DiscountManagement = () => {
     });
     discountAPI.getSummary().then((res) => res.data?.success && res.data?.data && setSummary(res.data.data));
     refreshHistory();
-    toast.success('Adjustment recorded successfully');
+      toast.success(isAccountOfficer ? 'Approval request submitted successfully' : 'Adjustment recorded successfully');
   };
 
   const handleSuccessYes = () => {
@@ -423,7 +443,7 @@ const DiscountManagement = () => {
     });
     discountAPI.getSummary().then((res) => res.data?.success && res.data?.data && setSummary(res.data.data));
     refreshHistory();
-    toast.success('Adjustment recorded successfully');
+      toast.success(isAccountOfficer ? 'Approval request submitted successfully' : 'Adjustment recorded successfully');
   };
 
   const handleDetailDownloadPdf = async () => {
@@ -486,8 +506,12 @@ const DiscountManagement = () => {
     <div className="space-y-8 max-w-7xl mx-auto px-2">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="ds-page-title">Discount Management</h1>
-          <p className="ds-page-subtitle">Manual tax concessions with document verification</p>
+          <h1 className="ds-page-title">{isAccountOfficer ? 'Discount Requests' : 'Discount Management'}</h1>
+          <p className="ds-page-subtitle">
+            {isAccountOfficer
+              ? 'Submit discount requests for Super Admin approval.'
+              : 'Manual tax concessions with document verification'}
+          </p>
         </div>
       </div>
 
@@ -902,7 +926,7 @@ const DiscountManagement = () => {
                 {!documentUrl && <p className="text-sm text-amber-600 mt-1">PDF or image is required.</p>}
               </div>
               <button type="submit" disabled={submitting || !canSubmit} className="btn btn-primary">
-                {submitting ? 'Applying…' : 'Apply Discount'}
+                {submitting ? (isAccountOfficer ? 'Submitting…' : 'Applying…') : (isAccountOfficer ? 'Submit for Approval' : 'Apply Discount')}
               </button>
             </form>
           </section>

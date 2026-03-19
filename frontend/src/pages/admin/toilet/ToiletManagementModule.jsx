@@ -16,10 +16,12 @@ import {
     CheckCircle
 } from 'lucide-react';
 import api from '../../../services/api';
+import { useToiletPermissions } from './useToiletPermissions';
 
 const ToiletManagementModule = () => {
     const base = useToiletBasePath();
     useBackTo(base === '/sfi/toilet-management' ? '/sfi/dashboard' : '/dashboard');
+    const { isSbm, canCrud } = useToiletPermissions();
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -88,7 +90,7 @@ const ToiletManagementModule = () => {
             <div className="ds-page-header">
                 <div>
                     <h1 className="ds-page-title">Toilet Management Module</h1>
-                    <p className="ds-page-subtitle">Manage all public toilet facilities and operations</p>
+                    <p className="ds-page-subtitle">{isSbm && !canCrud ? 'View all public toilet facilities and operations (read-only)' : 'Manage all public toilet facilities and operations'}</p>
                 </div>
             </div>
 
@@ -168,26 +170,30 @@ const ToiletManagementModule = () => {
 
             <div className="card">
                 <h2 className="ds-section-title mb-4">Quick Actions</h2>
-                <div className="flex flex-wrap gap-4">
-                    <Link
-                        to={`${base}/facilities/new`}
-                        className="btn btn-primary flex items-center"
-                    >
-                        <PlusCircle className="h-4 w-4 mr-2" /> Add New Toilet Facility
-                    </Link>
-                    <Link
-                        to={`${base}/inspections/new`}
-                        className="btn btn-secondary flex items-center"
-                    >
-                        <ClipboardCheck className="h-4 w-4 mr-2" /> Schedule Inspection
-                    </Link>
-                    <Link
-                        to={`${base}/maintenance/new`}
-                        className="btn btn-secondary flex items-center"
-                    >
-                        <Wrench className="h-4 w-4 mr-2" /> Schedule Maintenance
-                    </Link>
-                </div>
+                {isSbm && !canCrud ? (
+                    <p className="text-sm text-gray-500">Quick actions are disabled for read-only access.</p>
+                ) : (
+                    <div className="flex flex-wrap gap-4">
+                        <Link
+                            to={`${base}/facilities/new`}
+                            className="btn btn-primary flex items-center"
+                        >
+                            <PlusCircle className="h-4 w-4 mr-2" /> Add New Toilet Facility
+                        </Link>
+                        <Link
+                            to={`${base}/inspections/new`}
+                            className="btn btn-secondary flex items-center"
+                        >
+                            <ClipboardCheck className="h-4 w-4 mr-2" /> Schedule Inspection
+                        </Link>
+                        <Link
+                            to={`${base}/maintenance/new`}
+                            className="btn btn-secondary flex items-center"
+                        >
+                            <Wrench className="h-4 w-4 mr-2" /> Schedule Maintenance
+                        </Link>
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useMemo, useState, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
 import { demandAPI } from '../../services/api';
 import { exportToCSV } from '../../utils/exportCSV';
@@ -7,12 +7,36 @@ import { FileText, Download, RefreshCw, Search, Eye, FileDown } from 'lucide-rea
 import toast from 'react-hot-toast';
 
 const SBMDemands = () => {
+  const [searchParams] = useSearchParams();
   const [demands, setDemands] = useState([]);
   const [ulbs, setUlbs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [ulbId, setUlbId] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+
+  const moduleParamRaw = (searchParams.get('module') || '').trim();
+  const moduleParam = moduleParamRaw ? moduleParamRaw.toUpperCase() : '';
+
+  const moduleLabel = useMemo(() => {
+    switch (moduleParam) {
+      case 'PROPERTY': return 'House Tax / Demands';
+      case 'WATER': return 'Water Tax / Demands';
+      case 'SHOP': return 'Shop Tax / Demands';
+      case 'D2DC': return 'D2DC / Demands';
+      case 'UNIFIED': return 'Unified Tax Demand';
+      default: return 'Demands';
+    }
+  }, [moduleParam]);
+
+  const normalizeModuleForRow = (d) => {
+    const st = String(d?.serviceType || '').toUpperCase();
+    if (st === 'HOUSE_TAX') return 'PROPERTY';
+    if (st === 'WATER_TAX') return 'WATER';
+    if (st === 'SHOP_TAX') return 'SHOP';
+    if (st === 'D2DC') return 'D2DC';
+    return '';
+  };
 
   useEffect(() => {
     api.get('/admin-management/ulbs').then((res) => {
@@ -28,7 +52,8 @@ const SBMDemands = () => {
         limit: 5000,
         search: search.trim() || undefined,
         ulb_id: ulbId || undefined,
-        status: statusFilter || undefined
+        status: statusFilter || undefined,
+        module: moduleParam || undefined
       };
       const res = await demandAPI.getAll(params);
       const data = res.data?.data ?? {};
@@ -44,7 +69,7 @@ const SBMDemands = () => {
 
   useEffect(() => {
     fetchData();
-  }, [ulbId]);
+  }, [ulbId, moduleParam]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -55,7 +80,7 @@ const SBMDemands = () => {
     const rows = demands.map((d) => ({
       id: d.id,
       demandNumber: d.demandNumber,
-      module: d.module,
+      module: moduleParam || normalizeModuleForRow(d) || d.module || '',
       entityRef: d.entityRef ?? d.property_id ?? d.connection_id,
       totalAmount: d.totalAmount,
       status: d.status,
@@ -72,13 +97,13 @@ const SBMDemands = () => {
 
   return (
     <div className="space-y-4">
-      <h1 className="print-only text-xl font-bold text-gray-900 mb-2">House Tax / Demands</h1>
+      <h1 className="print-only text-xl font-bold text-gray-900 mb-2">{moduleLabel}</h1>
       <div className="no-print">
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <FileText className="w-7 h-7 text-violet-600" />
-          House Tax / Demands (Read-only)
+          {moduleLabel} (Read-only)
         </h1>
-        <p className="text-gray-600 text-sm">View all tax demands across ULBs. Filter by ULB and status, export CSV.</p>
+        <p className="text-gray-600 text-sm">View demands across ULBs. Filter by ULB and status, export CSV.</p>
       </div>
 
       <div className="no-print flex flex-wrap gap-3 items-end">
@@ -145,7 +170,7 @@ const SBMDemands = () => {
                 {demands.map((d) => (
                   <tr key={d.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm font-medium text-gray-900">{d.demandNumber}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{d.module || '—'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{moduleParam || normalizeModuleForRow(d) || d.module || '—'}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{d.entityRef ?? d.property_id ?? d.connection_id ?? '—'}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{d.totalAmount != null ? Number(d.totalAmount).toFixed(2) : '—'}</td>
                     <td className="px-4 py-3">
@@ -153,7 +178,10 @@ const SBMDemands = () => {
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">{d.financialYear || '—'}</td>
                     <td className="print-hide-col px-4 py-3">
-                      <Link to={`/sbm/demands/${d.id}`} className="text-violet-600 hover:text-violet-800 flex items-center gap-1 text-sm">
+                      <Link
+                        to={`/sbm/demands/${d.id}${moduleParam ? `?module=${encodeURIComponent(moduleParam)}` : ''}`}
+                        className="text-violet-600 hover:text-violet-800 flex items-center gap-1 text-sm"
+                      >
                         <Eye className="w-4 h-4" /> View
                       </Link>
                     </td>

@@ -195,6 +195,7 @@ const Dashboard = () => {
     { name: 'Citizen Management', icon: Users, link: '/users' },
     ...(isSuperAdmin ? [{ name: 'Admin Management', icon: Shield, link: '/admin-accounts' }] : []),
     { name: 'Staff Management', icon: UserCog, link: '/admin-management' },
+    ...(isSuperAdmin ? [{ name: 'Approval Requests', icon: FileText, link: '/approval-requests' }] : []),
     { name: 'Attendance', icon: Clock, link: '/attendance' },
     { name: 'Field Monitoring', icon: ClipboardList, link: '/field-monitoring' },
     { name: 'Field Worker Monitoring', icon: Users, link: '/admin-field-worker-monitoring' },

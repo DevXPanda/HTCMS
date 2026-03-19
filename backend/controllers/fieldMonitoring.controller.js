@@ -10,11 +10,12 @@ import { sequelize } from '../config/database.js';
 export const getFieldDashboard = async (req, res, next) => {
   try {
     const user = req.user;
+    const roleUpper = (user.role || '').toString().toUpperCase();
 
-    if (user.role !== 'admin' && user.role !== 'assessor') {
+    if (roleUpper !== 'ADMIN' && roleUpper !== 'ASSESSOR' && roleUpper !== 'SBM') {
       return res.status(403).json({
         success: false,
-        message: 'Access denied. Only admin and assessor can view field monitoring.'
+        message: 'Access denied. Only admin, assessor, or SBM can view field monitoring.'
       });
     }
 
@@ -698,8 +699,9 @@ export const getCollectorDetails = async (req, res, next) => {
   try {
     const user = req.user;
     const { collectorId } = req.params;
+    const roleUpper = (user.role || '').toString().toUpperCase();
 
-    if (user.role !== 'admin' && user.role !== 'assessor') {
+    if (roleUpper !== 'ADMIN' && roleUpper !== 'ASSESSOR' && roleUpper !== 'SBM') {
       return res.status(403).json({
         success: false,
         message: 'Access denied'
@@ -865,8 +867,9 @@ export const getCollectorDetails = async (req, res, next) => {
 export const getFollowUps = async (req, res, next) => {
   try {
     const user = req.user;
+    const roleUpper = (user.role || '').toString().toUpperCase();
 
-    if (user.role !== 'admin' && user.role !== 'assessor') {
+    if (roleUpper !== 'ADMIN' && roleUpper !== 'ASSESSOR' && roleUpper !== 'SBM') {
       return res.status(403).json({
         success: false,
         message: 'Access denied'

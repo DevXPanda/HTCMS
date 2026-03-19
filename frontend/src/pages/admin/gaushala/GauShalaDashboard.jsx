@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useGaushalaBasePath } from './useGaushalaBasePath';
+import { useGaushalaPermissions } from './useGaushalaPermissions';
 import {
     Beef,
     MapPin,
@@ -16,7 +18,9 @@ import {
 import api from '../../../services/api';
 
 const GauShalaDashboard = () => {
-    useBackTo('/dashboard');
+    const base = useGaushalaBasePath();
+    useBackTo(base === '/sbm/gaushala' ? '/sbm/dashboard' : '/dashboard');
+    const { isSbm, canCrud } = useGaushalaPermissions();
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -40,42 +44,42 @@ const GauShalaDashboard = () => {
             title: 'Gaushala Facilities',
             description: 'View and manage all municipal cattle shelters',
             icon: MapPin,
-            link: '/gaushala/facilities',
+            link: `${base}/facilities`,
             color: 'bg-orange-500'
         },
         {
             title: 'Cattle Management',
             description: 'Registry of all animals across facilities',
             icon: Beef,
-            link: '/gaushala/all-cattle',
+            link: `${base}/all-cattle`,
             color: 'bg-amber-600'
         },
         {
             title: 'Health & Inspections',
             description: 'Schedule and track veterinary inspections',
             icon: ClipboardCheck,
-            link: '/gaushala/inspections',
+            link: `${base}/inspections`,
             color: 'bg-blue-500'
         },
         {
             title: 'Feeding & Inventory',
             description: 'Track fodder distribution and feeding logs',
             icon: FileText,
-            link: '/gaushala/feeding',
+            link: `${base}/feeding`,
             color: 'bg-green-500'
         },
         {
             title: 'Complaints',
             description: 'Manage citizen complaints and feedback',
             icon: AlertCircle,
-            link: '/gaushala/complaints',
+            link: `${base}/complaints`,
             color: 'bg-red-500'
         },
         {
             title: 'Reports & Analytics',
             description: 'View gaushala reports and analytics',
             icon: BarChart3,
-            link: '/gaushala/reports',
+            link: `${base}/reports`,
             color: 'bg-purple-500'
         }
     ];
@@ -192,20 +196,24 @@ const GauShalaDashboard = () => {
             {/* Quick Actions */}
             <div className="bg-white rounded-lg shadow p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-                <div className="flex flex-wrap gap-4">
-                    <Link to="/gaushala/facilities/new" className="btn btn-primary flex items-center">
-                        <PlusCircle className="h-4 w-4 mr-2" /> Add New Gaushala
-                    </Link>
-                    <Link to="/gaushala/facilities" className="btn btn-secondary flex items-center">
-                        <Beef className="h-4 w-4 mr-2" /> Register New Animal
-                    </Link>
-                    <Link to="/gaushala/inspections/new" className="btn btn-secondary flex items-center">
-                        <ClipboardCheck className="h-4 w-4 mr-2" /> Schedule Inspection
-                    </Link>
-                    <Link to="/gaushala/feeding" className="btn btn-secondary flex items-center">
-                        <FileText className="h-4 w-4 mr-2" /> Add Feeding Record
-                    </Link>
-                </div>
+                {isSbm && !canCrud ? (
+                    <p className="text-sm text-gray-500">Quick create actions are disabled for read-only access.</p>
+                ) : (
+                    <div className="flex flex-wrap gap-4">
+                        <Link to={`${base}/facilities/new`} className="btn btn-primary flex items-center">
+                            <PlusCircle className="h-4 w-4 mr-2" /> Add New Gaushala
+                        </Link>
+                        <Link to={`${base}/facilities`} className="btn btn-secondary flex items-center">
+                            <Beef className="h-4 w-4 mr-2" /> Register New Animal
+                        </Link>
+                        <Link to={`${base}/inspections/new`} className="btn btn-secondary flex items-center">
+                            <ClipboardCheck className="h-4 w-4 mr-2" /> Schedule Inspection
+                        </Link>
+                        <Link to={`${base}/feeding`} className="btn btn-secondary flex items-center">
+                            <FileText className="h-4 w-4 mr-2" /> Add Feeding Record
+                        </Link>
+                    </div>
+                )}
             </div>
         </div>
     );

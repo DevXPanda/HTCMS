@@ -20,11 +20,11 @@ const requireSupervisor = (req, res, next) => {
   next();
 };
 
-/** Allow user table admin OR staff (admin_management) with admin/assessor/cashier/sfi for Field Worker Monitoring admin view */
+/** Allow user table admin OR staff (admin_management) with admin/assessor/cashier/sfi/SBM for Field Worker Monitoring admin view */
 const requireFieldWorkerMonitoringAdmin = (req, res, next) => {
   const isUserAdmin = req.userType === 'user' && req.user?.role === 'admin';
   const staffRole = (req.user?.role || '').toString().toLowerCase();
-  const isStaffAllowed = req.userType === 'admin_management' && ['admin', 'assessor', 'cashier', 'sfi'].includes(staffRole);
+  const isStaffAllowed = req.userType === 'admin_management' && ['admin', 'assessor', 'cashier', 'sfi', 'sbm'].includes(staffRole);
   if (isUserAdmin || isStaffAllowed) return next();
   return res.status(403).json({ success: false, message: 'Access denied. Admin or staff role required.' });
 };

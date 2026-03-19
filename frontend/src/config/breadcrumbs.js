@@ -61,6 +61,7 @@ const adminRoutes = [
   { path: 'field-worker-monitoring', label: 'Field Worker Monitoring', parentPath: 'dashboard' },
   { path: 'field-worker-monitoring/eos/:eoId/dashboard', label: 'EO Dashboard', parentPath: 'field-worker-monitoring' },
   { path: 'admin-field-worker-monitoring', label: 'Admin Field Monitoring', parentPath: 'dashboard' },
+  { path: 'approval-requests', label: 'Approval Requests', parentPath: 'dashboard' },
 ];
 
 // Helper: match route path to pathname when route may contain :param segments
@@ -155,7 +156,8 @@ const clerkRoutes = [
   { path: 'property-applications', label: 'Property Applications', parentPath: 'dashboard' },
   { path: 'property-applications/:id', label: 'Application Details', parentPath: 'property-applications' },
   { path: 'property-applications/new', label: 'New Application', parentPath: 'property-applications' },
-  { path: 'properties', label: 'Properties', parentPath: 'dashboard' },
+  // Tax Management → Property Tax workflow (SBM)
+  { path: 'properties', label: 'Properties', parentPath: 'property-tax' },
   { path: 'properties/:id', label: 'Property Details', parentPath: 'properties' },
   { path: 'property-connections', label: 'Property Connections', parentPath: 'dashboard' },
   { path: 'water-applications', label: 'Water Applications', parentPath: 'dashboard' },
@@ -193,7 +195,8 @@ const inspectorRoutes = [
   { path: 'water-connections', label: 'Water Connections', parentPath: 'dashboard' },
   { path: 'water-connections/:id/inspect', label: 'Inspect Connection', parentPath: 'water-connections' },
   { path: 'recent-inspections', label: 'Recent Inspections', parentPath: 'dashboard' },
-  { path: 'properties', label: 'Properties', parentPath: 'dashboard' },
+  // Tax Management → Property Tax workflow (SBM)
+  { path: 'properties', label: 'Properties', parentPath: 'property-tax' },
   { path: 'properties/:id', label: 'Property Details', parentPath: 'properties' },
   { path: 'attendance', label: 'Attendance', parentPath: 'dashboard' },
 ];
@@ -205,6 +208,16 @@ const officerRoutes = [
   { path: 'water-requests/:id', label: 'Request Details', parentPath: 'water-requests' },
   { path: 'decision-history', label: 'Decision History', parentPath: 'dashboard' },
   { path: 'attendance', label: 'Attendance', parentPath: 'dashboard' },
+];
+
+const accountOfficerRoutes = [
+  { path: 'dashboard', label: 'Account Officer Dashboard', parentPath: null },
+  { path: 'payments', label: 'Payments', parentPath: 'dashboard' },
+  { path: 'payments/:id', label: 'Payment Details', parentPath: 'payments' },
+  { path: 'discounts', label: 'Discount Requests', parentPath: 'dashboard' },
+  { path: 'penalty-waivers', label: 'Penalty Waiver Requests', parentPath: 'dashboard' },
+  { path: 'approval-requests', label: 'Approval Requests', parentPath: 'dashboard' },
+  { path: 'notifications', label: 'Notifications', parentPath: 'dashboard' },
 ];
 
 const supervisorRoutes = [
@@ -346,6 +359,12 @@ export function getOfficerBreadcrumbs(pathname) {
   return buildBreadcrumbsForRole(rest, prefix, officerRoutes, officerDetailLabels);
 }
 
+export function getAccountOfficerBreadcrumbs(pathname) {
+  const prefix = '/account-officer';
+  const rest = pathname.replace(/^\/account-officer\/?/, '') || 'dashboard';
+  return buildBreadcrumbsForRole(rest, prefix, accountOfficerRoutes, {});
+}
+
 export function getSupervisorBreadcrumbs(pathname) {
   const prefix = '/supervisor';
   const rest = pathname.replace(/^\/supervisor\/?/, '') || 'dashboard';
@@ -366,24 +385,137 @@ export function getSfiBreadcrumbs(pathname) {
 
 const sbmRoutes = [
   { path: 'dashboard', label: 'SBM Dashboard', parentPath: null },
-  { path: 'ulbs', label: 'ULBs', parentPath: 'dashboard' },
-  { path: 'properties', label: 'Properties', parentPath: 'dashboard' },
+  { path: 'tax-management', label: 'Tax Management', parentPath: 'dashboard' },
+  { path: 'property-tax', label: 'Property Tax', parentPath: 'tax-management' },
+  { path: 'water-tax', label: 'Water Tax', parentPath: 'tax-management' },
+  { path: 'shop-tax', label: 'Shop Tax', parentPath: 'tax-management' },
+  { path: 'tax-management/d2dc', label: 'D2DC', parentPath: 'tax-management' },
+  { path: 'demands/unified', label: 'Unified Tax Demand', parentPath: 'tax-management' },
+  { path: 'ulbs', label: 'ULB Management', parentPath: 'dashboard' },
+  { path: 'ulbs/:id', label: 'ULB Details', parentPath: 'ulbs' },
+  { path: 'properties', label: 'Properties', parentPath: 'property-tax' },
   { path: 'properties/:id', label: 'Property Details', parentPath: 'properties' },
-  { path: 'demands', label: 'House Tax / Demands', parentPath: 'dashboard' },
+  { path: 'assessments', label: 'Assessments', parentPath: 'property-tax' },
+  { path: 'assessments/:id', label: 'Assessment Details', parentPath: 'assessments' },
+  { path: 'demands', label: 'House Tax / Demands', parentPath: 'tax-management' },
   { path: 'demands/:id', label: 'Demand Details', parentPath: 'demands' },
-  { path: 'payments', label: 'Payments', parentPath: 'dashboard' },
+  { path: 'payments', label: 'Payments', parentPath: 'tax-management' },
   { path: 'payments/:id', label: 'Payment Details', parentPath: 'payments' },
+  { path: 'notices', label: 'Notices', parentPath: 'tax-management' },
+  { path: 'notices/:id', label: 'Notice Details', parentPath: 'notices' },
   { path: 'workers', label: 'Field Workers', parentPath: 'dashboard' },
+  { path: 'workers/:id', label: 'Worker Details', parentPath: 'workers' },
   { path: 'staff', label: 'Staff', parentPath: 'dashboard' },
+  { path: 'staff/:id', label: 'Staff Details', parentPath: 'staff' },
+  { path: 'citizen', label: 'Citizen Management', parentPath: 'dashboard' },
+  { path: 'citizen/:id', label: 'Citizen Details', parentPath: 'citizen' },
+  { path: 'admin-accounts', label: 'Admin Management', parentPath: 'dashboard' },
+  { path: 'admin-accounts/:id', label: 'Admin Account Details', parentPath: 'admin-accounts' },
+  { path: 'wards', label: 'Wards', parentPath: 'dashboard' },
+  { path: 'wards/:id', label: 'Ward Details', parentPath: 'wards' },
+  { path: 'field-monitoring', label: 'Field Monitoring', parentPath: 'dashboard' },
+  { path: 'field-worker-monitoring', label: 'Field Worker Monitoring', parentPath: 'dashboard' },
+  { path: 'field-worker-monitoring/eos/:eoId/dashboard', label: 'EO Dashboard', parentPath: 'field-worker-monitoring' },
+  { path: 'attendance', label: 'Attendance', parentPath: 'dashboard' },
+  { path: 'reports', label: 'Reports', parentPath: 'dashboard' },
+  { path: 'audit-logs', label: 'Audit Logs', parentPath: 'dashboard' },
   { path: 'toilet', label: 'Toilet Management', parentPath: 'dashboard' },
+  { path: 'toilet-management', label: 'Toilet Management', parentPath: 'dashboard' },
+  { path: 'toilet-management/facilities', label: 'Facilities', parentPath: 'toilet-management' },
+  { path: 'toilet-management/facilities/new', label: 'Add Facility', parentPath: 'toilet-management/facilities' },
+  { path: 'toilet-management/facilities/:id', label: 'Facility Details', parentPath: 'toilet-management/facilities' },
+  { path: 'toilet-management/inspections', label: 'Inspections', parentPath: 'toilet-management' },
+  { path: 'toilet-management/inspections/new', label: 'New Inspection', parentPath: 'toilet-management/inspections' },
+  { path: 'toilet-management/inspections/:id', label: 'Inspection Details', parentPath: 'toilet-management/inspections' },
+  { path: 'toilet-management/complaints', label: 'Complaints', parentPath: 'toilet-management' },
+  { path: 'toilet-management/complaints/:id', label: 'Complaint Details', parentPath: 'toilet-management/complaints' },
+  { path: 'toilet-management/maintenance', label: 'Maintenance', parentPath: 'toilet-management' },
+  { path: 'toilet-management/maintenance/new', label: 'New Maintenance', parentPath: 'toilet-management/maintenance' },
+  { path: 'toilet-management/maintenance/:id', label: 'Maintenance Details', parentPath: 'toilet-management/maintenance' },
+  { path: 'toilet-management/staff', label: 'Staff Assignment', parentPath: 'toilet-management' },
+  { path: 'toilet-management/facilities/:id/staff', label: 'Staff', parentPath: 'toilet-management/facilities' },
+  { path: 'toilet-management/reports', label: 'Reports', parentPath: 'toilet-management' },
   { path: 'mrf', label: 'MRF Management', parentPath: 'dashboard' },
+  { path: 'mrf/management', label: 'MRF Centers', parentPath: 'mrf' },
+  { path: 'mrf/worker-assignment', label: 'Worker Assignment', parentPath: 'mrf' },
+  { path: 'mrf/facilities/new', label: 'Add MRF Center', parentPath: 'mrf/management' },
+  { path: 'mrf/facilities/:id', label: 'MRF Details', parentPath: 'mrf/management' },
+  { path: 'mrf/reports', label: 'MRF Reports', parentPath: 'mrf' },
   { path: 'gaushala', label: 'Gaushala Management', parentPath: 'dashboard' },
+  { path: 'gaushala/management', label: 'Gaushala Dashboard', parentPath: 'gaushala' },
+  { path: 'gaushala/facilities', label: 'Gaushala Facilities', parentPath: 'gaushala' },
+  { path: 'gaushala/facilities/new', label: 'Add Gaushala', parentPath: 'gaushala/facilities' },
+  { path: 'gaushala/facilities/:id', label: 'Gaushala Details', parentPath: 'gaushala/facilities' },
+  { path: 'gaushala/facilities/:id/cattle', label: 'Cattle Management', parentPath: 'gaushala/facilities' },
+  { path: 'gaushala/all-cattle', label: 'All Cattle', parentPath: 'gaushala' },
+  { path: 'gaushala/all-cattle/new', label: 'Add Cattle', parentPath: 'gaushala/all-cattle' },
+  { path: 'gaushala/inspections', label: 'Inspections', parentPath: 'gaushala' },
+  { path: 'gaushala/inspections/new', label: 'New Inspection', parentPath: 'gaushala/inspections' },
+  { path: 'gaushala/inspections/:id', label: 'Inspection Details', parentPath: 'gaushala/inspections' },
+  { path: 'gaushala/feeding', label: 'Feeding', parentPath: 'gaushala' },
+  { path: 'gaushala/complaints', label: 'Complaints', parentPath: 'gaushala' },
+  { path: 'gaushala/reports', label: 'Reports', parentPath: 'gaushala' },
   { path: 'notifications', label: 'Notifications', parentPath: 'dashboard' }
 ];
 
 export function getSbmBreadcrumbs(pathname) {
   const prefix = '/sbm';
-  const rest = pathname.replace(/^\/sbm\/?/, '') || 'dashboard';
+  const clean = (pathname || '').replace(/\/+$/, '');
+  const [pathOnly, search = ''] = clean.split('?');
+  const rest = pathOnly.replace(/^\/sbm\/?/, '') || 'dashboard';
+
+  // Special: Demands breadcrumb flow depends on module filter
+  // Example: /sbm/demands?module=PROPERTY -> Tax Management → Property Tax → Demands
+  if (rest === 'demands' || rest.startsWith('demands/')) {
+    const sp = new URLSearchParams(search);
+    const mod = (sp.get('module') || '').toUpperCase();
+    const parent =
+      mod === 'PROPERTY' ? 'property-tax' :
+      mod === 'WATER' ? 'water-tax' :
+      mod === 'SHOP' ? 'shop-tax' :
+      mod === 'D2DC' ? 'tax-management/d2dc' :
+      'tax-management';
+    const routes = sbmRoutes.map((r) => {
+      if (r.path === 'demands') return { ...r, parentPath: parent };
+      return r;
+    });
+    return buildBreadcrumbsForRole(rest, prefix, routes, {});
+  }
+
+  // Special: Payments breadcrumb flow depends on module filter
+  if (rest === 'payments' || rest.startsWith('payments/')) {
+    const sp = new URLSearchParams(search);
+    const mod = (sp.get('module') || '').toUpperCase();
+    const parent =
+      mod === 'PROPERTY' ? 'property-tax' :
+      mod === 'WATER' ? 'water-tax' :
+      mod === 'SHOP' ? 'shop-tax' :
+      mod === 'D2DC' ? 'tax-management/d2dc' :
+      'tax-management';
+    const routes = sbmRoutes.map((r) => {
+      if (r.path === 'payments') return { ...r, parentPath: parent };
+      return r;
+    });
+    return buildBreadcrumbsForRole(rest, prefix, routes, {});
+  }
+
+  // Special: Notices breadcrumb flow depends on module filter
+  if (rest === 'notices' || rest.startsWith('notices/')) {
+    const sp = new URLSearchParams(search);
+    const mod = (sp.get('module') || '').toUpperCase();
+    const parent =
+      mod === 'PROPERTY' ? 'property-tax' :
+      mod === 'WATER' ? 'water-tax' :
+      mod === 'SHOP' ? 'shop-tax' :
+      mod === 'D2DC' ? 'tax-management/d2dc' :
+      'tax-management';
+    const routes = sbmRoutes.map((r) => {
+      if (r.path === 'notices') return { ...r, parentPath: parent };
+      return r;
+    });
+    return buildBreadcrumbsForRole(rest, prefix, routes, {});
+  }
+
   return buildBreadcrumbsForRole(rest, prefix, sbmRoutes, {});
 }
 
@@ -393,17 +525,20 @@ export function getSbmBreadcrumbs(pathname) {
  */
 export function getBreadcrumbs(pathname) {
   const normalized = (pathname || '').replace(/\/+$/, '');
+  const normalizedPathOnly = normalized.split('?')[0];
   const p = normalized.replace(/^\/+/, '');
-  if (p.startsWith('citizen/') || p === 'citizen') return getCitizenBreadcrumbs(normalized);
-  if (p.startsWith('collector/') || p === 'collector') return getCollectorBreadcrumbs(normalized);
-  if (p.startsWith('clerk/') || p === 'clerk') return getClerkBreadcrumbs(normalized);
-  if (p.startsWith('inspector/') || p === 'inspector') return getInspectorBreadcrumbs(normalized);
-  if (p.startsWith('officer/') || p === 'officer') return getOfficerBreadcrumbs(normalized);
-  if (p.startsWith('supervisor/') || p === 'supervisor') return getSupervisorBreadcrumbs(normalized);
-  if (p.startsWith('eo/') || p === 'eo') return getEoBreadcrumbs(normalized);
-  if (p.startsWith('sfi/') || p === 'sfi') return getSfiBreadcrumbs(normalized);
+  if (p.startsWith('citizen/') || p === 'citizen') return getCitizenBreadcrumbs(normalizedPathOnly);
+  if (p.startsWith('collector/') || p === 'collector') return getCollectorBreadcrumbs(normalizedPathOnly);
+  if (p.startsWith('clerk/') || p === 'clerk') return getClerkBreadcrumbs(normalizedPathOnly);
+  if (p.startsWith('inspector/') || p === 'inspector') return getInspectorBreadcrumbs(normalizedPathOnly);
+  if (p.startsWith('officer/') || p === 'officer') return getOfficerBreadcrumbs(normalizedPathOnly);
+  if (p.startsWith('account-officer/') || p === 'account-officer') return getAccountOfficerBreadcrumbs(normalizedPathOnly);
+  if (p.startsWith('supervisor/') || p === 'supervisor') return getSupervisorBreadcrumbs(normalizedPathOnly);
+  if (p.startsWith('eo/') || p === 'eo') return getEoBreadcrumbs(normalizedPathOnly);
+  if (p.startsWith('sfi/') || p === 'sfi') return getSfiBreadcrumbs(normalizedPathOnly);
+  // SBM needs query params for module-based breadcrumb flow, so pass full string
   if (p.startsWith('sbm/') || p === 'sbm') return getSbmBreadcrumbs(normalized);
-  return getAdminBreadcrumbs(normalized);
+  return getAdminBreadcrumbs(normalizedPathOnly);
 }
 
 function getDetailLabel(parentPath) {

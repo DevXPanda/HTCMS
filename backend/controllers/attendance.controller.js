@@ -38,13 +38,18 @@ export const getAttendanceRecords = async (req, res, next) => {
       // Staff members (including collector / tax_collector) can only see their own attendance
       where.collectorId = user.id;
       where.usertype = 'admin_management';
-    } else if (user.role === 'admin' || user.role === 'assessor' || normalizedRole === 'sfi') {
+    } else if (user.role === 'admin' || user.role === 'assessor' || normalizedRole === 'sfi' || normalizedRole === 'sbm') {
       // Admin, Assessor, SFI: apply ULB filter when effective ULB is set; super admin (no ULB) sees all; SFI always uses own ULB
       const { effectiveUlbId, isSuperAdmin } = getEffectiveUlbForRequest(req);
       if (normalizedRole === 'sfi' && !effectiveUlbId) {
         return res.status(403).json({
           message: 'Access denied. SFI must be assigned to an ULB to view attendance records.'
         });
+      }
+      if (normalizedRole === 'sbm' && !effectiveUlbId) {
+        // Allow aggregated/all-Ulb view for SBM only when explicitly enabled by backend ulb filter;
+        // if SBM has no effective ULB, treat it like super admin (global monitoring) but still read-only.
+        // (effectiveUlbId will be set when ulb_id query is passed or when SBM is assigned to an ULB)
       }
       if (effectiveUlbId) {
         const [adminStaff, usersInUlb, adminUsersNoUlb, allAdminUsers] = await Promise.all([

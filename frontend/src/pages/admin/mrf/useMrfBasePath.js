@@ -1,7 +1,9 @@
 import { useLocation } from 'react-router-dom';
 
-/** When under SFI portal (/sfi/...) returns '/sfi/mrf', otherwise '/mrf'. */
+/** Supports SFI (/sfi/mrf), SBM (/sbm/mrf), otherwise admin (/mrf). */
 export function useMrfBasePath() {
   const location = useLocation();
-  return location.pathname.startsWith('/sfi') ? '/sfi/mrf' : '/mrf';
+  if (location.pathname.startsWith('/sfi')) return '/sfi/mrf';
+  if (location.pathname.startsWith('/sbm')) return '/sbm/mrf';
+  return '/mrf';
 }

@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useBackTo } from '../../../contexts/NavigationContext';
+import { useGaushalaBasePath } from './useGaushalaBasePath';
+import { useGaushalaPermissions } from './useGaushalaPermissions';
 import * as Lucide from 'lucide-react';
 import api from '../../../services/api';
 
 const GauShalaCattleTotal = () => {
-    useBackTo('/gaushala/management');
+    const base = useGaushalaBasePath();
+    useBackTo(`${base}/management`);
+    const { isSbm, canCrud } = useGaushalaPermissions();
     const [animals, setAnimals] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -89,13 +93,15 @@ const GauShalaCattleTotal = () => {
                     <h1 className="text-2xl font-bold text-gray-900">Cattle Registry</h1>
                     <p className="text-gray-600 text-sm">Register and Check data of cattle</p>
                 </div>
-                <Link
-                    to="/gaushala/all-cattle/new"
-                    className="btn btn-primary flex items-center"
-                >
-                    <Lucide.Plus className="h-4 w-4 mr-2" />
-                    Register New Animal
-                </Link>
+                {(!isSbm || canCrud) && (
+                    <Link
+                        to={`${base}/all-cattle/new`}
+                        className="btn btn-primary flex items-center"
+                    >
+                        <Lucide.Plus className="h-4 w-4 mr-2" />
+                        Register New Animal
+                    </Link>
+                )}
             </div>
 
             {/* Summary Stats */}
@@ -206,7 +212,7 @@ const GauShalaCattleTotal = () => {
                                             {animal.notes || 'No notes'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <Link to={`/gaushala/all-cattle`} className="text-primary-600 hover:text-primary-900">
+                                            <Link to={`${base}/all-cattle`} className="text-primary-600 hover:text-primary-900">
                                                 <Lucide.Eye className="h-5 w-5" />
                                             </Link>
                                         </td>

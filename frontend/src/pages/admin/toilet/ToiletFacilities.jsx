@@ -21,10 +21,12 @@ import {
 } from 'lucide-react';
 import api from '../../../services/api';
 import { exportToCSV } from '../../../utils/exportCSV';
+import { useToiletPermissions } from './useToiletPermissions';
 
 const ToiletFacilities = () => {
   const base = useToiletBasePath();
   useBackTo(base);
+  const { isSbm, canCrud } = useToiletPermissions();
   const { effectiveUlbId } = useSelectedUlb();
   const [toilets, setToilets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -149,13 +151,15 @@ const ToiletFacilities = () => {
       <div className="ds-page-header">
         <h1 className="ds-page-title">Toilet Facilities</h1>
         <div className="flex flex-wrap gap-2">
-          <Link
-            to={`${base}/facilities/new`}
-            className="btn btn-primary flex items-center"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add New Toilet
-          </Link>
+          {(!isSbm || canCrud) && (
+            <Link
+              to={`${base}/facilities/new`}
+              className="btn btn-primary flex items-center"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add New Toilet
+            </Link>
+          )}
           <button
             onClick={() => setShowFilters(!showFilters)}
             className="btn btn-secondary flex items-center"
@@ -319,20 +323,24 @@ const ToiletFacilities = () => {
                       >
                         <Eye className="h-5 w-5" />
                       </Link>
-                      <Link
-                        to={`${base}/facilities/${toilet.id}/staff`}
-                        className="text-green-600 hover:text-green-900"
-                        title="Manage Staffing"
-                      >
-                        <Users className="h-5 w-5" />
-                      </Link>
-                      <Link
-                        to={`${base}/facilities/${toilet.id}/edit`}
-                        className="text-blue-600 hover:text-blue-900"
-                        title="Edit"
-                      >
-                        <Edit className="h-5 w-5" />
-                      </Link>
+                      {(!isSbm || canCrud) && (
+                        <>
+                          <Link
+                            to={`${base}/facilities/${toilet.id}/staff`}
+                            className="text-green-600 hover:text-green-900"
+                            title="Manage Staffing"
+                          >
+                            <Users className="h-5 w-5" />
+                          </Link>
+                          <Link
+                            to={`${base}/facilities/${toilet.id}/edit`}
+                            className="text-blue-600 hover:text-blue-900"
+                            title="Edit"
+                          >
+                            <Edit className="h-5 w-5" />
+                          </Link>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>

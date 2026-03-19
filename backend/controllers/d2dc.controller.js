@@ -100,8 +100,12 @@ export const getInspectorStats = async (req, res, next) => {
         let wardIds = [];
         let assignedWards = [];
 
-        if (req.user.role === 'admin') {
-            // Admin sees all wards
+        const roleUpper = (req.user.role || '').toString().toUpperCase();
+        const isAdmin = roleUpper === 'ADMIN';
+        const isSbm = roleUpper === 'SBM' || roleUpper.includes('SBM');
+
+        if (isAdmin || isSbm) {
+            // Admin/SBM sees all wards (global monitoring)
             assignedWards = await Ward.findAll({
                 attributes: ['id', 'wardName', 'wardNumber']
             });
@@ -211,9 +215,12 @@ export const getD2DCActivity = async (req, res, next) => {
         }
 
         // Role-based restrictions
-        if (req.user.role === 'collector') {
+        const roleUpper = (req.user.role || '').toString().toUpperCase();
+        const isSbm = roleUpper === 'SBM' || roleUpper.includes('SBM');
+
+        if (roleUpper === 'COLLECTOR' || roleUpper === 'TAX_COLLECTOR') {
             where.collectorId = req.user.id;
-        } else if (req.user.role === 'inspector') {
+        } else if (roleUpper === 'INSPECTOR') {
             // Inspector sees only their wards
             const assignedWards = await Ward.findAll({
                 where: { inspectorId: req.user.staff_id || req.user.id },
@@ -232,14 +239,17 @@ export const getD2DCActivity = async (req, res, next) => {
                 return res.json({ success: true, data: { activities: [], total: 0 } });
             }
         } else {
-            // Admin/other: ULB filter
+            // Admin/SBM/other: allow global monitoring; apply ULB filter when available
             const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
-            if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+
+            // If not super admin and no ULB, SBM is still allowed (global monitoring).
+            if (!isSbm && !isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
                 return res.status(403).json({
                     success: false,
                     message: 'Access denied. You must be assigned to an ULB to view D2DC activity.'
                 });
             }
+
             if (effectiveUlbId) {
                 const wardIds = await getWardIdsByUlbId(effectiveUlbId);
                 if (!wardIds || wardIds.length === 0) {
@@ -566,9 +576,12 @@ export const getD2DCDemands = async (req, res, next) => {
 
         // Get monitored wards based on role
         let wardIds = [];
-        if (req.user.role === 'admin') {
+        const roleUpper = (req.user.role || '').toString().toUpperCase();
+        const isSbm = roleUpper === 'SBM' || roleUpper.includes('SBM');
+
+        if (roleUpper === 'ADMIN' || isSbm) {
             const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
-            if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+            if (!isSbm && !isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
                 return res.status(403).json({
                     success: false,
                     message: 'Access denied. You must be assigned to an ULB to view D2DC demands.'
@@ -664,9 +677,12 @@ export const getD2DCPayments = async (req, res, next) => {
 
         // Get monitored wards based on role
         let wardIds = [];
-        if (req.user.role === 'admin') {
+        const roleUpper = (req.user.role || '').toString().toUpperCase();
+        const isSbm = roleUpper === 'SBM' || roleUpper.includes('SBM');
+
+        if (roleUpper === 'ADMIN' || isSbm) {
             const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
-            if (!isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
+            if (!isSbm && !isSuperAdmin && (effectiveUlbId == null || effectiveUlbId === '')) {
                 return res.status(403).json({
                     success: false,
                     message: 'Access denied. You must be assigned to an ULB to view D2DC payments.'

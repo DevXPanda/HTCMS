@@ -4,6 +4,7 @@ import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { X, MapPin, User, Building, DollarSign, Calendar, Smartphone, 
          CheckCircle, XCircle, AlertTriangle, FileText, Shield } from 'lucide-react';
+import useLockBodyScroll from '../../../hooks/useLockBodyScroll';
 
 const formatWardNumber = (val) => {
   if (val == null || val === '') return '';
@@ -13,6 +14,7 @@ const formatWardNumber = (val) => {
 };
 
 const FieldVisitDetailsModal = ({ visitId, isOpen, onClose }) => {
+  useLockBodyScroll(Boolean(isOpen));
   const [visitDetails, setVisitDetails] = useState(null);
   const [loading, setLoading] = useState(false);
 

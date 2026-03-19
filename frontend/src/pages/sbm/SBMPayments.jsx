@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import { paymentAPI } from '../../services/api';
 import { exportToCSV } from '../../utils/exportCSV';
@@ -7,6 +7,9 @@ import { Banknote, Download, RefreshCw, Search, FileDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const SBMPayments = () => {
+  const location = useLocation();
+  const sp = new URLSearchParams(location.search || '');
+  const moduleFromUrl = (sp.get('module') || '').toUpperCase();
   const [payments, setPayments] = useState([]);
   const [ulbs, setUlbs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -134,7 +137,12 @@ const SBMPayments = () => {
                     <td className="px-4 py-3 text-sm text-gray-600">{p.status || '—'}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{p.demand_id ?? p.demandId ?? '—'}</td>
                     <td className="print-hide-col px-4 py-3">
-                      <Link to={`/sbm/payments/${p.id}`} className="text-violet-600 hover:text-violet-800 text-sm">View</Link>
+                      <Link
+                        to={`/sbm/payments/${p.id}${moduleFromUrl ? `?module=${encodeURIComponent(moduleFromUrl)}` : ''}`}
+                        className="text-violet-600 hover:text-violet-800 text-sm"
+                      >
+                        View
+                      </Link>
                     </td>
                   </tr>
                 ))}

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { paymentAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
@@ -9,6 +10,9 @@ import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 import { isRecentWithinMinutes, sortByCreatedDesc, formatDateIST } from '../../../utils/dateUtils';
 
 const Payments = () => {
+  const location = useLocation();
+  const isAccountOfficerRoute = location.pathname.startsWith('/account-officer');
+  const paymentDetailsBasePath = isAccountOfficerRoute ? '/account-officer' : '';
   const { effectiveUlbId } = useSelectedUlb();
   const { isAdmin, isCashier } = useAuth();
   const [payments, setPayments] = useState([]);
@@ -228,14 +232,22 @@ const Payments = () => {
                     </span>
                   </td>
                   <td>
-                    <Link to={`/properties/${payment.propertyId}`} className="text-primary-600 hover:underline">
-                      {payment.property?.propertyNumber || 'N/A'}
-                    </Link>
+                    {isAccountOfficerRoute ? (
+                      <span>{payment.property?.propertyNumber || 'N/A'}</span>
+                    ) : (
+                      <Link to={`/properties/${payment.propertyId}`} className="text-primary-600 hover:underline">
+                        {payment.property?.propertyNumber || 'N/A'}
+                      </Link>
+                    )}
                   </td>
                   <td>
-                    <Link to={`/demands/${payment.demandId}`} className="text-primary-600 hover:underline">
-                      {payment.demand?.demandNumber || 'N/A'}
-                    </Link>
+                    {isAccountOfficerRoute ? (
+                      <span>{payment.demand?.demandNumber || 'N/A'}</span>
+                    ) : (
+                      <Link to={`/demands/${payment.demandId}`} className="text-primary-600 hover:underline">
+                        {payment.demand?.demandNumber || 'N/A'}
+                      </Link>
+                    )}
                   </td>
                   <td className="font-semibold text-green-600">
                     ₹{parseFloat(payment.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -259,7 +271,7 @@ const Payments = () => {
                   <td>
                     <div className="flex items-center space-x-2">
                       <Link
-                        to={`/payments/${payment.id}`}
+                        to={`${paymentDetailsBasePath}/payments/${payment.id}`}
                         className="text-primary-600 hover:text-primary-700"
                         title="View Receipt"
                       >

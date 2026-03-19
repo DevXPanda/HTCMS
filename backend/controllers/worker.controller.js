@@ -687,6 +687,36 @@ export const getAllWorkers = async (req, res) => {
 };
 
 /**
+ * Get a single worker by ID (read-only)
+ * GET /api/workers/:id
+ * Allowed: ADMIN, EO, SUPERVISOR, SFI, SBM
+ */
+export const getWorkerById = async (req, res) => {
+  try {
+    const userRole = req.user?.role ? req.user.role.toUpperCase().replace(/-/g, '_') : null;
+    if (!['ADMIN', 'EO', 'SUPERVISOR', 'SFI', 'SBM'].includes(userRole)) {
+      return res.status(403).json({ success: false, message: 'Access denied.' });
+    }
+    const workerId = req.params.id;
+    const worker = await Worker.findByPk(workerId, {
+      include: [
+        { model: Ward, as: 'ward', attributes: ['id', 'wardNumber', 'wardName', 'ulb_id'] },
+        { model: AdminManagement, as: 'supervisor', attributes: ['id', 'full_name', 'employee_id'] },
+        { model: AdminManagement, as: 'eo', attributes: ['id', 'full_name', 'employee_id'] },
+        { model: AdminManagement, as: 'contractor', attributes: ['id', 'full_name', 'employee_id', 'company_name'], required: false },
+        { model: ULB, as: 'ulb', attributes: ['id', 'name'], required: false }
+      ]
+    });
+    if (!worker) {
+      return res.status(404).json({ success: false, message: 'Worker not found' });
+    }
+    res.json({ success: true, data: { worker: worker.get({ plain: true }) } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch worker', error: error.message });
+  }
+};
+
+/**
  * Update a worker
  * PUT /api/workers/:id
  * Allowed: ADMIN (any by ULB), EO (under their EO), SUPERVISOR (only workers assigned to them)

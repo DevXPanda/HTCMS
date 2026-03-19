@@ -36,6 +36,8 @@ const StaffLogin = () => {
         navigate('/sfi/dashboard', { replace: true });
       } else if (normalizedRole === 'SBM') {
         navigate('/sbm/dashboard', { replace: true });
+      } else if (normalizedRole === 'ACCOUNT_OFFICER') {
+        navigate('/account-officer/dashboard', { replace: true });
       } else if (normalizedRole === 'FIELD_WORKER') {
         navigate('/field-worker/dashboard', { replace: true });
       } else if (normalizedRole === 'ADMIN' || normalizedRole === 'ASSESSOR' || normalizedRole === 'CASHIER') {
@@ -87,6 +89,8 @@ const StaffLogin = () => {
         navigate('/sfi/dashboard', { replace: true });
       } else if (normalizedRole === 'SBM') {
         navigate('/sbm/dashboard', { replace: true });
+      } else if (normalizedRole === 'ACCOUNT_OFFICER') {
+        navigate('/account-officer/dashboard', { replace: true });
       } else if (normalizedRole === 'FIELD_WORKER') {
         navigate('/field-worker/dashboard', { replace: true });
       } else if (normalizedRole === 'CONTRACTOR') {
@@ -173,7 +177,7 @@ const StaffLogin = () => {
           <div className="mt-6 text-center">
             <div className="flex items-center justify-center gap-2 text-sm text-gray-600 mb-3">
               <Users className="w-4 h-4" />
-              <span>Staff Roles: EO, Supervisor, Collector, Field Worker, SFI, SBM</span>
+              <span>Staff Roles: EO, Supervisor, Collector, Field Worker, SFI, SBM, Account Officer</span>
             </div>
           </div>
 
