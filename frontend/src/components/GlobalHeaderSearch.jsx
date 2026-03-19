@@ -125,6 +125,7 @@ export default function GlobalHeaderSearch({ role }) {
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const containerRef = useRef(null);
   const inputRef = useRef(null);
   const debounceRef = useRef(null);
@@ -172,6 +173,7 @@ export default function GlobalHeaderSearch({ role }) {
   const handleSelect = (category, item) => {
     const path = getNavigationPath(category, item, prefix);
     setOpen(false);
+    setMobileOpen(false);
     setQuery('');
     setResults(null);
     navigate(path);
@@ -193,6 +195,7 @@ export default function GlobalHeaderSearch({ role }) {
       }
       if (e.key === 'Escape') {
         setOpen(false);
+        setMobileOpen(false);
         inputRef.current?.blur();
       }
     };
@@ -204,9 +207,61 @@ export default function GlobalHeaderSearch({ role }) {
     ? Object.values(results).reduce((sum, arr) => sum + (arr?.length || 0), 0)
     : 0;
 
+  const renderResults = () => (
+    <div className="bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[480px] overflow-y-auto w-[min(92vw,420px)] sm:w-[340px] md:w-[420px]">
+      {totalResults === 0 && !loading && (
+        <div className="px-4 py-6 text-center text-sm text-gray-500">
+          No results found for &ldquo;{query}&rdquo;
+        </div>
+      )}
+
+      {results && DISPLAY_ORDER.map((cat) => {
+        const items = results[cat];
+        if (!items?.length) return null;
+        const meta = CATEGORY_META[cat];
+        if (!meta) return null;
+        const Icon = meta.icon;
+
+        return (
+          <div key={cat}>
+            <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border-b border-gray-100 sticky top-0">
+              <div className={`w-6 h-6 rounded flex items-center justify-center ${meta.color}`}>
+                <Icon className="w-3.5 h-3.5" />
+              </div>
+              <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">{meta.label}</span>
+              <span className="text-xs text-gray-400 ml-auto">{items.length} found</span>
+            </div>
+            {items.map((item) => (
+              <button
+                key={`${cat}-${item.id}`}
+                type="button"
+                onClick={() => handleSelect(cat, item)}
+                className="w-full text-left px-3 py-2.5 hover:bg-primary-50 flex flex-col gap-0.5 border-b border-gray-50 transition-colors"
+              >
+                {renderItem(cat, item)}
+              </button>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+
   return (
-    <div ref={containerRef} className="relative hidden sm:block">
-      <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 focus-within:border-primary-400 focus-within:ring-1 focus-within:ring-primary-200 transition-all w-48 md:w-64 lg:w-72">
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => {
+          setMobileOpen(true);
+          setTimeout(() => inputRef.current?.focus(), 10);
+        }}
+        className="sm:hidden header-icon-btn p-2 text-gray-600 hover:text-primary-600 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center"
+        title="Search"
+      >
+        <Search className="w-5 h-5 shrink-0" />
+      </button>
+
+      <div className="hidden sm:flex items-center bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 focus-within:border-primary-400 focus-within:ring-1 focus-within:ring-primary-200 transition-all w-48 md:w-64 lg:w-72">
         <Search className="w-4 h-4 text-gray-400 shrink-0" />
         <input
           ref={inputRef}
@@ -226,42 +281,37 @@ export default function GlobalHeaderSearch({ role }) {
       </div>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1.5 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[480px] overflow-y-auto w-[340px] md:w-[420px]">
-          {totalResults === 0 && !loading && (
-            <div className="px-4 py-6 text-center text-sm text-gray-500">
-              No results found for &ldquo;{query}&rdquo;
-            </div>
-          )}
+        <div className="absolute top-full left-0 mt-1.5">
+          {renderResults()}
+        </div>
+      )}
 
-          {results && DISPLAY_ORDER.map((cat) => {
-            const items = results[cat];
-            if (!items?.length) return null;
-            const meta = CATEGORY_META[cat];
-            if (!meta) return null;
-            const Icon = meta.icon;
-
-            return (
-              <div key={cat}>
-                <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border-b border-gray-100 sticky top-0">
-                  <div className={`w-6 h-6 rounded flex items-center justify-center ${meta.color}`}>
-                    <Icon className="w-3.5 h-3.5" />
-                  </div>
-                  <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">{meta.label}</span>
-                  <span className="text-xs text-gray-400 ml-auto">{items.length} found</span>
-                </div>
-                {items.map((item) => (
-                  <button
-                    key={`${cat}-${item.id}`}
-                    type="button"
-                    onClick={() => handleSelect(cat, item)}
-                    className="w-full text-left px-3 py-2.5 hover:bg-primary-50 flex flex-col gap-0.5 border-b border-gray-50 transition-colors"
-                  >
-                    {renderItem(cat, item)}
+      {mobileOpen && (
+        <div className="sm:hidden fixed inset-0 z-[70] bg-black/40 p-3" onClick={() => setMobileOpen(false)}>
+          <div className="bg-white rounded-lg shadow-2xl border border-gray-200 max-h-[85vh] overflow-hidden mt-12" onClick={(e) => e.stopPropagation()}>
+            <div className="p-3 border-b border-gray-100">
+              <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 focus-within:border-primary-400 focus-within:ring-1 focus-within:ring-primary-200 transition-all">
+                <Search className="w-4 h-4 text-gray-400 shrink-0" />
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={query}
+                  onChange={handleChange}
+                  placeholder="Search..."
+                  className="ml-2 flex-1 bg-transparent text-sm text-gray-700 placeholder-gray-400 outline-none min-w-0"
+                />
+                {loading && <Loader2 className="w-4 h-4 text-gray-400 animate-spin shrink-0" />}
+                {!loading && query && (
+                  <button type="button" onClick={handleClear} className="p-0.5 text-gray-400 hover:text-gray-600">
+                    <X className="w-3.5 h-3.5" />
                   </button>
-                ))}
+                )}
               </div>
-            );
-          })}
+            </div>
+            <div className="overflow-y-auto max-h-[calc(85vh-68px)]">
+              {renderResults()}
+            </div>
+          </div>
         </div>
       )}
     </div>

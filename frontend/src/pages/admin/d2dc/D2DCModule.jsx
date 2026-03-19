@@ -30,7 +30,7 @@ const D2DCModule = () => {
         <div className="min-h-screen bg-gray-50 flex flex-col">
             {/* Standard Header matching AdminLayout */}
             <header className="bg-white shadow-sm sticky top-0 z-10 w-full">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between h-16">
                         <div className="flex items-center gap-4">
                             <h1 className="text-xl font-bold text-primary-600">ULB System</h1>

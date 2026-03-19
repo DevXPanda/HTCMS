@@ -89,16 +89,16 @@ const CollectorDashboard = () => {
   const adminReportsItems = [{ name: 'Notifications', icon: Bell, link: '/collector/notifications' }];
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
+    <div className="space-y-8">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="ds-page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Collector Dashboard</h1>
-          <p className="text-gray-500 text-sm">Tax Collection & Management</p>
+          <h1 className="ds-page-title">Collector Dashboard</h1>
+          <p className="ds-page-subtitle">Tax Collection & Management</p>
         </div>
         <button
           onClick={fetchDashboard}
-          className="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors shadow-sm flex items-center"
+          className="btn btn-primary flex items-center"
         >
           <RefreshCw className="w-4 h-4 mr-2" />
           Refresh Data
@@ -179,7 +179,7 @@ const CollectorDashboard = () => {
       <div className="bg-white rounded-lg border border-gray-100 p-6 lg:col-span-2 mb-6">
         <h2 className="text-xl font-semibold mb-4">Property-wise Collection Summary</h2>
         {dashboard?.propertyWiseDemands && dashboard.propertyWiseDemands.length > 0 ? (
-          <div className="overflow-x-auto">
+          <div className="table-wrap">
             <table className="table">
               <thead>
                 <tr>
@@ -339,7 +339,7 @@ const CollectorDashboard = () => {
         <div className="bg-white rounded-lg border border-gray-100 p-6 lg:col-span-2">
           <h2 className="text-xl font-semibold mb-4">Discounted Demands</h2>
           {dashboard?.discountedDemands && dashboard.discountedDemands.length > 0 ? (
-            <div className="overflow-x-auto">
+            <div className="table-wrap">
               <table className="table">
                 <thead>
                   <tr>
@@ -385,7 +385,7 @@ const CollectorDashboard = () => {
             Penalty Waived Demands
           </h2>
           {dashboard?.penaltyWaivedDemands && dashboard.penaltyWaivedDemands.length > 0 ? (
-            <div className="overflow-x-auto">
+            <div className="table-wrap">
               <table className="table">
                 <thead>
                   <tr>
@@ -453,7 +453,7 @@ const CollectorDashboard = () => {
         <div className="bg-white rounded-lg border border-gray-100 p-6 lg:col-span-2">
           <h2 className="text-xl font-semibold mb-4">Recent Collections</h2>
           {dashboard?.recentPayments && dashboard.recentPayments.length > 0 ? (
-            <div className="overflow-x-auto">
+            <div className="table-wrap">
               <table className="table">
                 <thead>
                   <tr>

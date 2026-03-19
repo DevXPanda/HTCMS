@@ -160,8 +160,8 @@ const Attendance = () => {
 
       {/* Attendance Table */}
       <div className="card">
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="table-wrap">
+          <table className="table">
             <thead>
               <tr className="border-b border-gray-200">
                 <th className="text-left py-3 px-4 font-semibold text-gray-700">Login Time</th>

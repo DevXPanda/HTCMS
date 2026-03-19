@@ -352,8 +352,8 @@ const SFIDashboard = () => {
                         {staffDetails.workers.length === 0 ? (
                           <p className="text-sm text-gray-500">No workers found.</p>
                         ) : (
-                          <div className="overflow-x-auto">
-                            <table className="table w-full text-sm">
+                          <div className="table-wrap">
+                            <table className="table text-sm">
                               <thead className="bg-gray-50">
                                 <tr>
                                   <th className="px-3 py-2 text-left font-medium text-gray-600">Employee Code</th>
@@ -384,8 +384,8 @@ const SFIDashboard = () => {
                         {staffDetails.supervisors.length === 0 ? (
                           <p className="text-sm text-gray-500">No supervisors found.</p>
                         ) : (
-                          <div className="overflow-x-auto">
-                            <table className="table w-full text-sm">
+                          <div className="table-wrap">
+                            <table className="table text-sm">
                               <thead className="bg-gray-50">
                                 <tr>
                                   <th className="px-3 py-2 text-left font-medium text-gray-600">Employee ID</th>

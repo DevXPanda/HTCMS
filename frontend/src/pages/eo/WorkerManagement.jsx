@@ -361,8 +361,8 @@ const WorkerManagement = () => {
             <p>No workers found. Create your first worker to get started.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="table w-full">
+          <div className="table-wrap">
+            <table className="table">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee Code</th>

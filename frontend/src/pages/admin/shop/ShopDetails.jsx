@@ -212,7 +212,7 @@ const ShopDetails = () => {
             <FileText className="w-5 h-5 mr-2 text-primary-600" />
             Shop Tax Assessments
           </h2>
-          <div className="overflow-x-auto">
+          <div className="table-wrap">
             <table className="table">
               <thead>
                 <tr>
@@ -268,7 +268,7 @@ const ShopDetails = () => {
             <FileText className="w-5 h-5 mr-2 text-primary-600" />
             Shop Tax Demands
           </h2>
-          <div className="overflow-x-auto">
+          <div className="table-wrap">
             <table className="table">
               <thead>
                 <tr>

@@ -161,8 +161,8 @@ const CattleManagement = () => {
 
             {/* Cattle Table */}
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
+                <div className="table-wrap">
+                    <table className="table text-left">
                         <thead className="bg-gray-50 border-b border-gray-100">
                             <tr>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Tag / Animal ID</th>

@@ -164,8 +164,8 @@ const ToiletComplaints = () => {
 
       {/* Complaints List */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-100">
+        <div className="table-wrap">
+          <table className="table min-w-full divide-y divide-gray-100">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">

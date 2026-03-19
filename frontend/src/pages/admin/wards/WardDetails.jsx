@@ -412,7 +412,7 @@ const WardDetails = () => {
       {ward.properties && ward.properties.length > 0 && (
         <div className="card mt-6 lg:col-span-2">
           <h2 className="text-xl font-semibold mb-4">Properties in this Ward ({ward.properties.length})</h2>
-          <div className="overflow-x-auto">
+          <div className="table-wrap">
             <table className="table">
               <thead>
                 <tr>

@@ -175,8 +175,8 @@ const MrfWasteLogs = ({ facilityId, wasteTypes = [], readOnly = false }) => {
             )}
 
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
+                <div className="table-wrap">
+                    <table className="table text-left">
                         <thead>
                             <tr className="bg-gray-50/50 border-b border-gray-100">
                                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date / Time</th>

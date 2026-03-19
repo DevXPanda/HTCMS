@@ -198,7 +198,7 @@ const Payments = () => {
         </div>
       )}
 
-      <div className="card overflow-x-auto">
+      <div className="card table-wrap">
         <table className="table">
           <thead>
             <tr>

@@ -152,8 +152,8 @@ const MRFReports = () => {
 
                 <div className="card">
                     <h3 className="form-section-title mb-4">Material Breakdown</h3>
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
+                    <div className="table-wrap">
+                        <table className="table min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
                                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Material</th>

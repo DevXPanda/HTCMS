@@ -58,7 +58,7 @@ const CitizenDashboard = () => {
   const adminReportsItems = [{ name: 'Notifications', icon: Bell, link: '/citizen/notifications' }];
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       {/* Page Header - match other dashboards */}
       <div className="ds-page-header">
         <div>

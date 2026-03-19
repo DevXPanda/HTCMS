@@ -274,8 +274,8 @@ const FieldMonitoring = () => {
                 <Users className="w-5 h-5 mr-2" />
                 Collector Performance
               </h2>
-              <div className="overflow-x-auto">
-                <table className="w-full">
+              <div className="table-wrap">
+                <table className="table">
                   <thead>
                     <tr className="border-b border-gray-200">
                       <th className="text-left py-2 px-3 text-sm font-semibold text-gray-700">Collector</th>
@@ -369,8 +369,8 @@ const FieldMonitoring = () => {
               <AlertTriangle className="w-5 h-5 mr-2 text-red-600" />
               High Priority Follow-ups Requiring Attention
             </h2>
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <div className="table-wrap">
+              <table className="table">
                 <thead>
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-3 px-4 font-semibold text-gray-700">Property</th>
@@ -518,8 +518,8 @@ const FieldMonitoring = () => {
                 </div>
 
                 {/* Activities Table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full">
+                <div className="table-wrap">
+                  <table className="table">
                     <thead>
                       <tr className="border-b border-gray-200">
                         <th className="text-left py-3 px-4 font-semibold text-gray-700">User</th>

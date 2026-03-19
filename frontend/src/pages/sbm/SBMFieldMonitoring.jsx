@@ -188,8 +188,8 @@ const SBMFieldMonitoring = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="card">
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2"><Users className="w-5 h-5" /> Collector Performance</h2>
-              <div className="overflow-x-auto">
-                <table className="w-full">
+              <div className="table-wrap">
+                <table className="table">
                   <thead>
                     <tr className="border-b border-gray-200">
                       <th className="text-left py-2 px-3 text-sm font-semibold text-gray-700">Collector</th>
@@ -252,8 +252,8 @@ const SBMFieldMonitoring = () => {
           {dashboard.highPriorityFollowUps?.length > 0 && (
             <div className="card">
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-red-600" /> High Priority Follow-ups</h2>
-              <div className="overflow-x-auto">
-                <table className="w-full">
+              <div className="table-wrap">
+                <table className="table">
                   <thead>
                     <tr className="border-b border-gray-200">
                       <th className="text-left py-3 px-4 font-semibold text-gray-700">Property</th>

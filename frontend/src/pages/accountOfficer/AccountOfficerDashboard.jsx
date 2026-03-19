@@ -174,8 +174,8 @@ const AccountOfficerDashboard = () => {
             </div>
             <Link to="/account-officer/approval-requests" className="text-sm text-blue-600 hover:underline">View all</Link>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="table-wrap">
+            <table className="table text-sm">
               <thead>
                 <tr className="text-left text-xs text-gray-500 uppercase tracking-wide border-b border-gray-100">
                   <th className="pb-2 pr-4">ID</th>

@@ -470,7 +470,7 @@ const Reports = () => {
                     <div>
                       <h2 className="ds-section-title-muted">Outstanding demands</h2>
                       <div className="card overflow-hidden p-0">
-                      <div className="overflow-x-auto">
+                      <div className="table-wrap">
                         <table className="table">
                           <thead>
                             <tr>
@@ -568,7 +568,7 @@ const Reports = () => {
                   <div>
                     <h2 className="ds-section-title-muted">Ward details</h2>
                     <div className="card overflow-hidden p-0">
-                    <div className="overflow-x-auto">
+                    <div className="table-wrap">
                       <table className="table">
                         <thead>
                           <tr>

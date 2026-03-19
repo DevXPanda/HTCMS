@@ -349,7 +349,7 @@ const UnifiedTaxDemand = () => {
     };
 
     return (
-        <div className="w-full max-w-7xl mx-auto space-y-6">
+        <div className="w-full space-y-6">
             <div>
                 <h1 className="ds-page-title">Unified Tax Demand</h1>
                 <p className="ds-page-subtitle">Generate Property, Water, Shop, and D2DC demands in one go</p>

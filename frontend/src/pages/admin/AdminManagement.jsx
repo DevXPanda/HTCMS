@@ -854,8 +854,8 @@ const AdminManagement = () => {
       )}
 
       {/* Employees Table */}
-      <div className="card overflow-x-auto p-0">
-        <div className="overflow-x-auto">
+      <div className="card p-0">
+        <div className="table-wrap">
           <table className="table">
             <thead>
               <tr>

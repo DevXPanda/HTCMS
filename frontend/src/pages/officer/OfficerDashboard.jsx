@@ -186,7 +186,7 @@ const OfficerDashboard = () => {
   const adminReportsItems = [{ name: 'Notifications', icon: Bell, link: '/officer/notifications' }];
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
+    <div className="space-y-8">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -376,8 +376,8 @@ const OfficerDashboard = () => {
       <div className="bg-white rounded-lg border border-gray-100 p-6 mb-8">
         <h2 className="text-xl font-semibold mb-4">Pending Escalations</h2>
         {escalatedData.property.length > 0 || escalatedData.water.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+          <div className="table-wrap">
+            <table className="table">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">

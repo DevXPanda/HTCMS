@@ -503,7 +503,7 @@ const DiscountManagement = () => {
   const formatDate = (d) => (d ? formatDateIST(d) : '—');
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto px-2">
+    <div className="space-y-8">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="ds-page-title">{isAccountOfficer ? 'Discount Requests' : 'Discount Management'}</h1>

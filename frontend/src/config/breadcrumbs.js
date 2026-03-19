@@ -14,15 +14,19 @@ const adminRoutes = [
   { path: 'demands/generate/d2dc', label: 'D2DC Demands', parentPath: 'demands/generate' },
   { path: 'demands/generate', label: 'Generate Demands', parentPath: 'demands' },
   { path: 'demands', label: 'Tax Demands', parentPath: 'tax-management' },
+  { path: 'demands/:id', label: 'Demand Details', parentPath: 'demands' },
   { path: 'properties/new', label: 'Add Property', parentPath: 'properties' },
   { path: 'properties', label: 'Properties', parentPath: 'property-tax' },
   { path: 'assessments/new', label: 'New Assessment', parentPath: 'assessments' },
   { path: 'assessments', label: 'Assessments', parentPath: 'property-tax' },
+  { path: 'assessments/:id', label: 'Assessment Details', parentPath: 'assessments' },
   { path: 'property-tax', label: 'Property Tax', parentPath: 'tax-management' },
   { path: 'water-tax', label: 'Water Tax', parentPath: 'tax-management' },
   { path: 'notifications', label: 'All Notifications', parentPath: 'dashboard' },
   { path: 'notices', label: 'Notices', parentPath: 'dashboard' },
-  { path: 'payments', label: 'Payments', parentPath: 'dashboard' },
+  { path: 'notices/:id', label: 'Notice Details', parentPath: 'notices' },
+  { path: 'payments', label: 'Payments', parentPath: 'tax-management' },
+  { path: 'payments/:id', label: 'Payment Details', parentPath: 'payments' },
   { path: 'wards', label: 'Wards', parentPath: 'dashboard' },
   { path: 'ulb-management', label: 'ULB Management', parentPath: 'dashboard' },
   { path: 'users', label: 'Citizen Management', parentPath: 'dashboard' },
@@ -117,7 +121,7 @@ const citizenRoutes = [
   { path: 'properties/:id', label: 'Property Details', parentPath: 'properties' },
   { path: 'properties/new', label: 'Add Property', parentPath: 'properties' },
   { path: 'demands', label: 'My Demands', parentPath: 'dashboard' },
-  { path: 'demands/:id', label: 'Demand Details', parentPath: 'demands' },
+  { path: 'demands/:id', label: 'Demand Details', parentPath: 'dashboard' },
   { path: 'water-connections', label: 'Water Connections', parentPath: 'dashboard' },
   { path: 'water-connections/:id', label: 'Connection Details', parentPath: 'water-connections' },
   { path: 'water-connection-request', label: 'Request Water Connection', parentPath: 'dashboard' },
@@ -538,7 +542,8 @@ export function getBreadcrumbs(pathname) {
   if (p.startsWith('sfi/') || p === 'sfi') return getSfiBreadcrumbs(normalizedPathOnly);
   // SBM needs query params for module-based breadcrumb flow, so pass full string
   if (p.startsWith('sbm/') || p === 'sbm') return getSbmBreadcrumbs(normalized);
-  return getAdminBreadcrumbs(normalizedPathOnly);
+  // Admin can also carry module query params (e.g. /payments?module=PROPERTY)
+  return getAdminBreadcrumbs(normalized);
 }
 
 function getDetailLabel(parentPath) {
@@ -566,8 +571,87 @@ function getDetailLabel(parentPath) {
 }
 
 export function getAdminBreadcrumbs(pathname) {
+  const clean = (pathname || '').replace(/\/+$/, '');
+  const [pathOnly, search = ''] = clean.split('?');
+  // Support both /admin/* and /* route styles for admin pages
+  const normalizedPath = (pathOnly || '').replace(/^\/admin\/?/, '');
+
+  // Special: tax module breadcrumb flow for admin list/detail pages with module query
+  const rel = normalizedPath.replace(/^\/+/, '') || 'dashboard';
+  if (
+    rel === 'payments' || rel.startsWith('payments/') ||
+    rel === 'demands' || rel.startsWith('demands/') ||
+    rel === 'notices' || rel.startsWith('notices/')
+  ) {
+    const sp = new URLSearchParams(search);
+    const mod = (sp.get('module') || '').toUpperCase();
+    const parent =
+      mod === 'PROPERTY' ? 'property-tax' :
+      mod === 'WATER' ? 'water-tax' :
+      mod === 'SHOP' ? 'shop-tax' :
+      mod === 'D2DC' ? 'tax-management/d2dc' :
+      (rel.startsWith('demands/') || rel === 'demands' || rel.startsWith('notices/') || rel === 'notices' || rel.startsWith('payments/') || rel === 'payments')
+        ? 'tax-management'
+        : 'dashboard';
+
+    const routes = adminRoutes.map((r) => {
+      if (r.path === 'payments' || r.path === 'demands' || r.path === 'notices') {
+        return { ...r, parentPath: parent };
+      }
+      return r;
+    });
+
+    const items = [];
+    let current = rel;
+    const seen = new Set();
+    for (let i = 0; i < 10; i++) {
+      if (seen.has(current)) break;
+      seen.add(current);
+      const matched = (() => {
+        const cleanCurrent = current.replace(/^\/+/, '').replace(/\/+$/, '');
+        let exact = routes.find((r) => r.path === cleanCurrent);
+        if (exact) return exact;
+        exact = routes.find((r) => adminRouteMatches(r.path, cleanCurrent));
+        if (exact) return exact;
+
+        const segments = cleanCurrent.split('/');
+        for (let len = segments.length; len >= 1; len--) {
+          const sub = segments.slice(0, len).join('/');
+          const rest = segments.slice(len);
+          let route = routes.find((r) => r.path === sub);
+          if (!route) route = routes.find((r) => adminRouteMatches(r.path, sub));
+          if (route && rest.length > 0) {
+            const lastSegment = rest[rest.length - 1];
+            const isId = /^\d+$/.test(lastSegment);
+            const listPath = route.path.includes(':') ? (route.parentPath != null ? route.parentPath : sub) : sub;
+            return {
+              path: cleanCurrent,
+              label: isId ? getDetailLabel(listPath) : (route.label || rest.join(' / ')),
+              parentPath: (route.path !== sub && route.parentPath != null) ? route.parentPath : sub,
+            };
+          }
+          if (route) return route;
+        }
+
+        return {
+          path: cleanCurrent,
+          label: cleanCurrent.split('/').pop() || 'Dashboard',
+          parentPath: segments.slice(0, -1).join('/') || 'dashboard',
+        };
+      })();
+      // Build route links in current admin style without query in breadcrumb links
+      items.unshift({
+        path: '/' + (matched.path.startsWith('/') ? matched.path.slice(1) : matched.path),
+        label: matched.label,
+      });
+      if (!matched.parentPath) break;
+      current = matched.parentPath;
+    }
+    return items;
+  }
+
   const items = [];
-  let current = pathname.replace(/^\/+/, '').replace(/\/+$/, '') || 'dashboard';
+  let current = normalizedPath.replace(/^\/+/, '').replace(/\/+$/, '') || 'dashboard';
   const seen = new Set();
   for (let i = 0; i < 10; i++) {
     if (seen.has(current)) break;

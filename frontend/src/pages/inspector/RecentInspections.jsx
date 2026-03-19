@@ -223,9 +223,9 @@ const RecentInspections = () => {
             Inspection History ({filteredInspections.length} items)
           </h2>
         </div>
-        <div className="overflow-x-auto">
+        <div className="table-wrap">
           {filteredInspections.length > 0 ? (
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="table min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">

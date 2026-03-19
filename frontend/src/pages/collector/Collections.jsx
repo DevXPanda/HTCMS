@@ -202,7 +202,7 @@ const Collections = () => {
       ) : (
         <>
           <div className="card">
-            <div className="overflow-x-auto">
+            <div className="table-wrap">
               <table className="table">
                 <thead>
                   <tr>

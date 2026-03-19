@@ -104,7 +104,7 @@ const TaxManagement = () => {
     const fmtCur = (val) => '₹' + parseFloat(val || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
 
     return (
-        <div className="space-y-8 max-w-7xl mx-auto">
+        <div className="space-y-8">
             {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>

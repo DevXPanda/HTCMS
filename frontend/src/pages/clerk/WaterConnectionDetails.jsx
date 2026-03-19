@@ -207,7 +207,7 @@ const WaterConnectionDetails = () => {
             <p>No documents uploaded yet</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="table-wrap">
             <table className="table">
               <thead>
                 <tr>

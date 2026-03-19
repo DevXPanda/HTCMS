@@ -136,9 +136,9 @@ const EoDashboard = () => {
     : monthlyTrend; // Ward filtering would require backend changes
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between md:items-center gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">EO Dashboard</h1>
           <p className="text-gray-600">
@@ -146,7 +146,7 @@ const EoDashboard = () => {
             {eo.ulb_name && ` · ${eo.ulb_name}`}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={handleExportAttendance}
             className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
@@ -319,8 +319,8 @@ const EoDashboard = () => {
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Ward-wise Attendance</h2>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="table-wrap">
+          <table className="table">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ward Name</th>
@@ -354,8 +354,8 @@ const EoDashboard = () => {
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Supervisor Performance</h2>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="table-wrap">
+          <table className="table">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Supervisor Name</th>
@@ -404,8 +404,8 @@ const EoDashboard = () => {
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Absent Workers</h2>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="table-wrap">
+          <table className="table">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Worker Name</th>
@@ -443,8 +443,8 @@ const EoDashboard = () => {
             Geo Violation Alerts
           </h2>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="table-wrap">
+          <table className="table">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Worker Name</th>
@@ -555,8 +555,8 @@ const EoDashboard = () => {
             {/* Contractor Summary */}
             <div>
               <h3 className="font-medium text-gray-900 mb-2">Contractor Summary</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+              <div className="table-wrap">
+                <table className="table text-sm">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
                       <th className="px-4 py-2 text-left font-medium text-gray-700">Contractor</th>
@@ -582,8 +582,8 @@ const EoDashboard = () => {
             {/* Worker-wise Details */}
             <div>
               <h3 className="font-medium text-gray-900 mb-2">Worker-wise Details</h3>
-              <div className="overflow-x-auto max-h-96 overflow-y-auto">
-                <table className="w-full text-sm">
+              <div className="table-wrap max-h-96 overflow-y-auto">
+                <table className="table text-sm">
                   <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
                     <tr>
                       <th className="px-4 py-2 text-left font-medium text-gray-700">Worker</th>

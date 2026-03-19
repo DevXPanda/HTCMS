@@ -331,7 +331,7 @@ const WaterConnectionDetails = () => {
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="table-wrap">
               <table className="table">
                 <thead>
                   <tr>
@@ -380,7 +380,7 @@ const WaterConnectionDetails = () => {
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="table-wrap">
             <table className="table">
               <thead>
                 <tr>
