@@ -19,6 +19,7 @@ import SupervisorLayout from './components/SupervisorLayout';
 import SFILayout from './components/SFILayout';
 import SBMLayout from './components/SBMLayout';
 import RoleBasedRedirect from './components/RoleBasedRedirect';
+import Home from './pages/Home';
 import D2DCModule from './pages/admin/d2dc/D2DCModule';
 import DiscountManagement from './pages/admin/discount/DiscountManagement';
 import PenaltyWaiverManagement from './pages/admin/penaltyWaiver/PenaltyWaiverManagement';
@@ -706,9 +707,11 @@ function App() {
               }
             />
 
-            {/* Protected Routes - Admin/Staff (admin, assessor, cashier) - path="/" last so role routes match first */}
+            {/* Public Landing Page */}
+            <Route path="/" element={<Home />} />
+
+            {/* Protected Routes - Admin/Staff (admin, assessor, cashier) */}
             <Route
-              path="/"
               element={
                 <PrivateRoute allowedRoles={['admin', 'assessor', 'cashier']}>
                   <SelectedUlbProvider>
@@ -717,7 +720,6 @@ function App() {
                 </PrivateRoute>
               }
             >
-              <Route index element={<RoleBasedRedirect />} />
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="notifications" element={<NotificationsPage />} />
               {/* New Modules */}

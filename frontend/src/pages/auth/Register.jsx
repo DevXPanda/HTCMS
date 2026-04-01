@@ -3,23 +3,23 @@ import { useNavigate, Link, useSearchParams, useLocation } from 'react-router-do
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
-const Register = () => {
+const Register = ({ isModal = false, onClose, onSwitch }) => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const roleParam = searchParams.get('role');
-  
+
   // Determine default role from URL path, URL param, or default to citizen
   const getDefaultRole = () => {
     // Check URL path first
     if (location.pathname.startsWith('/admin/register')) {
       return 'admin';
     }
-    
+
     // Then check URL param - only allow admin and citizen
     if (roleParam === 'admin') {
       return roleParam;
     }
-    
+
     return 'citizen';
   };
 
@@ -64,7 +64,7 @@ const Register = () => {
       toast.success('Registration successful!');
       // Get exact role from API response
       const role = result.user.role;
-      
+
       // Redirect based on exact role from API
       if (role === 'admin') {
         navigate('/dashboard', { replace: true });
@@ -101,56 +101,63 @@ const Register = () => {
 
   const theme = getTheme();
 
-  return (
-    <div className="auth-page-bg min-h-screen flex items-center justify-center px-4 py-8 relative">
-      <div className="absolute inset-0 bg-black opacity-45 z-0" />
-      <div className="max-w-md w-full relative z-10">
-        <div className="card">
-          <div className="text-center mb-8">
-            <h1 className={`ds-page-title ${theme.text} mb-2`}>Register</h1>
-            <p className="text-gray-600">Create your HTCMS account</p>
-            {formData.role !== 'citizen' && (
-              <p className="text-sm text-gray-500 mt-2">
-                {formData.role === 'admin' ? 'For System Administrators - Full system access' : ''}
-              </p>
-            )}
-          </div>
-
-          <div className="mb-6 p-4 bg-amber-50 rounded-lg border border-amber-200">
-            <div className="flex items-center gap-2 mb-2">
-              <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <h3 className="text-sm font-medium text-amber-900">Registration Notice</h3>
-            </div>
-            <p className="text-xs text-amber-700">
-              Only Citizen and Admin accounts can be self-registered. Staff accounts (Clerk, Inspector, Officer, Collector) must be created by system administrators.
+  const content = (
+    <div className="max-w-2xl w-full relative z-10 px-4">
+      <div className="card relative p-6 md:p-8">
+        {isModal && (
+          <button
+            onClick={onClose}
+            type="button"
+            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-50 transition-colors bg-gray-100 hover:bg-gray-200 p-1 rounded-full"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+        <div className="text-center mb-6">
+          <h1 className={`text-2xl font-bold ${theme.text} mb-1`}>Create Account</h1>
+          <p className="text-gray-500 text-sm">Join HTCMS for seamless tax management</p>
+          {formData.role !== 'citizen' && (
+            <p className="text-xs text-gray-400 mt-1 uppercase tracking-wider font-semibold">
+              {formData.role === 'admin' ? 'System Administrator Portal' : ''}
             </p>
-          </div>
+          )}
+        </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="role" className="label">
-                Account Category
-              </label>
-              <select
-                id="role"
-                name="role"
-                value={formData.role}
-                onChange={handleChange}
-                required
-                className="input"
-              >
-                <option value="citizen">Citizen (Property Owner)</option>
-                <option value="admin">Administrator</option>
-              </select>
-              <p className="text-xs text-gray-500 mt-1">
-                Only Citizen and Admin accounts can be self-registered. Staff accounts are created by administrators.
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
+        {/* <div className="mb-6 p-3 bg-amber-50/50 rounded-xl border border-amber-100 flex items-start gap-3">
+          <div className="mt-0.5">
+            <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <p className="text-[11px] leading-relaxed text-amber-800 font-medium">
+              Self-registration is available for <span className="font-bold underline">Citizens</span> and <span className="font-bold underline">Admins</span> only. Staff members must be registered by a system administrator.
+            </p>
+        </div> */}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+            {/* <div>
+                <label htmlFor="role" className="label text-xs uppercase tracking-wide font-bold text-gray-500">
+                  Account Category
+                </label>
+                <select
+                  id="role"
+                  name="role"
+                  value={formData.role}
+                  onChange={handleChange}
+                  required
+                  className="input mt-1"
+                >
+                  <option value="citizen">Citizen (Property Owner)</option>
+                  <option value="admin">Administrator</option>
+                </select>
+              </div> */}
+
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label htmlFor="firstName" className="label">
+                <label htmlFor="firstName" className="label text-xs uppercase tracking-wide font-bold text-gray-500">
                   First Name
                 </label>
                 <input
@@ -160,11 +167,12 @@ const Register = () => {
                   value={formData.firstName}
                   onChange={handleChange}
                   required
-                  className="input"
+                  className="input mt-1"
+                  placeholder="John"
                 />
               </div>
               <div>
-                <label htmlFor="lastName" className="label">
+                <label htmlFor="lastName" className="label text-xs uppercase tracking-wide font-bold text-gray-500">
                   Last Name
                 </label>
                 <input
@@ -174,13 +182,14 @@ const Register = () => {
                   value={formData.lastName}
                   onChange={handleChange}
                   required
-                  className="input"
+                  className="input mt-1"
+                  placeholder="Doe"
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="username" className="label">
+              <label htmlFor="username" className="label text-xs uppercase tracking-wide font-bold text-gray-500">
                 Username
               </label>
               <input
@@ -190,12 +199,13 @@ const Register = () => {
                 value={formData.username}
                 onChange={handleChange}
                 required
-                className="input"
+                className="input mt-1"
+                placeholder="johndoe123"
               />
             </div>
 
             <div>
-              <label htmlFor="email" className="label">
+              <label htmlFor="email" className="label text-xs uppercase tracking-wide font-bold text-gray-500">
                 Email Address
               </label>
               <input
@@ -205,12 +215,13 @@ const Register = () => {
                 value={formData.email}
                 onChange={handleChange}
                 required
-                className="input"
+                className="input mt-1"
+                placeholder="john@example.com"
               />
             </div>
 
             <div>
-              <label htmlFor="phone" className="label">
+              <label htmlFor="phone" className="label text-xs uppercase tracking-wide font-bold text-gray-500">
                 Phone Number
               </label>
               <input
@@ -219,12 +230,13 @@ const Register = () => {
                 name="phone"
                 value={formData.phone}
                 onChange={handleChange}
-                className="input"
+                className="input mt-1"
+                placeholder="98XXXXXXXX"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="label">
+              <label htmlFor="password" className="label text-xs uppercase tracking-wide font-bold text-gray-500">
                 Password
               </label>
               <input
@@ -235,12 +247,13 @@ const Register = () => {
                 onChange={handleChange}
                 required
                 minLength={6}
-                className="input"
+                className="input mt-1"
+                placeholder="••••••••"
               />
             </div>
 
-            <div>
-              <label htmlFor="confirmPassword" className="label">
+            <div className="md:col-start-2">
+              <label htmlFor="confirmPassword" className="label text-xs uppercase tracking-wide font-bold text-gray-500">
                 Confirm Password
               </label>
               <input
@@ -250,47 +263,92 @@ const Register = () => {
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 required
-                className="input"
+                className="input mt-1"
+                placeholder="••••••••"
               />
             </div>
+          </div>
 
+          <div className="pt-2">
             <button
               type="submit"
               disabled={loading}
-              className={`btn btn-primary w-full ${theme.button} text-white`}
+              className={`btn btn-primary w-full py-4 text-base font-bold shadow-lg shadow-black/5 ${theme.button} text-white rounded-xl active:scale-[0.98] transition-all`}
             >
-              {loading ? 'Registering...' : 'Register'}
+              {loading ? 'Creating Account...' : 'Complete Registration'}
             </button>
-          </form>
+          </div>
+        </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Already have an account?{' '}
-              {formData.role === 'citizen' && (
+        <div className="mt-6 text-center">
+          <p className="text-sm text-gray-600">
+            Already have an account?{' '}
+            {formData.role === 'citizen' && (
+              isModal && onSwitch ? (
+                <button onClick={() => onSwitch('citizen')} className={`${theme.link} hover:underline font-medium ml-1`}>
+                  Login here
+                </button>
+              ) : (
                 <Link to="/citizen/login" className={`${theme.link} hover:underline font-medium`}>
                   Login here
                 </Link>
-              )}
-              {formData.role === 'admin' && (
+              )
+            )}
+            {formData.role === 'admin' && (
+              isModal && onSwitch ? (
+                <button onClick={() => onSwitch('admin')} className={`${theme.link} hover:underline font-medium ml-1`}>
+                  Login here
+                </button>
+              ) : (
                 <Link to="/staff/login" className={`${theme.link} hover:underline font-medium`}>
                   Staff Login
                 </Link>
+              )
+            )}
+          </p>
+          <div className="mt-4 pt-4 border-t">
+            <div className="flex justify-center gap-4 text-sm">
+              {isModal && onSwitch ? (
+                <>
+                  <button onClick={() => onSwitch('citizen')} className="text-gray-600 hover:underline">
+                    Citizen Login
+                  </button>
+                  <span className="text-gray-300">|</span>
+                  <button onClick={() => onSwitch('staff')} className="text-gray-600 hover:underline">
+                    Staff Login
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link to="/citizen/login" className="text-gray-600 hover:underline">
+                    Citizen Login
+                  </Link>
+                  <span className="text-gray-300">|</span>
+                  <Link to="/staff/login" className="text-gray-600 hover:underline">
+                    Staff Login
+                  </Link>
+                </>
               )}
-            </p>
-            <div className="mt-4 pt-4 border-t">
-              <div className="flex justify-center gap-4 text-sm">
-                <Link to="/citizen/login" className="text-gray-600 hover:underline">
-                  Citizen Login
-                </Link>
-                <span className="text-gray-300">|</span>
-                <Link to="/staff/login" className="text-gray-600 hover:underline">
-                  Staff Login
-                </Link>
-              </div>
             </div>
           </div>
         </div>
       </div>
+    </div>
+  );
+
+  if (isModal) {
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 py-8 overflow-y-auto">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <div className="auth-page-bg min-h-screen flex items-center justify-center px-4 py-8 relative">
+      <div className="absolute inset-0 bg-black opacity-45 z-0" />
+      {content}
     </div>
   );
 };

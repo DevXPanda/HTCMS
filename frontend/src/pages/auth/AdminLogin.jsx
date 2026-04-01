@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { Shield, Building2, CreditCard } from 'lucide-react';
 
-const AdminLogin = () => {
+const AdminLogin = ({ isModal = false, onClose, onSwitch }) => {
   const [formData, setFormData] = useState({ login_identifier: '', password: '' });
   const [loading, setLoading] = useState(false);
   const { login, user, isAuthenticated, loading: authLoading } = useAuth();
@@ -30,6 +30,14 @@ const AdminLogin = () => {
   }, [isAuthenticated, user, authLoading, navigate]);
 
   if (authLoading) {
+    if (isModal) {
+      return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="spinner spinner-md relative z-10" />
+        </div>
+      );
+    }
     return (
       <div className="auth-page-bg min-h-screen flex items-center justify-center relative">
         <div className="absolute inset-0 bg-black opacity-45 z-0" />
@@ -92,11 +100,20 @@ const AdminLogin = () => {
     }
   };
 
-  return (
-    <div className="auth-page-bg min-h-screen flex items-center justify-center px-4 relative">
-      <div className="absolute inset-0 bg-black opacity-45 z-0" />
+  const content = (
       <div className="max-w-md w-full relative z-10">
-        <div className="card max-w-md mx-auto">
+        <div className="card max-w-md mx-auto relative">
+          {isModal && (
+            <button 
+              onClick={onClose}
+              type="button"
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-50 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
               <div className="bg-primary-100 p-3 rounded-full">
@@ -162,17 +179,50 @@ const AdminLogin = () => {
 
           <div className="mt-4 pt-4 border-t">
             <div className="flex justify-center gap-4 text-sm">
-              <a href="/staff/login" className="text-gray-600 hover:text-blue-600">
-                Staff Login
-              </a>
+              {isModal && onSwitch ? (
+                <button 
+                  onClick={() => onSwitch('staff')}
+                  className="text-gray-600 hover:text-blue-600"
+                >
+                   Staff Login
+                </button>
+              ) : (
+                <a href="/staff/login" className="text-gray-600 hover:text-blue-600">
+                  Staff Login
+                </a>
+              )}
               <span className="text-gray-300">|</span>
-              <a href="/citizen/login" className="text-gray-600 hover:text-blue-600">
-                Citizen Login
-              </a>
+              {isModal && onSwitch ? (
+                <button 
+                  onClick={() => onSwitch('citizen')}
+                  className="text-gray-600 hover:text-blue-600"
+                >
+                  Citizen Login
+                </button>
+              ) : (
+                <a href="/citizen/login" className="text-gray-600 hover:text-blue-600">
+                  Citizen Login
+                </a>
+              )}
             </div>
           </div>
         </div>
       </div>
+  );
+
+  if (isModal) {
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <div className="auth-page-bg min-h-screen flex items-center justify-center px-4 relative">
+      <div className="absolute inset-0 bg-black opacity-45 z-0" />
+      {content}
     </div>
   );
 };

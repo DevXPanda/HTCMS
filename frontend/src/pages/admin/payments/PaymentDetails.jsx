@@ -180,20 +180,20 @@ const PaymentDetails = () => {
         <div className="card receipt-print-area lg:col-span-2 print:shadow-none print:border-2 print:border-gray-800">
           <h2 className="form-section-title no-print">Receipt View</h2>
           <PaymentReceiptView payment={payment} formatAmt={formatAmt} />
-          {payment.remarks && (
+          {/* {payment.remarks && (
             <div className="mt-4 pt-4 border-t border-gray-200">
               <p className="text-sm text-gray-600 mb-1">Remarks</p>
               <p className="text-sm">{payment.remarks}</p>
             </div>
-          )}
+          )} */}
         </div>
 
-        {payment.remarks && (
+        {/* {payment.remarks && (
           <div className="no-print card lg:col-span-2">
             <h2 className="form-section-title">Remarks</h2>
             <p className="text-gray-600 whitespace-pre-wrap text-sm">{payment.remarks}</p>
           </div>
-        )}
+        )} */}
       </div>
     </DetailPageLayout>
   );
