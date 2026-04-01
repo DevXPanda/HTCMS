@@ -7,6 +7,8 @@ import { getEffectiveUlbForRequest, getWardIdsByUlbId } from '../utils/ulbAccess
 import { generateDemandNoticePdfBuffer, generateDemandSummaryReceiptPdfBuffer } from '../services/pdfGenerator.js';
 import { generateUnifiedTaxAssessmentAndDemand, getUnifiedDemandBreakdown, getUnifiedTaxSummary as getUnifiedTaxSummaryService } from '../services/unifiedTaxService.js';
 import { generateShopDemandsForProperty } from '../services/shopDemandService.js';
+import { sendRoleBasedEmail } from '../services/emailService.js';
+import { EMAIL_EVENTS } from '../config/emailEvents.js';
 
 /**
  * @route   GET /api/demands
@@ -923,6 +925,14 @@ export const createDemand = async (req, res, next) => {
       `Created ${serviceType} demand: ${demand.demandNumber}`,
       { propertyId: demand.propertyId, assessmentId: demand.assessmentId, serviceType: demand.serviceType }
     );
+
+    // Dispatch Events for Email Notification
+    try {
+      const citizenId = demand.property?.ownerId || createdDemand?.property?.ownerId;
+      if (citizenId) {
+        await sendRoleBasedEmail(EMAIL_EVENTS.DEMAND_GENERATED, { demandId: demand.demandNumber, amountDue: demand.totalAmount }, citizenId);
+      }
+    } catch (e) { console.error('Error dispatching emails:', e); }
 
     res.status(201).json({
       success: true,

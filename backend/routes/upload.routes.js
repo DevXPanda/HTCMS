@@ -16,8 +16,8 @@ router.post('/owner-photo', authorize('admin', 'assessor', 'tax_collector', 'col
 // Upload field visit photo (Collector only)
 router.post('/field-visit-photo', authorize('collector'), upload.single('photo'), uploadFieldVisitPhoto);
 
-// Upload payment proof (Collector, Tax Collector)
-router.post('/payment-proof', authorize('collector', 'tax_collector'), upload.single('proof'), uploadPaymentProof);
+// Upload payment proof (Admin, Cashier, Collector, Tax Collector)
+router.post('/payment-proof', authorize('admin', 'cashier', 'collector', 'tax_collector'), upload.single('proof'), uploadPaymentProof);
 
 // Upload shop registration document (Citizen, Admin, Clerk)
 router.post('/shop-registration-document', authorize('citizen', 'admin', 'clerk'), upload.single('file'), uploadShopRegistrationDocument);

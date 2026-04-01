@@ -210,10 +210,10 @@ export const uploadPaymentProof = async (req, res, next) => {
     const user = req.user;
 
     const role = (user.role || '').toString().toLowerCase();
-    if (role !== 'collector' && role !== 'tax_collector') {
+    if (!['collector', 'tax_collector', 'admin', 'cashier'].includes(role)) {
       return res.status(403).json({
         success: false,
-        message: 'Only collectors can upload payment proofs'
+        message: 'You are not authorized to upload payment proofs'
       });
     }
 

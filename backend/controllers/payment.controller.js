@@ -10,6 +10,8 @@ import { getEffectiveUlbForRequest, getWardIdsByUlbId } from '../utils/ulbAccess
 import { distributePaymentAcrossItems, validatePaymentDistributionIntegrity } from '../services/paymentService.js';
 import { validateAuditAction } from '../utils/auditHelpers.js';
 import { generatePaymentId } from '../services/uniqueIdService.js';
+import { sendRoleBasedEmail } from '../services/emailService.js';
+import { EMAIL_EVENTS } from '../config/emailEvents.js';
 
 /**
  * Validate payment amount against demand balance to prevent overpayment
@@ -291,7 +293,8 @@ export const createPayment = async (req, res, next) => {
       chequeDate,
       bankName,
       transactionId,
-      remarks
+      remarks,
+      proofUrl
     } = req.body;
 
     // Get demand with row-level lock (no includes - avoids "FOR UPDATE on nullable side of outer join")
@@ -338,12 +341,6 @@ export const createPayment = async (req, res, next) => {
     // Ensure all amounts are proper numbers
     const paymentAmount = parseFloat(amount);
     const balanceAmount = parseFloat(demand.balanceAmount || 0);
-    const totalAmount = parseFloat(demand.totalAmount || 0);
-    const paidAmount = parseFloat(demand.paidAmount || 0);
-    const baseAmount = parseFloat(demand.baseAmount || 0);
-    const arrearsAmount = parseFloat(demand.arrearsAmount || 0);
-    const penaltyAmount = parseFloat(demand.penaltyAmount || 0);
-    const interestAmount = parseFloat(demand.interestAmount || 0);
 
     // Enhanced overpayment protection validation
     const validation = validateOverpaymentProtection(
@@ -402,7 +399,8 @@ export const createPayment = async (req, res, next) => {
       receiptNumber,
       status: 'completed',
       receivedBy: req.user.id,
-      remarks
+      remarks,
+      proofUrl
     }, { transaction });
 
     // Distribute payment across demand items (item-level payment tracking) within transaction
@@ -558,6 +556,16 @@ export const createPayment = async (req, res, next) => {
         });
       }
     } catch (_) { /* ignore */ }
+
+    // Dispatch Events for Email Notification
+    try {
+      await sendRoleBasedEmail(EMAIL_EVENTS.PAYMENT_CREATED, { paymentId: payment.paymentNumber, amount: payment.amount });
+      const citizenId = demand.property?.ownerId || createdPayment?.property?.ownerId;
+      if (citizenId) {
+        await sendRoleBasedEmail(EMAIL_EVENTS.PAYMENT_SUCCESS, { paymentId: payment.paymentNumber, amount: payment.amount }, citizenId);
+      }
+    } catch (e) { console.error('Error dispatching emails:', e); }
+
 
     res.status(201).json({
       success: true,

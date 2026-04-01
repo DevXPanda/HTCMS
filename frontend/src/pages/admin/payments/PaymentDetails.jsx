@@ -143,6 +143,7 @@ const PaymentDetails = () => {
             )}
             {payment.chequeDate && <DetailRow label="Cheque/DD Date" value={formatDateIST(payment.chequeDate)} />}
             {payment.bankName && <DetailRow label="Bank Name" value={payment.bankName} />}
+            {payment.proofUrl && <DetailRow label="Payment Proof" value={<a href={payment.proofUrl} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline font-medium">View Proof Document</a>} />}
           </dl>
         </div>
 

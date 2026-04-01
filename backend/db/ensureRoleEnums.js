@@ -41,10 +41,10 @@ export const ensureRoleEnums = async () => {
   await sequelize.query(`
     DO $$
     BEGIN
-      BEGIN ALTER TYPE audit_entity_type ADD VALUE IF NOT EXISTS 'PaymentApprovalRequest'; EXCEPTION WHEN duplicate_object THEN NULL; END;
-      BEGIN ALTER TYPE "enum_audit_logs_entityType" ADD VALUE IF NOT EXISTS 'PaymentApprovalRequest'; EXCEPTION WHEN duplicate_object THEN NULL; WHEN invalid_parameter_value THEN NULL; END;
-      BEGIN ALTER TYPE audit_actor_role ADD VALUE IF NOT EXISTS 'account_officer'; EXCEPTION WHEN duplicate_object THEN NULL; END;
-      BEGIN ALTER TYPE "enum_audit_logs_actorRole" ADD VALUE IF NOT EXISTS 'account_officer'; EXCEPTION WHEN duplicate_object THEN NULL; WHEN invalid_parameter_value THEN NULL; END;
+      BEGIN ALTER TYPE audit_entity_type ADD VALUE IF NOT EXISTS 'PaymentApprovalRequest'; EXCEPTION WHEN duplicate_object THEN NULL; WHEN undefined_object THEN NULL; END;
+      BEGIN ALTER TYPE "enum_audit_logs_entityType" ADD VALUE IF NOT EXISTS 'PaymentApprovalRequest'; EXCEPTION WHEN duplicate_object THEN NULL; WHEN invalid_parameter_value THEN NULL; WHEN undefined_object THEN NULL; END;
+      BEGIN ALTER TYPE audit_actor_role ADD VALUE IF NOT EXISTS 'account_officer'; EXCEPTION WHEN duplicate_object THEN NULL; WHEN undefined_object THEN NULL; END;
+      BEGIN ALTER TYPE "enum_audit_logs_actorRole" ADD VALUE IF NOT EXISTS 'account_officer'; EXCEPTION WHEN duplicate_object THEN NULL; WHEN invalid_parameter_value THEN NULL; WHEN undefined_object THEN NULL; END;
     END
     $$;
   `);

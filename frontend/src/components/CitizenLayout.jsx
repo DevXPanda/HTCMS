@@ -1,15 +1,23 @@
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { User, LogOut, Home, X } from 'lucide-react';
-import { useState } from 'react';
+import { User, LogOut, Home, X, Edit2, Save, XCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import Breadcrumbs from './Breadcrumbs';
 import HeaderNotificationBell from './HeaderNotificationBell';
+import { userAPI } from '../services/api';
+import toast from 'react-hot-toast';
 import GlobalHeaderSearch from './GlobalHeaderSearch';
 import useLockBodyScroll from '../hooks/useLockBodyScroll';
 
 const CitizenLayout = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editFirstName, setEditFirstName] = useState('');
+  const [editLastName, setEditLastName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   useLockBodyScroll(showProfileModal);
   const navigate = useNavigate();
 
@@ -19,6 +27,53 @@ const CitizenLayout = () => {
   };
 
   const userData = user || JSON.parse(localStorage.getItem('user') || 'null');
+
+  useEffect(() => {
+    if (showProfileModal && userData) {
+      setIsEditing(false);
+      setEditFirstName(userData?.firstName || '');
+      setEditLastName(userData?.lastName || '');
+      setEditEmail(userData?.email || '');
+      setEditPhone(userData?.phone_number || userData?.phoneNumber || userData?.phone || '');
+    }
+  }, [showProfileModal]);
+
+  const handleUpdateProfile = async () => {
+    if (!editFirstName.trim()) {
+      toast.error('First Name cannot be empty');
+      return;
+    }
+    
+    setIsSaving(true);
+    try {
+      const response = await userAPI.update(userData.id, {
+        firstName: editFirstName,
+        lastName: editLastName,
+        email: editEmail,
+        phone: editPhone
+      });
+      
+      if (response.data?.success) {
+        toast.success('Profile updated successfully');
+        const updatedUser = response.data.data?.user || { ...userData, firstName: editFirstName, lastName: editLastName, email: editEmail, phone: editPhone };
+        
+        // Update local storage and context
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        if (typeof updateUser === 'function') {
+          updateUser(updatedUser);
+        } else {
+          // Fallback if context doesn't expose updateUser directly or effectively
+          setTimeout(() => window.location.reload(), 1000);
+        }
+        
+        setIsEditing(false);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update profile');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -93,14 +148,33 @@ const CitizenLayout = () => {
                 </button>
               </div>
               <div className="modal-body space-y-4">
-                <div className="flex items-center space-x-4 mb-6">
-                  <div className="h-16 w-16 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 text-xl font-bold">
+                <div className="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-4 mb-6 p-4 rounded-lg border border-gray-100 bg-white shadow-sm">
+                  <div className="h-16 w-16 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 text-xl font-bold shrink-0">
                     {userData?.firstName?.charAt(0) || 'C'}
                   </div>
-                  <div>
-                    <h4 className="text-lg font-medium text-gray-900">
-                      {userData?.firstName} {userData?.lastName}
-                    </h4>
+                  <div className="w-full">
+                    {isEditing ? (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={editFirstName}
+                          onChange={(e) => setEditFirstName(e.target.value)}
+                          placeholder="First Name"
+                          className="w-1/2 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500"
+                        />
+                        <input
+                          type="text"
+                          value={editLastName}
+                          onChange={(e) => setEditLastName(e.target.value)}
+                          placeholder="Last Name"
+                          className="w-1/2 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500"
+                        />
+                      </div>
+                    ) : (
+                      <h4 className="text-lg font-medium text-gray-900">
+                        {userData?.firstName} {userData?.lastName}
+                      </h4>
+                    )}
                     <p className="text-sm text-gray-500 capitalize">{userData?.role || 'citizen'}</p>
                   </div>
                 </div>
@@ -108,11 +182,29 @@ const CitizenLayout = () => {
                 <div className="space-y-3">
                   <div className="bg-gray-50 p-3 rounded-md">
                     <p className="text-xs text-gray-500 uppercase">Email</p>
-                    <p className="text-sm font-medium text-gray-900">{userData?.email || 'N/A'}</p>
+                    {isEditing ? (
+                      <input
+                        type="email"
+                        value={editEmail}
+                        onChange={(e) => setEditEmail(e.target.value)}
+                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      />
+                    ) : (
+                      <p className="text-sm font-medium text-gray-900">{userData?.email || 'N/A'}</p>
+                    )}
                   </div>
                   <div className="bg-gray-50 p-3 rounded-md">
                     <p className="text-xs text-gray-500 uppercase">Phone</p>
-                    <p className="text-sm font-medium text-gray-900">{userData?.phone_number || userData?.phoneNumber || userData?.phone || 'N/A'}</p>
+                    {isEditing ? (
+                      <input
+                        type="tel"
+                        value={editPhone}
+                        onChange={(e) => setEditPhone(e.target.value)}
+                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      />
+                    ) : (
+                      <p className="text-sm font-medium text-gray-900">{userData?.phone_number || userData?.phoneNumber || userData?.phone || 'N/A'}</p>
+                    )}
                   </div>
                   <div className="bg-gray-50 p-3 rounded-md">
                     <p className="text-xs text-gray-500 uppercase">User ID</p>
@@ -120,10 +212,26 @@ const CitizenLayout = () => {
                   </div>
                 </div>
               </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-primary" onClick={() => setShowProfileModal(false)}>
-                  Close
-                </button>
+              <div className="modal-footer flex justify-between">
+                {isEditing ? (
+                  <>
+                    <button type="button" className="btn btn-secondary flex items-center gap-2" onClick={() => setIsEditing(false)} disabled={isSaving}>
+                      <XCircle className="w-4 h-4" /> Cancel
+                    </button>
+                    <button type="button" className="btn btn-primary flex items-center gap-2" onClick={handleUpdateProfile} disabled={isSaving}>
+                      {isSaving ? 'Saving...' : <><Save className="w-4 h-4" /> Save Changes</>}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button type="button" className="btn btn-secondary flex items-center gap-2" onClick={() => setIsEditing(true)}>
+                      <Edit2 className="w-4 h-4" /> Edit Profile
+                    </button>
+                    <button type="button" className="btn btn-primary" onClick={() => setShowProfileModal(false)}>
+                      Close
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>

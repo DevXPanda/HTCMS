@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
-import { paymentAPI, demandAPI } from '../../../services/api';
+import { paymentAPI, demandAPI, uploadAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { CreditCard, CheckCircle, Landmark, Smartphone, Wallet, FileText, Calendar, Home, TrendingUp } from 'lucide-react';
@@ -10,7 +10,8 @@ const PAYMENT_METHODS = [
     { id: 'card', label: 'Credit/Debit Cards', icon: CreditCard },
     { id: 'netbanking', label: 'Net Banking', icon: Landmark },
     { id: 'upi', label: 'UPI (Google Pay, PhonePe, Paytm, etc.)', icon: Smartphone },
-    { id: 'wallet', label: 'Wallets', icon: Wallet }
+    { id: 'wallet', label: 'Wallets', icon: Wallet },
+    { id: 'cash', label: 'Cash Payment (with Proof)', icon: FileText }
 ];
 
 const OnlinePayment = () => {
@@ -26,6 +27,7 @@ const OnlinePayment = () => {
     const [orderData, setOrderData] = useState(null);
     const [processing, setProcessing] = useState(false);
     const [selectedMethod, setSelectedMethod] = useState(null);
+    const [proofFile, setProofFile] = useState(null);
 
     useEffect(() => {
         if (demandId) {
@@ -72,6 +74,40 @@ const OnlinePayment = () => {
 
         if (parseFloat(paymentAmount) > parseFloat(demand.balanceAmount)) {
             toast.error('Payment amount cannot exceed balance amount');
+            return;
+        }
+
+        if (selectedMethod === 'cash') {
+            if (!proofFile) {
+                toast.error('Please upload a proof image or document for cash payment');
+                return;
+            }
+
+            try {
+                setProcessing(true);
+                // 1. Upload proof
+                const formData = new FormData();
+                formData.append('proof', proofFile);
+                const uploadRes = await uploadAPI.uploadPaymentProof(formData);
+                const proofUrl = uploadRes.data.data.url;
+
+                // 2. Create offline payment
+                const response = await paymentAPI.create({
+                    demandId: parseInt(demandId),
+                    amount: parseFloat(paymentAmount),
+                    paymentMode: 'cash',
+                    proofUrl: proofUrl,
+                    remarks: 'Offline cash payment via Dashboard'
+                });
+
+                if (response.data.success) {
+                    toast.success('Cash payment recorded successfully!');
+                    navigate(`${basePath}/payments/${response.data.data.payment.id}`);
+                }
+            } catch (error) {
+                toast.error(error.response?.data?.message || error.response?.data?.error || 'Failed to record cash payment');
+                setProcessing(false);
+            }
             return;
         }
 
@@ -298,11 +334,26 @@ const OnlinePayment = () => {
                                 );
                             })}
                         </div>
+                        {selectedMethod === 'cash' && (
+                            <div className="mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                                <label className="label">
+                                    Payment Proof Image <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="file"
+                                    accept="image/*,.pdf"
+                                    onChange={(e) => setProofFile(e.target.files[0])}
+                                    className="input py-2 bg-white"
+                                    disabled={processing || loading}
+                                />
+                                <p className="text-xs text-gray-500 mt-1">Upload receipt or proof of cash payment</p>
+                            </div>
+                        )}
                     </div>
 
                     <button
                         onClick={handleCreateOrder}
-                        disabled={loading || processing || !paymentAmount || parseFloat(paymentAmount) <= 0}
+                        disabled={loading || processing || !paymentAmount || parseFloat(paymentAmount) <= 0 || (selectedMethod === 'cash' && !proofFile)}
                         className="btn btn-primary w-full flex items-center justify-center py-3"
                     >
                         {loading ? (
@@ -313,12 +364,12 @@ const OnlinePayment = () => {
                         ) : processing ? (
                             <>
                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                Verifying Payment...
+                                {selectedMethod === 'cash' ? 'Recording Payment...' : 'Verifying Payment...'}
                             </>
                         ) : (
                             <>
                                 <CreditCard className="w-4 h-4 mr-2" />
-                                Pay {formatAmt(paymentAmount)}
+                                {selectedMethod === 'cash' ? 'Record' : 'Pay'} {formatAmt(paymentAmount)}
                             </>
                         )}
                     </button>

@@ -338,9 +338,14 @@ export const updateUser = async (req, res, next) => {
 
     // Non-admin users can only update limited fields
     if (!isAdmin) {
-      user.firstName = firstName || user.firstName;
-      user.lastName = lastName || user.lastName;
-      user.phone = phone || user.phone;
+      if (firstName !== undefined) user.firstName = firstName;
+      if (lastName !== undefined) user.lastName = lastName;
+      if (phone !== undefined) user.phone = phone;
+      if (email !== undefined) {
+        const existing = await User.findOne({ where: { email, id: { [Op.ne]: id } } });
+        if (existing) return res.status(400).json({ success: false, message: 'Another user already has this email.' });
+        user.email = email;
+      }
     } else {
       // Admin can update all fields
       if (firstName) user.firstName = firstName;

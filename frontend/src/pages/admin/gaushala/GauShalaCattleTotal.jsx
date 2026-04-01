@@ -58,11 +58,11 @@ const GauShalaCattleTotal = () => {
 
     const getHealthBadge = (status) => {
         const config = {
-            healthy: { color: 'bg-green-100 text-green-800', icon: Lucide.CheckCircle || Lucide.CircleCheck || Lucide.Circle },
-            sick: { color: 'bg-red-100 text-red-800', icon: Lucide.AlertCircle || Lucide.AlertTriangle },
-            under_treatment: { color: 'bg-blue-100 text-blue-800', icon: Lucide.Stethoscope || Lucide.Activity },
-            critical: { color: 'bg-purple-100 text-purple-800', icon: Lucide.AlertCircle || Lucide.AlertTriangle },
-            quarantined: { color: 'bg-yellow-100 text-yellow-800', icon: Lucide.XCircle || Lucide.X }
+            healthy: { color: 'bg-green-100 text-green-800', icon: Lucide.CheckCircle },
+            sick: { color: 'bg-red-100 text-red-800', icon: Lucide.AlertCircle },
+            under_treatment: { color: 'bg-blue-100 text-blue-800', icon: Lucide.Stethoscope },
+            critical: { color: 'bg-purple-100 text-purple-800', icon: Lucide.AlertCircle },
+            quarantined: { color: 'bg-yellow-100 text-yellow-800', icon: Lucide.XCircle }
         };
 
         const displayStatus = status || 'healthy';

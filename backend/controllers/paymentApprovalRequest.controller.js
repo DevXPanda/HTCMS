@@ -5,6 +5,8 @@ import { createAuditLog } from '../utils/auditLogger.js';
 import { getEffectiveUlbForRequest, getWardIdsByUlbId } from '../utils/ulbAccessHelper.js';
 import { pushNotification } from '../services/notificationService.js';
 import { getDemandOriginalAmount, calculateDiscount, getDemandPenaltyAmount, calculatePenaltyWaiver, calculateFinalAmount } from '../utils/financialCalculations.js';
+import { sendRoleBasedEmail } from '../services/emailService.js';
+import { EMAIL_EVENTS } from '../config/emailEvents.js';
 
 const normalizeRole = (role) => (role || '').toString().toUpperCase().replace(/-/g, '_');
 
@@ -321,6 +323,12 @@ export const approveRequest = async (req, res, next) => {
     try {
       await createAuditLog({ req, user: req.user, actionType: 'APPROVE', entityType: 'Demand', entityId: demand.id, description: `Super Admin approved ${approvalRequest.requestType} request #${approvalRequest.id} and applied to demand`, metadata: { approvalRequestId: approvalRequest.id, collectorId: collector?.id || null } });
     } catch (_) {}
+
+    try {
+      await sendRoleBasedEmail(EMAIL_EVENTS.PAYMENT_APPROVED, { paymentId: approvalRequest.id, amount: approvalRequest.adjustmentValue });
+    } catch (e) {
+      console.error('Error dispatching PAYMENT_APPROVED email:', e);
+    }
 
     res.json({
       success: true,
