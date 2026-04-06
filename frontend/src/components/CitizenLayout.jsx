@@ -23,7 +23,7 @@ const CitizenLayout = () => {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/citizen/login', { replace: true });
+    navigate('/', { replace: true });
   };
 
   const userData = user || JSON.parse(localStorage.getItem('user') || 'null');

@@ -13,7 +13,7 @@ const CollectorLayout = () => {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/collector/login', { replace: true });
+    navigate('/', { replace: true });
   };
 
   const userData = user || JSON.parse(localStorage.getItem('user') || 'null');

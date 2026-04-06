@@ -13,7 +13,7 @@ const InspectorLayout = () => {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/inspector/login', { replace: true });
+    navigate('/', { replace: true });
   };
 
   const userData = user || JSON.parse(localStorage.getItem('user') || 'null');
