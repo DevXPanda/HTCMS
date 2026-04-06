@@ -22,10 +22,10 @@ const CitizenSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
   const userData = user || null;
 
   const handleLogout = async () => {
-    // Call logout function from context to clear auth data
-    await logout();
     // Navigate to home using React Router with replace to prevent back navigation
     navigate('/', { replace: true });
+    // Call logout function from context to clear auth data
+    await logout();
   };
 
   // Format role for display - use exact role from localStorage, no mapping

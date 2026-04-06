@@ -1,8 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  Building2, Receipt, Shield, Bell, LineChart, 
-  Users, CheckCircle2, ArrowRight, FileText, 
+import {
+  Building2, Receipt, Shield, Bell, LineChart,
+  Users, CheckCircle2, ArrowRight, FileText,
   UserCheck, Briefcase, User, X
 } from 'lucide-react';
 import CitizenLogin from './auth/CitizenLogin';
@@ -18,10 +18,10 @@ const Home = () => {
   const renderLoginModal = () => {
     if (!showLogin) return null;
 
-    const props = { 
-      isModal: true, 
+    const props = {
+      isModal: true,
       onClose: () => setShowLogin(false),
-      onSwitch: (type) => setLoginType(type) 
+      onSwitch: (type) => setLoginType(type)
     };
 
     switch (loginType) {
@@ -48,16 +48,16 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Building2 className="w-8 h-8 text-blue-600" />
-            <span className="text-2xl font-black text-gray-900 tracking-tight">HTCMS<span className="text-blue-600">.</span></span>
+            <span className="text-2xl font-black text-gray-900 tracking-tight">ULB Management System<span className="text-blue-600"></span></span>
           </div>
           <div className="flex items-center gap-4">
-            <button 
+            <button
               onClick={() => { setLoginType('citizen'); setShowLogin(true); }}
               className="text-sm font-semibold text-gray-600 hover:text-blue-600 transition-colors"
             >
               Login
             </button>
-            <button 
+            <button
               onClick={() => { setLoginType('register'); setShowLogin(true); }}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-sm"
             >
@@ -71,13 +71,13 @@ const Home = () => {
       <section className="relative pt-20 pb-28 md:pt-32 md:pb-40 overflow-hidden bg-slate-900">
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-blue-900/80 to-slate-900 z-10" />
-          <img 
-            src="https://images.unsplash.com/photo-1449844908441-8829872d2607?q=80&w=2070&auto=format&fit=crop" 
-            alt="City overview" 
+          <img
+            src="https://images.unsplash.com/photo-1449844908441-8829872d2607?q=80&w=2070&auto=format&fit=crop"
+            alt="City overview"
             className="w-full h-full object-cover opacity-40 mix-blend-luminosity"
           />
         </div>
-        
+
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 text-blue-100 text-sm font-medium mb-8 backdrop-blur-sm">
             <span className="flex h-2 w-2 rounded-full bg-green-400"></span>
@@ -91,13 +91,13 @@ const Home = () => {
             Manage, Track & Collect Taxes Efficiently. A comprehensive platform for urban local bodies to streamline revenue collection and citizen services.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <button 
+            <button
               onClick={() => { setLoginType('citizen'); setShowLogin(true); }}
               className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all shadow-lg hover:shadow-blue-500/30 flex items-center justify-center gap-2 border border-blue-500"
             >
               Go to Login <ArrowRight className="w-5 h-5" />
             </button>
-            <button 
+            <button
               onClick={() => { setLoginType('register'); setShowLogin(true); }}
               className="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/20 px-8 py-4 rounded-xl font-semibold text-lg transition-all flex items-center justify-center"
             >
@@ -149,7 +149,7 @@ const Home = () => {
 
           <div className="relative">
             <div className="hidden md:block absolute top-12 left-[10%] right-[10%] h-0.5 bg-gradient-to-r from-blue-100 via-blue-500 to-blue-100"></div>
-            
+
             <div className="grid md:grid-cols-4 gap-12 md:gap-8">
               {[
                 { step: '01', title: 'Generate Demand', desc: 'System auto-generates tax bills based on property details.' },
@@ -175,7 +175,7 @@ const Home = () => {
         {/* Decorative background circle */}
         <div className="absolute top-0 right-0 -mr-40 -mt-40 w-96 h-96 rounded-full bg-blue-800/50 blur-3xl"></div>
         <div className="absolute bottom-0 left-0 -ml-40 -mb-40 w-96 h-96 rounded-full bg-blue-800/50 blur-3xl"></div>
-        
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">Empowering Every Stakeholder</h2>
@@ -193,7 +193,7 @@ const Home = () => {
             ].map((role, idx) => (
               <div key={idx} className="bg-white/5 backdrop-blur-sm p-6 rounded-2xl border border-white/10 hover:bg-white/10 transition-all text-left">
                 <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center mb-6">
-                   <role.icon className="w-6 h-6 text-blue-400" />
+                  <role.icon className="w-6 h-6 text-blue-400" />
                 </div>
                 <h3 className="text-xl font-bold mb-2 tracking-wide">{role.role}</h3>
                 <p className="text-blue-100/70 text-sm leading-relaxed">{role.desc}</p>
@@ -211,7 +211,7 @@ const Home = () => {
           <p className="text-xl text-gray-500 mb-10 max-w-2xl mx-auto">
             Join the digital transformation of civic governance today. Login to your dashboard to get started.
           </p>
-          <button 
+          <button
             onClick={() => { setLoginType('citizen'); setShowLogin(true); }}
             className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-10 py-4 rounded-xl font-bold text-lg transition-all shadow-lg shadow-blue-600/20 hover:shadow-blue-600/40 hover:-translate-y-0.5"
           >
@@ -225,14 +225,14 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2 text-white">
             <Building2 className="w-6 h-6 text-blue-500" />
-            <span className="text-lg font-bold tracking-tight">HTCMS<span className="text-blue-500">.</span></span>
+            <span className="text-lg font-bold tracking-tight">ULB<span className="text-blue-500"></span></span>
           </div>
           <p className="text-sm font-medium text-gray-500 text-center md:text-left">
-            &copy; {new Date().getFullYear()} House Tax Collection & Management System. All rights reserved.
+            &copy; {new Date().getFullYear()} ULB Management System. All rights reserved.
           </p>
           <div className="flex gap-6 text-sm font-medium">
-             <button onClick={() => { setLoginType('citizen'); setShowLogin(true); }} className="hover:text-white transition-colors">Login</button>
-             <button onClick={() => { setLoginType('register'); setShowLogin(true); }} className="hover:text-white transition-colors">Register</button>
+            <button onClick={() => { setLoginType('citizen'); setShowLogin(true); }} className="hover:text-white transition-colors">Login</button>
+            <button onClick={() => { setLoginType('register'); setShowLogin(true); }} className="hover:text-white transition-colors">Register</button>
           </div>
         </div>
       </footer>

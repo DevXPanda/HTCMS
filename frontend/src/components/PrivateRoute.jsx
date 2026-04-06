@@ -43,7 +43,7 @@ const PrivateRoute = ({ children, allowedRoles }) => {
         pathname.startsWith('/properties') || pathname.startsWith('/assessments') ||
         pathname.startsWith('/demands') || pathname.startsWith('/payments') ||
         pathname.startsWith('/wards') || pathname.startsWith('/users') ||
-        pathname.startsWith('/reports') || pathname === '/') {
+        pathname.startsWith('/reports')) {
       return <Navigate to="/admin/login" replace />;
     } else if (pathname.startsWith('/collector')) {
       return <Navigate to="/staff/login" replace />;

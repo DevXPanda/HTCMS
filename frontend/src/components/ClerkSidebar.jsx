@@ -43,10 +43,10 @@ const ClerkSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
     }, [location.pathname]);
 
     const handleLogout = async () => {
-        // Call logout function from context to clear auth data
-        await logout();
         // Navigate to home using React Router with replace to prevent back navigation
         navigate('/', { replace: true });
+        // Call logout function from context to clear auth data
+        await logout();
     };
 
     // Format role for display

@@ -15,14 +15,11 @@ const D2DCModule = () => {
     const user = authUser || staffUser;
 
     const handleLogout = async () => {
+        navigate('/', { replace: true });
         if (authUser) {
             await authLogout();
-            navigate('/admin/login');
         } else if (staffUser) {
             await staffLogout();
-            navigate('/staff/login');
-        } else {
-            navigate('/login');
         }
     };
 

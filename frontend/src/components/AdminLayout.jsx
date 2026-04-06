@@ -12,8 +12,8 @@ const AdminLayout = () => {
   const [showProfileModal, setShowProfileModal] = useState(false);
 
   const handleLogout = async () => {
-    await logout();
     navigate('/', { replace: true });
+    await logout();
   };
 
   const userData = user || JSON.parse(localStorage.getItem('user') || 'null');
