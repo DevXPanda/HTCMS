@@ -166,9 +166,18 @@ const CitizenLogin = ({ isModal = false, onClose, onSwitch }) => {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
               Don't have an account?{' '}
-              <Link to="/citizen/register" className="text-purple-600 hover:underline font-medium">
-                Register here
-              </Link>
+              {isModal && onSwitch ? (
+                <button 
+                  onClick={() => onSwitch('register')}
+                  className="text-purple-600 hover:underline font-medium"
+                >
+                  Register here
+                </button>
+              ) : (
+                <Link to="/citizen/register" className="text-purple-600 hover:underline font-medium">
+                  Register here
+                </Link>
+              )}
             </p>
           </div>
 
