@@ -872,7 +872,7 @@ export const getAllULBs = async (req, res) => {
     if (userUlbId != null && String(userUlbId).trim() !== '') {
       where.id = userUlbId;
     }
-    const attributes = includeInactive ? ['id', 'name', 'ulb_type', 'state', 'district', 'status', 'created_at'] : ['id', 'name', 'ulb_type', 'state', 'district'];
+    const attributes = includeInactive ? ['id', 'name', 'ulb_type', 'state', 'district', 'address_line_1', 'address_line_2', 'pincode', 'phone', 'email', 'status', 'created_at'] : ['id', 'name', 'ulb_type', 'state', 'district', 'address_line_1', 'address_line_2', 'pincode', 'phone', 'email'];
 
     const ulbs = await ULB.findAll({
       where,
@@ -894,7 +894,7 @@ const ULB_TYPES = ['NAGAR_NIGAM', 'NAGAR_PALIKA_PARISHAD', 'NAGAR_PANCHAYAT'];
 
 export const createULB = async (req, res) => {
   try {
-    const { name, ulb_type, state, district, status } = req.body;
+    const { name, ulb_type, state, district, address_line_1, address_line_2, pincode, phone, email, status } = req.body;
     if (!name || !String(name).trim()) {
       return res.status(400).json({ message: 'ULB name is required' });
     }
@@ -907,12 +907,17 @@ export const createULB = async (req, res) => {
       ulb_type: typeVal,
       state: state ? String(state).trim() : null,
       district: district ? String(district).trim() : null,
+      address_line_1: address_line_1 ? String(address_line_1).trim() : null,
+      address_line_2: address_line_2 ? String(address_line_2).trim() : null,
+      pincode: pincode ? String(pincode).trim() : null,
+      phone: phone ? String(phone).trim() : null,
+      email: email ? String(email).trim() : null,
       status: status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE'
     });
     res.status(201).json({
       success: true,
       message: 'ULB created successfully',
-      data: { ulb: { id: ulb.id, name: ulb.name, ulb_type: ulb.ulb_type, state: ulb.state, district: ulb.district, status: ulb.status } }
+      data: { ulb: { id: ulb.id, name: ulb.name, ulb_type: ulb.ulb_type, state: ulb.state, district: ulb.district, address_line_1: ulb.address_line_1, address_line_2: ulb.address_line_2, pincode: ulb.pincode, phone: ulb.phone, email: ulb.email, status: ulb.status } }
     });
   } catch (error) {
     console.error('Error creating ULB:', error);
@@ -926,7 +931,7 @@ export const createULB = async (req, res) => {
 export const updateULB = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, ulb_type, state, district, status } = req.body;
+    const { name, ulb_type, state, district, address_line_1, address_line_2, pincode, phone, email, status } = req.body;
     const ulb = await ULB.findByPk(id);
     if (!ulb) {
       return res.status(404).json({ message: 'ULB not found' });
@@ -941,12 +946,17 @@ export const updateULB = async (req, res) => {
     }
     if (state !== undefined) ulb.state = state ? String(state).trim() : null;
     if (district !== undefined) ulb.district = district ? String(district).trim() : null;
+    if (address_line_1 !== undefined) ulb.address_line_1 = address_line_1 ? String(address_line_1).trim() : null;
+    if (address_line_2 !== undefined) ulb.address_line_2 = address_line_2 ? String(address_line_2).trim() : null;
+    if (pincode !== undefined) ulb.pincode = pincode ? String(pincode).trim() : null;
+    if (phone !== undefined) ulb.phone = phone ? String(phone).trim() : null;
+    if (email !== undefined) ulb.email = email ? String(email).trim() : null;
     if (status !== undefined) ulb.status = status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE';
     await ulb.save();
     res.json({
       success: true,
       message: 'ULB updated successfully',
-      data: { ulb: { id: ulb.id, name: ulb.name, ulb_type: ulb.ulb_type, state: ulb.state, district: ulb.district, status: ulb.status } }
+      data: { ulb: { id: ulb.id, name: ulb.name, ulb_type: ulb.ulb_type, state: ulb.state, district: ulb.district, address_line_1: ulb.address_line_1, address_line_2: ulb.address_line_2, pincode: ulb.pincode, phone: ulb.phone, email: ulb.email, status: ulb.status } }
     });
   } catch (error) {
     console.error('Error updating ULB:', error);

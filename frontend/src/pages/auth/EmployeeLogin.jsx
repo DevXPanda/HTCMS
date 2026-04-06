@@ -90,14 +90,14 @@ const EmployeeLogin = () => {
       />
       <div className="max-w-md w-full space-y-8 relative" style={{ zIndex: 1 }}>
         <div className="text-center">
-          <div className="mx-auto h-16 w-16 bg-blue-600 rounded-full flex items-center justify-center">
-            <Users className="h-8 w-8 text-white" />
+          <div className="mx-auto h-20 w-20 flex items-center justify-center">
+            <img src="/ULB Logo.png" alt="ULB Logo" className="h-20 w-20 object-contain" />
           </div>
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-            Employee Portal
+          <h2 className="mt-6 text-3xl font-extrabold text-gray-100">
+            Urban Local Bodies
           </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Sign in to your employee account
+          <p className="mt-2 text-sm text-gray-300 font-medium italic">
+            Employee Portal
           </p>
         </div>
 
@@ -203,7 +203,7 @@ const EmployeeLogin = () => {
         </div>
 
         <div className="text-center text-sm text-gray-600">
-          <p>&copy; 2026 ULB. All rights reserved.</p>
+          <p>&copy; 2026 Urban Local Bodies. All rights reserved.</p>
         </div>
       </div>
     </div>

@@ -49,11 +49,11 @@ const SBMPaymentDetails = () => {
       actionButtons={null}
       summarySection={
         <>
-          <h2 className="form-section-title flex items-center">
+          <h2 className="form-section-title flex items-center no-print">
             <TrendingUp className="w-5 h-5 mr-2 text-primary-600" />
             Summary
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 no-print">
             <div className="stat-card">
               <div className="stat-card-title"><span>Receipt</span><Receipt className="w-5 h-5 text-gray-400" /></div>
               <p className="stat-card-value text-lg">{payment.receiptNumber || payment.paymentNumber}</p>
@@ -77,7 +77,7 @@ const SBMPaymentDetails = () => {
       }
     >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card">
+        <div className="card no-print">
           <h2 className="form-section-title flex items-center">
             <CreditCard className="w-5 h-5 mr-2 text-primary-600" />
             Payment Information
@@ -106,7 +106,7 @@ const SBMPaymentDetails = () => {
           </dl>
         </div>
 
-        <div className="card">
+        <div className="card no-print">
           <h2 className="form-section-title flex items-center">
             <Receipt className="w-5 h-5 mr-2 text-primary-600" />
             Property & Demand
@@ -140,8 +140,8 @@ const SBMPaymentDetails = () => {
           </dl>
         </div>
 
-        <div className="card lg:col-span-2">
-          <h2 className="form-section-title">Receipt View</h2>
+        <div className="lg:col-span-2">
+          <h2 className="form-section-title no-print">Receipt Preview</h2>
           <PaymentReceiptView payment={payment} formatAmt={formatAmt} />
           {payment.remarks && (
             <div className="mt-4 pt-4 border-t border-gray-200">

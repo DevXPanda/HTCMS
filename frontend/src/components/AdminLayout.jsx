@@ -12,8 +12,8 @@ const AdminLayout = () => {
   const [showProfileModal, setShowProfileModal] = useState(false);
 
   const handleLogout = async () => {
-    navigate('/', { replace: true });
     await logout();
+    window.location.href = '/';
   };
 
   const userData = user || JSON.parse(localStorage.getItem('user') || 'null');
@@ -25,8 +25,9 @@ const AdminLayout = () => {
         <header className="no-print bg-white shadow-sm sticky top-0 z-10 w-full">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-wrap justify-between items-center gap-2 h-16 min-h-[4rem]">
-              <div className="flex items-center min-w-0 shrink-0">
-                <h1 className="layout-header-title">ULB System</h1>
+              <div className="flex items-center gap-3 min-w-0 shrink-0">
+                <img src="/ULB Logo.png" alt="ULB Logo" className="w-10 h-10 object-contain" />
+                <h1 className="layout-header-title">Urban Local Bodies</h1>
               </div>
               <GlobalHeaderSearch role={userData?.role || 'admin'} />
               <div className="layout-header-actions">

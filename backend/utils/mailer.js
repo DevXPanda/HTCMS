@@ -13,7 +13,7 @@ const transporter = nodemailer.createTransport({
 export const sendMail = async ({ to, subject, text, html }) => {
   try {
     const info = await transporter.sendMail({
-      from: `"${process.env.EMAIL_FROM_NAME || 'HTCMS Notification'}" <${process.env.EMAIL_FROM_ADDRESS || process.env.EMAIL_USER}>`,
+      from: `"${process.env.EMAIL_FROM_NAME || 'Urban Local Bodies'}" <${process.env.EMAIL_FROM_ADDRESS || process.env.EMAIL_USER}>`,
       to,
       subject,
       text,

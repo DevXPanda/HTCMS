@@ -112,12 +112,10 @@ const CitizenLogin = ({ isModal = false, onClose, onSwitch }) => {
         )}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
-            <div className="bg-purple-100 p-3 rounded-full">
-              <Home className="w-8 h-8 text-purple-600" />
-            </div>
+            <img src="/ULB Logo.png" alt="ULB Logo" className="w-16 h-16 object-contain" />
           </div>
-          <h1 className="ds-page-title text-purple-600 mb-2">Citizen Portal</h1>
-          <p className="text-gray-600">ULB Management System</p>
+          <h1 className="ds-page-title text-purple-600 mb-2">Urban Local Bodies</h1>
+          <p className="text-gray-600 font-medium italic">Citizen Service Portal</p>
           <p className="text-sm text-gray-500 mt-2">For Property Owners</p>
         </div>
 

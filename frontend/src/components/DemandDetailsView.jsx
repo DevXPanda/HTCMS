@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Receipt, CreditCard, TrendingUp, Calendar, Wallet, Banknote, Home } from 'lucide-react';
 import { formatDateIST } from '../utils/dateUtils';
+import { DemandNoticeView, DemandSummaryView } from './ReceiptView';
 
 const formatAmount = (n) =>
   `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -61,11 +62,11 @@ export default function DemandDetailsView({
             )}
           </p>
         </div>
-        {actionButtons && <div className="flex items-center gap-2 flex-wrap">{actionButtons}</div>}
+        {actionButtons && <div className="flex items-center gap-2 flex-wrap no-print">{actionButtons}</div>}
       </div>
 
       {/* Summary – stat cards matching global dashboard UI */}
-      <section>
+      <section className="no-print">
         <h2 className="form-section-title flex items-center">
           <TrendingUp className="w-5 h-5 mr-2 text-primary-600" />
           Summary
@@ -114,7 +115,7 @@ export default function DemandDetailsView({
         </div>
       </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 no-print">
         {/* Demand information */}
         <div className="card">
           <h2 className="form-section-title flex items-center">
@@ -194,7 +195,7 @@ export default function DemandDetailsView({
 
       {/* Property */}
       {property && (
-        <div className="card">
+        <div className="card no-print">
           <h2 className="form-section-title flex items-center">
             <Home className="w-5 h-5 mr-2 text-primary-600" />
             Property & Owner
@@ -226,7 +227,17 @@ export default function DemandDetailsView({
         </div>
       )}
 
-      {children}
+      <div className="no-print">{children}</div>
+
+      {/* Printable Area - Hidden on screen */}
+      <div className="hidden print:block">
+        <div className="print-page-break-after">
+          <DemandNoticeView demand={demand} />
+        </div>
+        <div className="mt-8">
+          <DemandSummaryView demand={demand} />
+        </div>
+      </div>
     </div>
   );
 }

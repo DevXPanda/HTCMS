@@ -1,7 +1,7 @@
 {
-  "name": "htcms-backend",
+  "name": "ulb-backend",
   "version": "1.0.0",
-  "description": "House Tax Collection & Management System - Backend",
+  "description": "Urban Local Bodies - Backend",
   "main": "server.js",
   "type": "module",
   "scripts": {
@@ -17,7 +17,7 @@
     "update-wcr-ids": "node scripts/update-water-connection-request-ids.js"
   },
   "keywords": [
-    "htcms",
+    "ulb",
     "tax",
     "management"
   ],
@@ -37,7 +37,9 @@
     "nodemailer": "^6.10.1",
     "pdfkit": "^0.15.2",
     "pg": "^8.11.3",
+    "qrcode.react": "^4.2.0",
     "razorpay": "^2.9.2",
+    "react-barcode": "^1.6.1",
     "sequelize": "^6.35.0",
     "socket.io": "^4.7.2"
   },

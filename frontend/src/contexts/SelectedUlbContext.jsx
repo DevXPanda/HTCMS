@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 
-const STORAGE_KEY = 'htcms_selected_ulb_id';
+const STORAGE_KEY = 'ulb_selected_id';
 
 export const SelectedUlbContext = createContext(null);
 

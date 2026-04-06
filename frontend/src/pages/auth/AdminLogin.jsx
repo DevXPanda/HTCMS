@@ -116,12 +116,10 @@ const AdminLogin = ({ isModal = false, onClose, onSwitch }) => {
         )}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
-            <div className="bg-primary-100 p-3 rounded-full">
-              <Shield className="w-8 h-8 text-primary-600" />
-            </div>
+            <img src="/ULB Logo.png" alt="ULB Logo" className="w-16 h-16 object-contain" />
           </div>
-          <h1 className="ds-page-title text-primary-600 mb-2">Admin Portal</h1>
-          <p className="text-gray-600">ULB Management System</p>
+          <h1 className="ds-page-title text-primary-600 mb-2">Urban Local Bodies</h1>
+          <p className="text-gray-600 font-medium italic">Administrative Access Portal</p>
           {/* <p className="text-sm text-gray-500 mt-2">For Admin, Assessor & Cashier</p> */}
         </div>
 

@@ -333,42 +333,94 @@
   display: none !important;
 }
 
+/* ========== Print: Professional Government-Style Optimization ========== */
 @media print {
-  .no-print {
+  /* Remove non-essential UI elements */
+  .no-print, 
+  nav, 
+  aside, 
+  footer, 
+  header:not(.print-header),
+  .btn, 
+  .tabs, 
+  .breadcrumb,
+  .ds-sidebar,
+  .ds-header {
     display: none !important;
   }
-  .print-only {
-    display: block !important;
-  }
-  /* Table column that should be hidden in print (e.g. Actions with View links) */
-  .print-hide-col {
-    display: none !important;
-  }
+
+  /* Global Page Settings */
   body {
-    background: #fff;
+    background-color: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    font-size: 12pt !important;
+    color: black !important;
   }
+
+  /* Clear list artifacts (Fix "Random 1" Issue) */
+  ol, ul, li {
+    list-style: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  *::marker {
+    content: none !important;
+  }
+
+  /* Container Optimization */
+  .print-container {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
   /* Main content: full width, no layout chrome */
   main {
     max-width: none !important;
     padding: 0 !important;
+    margin: 0 !important;
   }
+
+  .ds-page {
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Avoid splitting boxes across pages */
+  .section, .card, .stat-card {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Force background colors for structured boxes */
+  .bg-gray-50, .bg-gray-100, .bg-blue-50 {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   /* Minimize browser header/footer space */
   @page {
-    margin: 1cm;
+    margin: 1.5cm;
   }
-  /* Receipt area: no extra shadow, clean border */
+
+  /* Receipt area: clean look */
   .receipt-print-area {
     box-shadow: none !important;
-    border: 1px solid #000 !important;
+    border: none !important;
+    padding: 0 !important;
   }
-  /* Keep tables readable: avoid breaking rows across pages where possible */
-  table {
-    border-collapse: collapse;
-  }
-  thead {
-    display: table-header-group;
-  }
-  tr {
-    page-break-inside: avoid;
+  
+  /* Link optimization */
+  a {
+    text-decoration: none !important;
+    color: black !important;
   }
 }

@@ -1,7 +1,7 @@
 import { EMAIL_EVENTS } from '../config/emailEvents.js';
 
 export const getEmailTemplate = (event, role, eventData) => {
-  let subject = 'HTCMS Notification';
+  let subject = 'Urban Local Bodies Notification';
   let message = 'You have a new notification.';
   let html = `<p>You have a new notification.</p>`;
 

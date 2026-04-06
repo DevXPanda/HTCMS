@@ -116,8 +116,11 @@ const Register = ({ isModal = false, onClose, onSwitch }) => {
           </button>
         )}
         <div className="text-center mb-6">
+          <div className="flex justify-center mb-4">
+            <img src="/ULB Logo.png" alt="ULB Logo" className="w-16 h-16 object-contain" />
+          </div>
           <h1 className={`text-2xl font-bold ${theme.text} mb-1`}>Create Account</h1>
-          <p className="text-gray-500 text-sm">Join ULB for seamless management system</p>
+          <p className="text-gray-500 text-sm">Join Urban Local Bodies for seamless management system</p>
           {formData.role !== 'citizen' && (
             <p className="text-xs text-gray-400 mt-1 uppercase tracking-wider font-semibold">
               {formData.role === 'admin' ? 'System Administrator Portal' : ''}

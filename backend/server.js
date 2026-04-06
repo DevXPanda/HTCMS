@@ -273,6 +273,11 @@ const startServer = async () => {
   try {
     await sequelize.authenticate();
     console.log("Sequelize connected");
+    // Sync database in development to add missing columns
+    if (process.env.NODE_ENV === 'development') {
+      await sequelize.sync({ alter: true });
+      console.log("Database synchronized (alter: true)");
+    }
     await ensureRoleEnums();
   } catch (err) {
     console.error("Sequelize error:", err.message);

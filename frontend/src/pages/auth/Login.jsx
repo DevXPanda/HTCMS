@@ -18,7 +18,7 @@ const Login = () => {
     if (!authLoading && isAuthenticated) {
       // Get role from localStorage - exact value from API
       const role = localStorage.getItem('role');
-      
+
       if (role) {
         // Redirect based on exact role from API
         if (role === 'admin' || role === 'assessor' || role === 'cashier') {
@@ -35,7 +35,7 @@ const Login = () => {
   // Show loading while checking authentication
   if (authLoading) {
     return (
-      <div 
+      <div
         className="min-h-screen flex items-center justify-center relative"
         style={{
           backgroundImage: `url(${backgroundImageUrl})`,
@@ -47,7 +47,7 @@ const Login = () => {
           width: '100%'
         }}
       >
-        <div 
+        <div
           className="absolute inset-0 bg-black opacity-45"
           style={{ zIndex: 0 }}
         />
@@ -74,10 +74,10 @@ const Login = () => {
 
       if (result.success && result.user) {
         toast.success('Login successful!');
-        
+
         // Get exact role from API response - AuthContext already stored it
         const role = result.user.role;
-        
+
         // Redirect based on exact role from API
         if (role === 'admin' || role === 'assessor' || role === 'cashier') {
           navigate('/dashboard', { replace: true });
@@ -98,28 +98,29 @@ const Login = () => {
   };
 
   return (
-    <div 
+    <div
       className="min-h-screen flex items-center justify-center px-4 relative"
-        style={{
-          backgroundImage: `url(${backgroundImageUrl})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          backgroundAttachment: 'fixed',
-          minHeight: '100vh',
-          width: '100%'
-        }}
+      style={{
+        backgroundImage: `url(${backgroundImageUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed',
+        minHeight: '100vh',
+        width: '100%'
+      }}
     >
       {/* Dark overlay for better text readability */}
-      <div 
+      <div
         className="absolute inset-0 bg-black opacity-45"
         style={{ zIndex: 0 }}
       />
       <div className="max-w-md w-full relative" style={{ zIndex: 1 }}>
         <div className="bg-white rounded-lg shadow-xl p-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-primary-600 mb-2">HTCMS</h1>
-            <p className="text-gray-600">House Tax Collection & Management System</p>
+            <img src="/ULB Logo.png" alt="ULB Logo" className="w-20 h-20 object-contain mx-auto mb-4" />
+            <h1 className="text-3xl font-bold text-primary-600 mb-2">Urban Local Bodies</h1>
+            <p className="text-gray-600 font-medium">Citizen Service Portal</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">

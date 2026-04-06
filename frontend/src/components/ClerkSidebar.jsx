@@ -43,10 +43,8 @@ const ClerkSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
     }, [location.pathname]);
 
     const handleLogout = async () => {
-        // Navigate to home using React Router with replace to prevent back navigation
-        navigate('/', { replace: true });
-        // Call logout function from context to clear auth data
         await logout();
+        window.location.href = '/';
     };
 
     // Format role for display
@@ -108,9 +106,10 @@ const ClerkSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
             >
                 <div className="flex flex-col h-full">
                     {/* Logo */}
-                    <div className="p-6 border-b">
-                        <h1 className="text-xl font-bold text-primary-600">HTCMS</h1>
-                        <p className="text-sm text-gray-500">Clerk Portal</p>
+                    <div className="p-6 border-b flex flex-col items-center text-center">
+                        <img src="/ULB Logo.png" alt="ULB Logo" className="w-16 h-16 object-contain mb-2" />
+                        <h1 className="text-xl font-bold text-primary-600 tracking-tight">Urban Local Bodies</h1>
+                        <p className="text-xs text-gray-500">Clerk Portal</p>
                     </div>
 
                     {/* Navigation */}

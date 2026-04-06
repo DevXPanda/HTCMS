@@ -46,9 +46,9 @@ const Home = () => {
       {/* Navbar */}
       <nav className="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50 border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Building2 className="w-8 h-8 text-blue-600" />
-            <span className="text-2xl font-black text-gray-900 tracking-tight">ULB Management System<span className="text-blue-600"></span></span>
+          <div className="flex items-center gap-3">
+            <img src="/ULB Logo.png" alt="ULB Logo" className="w-12 h-12 object-contain" />
+            <span className="text-2xl font-black text-gray-900 tracking-tight">Urban Local Bodies</span>
           </div>
           <div className="flex items-center gap-4">
             <button
@@ -84,8 +84,8 @@ const Home = () => {
             Smart Urban Governance
           </div>
           <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6 text-white drop-shadow-md">
-            Smart House Tax <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">Management System</span>
+            Urban Local Bodies <br className="hidden md:block" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">Tax Collection & Management System</span>
           </h1>
           <p className="text-lg md:text-xl text-blue-100/90 mb-10 max-w-2xl mx-auto font-light leading-relaxed">
             Manage, Track & Collect Taxes Efficiently. A comprehensive platform for urban local bodies to streamline revenue collection and citizen services.
@@ -223,12 +223,12 @@ const Home = () => {
       {/* Footer */}
       <footer className="bg-gray-950 text-gray-400 py-12 border-t border-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-2 text-white">
-            <Building2 className="w-6 h-6 text-blue-500" />
-            <span className="text-lg font-bold tracking-tight">ULB<span className="text-blue-500"></span></span>
+          <div className="flex items-center gap-3 text-white">
+            <img src="/ULB Logo.png" alt="ULB Logo" className="w-10 h-10 object-contain brightness-0 invert" />
+            <span className="text-lg font-bold tracking-tight">Urban Local Bodies</span>
           </div>
           <p className="text-sm font-medium text-gray-500 text-center md:text-left">
-            &copy; {new Date().getFullYear()} ULB Management System. All rights reserved.
+            &copy; {new Date().getFullYear()} Urban Local Bodies. All rights reserved.
           </p>
           <div className="flex gap-6 text-sm font-medium">
             <button onClick={() => { setLoginType('citizen'); setShowLogin(true); }} className="hover:text-white transition-colors">Login</button>

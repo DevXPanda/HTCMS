@@ -57,11 +57,11 @@ const WaterPaymentDetails = () => {
       }
       summarySection={
         <>
-          <h2 className="form-section-title flex items-center">
+          <h2 className="form-section-title flex items-center no-print">
             <Receipt className="w-5 h-5 mr-2 text-primary-600" />
             Summary
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 no-print">
             <div className="stat-card">
               <div className="stat-card-title"><span>Receipt</span><Receipt className="w-5 h-5 text-gray-400" /></div>
               <p className="stat-card-value text-lg">{payment.receiptNumber || payment.paymentNumber}</p>
@@ -161,8 +161,8 @@ const WaterPaymentDetails = () => {
           </dl>
         </div>
 
-        <div className="card receipt-print-area lg:col-span-2 print:shadow-none print:border-2 print:border-gray-800">
-          <h2 className="form-section-title no-print">Receipt View</h2>
+        <div className="receipt-print-area lg:col-span-2">
+          <h2 className="form-section-title no-print">Receipt Preview</h2>
           <WaterPaymentReceiptView
             payment={payment}
             waterBill={waterBill}

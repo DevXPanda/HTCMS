@@ -1,4 +1,4 @@
-# HTCMS – House Tax Collection & Management System (ULB System)
+# Urban Local Bodies
 
 A full-stack web application for Urban Local Bodies (ULB) to manage property tax, water tax, demands, collections, and staff operations.
 
@@ -23,7 +23,7 @@ A full-stack web application for Urban Local Bodies (ULB) to manage property tax
 ## Project Structure
 
 ```
-HTCMS/
+ULB/
 ├── backend/          # Express API
 │   ├── config/       # Database config
 │   ├── controllers/
@@ -63,7 +63,7 @@ Create a `.env` in `backend/` with at least:
 
 ```env
 PORT=5000
-DATABASE_URL=postgresql://user:password@localhost:5432/htcms
+DATABASE_URL=postgresql://user:password@localhost:5432/ulb_db
 JWT_SECRET=your-secret-key
 JWT_EXPIRE=7d
 ```

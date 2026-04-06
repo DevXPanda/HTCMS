@@ -28,6 +28,26 @@ export const ULB = sequelize.define('ULB', {
     type: DataTypes.STRING(100),
     allowNull: true
   },
+  address_line_1: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
+  address_line_2: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
+  pincode: {
+    type: DataTypes.STRING(10),
+    allowNull: true
+  },
+  phone: {
+    type: DataTypes.STRING(20),
+    allowNull: true
+  },
+  email: {
+    type: DataTypes.STRING(100),
+    allowNull: true
+  },
   status: {
     type: DataTypes.STRING(20),
     allowNull: false,

@@ -57,6 +57,11 @@ const ULBManagement = () => {
         ulb_type: data.ulb_type,
         state: data.state?.trim() || null,
         district: data.district?.trim() || null,
+        address_line_1: data.address_line_1?.trim() || null,
+        address_line_2: data.address_line_2?.trim() || null,
+        pincode: data.pincode?.trim() || null,
+        phone: data.phone?.trim() || null,
+        email: data.email?.trim() || null,
         status: data.status || 'ACTIVE'
       });
       toast.success('ULB created successfully');
@@ -76,6 +81,11 @@ const ULBManagement = () => {
     setValue('ulb_type', ulb.ulb_type || '');
     setValue('state', ulb.state || '');
     setValue('district', ulb.district || '');
+    setValue('address_line_1', ulb.address_line_1 || '');
+    setValue('address_line_2', ulb.address_line_2 || '');
+    setValue('pincode', ulb.pincode || '');
+    setValue('phone', ulb.phone || '');
+    setValue('email', ulb.email || '');
     setValue('status', ulb.status || 'ACTIVE');
     setShowEditModal(true);
   };
@@ -89,6 +99,11 @@ const ULBManagement = () => {
         ulb_type: data.ulb_type || null,
         state: data.state?.trim() || null,
         district: data.district?.trim() || null,
+        address_line_1: data.address_line_1?.trim() || null,
+        address_line_2: data.address_line_2?.trim() || null,
+        pincode: data.pincode?.trim() || null,
+        phone: data.phone?.trim() || null,
+        email: data.email?.trim() || null,
         status: data.status || 'ACTIVE'
       });
       toast.success('ULB updated successfully');
@@ -224,12 +239,34 @@ const ULBManagement = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="label">State</label>
-                    <input type="text" {...register('state')} className="input w-full" placeholder="Optional" />
+                    <input type="text" {...register('state')} className="input w-full" placeholder="State" />
                   </div>
                   <div>
                     <label className="label">District</label>
-                    <input type="text" {...register('district')} className="input w-full" placeholder="Optional" />
+                    <input type="text" {...register('district')} className="input w-full" placeholder="District" />
                   </div>
+                </div>
+                <div>
+                  <label className="label">Address Line 1</label>
+                  <input type="text" {...register('address_line_1')} className="input w-full" placeholder="Address Line 1" />
+                </div>
+                <div>
+                  <label className="label">Address Line 2</label>
+                  <input type="text" {...register('address_line_2')} className="input w-full" placeholder="Address Line 2" />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="label">Pincode</label>
+                    <input type="text" {...register('pincode')} className="input w-full" placeholder="Pincode" />
+                  </div>
+                  <div>
+                    <label className="label">Phone</label>
+                    <input type="text" {...register('phone')} className="input w-full" placeholder="Phone" />
+                  </div>
+                </div>
+                <div>
+                  <label className="label">Email</label>
+                  <input type="email" {...register('email')} className="input w-full" placeholder="Email" />
                 </div>
                 <div>
                   <label className="label">Status</label>
@@ -297,6 +334,28 @@ const ULBManagement = () => {
                     <label className="label">District</label>
                     <input type="text" {...register('district')} className="input w-full" />
                   </div>
+                </div>
+                <div>
+                  <label className="label">Address Line 1</label>
+                  <input type="text" {...register('address_line_1')} className="input w-full" />
+                </div>
+                <div>
+                  <label className="label">Address Line 2</label>
+                  <input type="text" {...register('address_line_2')} className="input w-full" />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="label">Pincode</label>
+                    <input type="text" {...register('pincode')} className="input w-full" />
+                  </div>
+                  <div>
+                    <label className="label">Phone</label>
+                    <input type="text" {...register('phone')} className="input w-full" />
+                  </div>
+                </div>
+                <div>
+                  <label className="label">Email</label>
+                  <input type="email" {...register('email')} className="input w-full" />
                 </div>
                 <div>
                   <label className="label">Status</label>

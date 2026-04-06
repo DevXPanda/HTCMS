@@ -1,4 +1,6 @@
 import PDFDocument from 'pdfkit';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import {
   generatePdfFilename,
   getReceiptPdfPath,
@@ -6,6 +8,10 @@ import {
   savePdfFile
 } from '../utils/pdfStorage.js';
 import { getDemandOriginalAmount, getDemandPenaltyAmount, calculateFinalAmount } from '../utils/financialCalculations.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const LOGO_PATH = path.join(__dirname, '..', '..', 'frontend', 'public', 'ULB Logo.png');
 
 /**
  * PDF Generation Service
@@ -22,11 +28,22 @@ const ROW_HEIGHT = 22;
 
 /** Draw a bordered section with title and label-value rows; returns Y after box */
 function drawReceiptSection(doc, startY, title, rows) {
-  const titleHeight = 20;
+  const titleHeight = 25;
   const rowCount = rows.length;
   const boxHeight = titleHeight + rowCount * ROW_HEIGHT + 10;
+  
+  // Background for title
+  doc.save();
+  doc.fillColor('#ebf8ff').rect(RECEIPT_LEFT, startY, RECEIPT_WIDTH, titleHeight).fill();
+  doc.restore();
+  
+  // Border for the whole box
   doc.rect(RECEIPT_LEFT, startY, RECEIPT_WIDTH, boxHeight).stroke();
-  doc.fontSize(12).font('Helvetica-Bold').text(title, RECEIPT_LABEL_LEFT, startY + 10);
+  
+  // Title text
+  doc.fontSize(11).font('Helvetica-Bold').fillColor('#2c5282').text(title.toUpperCase(), RECEIPT_LABEL_LEFT, startY + 8);
+  doc.fillColor('#000000'); // Reset color
+  
   let y = startY + titleHeight + 5;
   doc.fontSize(10);
   for (const [label, value] of rows) {
@@ -34,7 +51,7 @@ function drawReceiptSection(doc, startY, title, rows) {
     doc.font('Helvetica').text(String(value || 'N/A'), RECEIPT_LABEL_LEFT, y, { width: RECEIPT_VALUE_RIGHT - RECEIPT_LABEL_LEFT - 10, align: 'right' });
     y += ROW_HEIGHT;
   }
-  return startY + boxHeight + 12;
+  return startY + boxHeight + 15;
 }
 
 /**
@@ -64,14 +81,32 @@ export const generateReceiptPdf = async (payment, demand, property, owner, ward,
       });
       doc.on('error', reject);
 
-      // Header
-      doc.fontSize(20).font('Helvetica-Bold')
-        .text('MUNICIPAL CORPORATION', { align: 'center' });
+      // Header Blue Bar Accent
+      doc.save();
+      doc.fillColor('#2c5282').rect(50, 20, 495, 8).fill(); // Very thin bar at top
+      doc.restore();
+
+      // Logo
+      try {
+        doc.image(LOGO_PATH, RECEIPT_LEFT + (RECEIPT_WIDTH - 60) / 2, 45, { width: 60 });
+        doc.moveDown(4.5);
+      } catch (err) {
+        console.error('Logo not found at:', LOGO_PATH);
+      }
+
+      // Header Text
+      doc.fontSize(22).font('Helvetica-Bold')
+        .text('URBAN LOCAL BODIES', { align: 'center' });
+      doc.moveDown(0.3);
+      doc.fontSize(14).font('Helvetica-Bold').fillColor('#2c5282')
+        .text('Tax Collection & Management System', { align: 'center' });
+      doc.fillColor('#000000');
+      doc.moveDown(0.8);
+      
+      doc.lineWidth(1.5).moveTo(150, doc.y).lineTo(445, doc.y).stroke();
       doc.moveDown(0.5);
-      doc.fontSize(16).font('Helvetica')
-        .text('House Tax Collection & Management System', { align: 'center' });
-      doc.moveDown(1);
-      doc.fontSize(18).font('Helvetica-Bold')
+      
+      doc.fontSize(16).font('Helvetica-Bold')
         .text('PAYMENT RECEIPT', { align: 'center' });
       doc.moveDown(1.5);
 
@@ -176,13 +211,30 @@ export const generateNoticePdf = async (notice, demand, property, owner, ward, g
       });
       doc.on('error', reject);
 
-      // Header
-      doc.fontSize(20).font('Helvetica-Bold')
-         .text('MUNICIPAL CORPORATION', { align: 'center' });
+      // Header Blue Bar Accent
+      doc.save();
+      doc.fillColor('#2c5282').rect(50, 20, 495, 8).fill(); 
+      doc.restore();
+
+      // Logo
+      try {
+        doc.image(LOGO_PATH, RECEIPT_LEFT + (RECEIPT_WIDTH - 60) / 2, 45, { width: 60 });
+        doc.moveDown(4.5);
+      } catch (err) {
+        console.error('Logo not found at:', LOGO_PATH);
+      }
+
+      // Header Text
+      doc.fontSize(22).font('Helvetica-Bold')
+         .text('MUNICIPAL CORPORATION', { align: 'center', tracking: 2 });
+      doc.moveDown(0.3);
+      doc.fontSize(14).font('Helvetica-Bold').fillColor('#2c5282')
+         .text('Urban Local Bodies', { align: 'center' });
+      doc.fillColor('#000000');
+      doc.moveDown(0.8);
+      
+      doc.lineWidth(1.5).moveTo(150, doc.y).lineTo(445, doc.y).stroke();
       doc.moveDown(0.5);
-      doc.fontSize(16).font('Helvetica')
-         .text('House Tax Collection & Management System', { align: 'center' });
-      doc.moveDown(1);
       
       // Notice Type Title
       const noticeTypeTitles = {
@@ -193,7 +245,7 @@ export const generateNoticePdf = async (notice, demand, property, owner, ward, g
       };
       
       doc.fontSize(18).font('Helvetica-Bold')
-         .text(noticeTypeTitles[notice.noticeType] || 'NOTICE', { align: 'center' });
+         .text(noticeTypeTitles[notice.noticeType] || 'NOTICE', { align: 'center', charSpacing: 1 });
       doc.moveDown(1.5);
 
       // Notice Number and Date
@@ -379,11 +431,29 @@ export const generateDemandNoticePdfBuffer = (demand, options = {}) => {
         waiverAmount: parseFloat(demand.penaltyWaived || 0)
       });
 
-      doc.fontSize(20).font('Helvetica-Bold').text(ulbName.toUpperCase(), { align: 'center' });
+      // Header Blue Bar Accent
+      doc.save();
+      doc.fillColor('#2c5282').rect(50, 20, 495, 8).fill(); 
+      doc.restore();
+
+      // Logo
+      try {
+        doc.image(LOGO_PATH, (595.28 - 60) / 2, 45, { width: 60 });
+        doc.moveDown(4.5);
+      } catch (err) {
+        console.error('Logo not found at:', LOGO_PATH);
+      }
+
+      doc.fontSize(22).font('Helvetica-Bold').text('URBAN LOCAL BODIES', { align: 'center' });
+      doc.moveDown(0.3);
+      doc.fontSize(14).font('Helvetica-Bold').fillColor('#2c5282').text('Tax Collection & Management System', { align: 'center' });
+      doc.fillColor('#000000');
+      doc.moveDown(0.8);
+      
+      doc.lineWidth(1.5).moveTo(150, doc.y).lineTo(445, doc.y).stroke();
       doc.moveDown(0.5);
-      doc.fontSize(16).font('Helvetica').text('House Tax Collection & Management System', { align: 'center' });
-      doc.moveDown(1);
-      doc.fontSize(18).font('Helvetica-Bold').text('DEMAND NOTICE', { align: 'center' });
+      
+      doc.fontSize(16).font('Helvetica-Bold').text('DEMAND NOTICE', { align: 'center' });
       doc.moveDown(1.5);
 
       let rowY = doc.y;
@@ -445,7 +515,7 @@ export const generateDemandNoticePdfBuffer = (demand, options = {}) => {
  * Same visual structure as payment receipt: header, section boxes, footer
  */
 export const generateDemandSummaryReceiptPdfBuffer = (demand, options = {}) => {
-  const { property = null, owner = null, ward = null, entityLabel = 'N/A', ulbName = 'Municipal Corporation' } = options;
+  const { property = null, owner = null, ward = null, entityLabel = 'N/A', ulbName = 'Urban Local Bodies' } = options;
   return new Promise((resolve, reject) => {
     try {
       const doc = new PDFDocument({ size: 'A4', margins: { top: 50, bottom: 50, left: 50, right: 50 } });
@@ -465,11 +535,29 @@ export const generateDemandSummaryReceiptPdfBuffer = (demand, options = {}) => {
       });
       const paid = parseFloat(demand.paidAmount || 0);
 
-      doc.fontSize(20).font('Helvetica-Bold').text(ulbName.toUpperCase(), { align: 'center' });
+      // Header Blue Bar Accent
+      doc.save();
+      doc.fillColor('#2c5282').rect(50, 20, 495, 8).fill(); 
+      doc.restore();
+
+      // Logo
+      try {
+        doc.image(LOGO_PATH, RECEIPT_LEFT + (RECEIPT_WIDTH - 60) / 2, 45, { width: 60 });
+        doc.moveDown(4.5);
+      } catch (err) {
+        console.error('Logo not found at:', LOGO_PATH);
+      }
+
+      doc.fontSize(22).font('Helvetica-Bold').text('URBAN LOCAL BODIES', { align: 'center' });
+      doc.moveDown(0.3);
+      doc.fontSize(14).font('Helvetica-Bold').fillColor('#2c5282').text('Tax Collection & Management System', { align: 'center' });
+      doc.fillColor('#000000');
+      doc.moveDown(0.8);
+      
+      doc.lineWidth(1.5).moveTo(150, doc.y).lineTo(445, doc.y).stroke();
       doc.moveDown(0.5);
-      doc.fontSize(16).font('Helvetica').text('House Tax Collection & Management System', { align: 'center' });
-      doc.moveDown(1);
-      doc.fontSize(18).font('Helvetica-Bold').text('DEMAND SUMMARY RECEIPT', { align: 'center' });
+      
+      doc.fontSize(16).font('Helvetica-Bold').text('DEMAND SUMMARY RECEIPT', { align: 'center' });
       doc.moveDown(1.5);
 
       let y = doc.y;
@@ -510,7 +598,7 @@ export const generateDemandSummaryReceiptPdfBuffer = (demand, options = {}) => {
  * Used for GET /api/discounts/:id/pdf
  */
 export const generateDiscountApprovalPdfBuffer = (discount, options = {}) => {
-  const { demand = null, owner = null, entityLabel = 'N/A', approvedByName = 'N/A', ulbName = 'Municipal Corporation' } = options;
+  const { demand = null, owner = null, entityLabel = 'N/A', approvedByName = 'N/A', ulbName = 'Urban Local Bodies' } = options;
   return new Promise((resolve, reject) => {
     try {
       const doc = new PDFDocument({ size: 'A4', margins: { top: 50, bottom: 50, left: 50, right: 50 } });
@@ -527,11 +615,29 @@ export const generateDiscountApprovalPdfBuffer = (discount, options = {}) => {
         ? calculateFinalAmount(demand, { discountAmount: discountAmt, waiverAmount: parseFloat(demand.penaltyWaived || 0) }).finalAmount
         : Number((originalAmount - discountAmt).toFixed(2));
 
-      doc.fontSize(20).font('Helvetica-Bold').text(ulbName.toUpperCase(), { align: 'center' });
+      // Header Blue Bar Accent
+      doc.save();
+      doc.fillColor('#2c5282').rect(50, 20, 495, 8).fill(); 
+      doc.restore();
+
+      // Logo
+      try {
+        doc.image(LOGO_PATH, (595.28 - 60) / 2, 45, { width: 60 });
+        doc.moveDown(4.5);
+      } catch (err) {
+        console.error('Logo not found at:', LOGO_PATH);
+      }
+
+      doc.fontSize(22).font('Helvetica-Bold').text('URBAN LOCAL BODIES', { align: 'center' });
+      doc.moveDown(0.3);
+      doc.fontSize(14).font('Helvetica-Bold').fillColor('#2c5282').text('Tax Collection & Management System', { align: 'center' });
+      doc.fillColor('#000000');
+      doc.moveDown(0.8);
+      
+      doc.lineWidth(1.5).moveTo(150, doc.y).lineTo(445, doc.y).stroke();
       doc.moveDown(0.5);
-      doc.fontSize(16).font('Helvetica').text('House Tax Collection & Management System', { align: 'center' });
-      doc.moveDown(1);
-      doc.fontSize(18).font('Helvetica-Bold').text('DISCOUNT APPROVAL LETTER', { align: 'center' });
+      
+      doc.fontSize(16).font('Helvetica-Bold').text('DISCOUNT APPROVAL LETTER', { align: 'center' });
       doc.moveDown(1.5);
 
       let rowY = doc.y;
@@ -589,7 +695,7 @@ export const generateDiscountApprovalPdfBuffer = (discount, options = {}) => {
  * Generate Penalty Waiver letter PDF buffer (for download)
  */
 export const generatePenaltyWaiverLetterPdfBuffer = (waiver, options = {}) => {
-  const { demand = null, owner = null, entityLabel = 'N/A', approvedByName = 'N/A', ulbName = 'Municipal Corporation' } = options;
+  const { demand = null, owner = null, entityLabel = 'N/A', approvedByName = 'N/A', ulbName = 'Urban Local Bodies' } = options;
   return new Promise((resolve, reject) => {
     try {
       const doc = new PDFDocument({ size: 'A4', margins: { top: 50, bottom: 50, left: 50, right: 50 } });
@@ -610,11 +716,29 @@ export const generatePenaltyWaiverLetterPdfBuffer = (waiver, options = {}) => {
         ? calculateFinalAmount(demand, { discountAmount: discountForFinal, waiverAmount: waiverAmt }).finalAmount
         : 0;
 
-      doc.fontSize(20).font('Helvetica-Bold').text(ulbName.toUpperCase(), { align: 'center' });
+      // Header Blue Bar Accent
+      doc.save();
+      doc.fillColor('#2c5282').rect(50, 20, 495, 8).fill(); 
+      doc.restore();
+
+      // Logo
+      try {
+        doc.image(LOGO_PATH, (595.28 - 60) / 2, 45, { width: 60 });
+        doc.moveDown(4.5);
+      } catch (err) {
+        console.error('Logo not found at:', LOGO_PATH);
+      }
+
+      doc.fontSize(22).font('Helvetica-Bold').text('URBAN LOCAL BODIES', { align: 'center' });
+      doc.moveDown(0.3);
+      doc.fontSize(14).font('Helvetica-Bold').fillColor('#2c5282').text('Tax Collection & Management System', { align: 'center' });
+      doc.fillColor('#000000');
+      doc.moveDown(0.8);
+      
+      doc.lineWidth(1.5).moveTo(150, doc.y).lineTo(445, doc.y).stroke();
       doc.moveDown(0.5);
-      doc.fontSize(16).font('Helvetica').text('House Tax Collection & Management System', { align: 'center' });
-      doc.moveDown(1);
-      doc.fontSize(18).font('Helvetica-Bold').text('PENALTY WAIVER APPROVAL LETTER', { align: 'center' });
+      
+      doc.fontSize(16).font('Helvetica-Bold').text('PENALTY WAIVER APPROVAL LETTER', { align: 'center' });
       doc.moveDown(1.5);
 
       let rowY = doc.y;
