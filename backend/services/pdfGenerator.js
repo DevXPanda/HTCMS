@@ -1,6 +1,8 @@
 import PDFDocument from 'pdfkit';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import QRCode from 'qrcode';
+import bwipjs from 'bwip-js';
 import {
   generatePdfFilename,
   getReceiptPdfPath,
@@ -25,164 +27,241 @@ const RECEIPT_LEFT = 50;
 const RECEIPT_LABEL_LEFT = 60;
 const RECEIPT_VALUE_RIGHT = 535;
 const ROW_HEIGHT = 22;
+/** Label column width + value column (fixed width + right align) for en-IN amounts */
+const RECEIPT_LABEL_MAX_W = 210;
+const RECEIPT_VALUE_COL_X = 275;
+const RECEIPT_VALUE_COL_W = RECEIPT_VALUE_RIGHT - RECEIPT_VALUE_COL_X;
+const SECTION_TITLE_H = 22;
+const BOX_TOP_PAD = 8;
+const BOX_BOTTOM_PAD = 10;
+const SECTION_GAP = 6;
 
-/** Draw a bordered section with title and label-value rows; returns Y after box */
-function drawReceiptSection(doc, startY, title, rows) {
-  const titleHeight = 25;
-  const rowCount = rows.length;
-  const boxHeight = titleHeight + rowCount * ROW_HEIGHT + 10;
-  
-  // Background for title
-  doc.save();
-  doc.fillColor('#ebf8ff').rect(RECEIPT_LEFT, startY, RECEIPT_WIDTH, titleHeight).fill();
-  doc.restore();
-  
-  // Border for the whole box
-  doc.rect(RECEIPT_LEFT, startY, RECEIPT_WIDTH, boxHeight).stroke();
-  
-  // Title text
-  doc.fontSize(11).font('Helvetica-Bold').fillColor('#2c5282').text(title.toUpperCase(), RECEIPT_LABEL_LEFT, startY + 8);
-  doc.fillColor('#000000'); // Reset color
-  
-  let y = startY + titleHeight + 5;
-  doc.fontSize(10);
-  for (const [label, value] of rows) {
-    doc.font('Helvetica-Bold').text(label, RECEIPT_LABEL_LEFT, y);
-    doc.font('Helvetica').text(String(value || 'N/A'), RECEIPT_LABEL_LEFT, y, { width: RECEIPT_VALUE_RIGHT - RECEIPT_LABEL_LEFT - 10, align: 'right' });
-    y += ROW_HEIGHT;
+/** Use "Rs." not Unicode ₹ — PDF built-in Helvetica/WinAnsi mis-renders ₹ as a superscript "¹" */
+function formatInrAmount(n) {
+  const num = Number(n || 0);
+  return `Rs. ${num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/** Centered ULB block under system title (uses current doc.y flow) */
+function drawUlbDetailsBlock(doc, ulbDetails) {
+  if (!ulbDetails) return;
+  doc.fillColor('#000000');
+  if (ulbDetails.name) {
+    doc.fontSize(12).font('Helvetica-Bold').text(String(ulbDetails.name), { align: 'center' });
   }
-  return startY + boxHeight + 15;
+  if (ulbDetails.address_line_1) {
+    doc.fontSize(10).font('Helvetica').text(String(ulbDetails.address_line_1), { align: 'center' });
+  }
+  if (ulbDetails.address_line_2) {
+    doc.fontSize(10).font('Helvetica').text(String(ulbDetails.address_line_2), { align: 'center' });
+  }
+  const cityState = [ulbDetails.district, ulbDetails.state].filter(Boolean).join(', ');
+  if (cityState || ulbDetails.pincode) {
+    doc.fontSize(10).font('Helvetica').text(`${cityState}${ulbDetails.pincode ? ` - ${ulbDetails.pincode}` : ''}`, { align: 'center' });
+  }
+  const contactLine = [ulbDetails.phone ? `Phone: ${ulbDetails.phone}` : null, ulbDetails.email ? `Email: ${ulbDetails.email}` : null]
+    .filter(Boolean)
+    .join(' | ');
+  if (contactLine) {
+    doc.fontSize(9).font('Helvetica').text(contactLine, { align: 'center' });
+  }
 }
 
 /**
- * Generate Payment Receipt PDF
- * Unified structure: header, receipt details, property, owner, payment details, footer
+ * One outer border (government bill style); shaded subsection headers inside + rows.
+ * @param {Array<{ title: string, rows: [string, unknown][] }>} sections
  */
-export const generateReceiptPdf = async (payment, demand, property, owner, ward, cashier) => {
-  return new Promise(async (resolve, reject) => {
-    try {
-      const doc = new PDFDocument({
-        size: 'A4',
-        margins: { top: 50, bottom: 50, left: 50, right: 50 }
+function drawUnifiedReceiptBox(doc, startY, sections) {
+  let y = startY + BOX_TOP_PAD;
+  for (let i = 0; i < sections.length; i++) {
+    const sec = sections[i];
+    doc.save();
+    doc.fillColor('#e8f4fc').rect(RECEIPT_LEFT + 1, y, RECEIPT_WIDTH - 2, SECTION_TITLE_H).fill();
+    doc.restore();
+    doc.fontSize(10).font('Helvetica-Bold').fillColor('#2c5282').text(sec.title.toUpperCase(), RECEIPT_LABEL_LEFT, y + 5);
+    doc.fillColor('#000000');
+    y += SECTION_TITLE_H;
+    doc.fontSize(10);
+    for (const [label, value] of sec.rows) {
+      const displayVal = value == null || value === '' ? 'N/A' : String(value);
+      doc.font('Helvetica-Bold').text(label, RECEIPT_LABEL_LEFT, y + 3, { width: RECEIPT_LABEL_MAX_W });
+      doc.font('Helvetica').text(displayVal, RECEIPT_VALUE_COL_X, y + 3, {
+        width: RECEIPT_VALUE_COL_W,
+        align: 'right'
       });
-
-      const chunks = [];
-      doc.on('data', chunk => chunks.push(chunk));
-      doc.on('end', async () => {
-        try {
-          const pdfBuffer = Buffer.concat(chunks);
-          const filename = generatePdfFilename('RECEIPT', payment.id);
-          const filePath = getReceiptPdfPath(filename);
-          await savePdfFile(pdfBuffer, filePath);
-          resolve({ filename, filePath, buffer: pdfBuffer });
-        } catch (error) {
-          reject(error);
-        }
-      });
-      doc.on('error', reject);
-
-      // Header Blue Bar Accent
+      y += ROW_HEIGHT;
+    }
+    if (i < sections.length - 1) {
       doc.save();
-      doc.fillColor('#2c5282').rect(50, 20, 495, 8).fill(); // Very thin bar at top
+      doc.strokeColor('#bdbdbd')
+        .lineWidth(0.6)
+        .moveTo(RECEIPT_LEFT + 12, y + SECTION_GAP / 2)
+        .lineTo(RECEIPT_LEFT + RECEIPT_WIDTH - 12, y + SECTION_GAP / 2)
+        .stroke();
       doc.restore();
+      doc.strokeColor('#000000').lineWidth(1);
+      y += SECTION_GAP;
+    }
+  }
+  const boxH = y - startY + BOX_BOTTOM_PAD;
+  doc.rect(RECEIPT_LEFT, startY, RECEIPT_WIDTH, boxH).stroke();
+  return startY + boxH + 12;
+}
 
-      // Logo
-      try {
-        doc.image(LOGO_PATH, RECEIPT_LEFT + (RECEIPT_WIDTH - 60) / 2, 45, { width: 60 });
-        doc.moveDown(4.5);
-      } catch (err) {
-        console.error('Logo not found at:', LOGO_PATH);
-      }
+async function generateQrBuffer(payload) {
+  try {
+    return await QRCode.toBuffer(payload || 'ULB Receipt', { width: 120, margin: 1 });
+  } catch (_) {
+    return null;
+  }
+}
 
-      // Header Text
-      doc.fontSize(22).font('Helvetica-Bold')
-        .text('URBAN LOCAL BODIES', { align: 'center' });
-      doc.moveDown(0.3);
-      doc.fontSize(14).font('Helvetica-Bold').fillColor('#2c5282')
-        .text('Tax Collection & Management System', { align: 'center' });
-      doc.fillColor('#000000');
-      doc.moveDown(0.8);
-      
-      doc.lineWidth(1.5).moveTo(150, doc.y).lineTo(445, doc.y).stroke();
-      doc.moveDown(0.5);
-      
-      doc.fontSize(16).font('Helvetica-Bold')
-        .text('PAYMENT RECEIPT', { align: 'center' });
-      doc.moveDown(1.5);
+async function generateBarcodeBuffer(value) {
+  try {
+    return await bwipjs.toBuffer({
+      bcid: 'code128',
+      text: String(value || 'NA-RECEIPT'),
+      scale: 2,
+      height: 8,
+      includetext: false,
+      backgroundcolor: 'FFFFFF'
+    });
+  } catch (_) {
+    return null;
+  }
+}
 
-      let y = doc.y;
+/**
+ * Render payment receipt into an existing PDFDocument (async for QR/barcode).
+ */
+async function renderPaymentReceiptPdf(doc, payment, demand, property, owner, ward, cashier, ulbDetails = null) {
+  // Header Blue Bar Accent
+  doc.save();
+  doc.fillColor('#2c5282').rect(50, 20, 495, 8).fill();
+  doc.restore();
 
-      // Receipt Details
-      const paymentDateStr = new Date(payment.paymentDate).toLocaleString('en-IN', { dateStyle: 'long', timeStyle: 'short' });
-      const locationStr = ward ? `${ward.wardNumber} - ${ward.wardName}` : 'N/A';
-      y = drawReceiptSection(doc, y, 'Receipt Details', [
+  // Logo
+  try {
+    doc.image(LOGO_PATH, RECEIPT_LEFT + (RECEIPT_WIDTH - 60) / 2, 45, { width: 60 });
+    doc.moveDown(4.5);
+  } catch (err) {
+    console.error('Logo not found at:', LOGO_PATH);
+  }
+
+  doc.fontSize(22).font('Helvetica-Bold').text('URBAN LOCAL BODIES', { align: 'center' });
+  doc.moveDown(0.3);
+  doc.fontSize(14).font('Helvetica-Bold').fillColor('#2c5282').text('Tax Collection & Management System', { align: 'center' });
+  doc.fillColor('#000000');
+  doc.moveDown(0.3);
+  drawUlbDetailsBlock(doc, ulbDetails);
+  doc.moveDown(0.8);
+
+  doc.lineWidth(1.5).moveTo(150, doc.y).lineTo(445, doc.y).stroke();
+  doc.moveDown(0.5);
+
+  const statusRaw = (payment.status || 'completed').toString().replace(/_/g, ' ');
+  doc.fontSize(16).font('Helvetica-Bold').text('PAYMENT RECEIPT', { align: 'center' });
+  doc.moveDown(0.35);
+  doc.fontSize(11).font('Helvetica-Bold').text(`STATUS: ${statusRaw.toUpperCase()}`, { align: 'center' });
+  doc.moveDown(1.2);
+
+  let y = doc.y;
+
+  const paymentDateStr = new Date(payment.paymentDate).toLocaleString('en-IN', { dateStyle: 'long', timeStyle: 'short' });
+  const locationStr = ward ? `${ward.wardNumber} - ${ward.wardName}` : 'N/A';
+  const addressStr = property
+    ? [property.address, property.city, property.state, property.pincode].filter(Boolean).join(', ')
+    : '';
+  const ownerName = owner ? `${owner.firstName || ''} ${owner.lastName || ''}`.trim() : 'N/A';
+  const amountPaid = formatInrAmount(payment.amount);
+  const paymentDetailRows = [
+    ['Financial Year', demand?.financialYear],
+    ['Demand Number', demand?.demandNumber || 'N/A'],
+    ['Payment Mode', (payment.paymentMode || '').toUpperCase()],
+    ['Amount Paid', amountPaid],
+    ['Final Amount', amountPaid]
+  ];
+  if (payment.paymentMode === 'cheque' || payment.paymentMode === 'dd') {
+    paymentDetailRows.splice(3, 0, ['Cheque/DD Number', payment.chequeNumber]);
+    if (payment.bankName) paymentDetailRows.push(['Bank Name', payment.bankName]);
+  }
+  if (payment.transactionId) {
+    paymentDetailRows.push(['Transaction ID', payment.transactionId]);
+  }
+
+  y = drawUnifiedReceiptBox(doc, y, [
+    {
+      title: 'Receipt Details',
+      rows: [
         ['Receipt Number', payment.receiptNumber || payment.paymentNumber],
         ['Payment Date', paymentDateStr],
         ['Payment ID', payment.paymentNumber || payment.id],
         ['Location', locationStr]
-      ]);
-
-      // Property Details
-      const addressStr = [property.address, property.city, property.state, property.pincode].filter(Boolean).join(', ');
-      y = drawReceiptSection(doc, y, 'Property Details', [
-        ['Property Number', property.propertyNumber],
+      ]
+    },
+    {
+      title: 'Citizen & Entity',
+      rows: [
+        ['Citizen Name', ownerName],
+        ['Citizen Email', owner?.email],
+        ['Citizen Phone', owner?.phone],
+        ['Property Number', property?.propertyNumber],
         ['Address', addressStr || 'N/A']
-      ]);
+      ]
+    },
+    { title: 'Amount Summary', rows: paymentDetailRows }
+  ]);
 
-      // Owner Details
-      const ownerName = owner ? `${owner.firstName || ''} ${owner.lastName || ''}`.trim() : 'N/A';
-      y = drawReceiptSection(doc, y, 'Owner Details', [
-        ['Name', ownerName],
-        ['Email', owner?.email],
-        ['Phone', owner?.phone]
-      ]);
+  if (cashier) {
+    doc.fontSize(10).font('Helvetica-Bold').text('Received By:', RECEIPT_LABEL_LEFT, y);
+    doc.font('Helvetica').text(`${cashier.firstName || ''} ${cashier.lastName || ''}`.trim(), 200, y);
+    y += ROW_HEIGHT + 8;
+  }
 
-      // Payment Details (amounts right-aligned in section)
-      const amountPaid = `₹${parseFloat(payment.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
-      const totalPaid = amountPaid;
-      const paymentDetailRows = [
-        ['Financial Year', demand?.financialYear],
-        ['Demand Number', demand?.demandNumber || 'N/A'],
-        ['Payment Mode', (payment.paymentMode || '').toUpperCase()],
-        ['Amount Paid', amountPaid],
-        ['Total Paid', totalPaid]
-      ];
-      if (payment.paymentMode === 'cheque' || payment.paymentMode === 'dd') {
-        paymentDetailRows.splice(3, 0, ['Cheque/DD Number', payment.chequeNumber]);
-        if (payment.bankName) paymentDetailRows.push(['Bank Name', payment.bankName]);
-      }
-      if (payment.transactionId) {
-        paymentDetailRows.push(['Transaction ID', payment.transactionId]);
-      }
-      const paymentBoxH = 20 + paymentDetailRows.length * ROW_HEIGHT + 10;
-      doc.rect(RECEIPT_LEFT, y, RECEIPT_WIDTH, paymentBoxH).stroke();
-      doc.fontSize(12).font('Helvetica-Bold').text('Payment Details', RECEIPT_LABEL_LEFT, y + 10);
-      let py = y + 35;
-      doc.fontSize(10);
-      for (const [label, value] of paymentDetailRows) {
-        doc.font('Helvetica-Bold').text(label, RECEIPT_LABEL_LEFT, py);
-        doc.font('Helvetica').text(String(value || 'N/A'), RECEIPT_LABEL_LEFT, py, { width: RECEIPT_VALUE_RIGHT - RECEIPT_LABEL_LEFT - 10, align: 'right' });
-        py += ROW_HEIGHT;
-      }
-      y = y + paymentBoxH + 12;
+  doc.y = y;
+  doc.moveDown(0.5);
+  doc.fontSize(9).font('Helvetica-Oblique').text('This is a system-generated receipt.', { align: 'center' });
+  doc.fontSize(8).font('Helvetica').text(`Generated on: ${new Date().toLocaleString('en-IN')}`, { align: 'center' });
 
-      if (cashier) {
-        doc.fontSize(10).font('Helvetica-Bold').text('Received By:', RECEIPT_LABEL_LEFT, y);
-        doc.font('Helvetica').text(`${cashier.firstName || ''} ${cashier.lastName || ''}`.trim(), 200, y);
-        y += ROW_HEIGHT + 8;
-      }
+  const qrBuffer = await generateQrBuffer(`Receipt Verification ID: ${payment.receiptNumber || payment.paymentNumber || payment.id}`);
+  const barcodeBuffer = await generateBarcodeBuffer(payment.receiptNumber || payment.paymentNumber || payment.id);
+  const footerY = Math.min(doc.y + 8, 760);
+  if (qrBuffer) {
+    doc.image(qrBuffer, 60, footerY, { width: 48, height: 48 });
+  }
+  if (barcodeBuffer) {
+    doc.image(barcodeBuffer, 400, footerY + 8, { width: 130, height: 32 });
+  }
+}
 
-      doc.moveDown(0.5);
-      doc.fontSize(9).font('Helvetica-Oblique')
-        .text('This is a system-generated receipt. No signature required. Valid only if payment is successful and confirmed.', { align: 'center' });
-      doc.fontSize(8).font('Helvetica')
-        .text(`Generated on: ${new Date().toLocaleString('en-IN')}`, { align: 'center' });
-
-      doc.end();
-    } catch (error) {
-      reject(error);
-    }
+/**
+ * Payment receipt PDF as buffer (always current template — use for downloads).
+ */
+export async function generateReceiptPdfBuffer(payment, demand, property, owner, ward, cashier, ulbDetails = null) {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({
+      size: 'A4',
+      margins: { top: 50, bottom: 50, left: 50, right: 50 }
+    });
+    const chunks = [];
+    doc.on('data', (chunk) => chunks.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+    renderPaymentReceiptPdf(doc, payment, demand, property, owner, ward, cashier, ulbDetails)
+      .then(() => doc.end())
+      .catch(reject);
   });
+}
+
+/**
+ * Generate Payment Receipt PDF (saves to disk)
+ */
+export const generateReceiptPdf = async (payment, demand, property, owner, ward, cashier, ulbDetails = null) => {
+  const pdfBuffer = await generateReceiptPdfBuffer(payment, demand, property, owner, ward, cashier, ulbDetails);
+  const filename = generatePdfFilename('RECEIPT', payment.id);
+  const filePath = getReceiptPdfPath(filename);
+  await savePdfFile(pdfBuffer, filePath);
+  return { filename, filePath, buffer: pdfBuffer };
 };
 
 /**
@@ -302,10 +381,10 @@ export const generateNoticePdf = async (notice, demand, property, owner, ward, g
          .text('Dear Sir/Madam,', 60, doc.y);
       doc.moveDown(0.5);
       
-      let bodyText = `This is to inform you that an amount of ₹${parseFloat(notice.amountDue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })} is due against Property Number ${property.propertyNumber} for the Financial Year ${notice.financialYear}.`;
+      let bodyText = `This is to inform you that an amount of ${formatInrAmount(notice.amountDue || 0)} is due against Property Number ${property.propertyNumber} for the Financial Year ${notice.financialYear}.`;
       
       if (parseFloat(notice.penaltyAmount || 0) > 0) {
-        bodyText += ` A penalty amount of ₹${parseFloat(notice.penaltyAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })} has been levied.`;
+        bodyText += ` A penalty amount of ${formatInrAmount(notice.penaltyAmount || 0)} has been levied.`;
       }
       
       bodyText += ` The due date for payment is ${new Date(notice.dueDate).toLocaleDateString('en-IN')}.`;
@@ -325,27 +404,27 @@ export const generateNoticePdf = async (notice, demand, property, owner, ward, g
       doc.fontSize(11).font('Helvetica-Bold')
          .text('Base Amount:', 70, doc.y);
       doc.font('Helvetica')
-         .text(`₹${parseFloat(demand.baseAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 400, doc.y, { align: 'right' });
+         .text(formatInrAmount(demand.baseAmount || 0), 395, doc.y, { width: 130, align: 'right' });
       
       if (parseFloat(demand.arrearsAmount || 0) > 0) {
         doc.font('Helvetica-Bold')
            .text('Arrears:', 70, doc.y + 20);
         doc.font('Helvetica')
-           .text(`₹${parseFloat(demand.arrearsAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 400, doc.y - 20, { align: 'right' });
+           .text(formatInrAmount(demand.arrearsAmount || 0), 395, doc.y - 20, { width: 130, align: 'right' });
       }
       
       if (parseFloat(notice.penaltyAmount || 0) > 0) {
         doc.font('Helvetica-Bold')
            .text('Penalty:', 70, doc.y + 20);
         doc.font('Helvetica')
-           .text(`₹${parseFloat(notice.penaltyAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 400, doc.y - 20, { align: 'right' });
+           .text(formatInrAmount(notice.penaltyAmount || 0), 395, doc.y - 20, { width: 130, align: 'right' });
       }
       
       if (parseFloat(demand.interestAmount || 0) > 0) {
         doc.font('Helvetica-Bold')
            .text('Interest:', 70, doc.y + 20);
         doc.font('Helvetica')
-           .text(`₹${parseFloat(demand.interestAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 400, doc.y - 20, { align: 'right' });
+           .text(formatInrAmount(demand.interestAmount || 0), 395, doc.y - 20, { width: 130, align: 'right' });
       }
       
       doc.lineWidth(2);
@@ -355,7 +434,7 @@ export const generateNoticePdf = async (notice, demand, property, owner, ward, g
       doc.fontSize(12).font('Helvetica-Bold')
          .text('Total Amount Due:', 70, doc.y + 15);
       doc.font('Helvetica')
-         .text(`₹${parseFloat(notice.amountDue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 400, doc.y - 15, { align: 'right' });
+         .text(formatInrAmount(notice.amountDue || 0), 395, doc.y - 15, { width: 130, align: 'right' });
       
       doc.moveDown(1.5);
 
@@ -412,100 +491,103 @@ export const generateNoticePdf = async (notice, demand, property, owner, ward, g
  * Used for GET /api/demands/:id/pdf?type=notice
  */
 export const generateDemandNoticePdfBuffer = (demand, options = {}) => {
-  const { property = null, owner = null, ward = null, entityLabel = 'N/A', ulbName = 'Municipal Corporation' } = options;
+  const { owner = null, entityLabel = 'N/A', ulbDetails = null } = options;
   return new Promise((resolve, reject) => {
-    try {
-      const doc = new PDFDocument({ size: 'A4', margins: { top: 50, bottom: 50, left: 50, right: 50 } });
-      const chunks = [];
-      doc.on('data', chunk => chunks.push(chunk));
-      doc.on('end', () => resolve(Buffer.concat(chunks)));
-      doc.on('error', reject);
+    const doc = new PDFDocument({ size: 'A4', margins: { top: 50, bottom: 50, left: 50, right: 50 } });
+    const chunks = [];
+    doc.on('data', (chunk) => chunks.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
 
-      const moduleLabel = { HOUSE_TAX: 'Property', D2DC: 'D2DC', WATER_TAX: 'Water', SHOP_TAX: 'Shop' }[demand.serviceType] || demand.serviceType;
-      const originalAmount = getDemandOriginalAmount(demand);
-      const discountAmount = (demand.taxDiscounts && demand.taxDiscounts.length)
-        ? Number((demand.taxDiscounts.reduce((s, d) => s + parseFloat(d.discountAmount || 0), 0)).toFixed(2))
-        : 0;
-      const { finalAmount } = calculateFinalAmount(demand, {
-        discountAmount,
-        waiverAmount: parseFloat(demand.penaltyWaived || 0)
-      });
-
-      // Header Blue Bar Accent
-      doc.save();
-      doc.fillColor('#2c5282').rect(50, 20, 495, 8).fill(); 
-      doc.restore();
-
-      // Logo
+    (async () => {
       try {
-        doc.image(LOGO_PATH, (595.28 - 60) / 2, 45, { width: 60 });
-        doc.moveDown(4.5);
-      } catch (err) {
-        console.error('Logo not found at:', LOGO_PATH);
-      }
+        const moduleLabel = { HOUSE_TAX: 'Property', D2DC: 'D2DC', WATER_TAX: 'Water', SHOP_TAX: 'Shop' }[demand.serviceType] || demand.serviceType;
+        const originalAmount = getDemandOriginalAmount(demand);
+        const discountAmount = demand.taxDiscounts && demand.taxDiscounts.length
+          ? Number(demand.taxDiscounts.reduce((s, d) => s + parseFloat(d.discountAmount || 0), 0).toFixed(2))
+          : 0;
+        const { finalAmount } = calculateFinalAmount(demand, {
+          discountAmount,
+          waiverAmount: parseFloat(demand.penaltyWaived || 0)
+        });
 
-      doc.fontSize(22).font('Helvetica-Bold').text('URBAN LOCAL BODIES', { align: 'center' });
-      doc.moveDown(0.3);
-      doc.fontSize(14).font('Helvetica-Bold').fillColor('#2c5282').text('Tax Collection & Management System', { align: 'center' });
-      doc.fillColor('#000000');
-      doc.moveDown(0.8);
-      
-      doc.lineWidth(1.5).moveTo(150, doc.y).lineTo(445, doc.y).stroke();
-      doc.moveDown(0.5);
-      
-      doc.fontSize(16).font('Helvetica-Bold').text('DEMAND NOTICE', { align: 'center' });
-      doc.moveDown(1.5);
+        doc.save();
+        doc.fillColor('#2c5282').rect(50, 20, 495, 8).fill();
+        doc.restore();
 
-      let rowY = doc.y;
-      doc.fontSize(11).font('Helvetica-Bold').text('Demand Number:', 60, rowY);
-      doc.font('Helvetica').text(demand.demandNumber || 'N/A', 200, rowY);
-      doc.font('Helvetica-Bold').text('Module Type:', 350, rowY);
-      doc.font('Helvetica').text(moduleLabel, 450, rowY);
-      rowY += 22;
-      doc.font('Helvetica-Bold').text('Financial Year:', 60, rowY);
-      doc.font('Helvetica').text(demand.financialYear || 'N/A', 200, rowY);
-      doc.font('Helvetica-Bold').text('Due Date:', 350, rowY);
-      doc.font('Helvetica').text(demand.dueDate ? new Date(demand.dueDate).toLocaleDateString('en-IN') : 'N/A', 450, rowY);
-      rowY += 22;
-      doc.font('Helvetica-Bold').text('Status:', 60, rowY);
-      doc.font('Helvetica').text((demand.status || 'N/A').replace(/_/g, ' '), 200, rowY);
-      doc.y = rowY + 12;
-      doc.moveDown(1);
+        try {
+          doc.image(LOGO_PATH, (595.28 - 60) / 2, 45, { width: 60 });
+          doc.moveDown(4.5);
+        } catch (err) {
+          console.error('Logo not found at:', LOGO_PATH);
+        }
 
-      if (owner) {
-        doc.fontSize(12).font('Helvetica-Bold').text('Citizen Name:', 60, doc.y);
-        doc.font('Helvetica').text(`${owner.firstName || ''} ${owner.lastName || ''}`.trim() || 'N/A', 200, doc.y);
+        doc.fontSize(22).font('Helvetica-Bold').text('URBAN LOCAL BODIES', { align: 'center' });
+        doc.moveDown(0.3);
+        doc.fontSize(14).font('Helvetica-Bold').fillColor('#2c5282').text('Tax Collection & Management System', { align: 'center' });
+        doc.fillColor('#000000');
+        doc.moveDown(0.3);
+        drawUlbDetailsBlock(doc, ulbDetails);
+        doc.moveDown(0.6);
+
+        doc.lineWidth(1.5).moveTo(150, doc.y).lineTo(445, doc.y).stroke();
         doc.moveDown(0.5);
-      }
-      doc.font('Helvetica-Bold').text('Property/Shop/Connection ID:', 60, doc.y);
-      doc.font('Helvetica').text(entityLabel, 200, doc.y);
-      doc.moveDown(1);
 
-      const boxY = doc.y;
-      doc.rect(50, boxY, 495, discountAmount > 0 ? 140 : 100).stroke();
-      let boxRowY = boxY + 15;
-      doc.fontSize(12).font('Helvetica-Bold').text('Original Amount:', 60, boxRowY);
-      doc.font('Helvetica').text(`₹${originalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 400, boxRowY, { align: 'right' });
-      if (discountAmount > 0) {
-        boxRowY += 25;
-        doc.font('Helvetica-Bold').text('Discount:', 60, boxRowY);
-        doc.font('Helvetica').text(`₹${discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 400, boxRowY, { align: 'right' });
-      }
-      boxRowY += 25;
-      doc.lineWidth(1);
-      doc.moveTo(60, boxRowY).lineTo(540, boxRowY).stroke();
-      boxRowY += 15;
-      doc.fontSize(12).font('Helvetica-Bold').text('Final Payable Amount:', 60, boxRowY);
-      doc.font('Helvetica').text(`₹${finalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 400, boxRowY, { align: 'right' });
-      doc.y = boxY + (discountAmount > 0 ? 140 : 100) + 10;
-      doc.moveDown(1.5);
+        doc.fontSize(16).font('Helvetica-Bold').text('DEMAND NOTICE', { align: 'center' });
+        doc.moveDown(0.35);
+        const st = (demand.status || 'N/A').toString().replace(/_/g, ' ');
+        doc.fontSize(11).font('Helvetica-Bold').text(`STATUS: ${st.toUpperCase()}`, { align: 'center' });
+        doc.moveDown(1.2);
 
-      doc.fontSize(9).font('Helvetica-Oblique').text('This is a system-generated demand notice.', { align: 'center' });
-      doc.fontSize(8).font('Helvetica').text(`Generated on: ${new Date().toLocaleString('en-IN')}`, { align: 'center' });
-      doc.end();
-    } catch (e) {
-      reject(e);
-    }
+        let y = doc.y;
+
+        const citizenName = owner ? `${owner.firstName || ''} ${owner.lastName || ''}`.trim() || 'N/A' : 'N/A';
+        const amountRows = [['Original Amount', formatInrAmount(originalAmount)]];
+        if (discountAmount > 0) {
+          amountRows.push(['Discount', formatInrAmount(discountAmount)]);
+        }
+        amountRows.push(['Final Payable Amount', formatInrAmount(finalAmount)]);
+
+        y = drawUnifiedReceiptBox(doc, y, [
+          {
+            title: 'Receipt Details',
+            rows: [
+              ['Demand Number', demand.demandNumber || 'N/A'],
+              ['Financial Year', demand.financialYear || 'N/A'],
+              ['Module Type', moduleLabel],
+              ['Due Date', demand.dueDate ? new Date(demand.dueDate).toLocaleDateString('en-IN') : 'N/A']
+            ]
+          },
+          {
+            title: 'Citizen & Entity',
+            rows: [
+              ['Citizen Name', citizenName],
+              ['Property / Shop / Connection ID', entityLabel]
+            ]
+          },
+          { title: 'Amount Summary', rows: amountRows }
+        ]);
+
+        doc.y = y;
+        doc.moveDown(0.5);
+        doc.fontSize(9).font('Helvetica-Oblique').text('This is a system-generated demand notice.', { align: 'center' });
+        doc.fontSize(8).font('Helvetica').text(`Generated on: ${new Date().toLocaleString('en-IN')}`, { align: 'center' });
+
+        const qrBuffer = await generateQrBuffer(`Demand verification: ${demand.demandNumber || demand.id}`);
+        const barcodeBuffer = await generateBarcodeBuffer(demand.demandNumber || String(demand.id));
+        const footerY = Math.min(doc.y + 8, 760);
+        if (qrBuffer) {
+          doc.image(qrBuffer, 60, footerY, { width: 48, height: 48 });
+        }
+        if (barcodeBuffer) {
+          doc.image(barcodeBuffer, 400, footerY + 8, { width: 130, height: 32 });
+        }
+
+        doc.end();
+      } catch (e) {
+        reject(e);
+      }
+    })();
   });
 };
 
@@ -515,81 +597,106 @@ export const generateDemandNoticePdfBuffer = (demand, options = {}) => {
  * Same visual structure as payment receipt: header, section boxes, footer
  */
 export const generateDemandSummaryReceiptPdfBuffer = (demand, options = {}) => {
-  const { property = null, owner = null, ward = null, entityLabel = 'N/A', ulbName = 'Urban Local Bodies' } = options;
+  const { owner = null, entityLabel = 'N/A', ulbDetails = null } = options;
   return new Promise((resolve, reject) => {
-    try {
-      const doc = new PDFDocument({ size: 'A4', margins: { top: 50, bottom: 50, left: 50, right: 50 } });
-      const chunks = [];
-      doc.on('data', chunk => chunks.push(chunk));
-      doc.on('end', () => resolve(Buffer.concat(chunks)));
-      doc.on('error', reject);
+    const doc = new PDFDocument({ size: 'A4', margins: { top: 50, bottom: 50, left: 50, right: 50 } });
+    const chunks = [];
+    doc.on('data', (chunk) => chunks.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
 
-      const moduleLabel = { HOUSE_TAX: 'Property', D2DC: 'D2DC', WATER_TAX: 'Water', SHOP_TAX: 'Shop' }[demand.serviceType] || demand.serviceType;
-      const originalAmount = getDemandOriginalAmount(demand);
-      const discountAmount = (demand.taxDiscounts && demand.taxDiscounts.length)
-        ? Number((demand.taxDiscounts.reduce((s, d) => s + parseFloat(d.discountAmount || 0), 0)).toFixed(2))
-        : 0;
-      const { finalAmount } = calculateFinalAmount(demand, {
-        discountAmount,
-        waiverAmount: parseFloat(demand.penaltyWaived || 0)
-      });
-      const paid = parseFloat(demand.paidAmount || 0);
-
-      // Header Blue Bar Accent
-      doc.save();
-      doc.fillColor('#2c5282').rect(50, 20, 495, 8).fill(); 
-      doc.restore();
-
-      // Logo
+    (async () => {
       try {
-        doc.image(LOGO_PATH, RECEIPT_LEFT + (RECEIPT_WIDTH - 60) / 2, 45, { width: 60 });
-        doc.moveDown(4.5);
-      } catch (err) {
-        console.error('Logo not found at:', LOGO_PATH);
+        const moduleLabel = { HOUSE_TAX: 'Property', D2DC: 'D2DC', WATER_TAX: 'Water', SHOP_TAX: 'Shop' }[demand.serviceType] || demand.serviceType;
+        const originalAmount = getDemandOriginalAmount(demand);
+        const discountAmount = demand.taxDiscounts && demand.taxDiscounts.length
+          ? Number(demand.taxDiscounts.reduce((s, d) => s + parseFloat(d.discountAmount || 0), 0).toFixed(2))
+          : 0;
+        const { finalAmount } = calculateFinalAmount(demand, {
+          discountAmount,
+          waiverAmount: parseFloat(demand.penaltyWaived || 0)
+        });
+        const paid = parseFloat(demand.paidAmount || 0);
+
+        doc.save();
+        doc.fillColor('#2c5282').rect(50, 20, 495, 8).fill();
+        doc.restore();
+
+        try {
+          doc.image(LOGO_PATH, RECEIPT_LEFT + (RECEIPT_WIDTH - 60) / 2, 45, { width: 60 });
+          doc.moveDown(4.5);
+        } catch (err) {
+          console.error('Logo not found at:', LOGO_PATH);
+        }
+
+        doc.fontSize(22).font('Helvetica-Bold').text('URBAN LOCAL BODIES', { align: 'center' });
+        doc.moveDown(0.3);
+        doc.fontSize(14).font('Helvetica-Bold').fillColor('#2c5282').text('Tax Collection & Management System', { align: 'center' });
+        doc.fillColor('#000000');
+        doc.moveDown(0.3);
+        drawUlbDetailsBlock(doc, ulbDetails);
+        doc.moveDown(0.6);
+
+        doc.lineWidth(1.5).moveTo(150, doc.y).lineTo(445, doc.y).stroke();
+        doc.moveDown(0.5);
+
+        doc.fontSize(16).font('Helvetica-Bold').text('DEMAND SUMMARY RECEIPT', { align: 'center' });
+        doc.moveDown(0.35);
+        const st = (demand.status || 'N/A').toString().replace(/_/g, ' ');
+        doc.fontSize(11).font('Helvetica-Bold').text(`STATUS: ${st.toUpperCase()}`, { align: 'center' });
+        doc.moveDown(1.2);
+
+        let y = doc.y;
+
+        const citizenName = owner ? `${owner.firstName || ''} ${owner.lastName || ''}`.trim() || 'N/A' : 'N/A';
+        const amountRows = [
+          ['Original Amount', formatInrAmount(originalAmount)],
+          ['Paid Amount', formatInrAmount(paid)],
+          ['Balance / Final Payable', formatInrAmount(finalAmount)]
+        ];
+        if (discountAmount > 0) {
+          amountRows.splice(1, 0, ['Discount', formatInrAmount(discountAmount)]);
+        }
+
+        y = drawUnifiedReceiptBox(doc, y, [
+          {
+            title: 'Receipt Details',
+            rows: [
+              ['Demand Number', demand.demandNumber || 'N/A'],
+              ['Module', moduleLabel],
+              ['Due Date', demand.dueDate ? new Date(demand.dueDate).toLocaleDateString('en-IN') : 'N/A']
+            ]
+          },
+          {
+            title: 'Citizen & Entity',
+            rows: [
+              ['Citizen Name', citizenName],
+              ['Property/Shop/Connection ID', entityLabel]
+            ]
+          },
+          { title: 'Amount Summary', rows: amountRows }
+        ]);
+
+        doc.y = y;
+        doc.moveDown(0.5);
+        doc.fontSize(9).font('Helvetica-Oblique').text('This is a system-generated summary. For payment receipt use the payment receipt.', { align: 'center' });
+        doc.fontSize(8).font('Helvetica').text(`Generated on: ${new Date().toLocaleString('en-IN')}`, { align: 'center' });
+
+        const qrBuffer = await generateQrBuffer(`Demand summary: ${demand.demandNumber || demand.id}`);
+        const barcodeBuffer = await generateBarcodeBuffer(demand.demandNumber || String(demand.id));
+        const footerY = Math.min(doc.y + 8, 760);
+        if (qrBuffer) {
+          doc.image(qrBuffer, 60, footerY, { width: 48, height: 48 });
+        }
+        if (barcodeBuffer) {
+          doc.image(barcodeBuffer, 400, footerY + 8, { width: 130, height: 32 });
+        }
+
+        doc.end();
+      } catch (e) {
+        reject(e);
       }
-
-      doc.fontSize(22).font('Helvetica-Bold').text('URBAN LOCAL BODIES', { align: 'center' });
-      doc.moveDown(0.3);
-      doc.fontSize(14).font('Helvetica-Bold').fillColor('#2c5282').text('Tax Collection & Management System', { align: 'center' });
-      doc.fillColor('#000000');
-      doc.moveDown(0.8);
-      
-      doc.lineWidth(1.5).moveTo(150, doc.y).lineTo(445, doc.y).stroke();
-      doc.moveDown(0.5);
-      
-      doc.fontSize(16).font('Helvetica-Bold').text('DEMAND SUMMARY RECEIPT', { align: 'center' });
-      doc.moveDown(1.5);
-
-      let y = doc.y;
-
-      y = drawReceiptSection(doc, y, 'Receipt Details', [
-        ['Demand Number', demand.demandNumber || 'N/A'],
-        ['Module', moduleLabel],
-        ['Due Date', demand.dueDate ? new Date(demand.dueDate).toLocaleDateString('en-IN') : 'N/A']
-      ]);
-
-      const citizenName = owner ? `${owner.firstName || ''} ${owner.lastName || ''}`.trim() || 'N/A' : 'N/A';
-      y = drawReceiptSection(doc, y, 'Citizen & Entity', [
-        ['Citizen Name', citizenName],
-        ['Property/Shop/Connection ID', entityLabel]
-      ]);
-
-      const amountRows = [
-        ['Original Amount', `₹${originalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`],
-        ['Paid Amount', `₹${paid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`],
-        ['Balance / Final Payable', `₹${finalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`]
-      ];
-      if (discountAmount > 0) {
-        amountRows.splice(1, 0, ['Discount', `₹${discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`]);
-      }
-      y = drawReceiptSection(doc, y, 'Amount Summary', amountRows);
-
-      doc.fontSize(9).font('Helvetica-Oblique').text('This is a system-generated summary. For payment receipt use the payment receipt.', { align: 'center' });
-      doc.fontSize(8).font('Helvetica').text(`Generated on: ${new Date().toLocaleString('en-IN')}`, { align: 'center' });
-      doc.end();
-    } catch (e) {
-      reject(e);
-    }
+    })();
   });
 };
 
@@ -656,15 +763,15 @@ export const generateDiscountApprovalPdfBuffer = (discount, options = {}) => {
         rowY += rowH;
       }
       doc.font('Helvetica-Bold').text('Original Amount:', 60, rowY);
-      doc.font('Helvetica').text(`₹${originalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 200, rowY);
+      doc.font('Helvetica').text(formatInrAmount(originalAmount), 200, rowY);
       doc.font('Helvetica-Bold').text('Discount Type:', 350, rowY);
       doc.font('Helvetica').text(discountTypeLabel, 450, rowY);
       rowY += rowH;
       doc.font('Helvetica-Bold').text('Discount Amount:', 60, rowY);
-      doc.font('Helvetica').text(`₹${discountAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 200, rowY);
+      doc.font('Helvetica').text(formatInrAmount(discountAmt), 200, rowY);
       rowY += rowH;
       doc.font('Helvetica-Bold').text('Final Amount:', 60, rowY);
-      doc.font('Helvetica').text(`₹${finalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 200, rowY);
+      doc.font('Helvetica').text(formatInrAmount(finalAmount), 200, rowY);
       rowY += rowH;
       doc.font('Helvetica-Bold').text('Reason:', 60, rowY);
       doc.font('Helvetica').text((discount.reason || 'N/A').substring(0, 200), 200, rowY, { width: 340 });
@@ -757,18 +864,18 @@ export const generatePenaltyWaiverLetterPdfBuffer = (waiver, options = {}) => {
         rowY += rowH;
       }
       doc.font('Helvetica-Bold').text('Original Penalty:', 60, rowY);
-      doc.font('Helvetica').text(`₹${penaltyAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 200, rowY);
+      doc.font('Helvetica').text(formatInrAmount(penaltyAmount), 200, rowY);
       doc.font('Helvetica-Bold').text('Waiver Type:', 350, rowY);
       doc.font('Helvetica').text(waiverTypeLabel, 450, rowY);
       rowY += rowH;
       doc.font('Helvetica-Bold').text('Waiver Amount:', 60, rowY);
-      doc.font('Helvetica').text(`₹${waiverAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 200, rowY);
+      doc.font('Helvetica').text(formatInrAmount(waiverAmt), 200, rowY);
       rowY += rowH;
       doc.font('Helvetica-Bold').text('Remaining Penalty:', 60, rowY);
-      doc.font('Helvetica').text(`₹${remainingPenalty.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 200, rowY);
+      doc.font('Helvetica').text(formatInrAmount(remainingPenalty), 200, rowY);
       rowY += rowH;
       doc.font('Helvetica-Bold').text('Final Payable:', 60, rowY);
-      doc.font('Helvetica').text(`₹${finalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 200, rowY);
+      doc.font('Helvetica').text(formatInrAmount(finalAmount), 200, rowY);
       rowY += rowH;
       doc.font('Helvetica-Bold').text('Reason:', 60, rowY);
       doc.font('Helvetica').text((waiver.reason || 'N/A').substring(0, 200), 200, rowY, { width: 340 });

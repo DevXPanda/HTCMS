@@ -1,5 +1,5 @@
-import { Payment, Demand, Property, User, Ward, Notice } from '../models/index.js';
-import { generateReceiptPdf, generateNoticePdf } from '../services/pdfGenerator.js';
+import { Payment, Demand, Property, User, Ward, Notice, ULB } from '../models/index.js';
+import { generateReceiptPdf, generateReceiptPdfBuffer, generateNoticePdf } from '../services/pdfGenerator.js';
 import { getReceiptPdfUrl, getNoticePdfUrl } from '../utils/pdfStorage.js';
 import { createAuditLog } from './auditLogger.js';
 
@@ -20,7 +20,11 @@ export const generatePaymentReceiptPdf = async (paymentId, req, user) => {
               as: 'property',
               include: [
                 { model: User, as: 'owner' },
-                { model: Ward, as: 'ward' }
+                {
+                  model: Ward,
+                  as: 'ward',
+                  include: [{ model: ULB, as: 'ulb' }]
+                }
               ]
             }
           ]
@@ -34,6 +38,15 @@ export const generatePaymentReceiptPdf = async (paymentId, req, user) => {
       throw new Error('Payment not found');
     }
 
+    const property = payment.demand?.property || payment.property;
+    const demand = payment.demand;
+    if (!property) {
+      throw new Error('Property not found for receipt');
+    }
+    const owner = property.owner;
+    const ward = property.ward;
+    const ulbDetails = ward?.ulb || null;
+
     // Check if PDF already exists
     if (payment.receiptPdfUrl) {
       return {
@@ -46,11 +59,12 @@ export const generatePaymentReceiptPdf = async (paymentId, req, user) => {
     // Generate PDF
     const { filename, filePath } = await generateReceiptPdf(
       payment,
-      payment.demand,
-      payment.demand.property,
-      payment.demand.property.owner,
-      payment.demand.property.ward,
-      payment.cashier
+      demand,
+      property,
+      owner,
+      ward,
+      payment.cashier,
+      ulbDetails
     );
 
     // Update payment with PDF URL
@@ -81,6 +95,59 @@ export const generatePaymentReceiptPdf = async (paymentId, req, user) => {
     console.error('Error generating receipt PDF:', error);
     throw error;
   }
+};
+
+/**
+ * Fresh payment receipt PDF buffer (current template). Use for downloads so users never get stale cached files.
+ */
+export const getPaymentReceiptPdfBuffer = async (paymentId) => {
+  const payment = await Payment.findByPk(paymentId, {
+    include: [
+      {
+        model: Demand,
+        as: 'demand',
+        include: [
+          {
+            model: Property,
+            as: 'property',
+            include: [
+              { model: User, as: 'owner' },
+              { model: Ward, as: 'ward', include: [{ model: ULB, as: 'ulb' }] }
+            ]
+          }
+        ]
+      },
+      {
+        model: Property,
+        as: 'property',
+        include: [
+          { model: User, as: 'owner' },
+          { model: Ward, as: 'ward', include: [{ model: ULB, as: 'ulb' }] }
+        ]
+      },
+      { model: User, as: 'cashier', attributes: ['id', 'firstName', 'lastName'] }
+    ]
+  });
+
+  if (!payment) {
+    throw new Error('Payment not found');
+  }
+
+  const property = payment.demand?.property || payment.property;
+  const demand = payment.demand;
+  if (!property) {
+    throw new Error('Property not found for receipt');
+  }
+
+  return generateReceiptPdfBuffer(
+    payment,
+    demand,
+    property,
+    property.owner,
+    property.ward,
+    payment.cashier,
+    property.ward?.ulb || null
+  );
 };
 
 /**

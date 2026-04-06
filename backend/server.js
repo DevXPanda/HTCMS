@@ -23,20 +23,42 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Allowed origins for CORS
+// Allowed origins for CORS (production + common dev)
 const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
   "https://ulbsystemm.vercel.app",
 ];
 
+if (process.env.CORS_ORIGINS) {
+  for (const o of process.env.CORS_ORIGINS.split(",").map((s) => s.trim()).filter(Boolean)) {
+    if (!allowedOrigins.includes(o)) allowedOrigins.push(o);
+  }
+}
+
+function isCorsOriginAllowed(origin) {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+  // Dev: allow any http localhost / 127.0.0.1 port (Vite, alternate ports, LAN via hosts file)
+  if (process.env.NODE_ENV !== "production") {
+    try {
+      const u = new URL(origin);
+      if (u.protocol === "http:" && (u.hostname === "localhost" || u.hostname === "127.0.0.1")) {
+        return true;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return false;
+}
+
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (isCorsOriginAllowed(origin)) {
         callback(null, true);
       } else {
-
         callback(new Error("Not allowed by CORS"));
       }
     },
@@ -249,12 +271,18 @@ const server = http.createServer(app);
 
 // Socket.IO: real-time notifications (role-wise). Use same origin as API for deployment.
 const io = new SocketIOServer(server, {
-  cors: {
-    origin: allowedOrigins.length ? allowedOrigins : true,
-    credentials: true
-  },
+  cors:
+    process.env.NODE_ENV === "production"
+      ? { origin: allowedOrigins, credentials: true }
+      : {
+          origin: (origin, cb) => {
+            if (isCorsOriginAllowed(origin)) cb(null, true);
+            else cb(new Error("Not allowed by CORS"));
+          },
+          credentials: true,
+        },
   transports: ["websocket", "polling"],
-  path: "/socket.io"
+  path: "/socket.io",
 });
 
 setNotificationIO(io);

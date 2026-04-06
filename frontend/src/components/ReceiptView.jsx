@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import PrintReceiptLayout from './PrintReceiptLayout';
 import api from '../services/api';
 
-const formatCurrency = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+/** "Rs." + en-IN — avoids ₹ (U+20B9) rendering as superscript "¹" in print/PDF */
+const formatReceiptAmount = (n) =>
+  `Rs. ${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const useUlbDetails = (ulbId) => {
   const [details, setDetails] = useState({});
@@ -29,7 +31,7 @@ const useUlbDetails = (ulbId) => {
   return { details, loading };
 };
 
-export function PaymentReceiptView({ payment, formatAmt = formatCurrency }) {
+export function PaymentReceiptView({ payment }) {
   const property = payment?.property;
   const owner = property?.owner || payment?.property?.owner;
   const ward = property?.ward;
@@ -47,34 +49,29 @@ export function PaymentReceiptView({ payment, formatAmt = formatCurrency }) {
       ]
     },
     {
-      title: 'Property Details',
+      title: 'Citizen & Entity',
       content: [
+        { label: 'Citizen Name', value: owner ? `${owner.firstName || ''} ${owner.lastName || ''}`.trim() : null },
+        { label: 'Citizen Email', value: owner?.email },
+        { label: 'Citizen Phone', value: owner?.phone },
         { label: 'Property Number', value: property?.propertyNumber },
         { label: 'Address', value: [property?.address, property?.city, property?.state, property?.pincode].filter(Boolean).join(', ') }
       ]
     },
     {
-      title: 'Owner Details',
-      content: [
-        { label: 'Name', value: owner ? `${owner.firstName || ''} ${owner.lastName || ''}`.trim() : null },
-        { label: 'Email', value: owner?.email },
-        { label: 'Phone', value: owner?.phone }
-      ]
-    },
-    {
-      title: 'Payment Details',
+      title: 'Amount Summary',
       content: [
         { label: 'Financial Year', value: demand?.financialYear },
         { label: 'Demand Number', value: demand?.demandNumber },
         { label: 'Payment Mode', value: payment?.paymentMode ? String(payment.paymentMode).toUpperCase() : null },
-        { label: 'Amount Paid', value: formatAmt(payment?.amount) },
-        { label: 'Total Paid', value: <span className="font-bold underline">{formatAmt(payment?.amount)}</span> }
+        { label: 'Amount Paid', value: formatReceiptAmount(payment?.amount) },
+        { label: 'Final Amount', value: <span className="font-bold text-lg">{formatReceiptAmount(payment?.amount)}</span>, isAmountHighlight: true }
       ]
     }
   ];
 
   if (payment?.chequeNumber || payment?.transactionId) {
-    sections[3].content.push({
+    sections[2].content.push({
       label: payment?.paymentMode === 'cheque' || payment?.paymentMode === 'dd' ? 'Cheque/DD Number' : 'Transaction ID',
       value: payment?.chequeNumber || payment?.transactionId
     });
@@ -95,11 +92,13 @@ export function PaymentReceiptView({ payment, formatAmt = formatCurrency }) {
       receiptTitle="PAYMENT RECEIPT"
       sections={sections}
       status={payment?.status || 'PAID'}
+      receiptId={payment?.receiptNumber || payment?.paymentNumber || String(payment?.id || '')}
+      barcodeValue={payment?.receiptNumber || payment?.paymentNumber || String(payment?.id || '')}
     />
   );
 }
 
-export function WaterPaymentReceiptView({ payment, waterBill, waterConnection, property, formatAmt = formatCurrency }) {
+export function WaterPaymentReceiptView({ payment, waterBill, waterConnection, property }) {
   const owner = property?.owner;
   const connectionLabel = waterConnection?.connectionNumber
     ? (property?.propertyNumber ? `${waterConnection.connectionNumber} · ${property.propertyNumber}` : waterConnection.connectionNumber)
@@ -116,8 +115,11 @@ export function WaterPaymentReceiptView({ payment, waterBill, waterConnection, p
       ]
     },
     {
-      title: 'Connection & Property',
+      title: 'Citizen & Entity',
       content: [
+        { label: 'Citizen Name', value: owner ? `${owner.firstName || ''} ${owner.lastName || ''}`.trim() : null },
+        { label: 'Citizen Email', value: owner?.email },
+        { label: 'Citizen Phone', value: owner?.phone },
         { label: 'Connection / Property', value: connectionLabel },
         { label: 'Address', value: [property?.address, property?.city, property?.state, property?.pincode].filter(Boolean).join(', ') },
         { label: 'Bill Number', value: waterBill?.billNumber },
@@ -125,25 +127,17 @@ export function WaterPaymentReceiptView({ payment, waterBill, waterConnection, p
       ]
     },
     {
-      title: 'Owner Details',
-      content: [
-        { label: 'Name', value: owner ? `${owner.firstName || ''} ${owner.lastName || ''}`.trim() : null },
-        { label: 'Email', value: owner?.email },
-        { label: 'Phone', value: owner?.phone }
-      ]
-    },
-    {
-      title: 'Payment Details',
+      title: 'Amount Summary',
       content: [
         { label: 'Payment Mode', value: payment?.paymentMode ? String(payment.paymentMode).toUpperCase() : null },
-        { label: 'Amount Paid', value: formatAmt(payment?.amount) },
-        { label: 'Total Paid', value: <span className="font-bold underline text-lg">{formatAmt(payment?.amount)}</span> }
+        { label: 'Amount Paid', value: formatReceiptAmount(payment?.amount) },
+        { label: 'Final Amount', value: <span className="font-bold text-lg">{formatReceiptAmount(payment?.amount)}</span>, isAmountHighlight: true }
       ]
     }
   ];
 
   if (payment?.chequeNumber || payment?.transactionId) {
-    sections[3].content.push({
+    sections[2].content.push({
       label: payment?.paymentMode === 'cheque' || payment?.paymentMode === 'dd' ? 'Cheque/DD Number' : 'Transaction ID',
       value: payment?.chequeNumber || payment?.transactionId
     });
@@ -164,11 +158,13 @@ export function WaterPaymentReceiptView({ payment, waterBill, waterConnection, p
       receiptTitle="WATER PAYMENT RECEIPT"
       sections={sections}
       status={payment?.status || 'PAID'}
+      receiptId={payment?.receiptNumber || payment?.paymentNumber || String(payment?.id || '')}
+      barcodeValue={payment?.receiptNumber || payment?.paymentNumber || String(payment?.id || '')}
     />
   );
 }
 
-export function DemandNoticeView({ demand, formatAmt = formatCurrency }) {
+export function DemandNoticeView({ demand }) {
   const property = demand?.property;
   const owner = property?.owner;
   const { details: ulbDetails } = useUlbDetails(demand?.ulb_id || property?.ulb_id);
@@ -184,23 +180,25 @@ export function DemandNoticeView({ demand, formatAmt = formatCurrency }) {
       ]
     },
     {
-      title: 'Property & Owner',
+      title: 'Citizen & Entity',
       content: [
         { label: 'Property Number', value: property?.propertyNumber },
-        { label: 'Owner Name', value: owner ? `${owner.firstName || ''} ${owner.lastName || ''}`.trim() : property?.ownerName },
+        { label: 'Citizen Name', value: owner ? `${owner.firstName || ''} ${owner.lastName || ''}`.trim() : property?.ownerName },
+        { label: 'Citizen Email', value: owner?.email },
+        { label: 'Citizen Phone', value: owner?.phone },
         { label: 'Address', value: [property?.address, property?.city, property?.state, property?.pincode].filter(Boolean).join(', ') }
       ]
     },
     {
       title: 'Amount Summary',
       content: [
-        { label: 'Base Amount', value: formatAmt(demand?.baseAmount) },
-        { label: 'Arrears', value: formatAmt(demand?.arrearsAmount) },
-        { label: 'Penalty', value: formatAmt(demand?.penaltyAmount) },
-        { label: 'Interest', value: formatAmt(demand?.interestAmount) },
-        { label: 'Total Demand', value: <span className="font-bold underline text-lg">{formatAmt(demand?.totalAmount)}</span> },
-        { label: 'Paid Amount', value: formatAmt(demand?.paidAmount) },
-        { label: 'Balance Payable', value: <span className="font-bold text-red-600 text-xl">{formatAmt(demand?.balanceAmount)}</span> }
+        { label: 'Base Amount', value: formatReceiptAmount(demand?.baseAmount) },
+        { label: 'Arrears', value: formatReceiptAmount(demand?.arrearsAmount) },
+        { label: 'Penalty', value: formatReceiptAmount(demand?.penaltyAmount) },
+        { label: 'Interest', value: formatReceiptAmount(demand?.interestAmount) },
+        { label: 'Total Demand', value: <span className="font-bold text-lg">{formatReceiptAmount(demand?.totalAmount)}</span>, isAmountHighlight: true },
+        { label: 'Paid Amount', value: formatReceiptAmount(demand?.paidAmount) },
+        { label: 'Final Amount', value: <span className="font-bold text-red-600 text-xl">{formatReceiptAmount(demand?.balanceAmount)}</span>, isAmountHighlight: true }
       ]
     }
   ];
@@ -211,11 +209,13 @@ export function DemandNoticeView({ demand, formatAmt = formatCurrency }) {
       receiptTitle="DEMAND NOTICE"
       sections={sections}
       status={demand?.status || 'UNPAID'}
+      receiptId={demand?.demandNumber || String(demand?.id || '')}
+      barcodeValue={demand?.demandNumber || String(demand?.id || '')}
     />
   );
 }
 
-export function DemandSummaryView({ demand, formatAmt = formatCurrency }) {
+export function DemandSummaryView({ demand }) {
   const property = demand?.property;
   const owner = property?.owner;
   const { details: ulbDetails } = useUlbDetails(demand?.ulb_id || property?.ulb_id);
@@ -230,11 +230,20 @@ export function DemandSummaryView({ demand, formatAmt = formatCurrency }) {
       ]
     },
     {
-      title: 'Payment Status',
+      title: 'Citizen & Entity',
       content: [
-        { label: 'Total Demand', value: formatAmt(demand?.totalAmount) },
-        { label: 'Amount Paid', value: formatAmt(demand?.paidAmount) },
-        { label: 'Balance Due', value: <span className="font-bold text-red-600">{formatAmt(demand?.balanceAmount)}</span> }
+        { label: 'Property Number', value: property?.propertyNumber },
+        { label: 'Citizen Name', value: owner ? `${owner.firstName || ''} ${owner.lastName || ''}`.trim() : property?.ownerName },
+        { label: 'Citizen Email', value: owner?.email },
+        { label: 'Citizen Phone', value: owner?.phone }
+      ]
+    },
+    {
+      title: 'Amount Summary',
+      content: [
+        { label: 'Total Demand', value: formatReceiptAmount(demand?.totalAmount) },
+        { label: 'Amount Paid', value: formatReceiptAmount(demand?.paidAmount) },
+        { label: 'Final Amount', value: <span className="font-bold text-red-600 text-lg">{formatReceiptAmount(demand?.balanceAmount)}</span>, isAmountHighlight: true }
       ]
     }
   ];
@@ -244,7 +253,7 @@ export function DemandSummaryView({ demand, formatAmt = formatCurrency }) {
       title: 'Recent Payments',
       content: demand.payments.slice(0, 3).map(p => ({
         label: `${p.receiptNumber} (${new Date(p.paymentDate).toLocaleDateString()})`,
-        value: formatAmt(p.amount)
+        value: formatReceiptAmount(p.amount)
       }))
     });
   }
@@ -255,6 +264,8 @@ export function DemandSummaryView({ demand, formatAmt = formatCurrency }) {
       receiptTitle="DEMAND SUMMARY"
       sections={sections}
       status={demand?.status}
+      receiptId={demand?.demandNumber || String(demand?.id || '')}
+      barcodeValue={demand?.demandNumber || String(demand?.id || '')}
     />
   );
 }

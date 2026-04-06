@@ -4,7 +4,7 @@ import { sequelize } from '../config/database.js';
 import { razorpay } from '../config/razorpay.js';
 import crypto from 'crypto';
 import { updateNoticeOnPayment } from './notice.controller.js';
-import { generatePaymentReceiptPdf } from '../utils/pdfHelpers.js';
+import { generatePaymentReceiptPdf, getPaymentReceiptPdfBuffer } from '../utils/pdfHelpers.js';
 import { auditLogger, createAuditLog } from '../utils/auditLogger.js';
 import { getEffectiveUlbForRequest, getWardIdsByUlbId } from '../utils/ulbAccessHelper.js';
 import { distributePaymentAcrossItems, validatePaymentDistributionIntegrity } from '../services/paymentService.js';
@@ -1573,25 +1573,13 @@ export const getPaymentPdfById = async (req, res, next) => {
       }
     }
 
-    if (!payment.receiptPdfUrl) {
-      try {
-        await generatePaymentReceiptPdf(payment.id, req, req.user);
-        await payment.reload();
-      } catch (genErr) {
-        console.error('Error generating receipt PDF:', genErr);
-        return res.status(500).json({ success: false, message: 'Failed to generate receipt PDF' });
-      }
+    let pdfBuffer;
+    try {
+      pdfBuffer = await getPaymentReceiptPdfBuffer(payment.id);
+    } catch (genErr) {
+      console.error('Error generating receipt PDF for download:', genErr);
+      return res.status(500).json({ success: false, message: 'Failed to generate receipt PDF' });
     }
-
-    if (!payment.receiptPdfUrl) {
-      return res.status(404).json({ success: false, message: 'Receipt PDF not available' });
-    }
-
-    const filename = payment.receiptPdfUrl.split('/').pop() || '';
-    const { readPdfFile, getReceiptPdfPath } = await import('../utils/pdfStorage.js');
-    const filePath = getReceiptPdfPath(filename);
-
-    const pdfBuffer = await readPdfFile(filePath);
 
     await createAuditLog({
       req,
@@ -1600,7 +1588,7 @@ export const getPaymentPdfById = async (req, res, next) => {
       entityType: 'Payment',
       entityId: payment.id,
       description: `Downloaded receipt PDF for payment ${payment.paymentNumber}`,
-      metadata: { filename }
+      metadata: { source: 'live-generate' }
     });
 
     res.setHeader('Content-Type', 'application/pdf');
@@ -1657,49 +1645,29 @@ export const downloadReceiptPdf = async (req, res, next) => {
       }
     }
 
-    // Check if PDF exists
-    if (!payment.receiptPdfUrl) {
-      return res.status(404).json({
-        success: false,
-        message: 'Receipt PDF not generated yet'
-      });
-    }
-
-    // Verify filename matches
-    if (!payment.receiptPdfUrl.includes(filename)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid receipt filename'
-      });
-    }
-
-    // Read and send PDF file
-    const { readPdfFile, getReceiptPdfPath } = await import('../utils/pdfStorage.js');
-    const filePath = getReceiptPdfPath(filename);
-
+    let pdfBuffer;
     try {
-      const pdfBuffer = await readPdfFile(filePath);
-
-      // Log PDF download
-      await createAuditLog({
-        req,
-        user: req.user,
-        actionType: 'RECEIPT_PDF_DOWNLOADED',
-        entityType: 'Payment',
-        entityId: payment.id,
-        description: `Downloaded receipt PDF for payment ${payment.paymentNumber}`,
-        metadata: { filename }
-      });
-
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="receipt_${payment.receiptNumber || payment.paymentNumber}.pdf"`);
-      res.send(pdfBuffer);
-    } catch (fileError) {
-      return res.status(404).json({
+      pdfBuffer = await getPaymentReceiptPdfBuffer(paymentId);
+    } catch (e) {
+      return res.status(500).json({
         success: false,
-        message: 'Receipt PDF file not found'
+        message: 'Failed to generate receipt PDF'
       });
     }
+
+    await createAuditLog({
+      req,
+      user: req.user,
+      actionType: 'RECEIPT_PDF_DOWNLOADED',
+      entityType: 'Payment',
+      entityId: payment.id,
+      description: `Downloaded receipt PDF for payment ${payment.paymentNumber}`,
+      metadata: { filename, source: 'live-generate' }
+    });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="receipt_${payment.receiptNumber || payment.paymentNumber}.pdf"`);
+    res.send(pdfBuffer);
   } catch (error) {
     next(error);
   }

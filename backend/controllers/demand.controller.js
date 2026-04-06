@@ -1,4 +1,4 @@
-import { Demand, Assessment, Property, Payment, User, Ward, WaterTaxAssessment, WaterConnection, DemandItem, D2DCRecord, Shop, ShopTaxAssessment, AdminManagement, TaxDiscount } from '../models/index.js';
+import { Demand, Assessment, Property, Payment, User, Ward, WaterTaxAssessment, WaterConnection, DemandItem, D2DCRecord, Shop, ShopTaxAssessment, AdminManagement, TaxDiscount, ULB } from '../models/index.js';
 import { Op, Sequelize } from 'sequelize';
 import { generateDemandId } from '../services/uniqueIdService.js';
 
@@ -494,13 +494,32 @@ const demandPdfIncludes = [
     required: false,
     include: [
       { model: User, as: 'owner', attributes: { exclude: ['password'] }, required: false },
-      { model: Ward, as: 'ward', required: false }
+      { model: Ward, as: 'ward', required: false, include: [{ model: ULB, as: 'ulb', required: false }] }
     ]
   },
-  { model: WaterTaxAssessment, as: 'waterTaxAssessment', required: false, include: [{ model: Property, as: 'property', required: false, include: [{ model: User, as: 'owner', attributes: { exclude: ['password'] }, required: false }] }] },
+  {
+    model: WaterTaxAssessment,
+    as: 'waterTaxAssessment',
+    required: false,
+    include: [
+      {
+        model: Property,
+        as: 'property',
+        required: false,
+        include: [
+          { model: User, as: 'owner', attributes: { exclude: ['password'] }, required: false },
+          { model: Ward, as: 'ward', required: false, include: [{ model: ULB, as: 'ulb', required: false }] }
+        ]
+      }
+    ]
+  },
   { model: ShopTaxAssessment, as: 'shopTaxAssessment', required: false, include: [{ model: Shop, as: 'shop', attributes: ['id', 'shopNumber', 'shopName', 'propertyId', 'wardId'] }] },
   { model: TaxDiscount, as: 'taxDiscounts', required: false, where: { status: 'ACTIVE' } }
 ];
+
+function getUlbDetailsForDemandPdf(demand) {
+  return demand.property?.ward?.ulb || demand.waterTaxAssessment?.property?.ward?.ulb || null;
+}
 
 function getDemandOwnerAndEntityLabel(demand) {
   let owner = null;
@@ -575,7 +594,8 @@ export const getDemandPdf = async (req, res, next) => {
     }
 
     const { owner, entityLabel } = getDemandOwnerAndEntityLabel(demand);
-    const opts = { property: demand.property, owner, ward: demand.property?.ward, entityLabel };
+    const ulbDetails = getUlbDetailsForDemandPdf(demand);
+    const opts = { property: demand.property, owner, ward: demand.property?.ward, entityLabel, ulbDetails };
 
     const buffer = isReceipt
       ? await generateDemandSummaryReceiptPdfBuffer(demand, opts)
