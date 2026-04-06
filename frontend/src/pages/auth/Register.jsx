@@ -117,7 +117,7 @@ const Register = ({ isModal = false, onClose, onSwitch }) => {
         )}
         <div className="text-center mb-6">
           <h1 className={`text-2xl font-bold ${theme.text} mb-1`}>Create Account</h1>
-          <p className="text-gray-500 text-sm">Join HTCMS for seamless tax management</p>
+          <p className="text-gray-500 text-sm">Join ULB for seamless management system</p>
           {formData.role !== 'citizen' && (
             <p className="text-xs text-gray-400 mt-1 uppercase tracking-wider font-semibold">
               {formData.role === 'admin' ? 'System Administrator Portal' : ''}

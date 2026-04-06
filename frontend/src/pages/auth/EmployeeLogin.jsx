@@ -30,13 +30,13 @@ const EmployeeLogin = () => {
 
     try {
       const response = await axios.post('/api/employee-auth/login', formData);
-      
+
       // Clear any existing cached data before storing new data
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       localStorage.removeItem('userType');
       localStorage.removeItem('role');
-      
+
       // Store fresh authentication data
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.employee));
@@ -46,22 +46,22 @@ const EmployeeLogin = () => {
       toast.success('Login successful!');
 
       // Redirect based on role - NO password change required
-        switch (response.data.employee.role) {
-          case 'clerk':
-            navigate('/clerk/dashboard');
-            break;
-          case 'inspector':
-            navigate('/inspector/dashboard');
-            break;
-          case 'officer':
-            navigate('/officer/dashboard');
-            break;
-          case 'collector':
-            navigate('/collector/dashboard');
-            break;
-          default:
-            navigate('/dashboard');
-        }
+      switch (response.data.employee.role) {
+        case 'clerk':
+          navigate('/clerk/dashboard');
+          break;
+        case 'inspector':
+          navigate('/inspector/dashboard');
+          break;
+        case 'officer':
+          navigate('/officer/dashboard');
+          break;
+        case 'collector':
+          navigate('/collector/dashboard');
+          break;
+        default:
+          navigate('/dashboard');
+      }
     } catch (error) {
       console.error('Login error:', error);
       toast.error(error.response?.data?.message || 'Login failed. Please try again.');
@@ -71,20 +71,20 @@ const EmployeeLogin = () => {
   };
 
   return (
-    <div 
+    <div
       className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative"
-        style={{
-          backgroundImage: `url(${backgroundImageUrl})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          backgroundAttachment: 'fixed',
-          minHeight: '100vh',
-          width: '100%'
-        }}
+      style={{
+        backgroundImage: `url(${backgroundImageUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed',
+        minHeight: '100vh',
+        width: '100%'
+      }}
     >
       {/* Dark overlay for better text readability */}
-      <div 
+      <div
         className="absolute inset-0 bg-black opacity-45"
         style={{ zIndex: 0 }}
       />
@@ -203,7 +203,7 @@ const EmployeeLogin = () => {
         </div>
 
         <div className="text-center text-sm text-gray-600">
-          <p>&copy; 2024 HTCMS. All rights reserved.</p>
+          <p>&copy; 2026 ULB. All rights reserved.</p>
         </div>
       </div>
     </div>

@@ -127,7 +127,7 @@ const StaffLogin = ({ isModal = false, onClose, onSwitch }) => {
             </div>
           </div>
           <h1 className="ds-page-title text-primary-600 mb-2">Staff Portal</h1>
-          <p className="text-gray-600">HTCMS - House Tax Collection & Management System</p>
+          <p className="text-gray-600">ULB - Management System</p>
           <p className="text-sm text-gray-500 mt-2">For Staff Members Only</p>
         </div>
 

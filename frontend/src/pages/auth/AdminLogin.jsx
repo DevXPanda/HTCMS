@@ -101,122 +101,122 @@ const AdminLogin = ({ isModal = false, onClose, onSwitch }) => {
   };
 
   const content = (
-      <div className="max-w-md w-full relative z-10">
-        <div className="card max-w-md mx-auto relative">
-          {isModal && (
-            <button 
-              onClick={onClose}
-              type="button"
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-50 transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
-          <div className="text-center mb-8">
-            <div className="flex justify-center mb-4">
-              <div className="bg-primary-100 p-3 rounded-full">
-                <Shield className="w-8 h-8 text-primary-600" />
-              </div>
+    <div className="max-w-md w-full relative z-10">
+      <div className="card max-w-md mx-auto relative">
+        {isModal && (
+          <button
+            onClick={onClose}
+            type="button"
+            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-50 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+        <div className="text-center mb-8">
+          <div className="flex justify-center mb-4">
+            <div className="bg-primary-100 p-3 rounded-full">
+              <Shield className="w-8 h-8 text-primary-600" />
             </div>
-            <h1 className="ds-page-title text-primary-600 mb-2">Admin Portal</h1>
-            <p className="text-gray-600">HTCMS - House Tax Collection & Management System</p>
-            <p className="text-sm text-gray-500 mt-2">For Admin, Assessor & Cashier</p>
+          </div>
+          <h1 className="ds-page-title text-primary-600 mb-2">Admin Portal</h1>
+          <p className="text-gray-600">ULB Management System</p>
+          {/* <p className="text-sm text-gray-500 mt-2">For Admin, Assessor & Cashier</p> */}
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label htmlFor="login_identifier" className="label">
+              Email or Phone Number
+            </label>
+            <input
+              type="text"
+              id="login_identifier"
+              name="login_identifier"
+              value={formData.login_identifier}
+              onChange={handleChange}
+              required
+              className="input"
+              placeholder="Enter your email or phone number"
+              autoComplete="username"
+            />
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label htmlFor="login_identifier" className="label">
-                Email or Phone Number
-              </label>
-              <input
-                type="text"
-                id="login_identifier"
-                name="login_identifier"
-                value={formData.login_identifier}
-                onChange={handleChange}
-                required
-                className="input"
-                placeholder="Enter your email or phone number"
-                autoComplete="username"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="label">
-                Password
-              </label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                className="input"
-                placeholder="Enter your password"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn btn-primary w-full bg-blue-600 hover:bg-blue-700"
-            >
-              {loading ? 'Logging in...' : 'Login to Admin Portal'}
-            </button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Don't have an account?{' '}
-              {isModal && onSwitch ? (
-                <button 
-                  onClick={() => onSwitch('register')}
-                  className="text-blue-600 hover:underline font-medium"
-                >
-                  Register here
-                </button>
-              ) : (
-                <Link to="/admin/register" className="text-blue-600 hover:underline font-medium">
-                  Register here
-                </Link>
-              )}
-            </p>
+          <div>
+            <label htmlFor="password" className="label">
+              Password
+            </label>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+              className="input"
+              placeholder="Enter your password"
+            />
           </div>
 
-          <div className="mt-4 pt-4 border-t">
-            <div className="flex justify-center gap-4 text-sm">
-              {isModal && onSwitch ? (
-                <button 
-                  onClick={() => onSwitch('staff')}
-                  className="text-gray-600 hover:text-blue-600"
-                >
-                   Staff Login
-                </button>
-              ) : (
-                <a href="/staff/login" className="text-gray-600 hover:text-blue-600">
-                  Staff Login
-                </a>
-              )}
-              <span className="text-gray-300">|</span>
-              {isModal && onSwitch ? (
-                <button 
-                  onClick={() => onSwitch('citizen')}
-                  className="text-gray-600 hover:text-blue-600"
-                >
-                  Citizen Login
-                </button>
-              ) : (
-                <a href="/citizen/login" className="text-gray-600 hover:text-blue-600">
-                  Citizen Login
-                </a>
-              )}
-            </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn btn-primary w-full bg-blue-600 hover:bg-blue-700"
+          >
+            {loading ? 'Logging in...' : 'Login to Admin Portal'}
+          </button>
+        </form>
+
+        <div className="mt-6 text-center">
+          <p className="text-sm text-gray-600">
+            Don't have an account?{' '}
+            {isModal && onSwitch ? (
+              <button
+                onClick={() => onSwitch('register')}
+                className="text-blue-600 hover:underline font-medium"
+              >
+                Register here
+              </button>
+            ) : (
+              <Link to="/admin/register" className="text-blue-600 hover:underline font-medium">
+                Register here
+              </Link>
+            )}
+          </p>
+        </div>
+
+        <div className="mt-4 pt-4 border-t">
+          <div className="flex justify-center gap-4 text-sm">
+            {isModal && onSwitch ? (
+              <button
+                onClick={() => onSwitch('staff')}
+                className="text-gray-600 hover:text-blue-600"
+              >
+                Staff Login
+              </button>
+            ) : (
+              <a href="/staff/login" className="text-gray-600 hover:text-blue-600">
+                Staff Login
+              </a>
+            )}
+            <span className="text-gray-300">|</span>
+            {isModal && onSwitch ? (
+              <button
+                onClick={() => onSwitch('citizen')}
+                className="text-gray-600 hover:text-blue-600"
+              >
+                Citizen Login
+              </button>
+            ) : (
+              <a href="/citizen/login" className="text-gray-600 hover:text-blue-600">
+                Citizen Login
+              </a>
+            )}
           </div>
         </div>
       </div>
+    </div>
   );
 
   if (isModal) {

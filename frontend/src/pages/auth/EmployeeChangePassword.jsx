@@ -64,7 +64,7 @@ const EmployeeChangePassword = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!isFormValid()) {
       toast.error('Please fill all fields and meet password requirements');
       return;
@@ -81,7 +81,7 @@ const EmployeeChangePassword = () => {
       });
 
       toast.success('Password changed successfully!');
-      
+
       // Redirect to dashboard based on role
       const role = localStorage.getItem('role');
       switch (role) {
@@ -254,7 +254,7 @@ const EmployeeChangePassword = () => {
         </div>
 
         <div className="text-center text-sm text-gray-600">
-          <p>&copy; 2024 HTCMS. All rights reserved.</p>
+          <p>&copy; 2026 ULB. All rights reserved.</p>
         </div>
       </div>
     </div>
