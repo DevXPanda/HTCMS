@@ -46,8 +46,8 @@ const AdminSidebar = ({ user, logout, sidebarOpen, setSidebarOpen }) => {
   const handleLogout = async () => {
     // Call logout function from context to clear auth data
     await logout();
-    // Navigate to admin login using React Router with replace to prevent back navigation
-    navigate('/admin/login', { replace: true });
+    // Navigate to home using React Router with replace to prevent back navigation
+    navigate('/', { replace: true });
   };
 
   // Format role for display - use exact role from localStorage, no mapping
