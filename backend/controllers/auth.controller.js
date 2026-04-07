@@ -183,9 +183,7 @@ export const register = async (req, res, next) => {
       existingUser.emailVerified = false;
       await existingUser.save();
 
-      sendRegistrationOtpToUser(existingUser, otpPlain).catch((e) =>
-        console.error('Registration OTP email:', e)
-      );
+      await sendRegistrationOtpToUser(existingUser, otpPlain);
 
       return res.status(201).json({
         success: true,
@@ -223,7 +221,7 @@ export const register = async (req, res, next) => {
       registrationOtpExpiresAt
     });
 
-    sendRegistrationOtpToUser(user, otpPlain).catch((e) => console.error('Registration OTP email:', e));
+    await sendRegistrationOtpToUser(user, otpPlain);
 
     return res.status(201).json({
       success: true,
@@ -326,7 +324,7 @@ export const resendRegistrationOtp = async (req, res, next) => {
     const registrationOtpExpiresAt = new Date(Date.now() + REGISTRATION_OTP_MINUTES * 60 * 1000);
     await user.update({ registrationOtpHash, registrationOtpExpiresAt });
 
-    sendRegistrationOtpToUser(user, otpPlain).catch((e) => console.error('Resend registration OTP:', e));
+    await sendRegistrationOtpToUser(user, otpPlain);
 
     res.json({
       success: true,
@@ -527,7 +525,7 @@ export const login = async (req, res, next) => {
       const loginOtpExpiresAt = new Date(Date.now() + LOGIN_OTP_MINUTES * 60 * 1000);
       await user.update({ loginOtpHash, loginOtpExpiresAt });
 
-      sendLoginOtpToUser(user, otpPlain).catch((e) => console.error('Citizen login OTP email:', e));
+      await sendLoginOtpToUser(user, otpPlain);
 
       const pendingToken = generateCitizenLoginPendingToken(user.id);
       return res.json({

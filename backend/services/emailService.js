@@ -21,12 +21,12 @@ export const sendRoleBasedEmail = async (event, eventData, citizenUserId = null)
           if (citizen && citizen.email) {
             const template = getEmailTemplate(event, role, eventData);
             // Send email in background (no await here or wrapped in try/catch)
-            sendMail({
+            await sendMail({
               to: citizen.email,
               subject: template.subject,
               text: template.message,
               html: template.html,
-            }).catch(e => console.error('Failed to send email to citizen:', e));
+            });
           }
         }
       } else {
@@ -36,12 +36,12 @@ export const sendRoleBasedEmail = async (event, eventData, citizenUserId = null)
         for (const user of users) {
           if (user.email) {
             // Send email in background
-            sendMail({
+            await sendMail({
               to: user.email,
               subject: template.subject,
               text: template.message,
               html: template.html,
-            }).catch(e => console.error(`Failed to send email to ${role}:`, e));
+            });
           }
         }
       }

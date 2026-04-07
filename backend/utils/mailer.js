@@ -2,12 +2,17 @@ import nodemailer from 'nodemailer';
 
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-  port: process.env.EMAIL_PORT || 587,
+  port: parseInt(process.env.EMAIL_PORT) || 587,
   secure: process.env.EMAIL_SECURE === 'true', // true for 465, false for other ports
+  requireTLS: process.env.EMAIL_PORT == 587, // force TLS for 587
   auth: {
-    user: process.env.EMAIL_USER, // your SMTP username
-    pass: process.env.EMAIL_PASS, // your SMTP password
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
   },
+  tls: {
+    // Do not fail on invalid certificates (common in some cloud environments)
+    rejectUnauthorized: false
+  }
 });
 
 export const sendMail = async ({ to, subject, text, html }) => {
