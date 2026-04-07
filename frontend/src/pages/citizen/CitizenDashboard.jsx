@@ -7,10 +7,30 @@ import { Home, FileText, CreditCard, Bell, Store, Droplet, PlusCircle, FileCheck
 const CitizenDashboard = () => {
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const slides = [
+    {
+      title: "Manage Your Services,",
+      highlight: "Build a Better City",
+      subtitle: "Access services, track dues, and stay updated with ULB notices from one place.",
+      image: "/Citizen/Hero 1.png",
+      primaryAction: { label: "Pay Now", link: "/citizen/demands" },
+      secondaryAction: { label: "Raise Complaint", link: "/citizen/toilet/file-complaint" },
+      tag: "Welcome back, citizen"
+    }
+  ];
 
   useEffect(() => {
     fetchDashboard();
   }, []);
+
+  useEffect(() => {
+    if (slides.length <= 1) return;
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slides.length);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [slides.length]);
 
   const fetchDashboard = async () => {
     try {
@@ -22,8 +42,6 @@ const CitizenDashboard = () => {
       setLoading(false);
     }
   };
-
-  if (loading) return <Loading />;
 
   const formatAmount = (num) =>
     `₹${Number(num || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -47,7 +65,6 @@ const CitizenDashboard = () => {
     { title: 'Recent Payments', value: dashboard?.recentPayments?.length || 0, sub: 'This period', icon: CreditCard, color: 'bg-emerald-500', link: '/citizen/payments' }
   ];
 
-  // Quick Actions - All sidebar navigation items
   const quickActions = [
     { name: 'My Properties', icon: Home, link: '/citizen/properties', color: 'bg-blue-600' },
     { name: 'My Demands', icon: FileText, link: '/citizen/demands', color: 'bg-orange-600' },
@@ -61,34 +78,72 @@ const CitizenDashboard = () => {
     { name: 'Activity History', icon: History, link: '/citizen/activity-history', color: 'bg-gray-600' },
   ];
 
+  if (loading) return <Loading />;
+
   return (
-    <div className="space-y-5">
-      <section className="overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50 via-sky-50 to-cyan-50">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 p-6">
-          <div className="space-y-3 max-w-xl">
-            <span className="inline-flex items-center rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-blue-700 border border-blue-100">
-              Welcome back, citizen
-            </span>
-            <h1 className="text-2xl md:text-3xl font-bold text-slate-800 leading-tight">
-              Manage Your Services, Build a Better City
+    <div className="space-y-6">
+      {/* Premium Hero Slider Section */}
+      <div className="relative overflow-hidden rounded-2xl bg-slate-900 shadow-lg border border-slate-200/50 group select-none h-[280px] sm:h-[340px] md:h-[400px]">
+        {/* Main Slide Image */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center transition-all duration-1000 ease-in-out transform"
+          style={{ 
+            backgroundImage: `url("${slides[currentSlide].image}")`,
+            backgroundPosition: 'center'
+          }}
+        >
+          {/* Gentle overlay for text legibility */}
+          <div className="absolute inset-0 bg-gradient-to-r from-white/60 via-white/10 to-transparent"></div>
+
+          <div className="p-6 sm:p-10 md:p-14 relative w-full lg:w-3/5 transition-all duration-700 h-full flex flex-col justify-center">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/80 border border-blue-100 text-blue-700 text-[10px] sm:text-[11px] uppercase tracking-wider mb-4 sm:mb-6 animate-fade-in shadow-sm w-fit">
+              <PlusCircle className="w-3 h-3" />
+              {slides[currentSlide].tag}
+            </div>
+
+            <h1 className="text-2xl sm:text-4xl md:text-5xl font-bold text-gray-900 leading-[1.1] mb-2 sm:mb-4 animate-slide-up">
+              {slides[currentSlide].title} <br />
+              <span className="text-blue-600 drop-shadow-sm">{slides[currentSlide].highlight}</span>
             </h1>
-            <p className="text-sm text-slate-600">
-              Access services, track dues, and stay updated with ULB notices from one place.
+
+            <p className="text-xs sm:text-base md:text-lg text-gray-600 mb-6 sm:mb-8 font-medium max-w-md line-clamp-2 sm:line-clamp-none animate-slide-up delay-100">
+              {slides[currentSlide].subtitle}
             </p>
-            <div className="flex flex-wrap gap-3 pt-1">
-              <Link to="/citizen/demands" className="btn btn-primary">Pay Now</Link>
-              <Link to="/citizen/toilet/file-complaint" className="btn btn-secondary">Raise Complaint</Link>
+
+            <div className="flex flex-wrap items-center gap-3 animate-slide-up delay-200">
+              <Link 
+                to={slides[currentSlide].primaryAction.link}
+                className="px-5 sm:px-8 py-2.5 sm:py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs sm:text-sm transition-all shadow-lg shadow-blue-200 flex items-center gap-2 hover:-translate-y-0.5 active:translate-y-0"
+              >
+                <Wallet className="w-4 h-4" />
+                {slides[currentSlide].primaryAction.label}
+              </Link>
+              <Link 
+                to={slides[currentSlide].secondaryAction.link}
+                className="px-5 sm:px-8 py-2.5 sm:py-3.5 bg-white/90 hover:bg-white text-gray-700 backdrop-blur-md rounded-xl font-bold text-xs sm:text-sm border border-white/50 transition-all flex items-center gap-2 hover:-translate-y-0.5 active:translate-y-0 shadow-sm"
+              >
+                <Megaphone className="w-4 h-4" />
+                {slides[currentSlide].secondaryAction.label}
+              </Link>
             </div>
           </div>
-          <div className="hidden md:flex items-center justify-center w-full md:w-64 lg:w-80">
-            <img
-              src="/ULB Logo.png"
-              alt="Urban Local Bodies"
-              className="h-40 w-40 lg:h-48 lg:w-48 object-contain drop-shadow-sm opacity-90"
-            />
-          </div>
         </div>
-      </section>
+
+        {/* Slide Indicators - only show if multiple slides */}
+        {slides.length > 1 && (
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+            {slides.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => setCurrentSlide(idx)}
+                className={`transition-all duration-300 rounded-full ${
+                  currentSlide === idx ? 'w-8 h-2 bg-blue-600' : 'w-2 h-2 bg-white/60 hover:bg-white'
+                }`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
       <section>
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">

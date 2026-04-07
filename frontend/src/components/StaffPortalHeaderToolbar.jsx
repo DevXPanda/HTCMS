@@ -155,72 +155,65 @@ export default function StaffPortalHeaderToolbar({
         <>
           <button
             type="button"
-            className="md:hidden fixed inset-0 z-[75] bg-black/40"
+            className="md:hidden fixed inset-0 z-[75] bg-black/20 backdrop-blur-sm"
             aria-label="Close menu"
             onClick={closeMenu}
           />
-          <div className="md:hidden fixed top-0 right-0 bottom-0 z-[80] w-[min(100%,20rem)] bg-white shadow-xl flex flex-col border-l border-gray-200">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
-              <span className="text-sm font-semibold text-gray-900">Menu</span>
-              <button
-                type="button"
-                onClick={closeMenu}
-                className="header-icon-btn p-2 text-gray-500 hover:text-gray-800 rounded-full"
-                aria-label="Close menu"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto overflow-x-hidden">
-              <div className="p-4 border-b border-gray-100 bg-gray-50">
-                <div className="flex items-center gap-3">
-                  <div className="h-11 w-11 shrink-0 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 text-lg font-bold">
-                    {userInitial}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{userTitle}</p>
-                    <p className="text-xs text-gray-500 truncate">{userSubtitle}</p>
-                    {userExtra ? <div className="mt-1">{userExtra}</div> : null}
-                  </div>
+          <div className="md:hidden fixed top-16 right-4 z-[80] w-64 bg-white/95 backdrop-blur-md shadow-2xl flex flex-col border border-gray-100 rounded-2xl overflow-hidden animate-in fade-in zoom-in duration-200 origin-top-right">
+            <div className="p-4 border-b border-gray-100 bg-gray-50/50">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 shrink-0 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 text-base font-bold">
+                  {userInitial}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-gray-900 truncate">{userTitle}</p>
+                  <p className="text-[10px] text-gray-500 truncate uppercase tracking-wider font-medium">{userSubtitle}</p>
                 </div>
               </div>
-
-              <nav className="py-2" aria-label="Portal navigation">
-                <button
-                  type="button"
-                  onClick={goHome}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-medium text-gray-800 hover:bg-gray-50 border-b border-gray-50"
-                >
-                  <Home className="w-5 h-5 text-gray-500 shrink-0" />
-                  Dashboard home
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    onProfile();
-                    closeMenu();
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-medium text-gray-800 hover:bg-gray-50 border-b border-gray-50"
-                >
-                  <User className="w-5 h-5 text-gray-500 shrink-0" />
-                  My profile
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    onLogout();
-                    closeMenu();
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-medium text-red-600 hover:bg-red-50"
-                >
-                  <LogOut className="w-5 h-5 shrink-0" />
-                  Logout
-                </button>
-              </nav>
             </div>
+
+            <nav className="py-1.5" aria-label="Portal navigation">
+              <button
+                type="button"
+                onClick={goHome}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-primary-50/50 hover:text-primary-700 transition-colors"
+              >
+                <div className="p-1.5 bg-gray-100 rounded-lg group-hover:bg-white">
+                  <Home className="w-4 h-4 text-gray-500 shrink-0" />
+                </div>
+                Dashboard 
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onProfile();
+                  closeMenu();
+                }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-primary-50/50 hover:text-primary-700 transition-colors"
+              >
+                <div className="p-1.5 bg-gray-100 rounded-lg">
+                  <User className="w-4 h-4 text-gray-500 shrink-0" />
+                </div>
+                My Profile
+              </button>
+
+              <div className="my-1 border-t border-gray-100"></div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onLogout();
+                  closeMenu();
+                }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+              >
+                <div className="p-1.5 bg-red-50 rounded-lg">
+                  <LogOut className="w-4 h-4 text-red-600 shrink-0" />
+                </div>
+                Logout
+              </button>
+            </nav>
           </div>
         </>
       )}

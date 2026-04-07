@@ -61,6 +61,9 @@ const Dashboard = () => {
     fetchULBs();
   }, []);
 
+  const [recentLogs, setRecentLogs] = useState([]);
+  const [activitiesLoading, setActivitiesLoading] = useState(false);
+
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
@@ -76,9 +79,51 @@ const Dashboard = () => {
     }
   };
 
+  const fetchRecentActivities = async () => {
+    try {
+      setActivitiesLoading(true);
+      const params = { limit: 5, sortBy: 'timestamp', sortOrder: 'DESC' };
+      // Note: audit-logs endpoint handles role-based and ulb-based filtering internally in the backend
+      const response = await api.get('/audit-logs', { params });
+      if (response.data?.success) {
+        setRecentLogs(response.data.data.auditLogs || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch recent activities:', err);
+    } finally {
+      setActivitiesLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchDashboardData();
+    fetchRecentActivities();
   }, [effectiveUlbId]);
+
+  const getTimeAgo = (timestamp) => {
+    if (!timestamp) return '';
+    const seconds = Math.floor((new Date() - new Date(timestamp)) / 1000);
+    if (seconds < 60) return 'Just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  };
+
+  const getActivityIcon = (entityType) => {
+    switch (entityType) {
+      case 'Property': return Building2;
+      case 'Assessment': return FileText;
+      case 'Demand': return DollarSign;
+      case 'Payment': return TrendingUp;
+      case 'Notice': return Bell;
+      case 'User': return UserCog;
+      case 'Ward': return MapPin;
+      default: return Activity;
+    }
+  };
 
   const trendSeries = useMemo(() => {
     const base = toNumber(stats.totalRevenue);
@@ -188,6 +233,31 @@ const Dashboard = () => {
     { name: 'Audit Logs', icon: Shield, link: '/audit-logs' },
   ];
 
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const slides = useMemo(() => [
+    {
+      image: "/admin/Hero.png",
+      badge: `Welcome Back, ${user?.firstName || user?.username || 'Admin'}!`,
+      title: "Manage Smarter,",
+      titleAccent: "Serve Better",
+      description: "EO Control System"
+    },
+    {
+      image: "/admin/Hero 2.png",
+      badge: "System Insights",
+      title: "Digital Governance,",
+      titleAccent: "Efficient ULBs",
+      description: "Urban Local Bodies"
+    }
+  ], [user]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slides.length);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [slides.length]);
+
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="spinner spinner-md" /></div>;
   }
@@ -211,15 +281,81 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
+      <div
+        className={`relative overflow-hidden rounded-3xl border border-blue-100 shadow-sm h-[260px] sm:h-[400px] md:h-[450px] flex items-center bg-cover transition-all duration-1000 ease-in-out ${currentSlide === 1 ? 'bg-[percentage:85%_center] sm:bg-center' : 'bg-center'
+          }`}
+        style={{ backgroundImage: `url("${slides[currentSlide].image}")` }}
+      >
+        {/* Subtle overlay to maintain image visibility while ensuring legibility */}
+        <div className="absolute inset-0 bg-gradient-to-r from-white/60 via-white/10 to-transparent"></div>
+
+        <div className="p-5 sm:p-10 md:p-14 relative w-full lg:w-3/5 transition-all duration-700">
+          <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-white/80 border border-blue-100 text-blue-600 text-[10px] sm:text-[11px] uppercase tracking-wider mb-2 sm:mb-6 animate-fade-in">
+            <span className="flex h-1.5 w-1.5 rounded-full bg-blue-600 animate-pulse"></span>
+            {slides[currentSlide].badge}
+          </div>
+          <h1 className="text-xl sm:text-4xl md:text-5xl font-bold text-gray-900 leading-tight mb-3 sm:mb-6 tracking-tight animate-slide-up">
+            {slides[currentSlide].title}<br />
+            <span className="text-blue-600">
+              {slides[currentSlide].titleAccent}
+            </span>
+          </h1>
+          <p className="text-xs sm:text-lg text-gray-600 font-medium mb-5 sm:mb-10 max-w-md flex items-center gap-2 sm:gap-3 animate-slide-up">
+            <span className="h-[1px] w-4 sm:w-10 bg-blue-200"></span>
+            {slides[currentSlide].description}
+          </p>
+          <div className="flex flex-row flex-wrap gap-2 sm:gap-4 mt-1">
+            {isSuperAdmin ? (
+              <>
+                <Link to="/ulb-management" className="flex items-center justify-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg font-semibold text-xs sm:text-base hover:bg-blue-700 transition-all shadow-md active:scale-95 group">
+                  <Building2 className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-110" />
+                  Manage ULBs
+                </Link>
+                <Link to="/audit-logs" className="flex items-center justify-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-white border border-gray-200 text-gray-700 rounded-lg font-semibold text-xs sm:text-base hover:bg-gray-50 transition-all active:scale-95 group shadow-sm">
+                  <Shield className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:rotate-12" />
+                  Audit Logs
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link to="/tax-management" className="flex items-center justify-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg font-semibold text-xs sm:text-base hover:bg-blue-700 transition-all shadow-md active:scale-95 group">
+                  <FileText className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:translate-x-1" />
+                  Tax Management
+                </Link>
+                <Link to="/attendance" className="flex items-center justify-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-white border border-gray-200 text-gray-700 rounded-lg font-semibold text-xs sm:text-base hover:bg-gray-50 transition-all active:scale-95 group shadow-sm">
+                  <Clock className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:rotate-12" />
+                  Staff Attendance
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Slide Indicators */}
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+          {slides.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentSlide(idx)}
+              className={`h-1.5 rounded-full transition-all duration-300 ${currentSlide === idx ? 'w-8 bg-blue-600' : 'w-2 bg-slate-300 hover:bg-slate-400'
+                }`}
+              aria-label={`Go to slide ${idx + 1}`}
+            />
+          ))}
+        </div>
+      </div>
+
+
+
       <div className="card border border-gray-200 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-          <h1 className="text-3xl font-bold text-gray-900">EO Control Panel</h1>
-          <div className="flex items-center gap-2">
+        <div className="flex flex-row items-center justify-between gap-3 mb-6">
+          <h1 className="text-xl sm:text-3xl font-bold text-gray-900 truncate">EO Control Panel</h1>
+          <div className="flex items-center gap-2 min-w-0 max-w-[60%] sm:max-w-[20rem]">
             {isSuperAdmin && (
               <select
                 value={selectedUlbId}
                 onChange={(e) => setSelectedUlbId(e.target.value)}
-                className="input h-10 min-w-[16rem] max-w-[20rem] truncate"
+                className="input h-9 sm:h-10 w-full truncate text-[11px] sm:text-sm px-2 bg-gray-50/50 border-gray-200 focus:bg-white transition-all shadow-sm rounded-lg"
                 title={selectedUlbName || 'All ULBs'}
               >
                 <option value="">All ULBs</option>
@@ -230,89 +366,117 @@ const Dashboard = () => {
             )}
             {!isSuperAdmin && (
               <div
-                className="input h-10 min-w-[16rem] max-w-[20rem] flex items-center text-sm text-gray-700 truncate"
+                className="input h-9 sm:h-10 w-full flex items-center text-[11px] sm:text-sm text-gray-700 truncate px-3 bg-gray-50/50 border-gray-200 rounded-lg"
                 title={ulbs.find((u) => u.id === effectiveUlbId)?.name || 'Your ULB'}
               >
                 {ulbs.find((u) => u.id === effectiveUlbId)?.name || 'Your ULB'}
               </div>
             )}
-            {/* <button className="header-icon-btn p-2"><CalendarDays className="w-4 h-4 text-gray-500" /></button>
-            <button className="header-icon-btn p-2" onClick={fetchDashboardData}><Bell className="w-4 h-4 text-gray-500" /></button> */}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
           {topCards.map((card) => (
-            <div key={card.title} className="rounded-xl border border-gray-100 bg-white p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-xs uppercase font-semibold text-gray-500">{card.title}</p>
-                <card.icon className="w-4 h-4 text-gray-400" />
+            <div key={card.title} className="rounded-xl border border-gray-100 bg-white p-3 sm:p-4 hover:border-blue-100 transition-colors">
+              <div className="flex items-center justify-between gap-1">
+                <p className="text-[10px] sm:text-xs uppercase font-semibold text-gray-500 truncate">{card.title}</p>
+                <card.icon className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400 shrink-0" />
               </div>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{card.value}</p>
-              <p className="text-sm text-green-600 font-semibold mt-1">{card.delta}</p>
+              <p className="text-xl sm:text-3xl font-bold text-gray-900 mt-2 truncate">{card.value}</p>
+              <p className="text-xs sm:text-sm text-green-600 font-semibold mt-1">{card.delta}</p>
             </div>
           ))}
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-6">
           <div className="rounded-xl border border-gray-100 bg-white p-4 xl:col-span-2">
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">Revenue Overview</h3>
-            <div className="h-64"><Line data={lineData} options={lineOptions} /></div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue Overview</h3>
+            <div className="h-60 sm:h-64"><Line data={lineData} options={lineOptions} /></div>
           </div>
 
           <div className="rounded-xl border border-gray-100 bg-white p-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">Demand Status</h3>
-            <div className="h-56"><Doughnut data={doughnutData} options={doughnutOptions} /></div>
-            <div className="mt-3 space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-green-600">Paid</span><span>{paidCount}</span></div>
-              <div className="flex justify-between"><span className="text-amber-600">Pending</span><span>{pendingCount}</span></div>
-              <div className="flex justify-between"><span className="text-red-600">Overdue</span><span>{overdueCount}</span></div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Demand Status</h3>
+            <div className="h-48 sm:h-56"><Doughnut data={doughnutData} options={doughnutOptions} /></div>
+            <div className="mt-4 space-y-2 text-sm">
+              <div className="flex justify-between items-center"><span className="text-green-600 flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-green-500"></span>Paid</span><span className="font-semibold text-gray-700">{paidCount}</span></div>
+              <div className="flex justify-between items-center"><span className="text-amber-600 flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>Pending</span><span className="font-semibold text-gray-700">{pendingCount}</span></div>
+              <div className="flex justify-between items-center"><span className="text-red-600 flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-red-500"></span>Overdue</span><span className="font-semibold text-gray-700">{overdueCount}</span></div>
             </div>
           </div>
         </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="rounded-xl border border-gray-100 bg-white p-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">Quick Actions</h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {quickActions.map((a) => (
-                <Link key={a.name} to={a.link} className="rounded-xl border border-gray-100 p-4 hover:bg-gray-50 transition-colors text-center">
-                  <div className={`mx-auto mb-2 h-10 w-10 rounded-full text-white flex items-center justify-center ${a.color}`}>
+                <Link key={a.name} to={a.link} className="rounded-xl border border-gray-100 p-3 sm:p-4 hover:bg-blue-50/50 hover:border-blue-100 transition-all text-center group">
+                  <div className={`mx-auto mb-2 h-9 w-9 sm:h-10 sm:w-10 rounded-full text-white flex items-center justify-center ${a.color} transition-transform group-hover:scale-110`}>
                     <a.icon className="w-5 h-5" />
                   </div>
-                  <p className="text-sm font-medium text-gray-700">{a.name}</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-700">{a.name}</p>
                 </Link>
               ))}
             </div>
           </div>
 
           <div className="rounded-xl border border-gray-100 bg-white p-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">Recent Activities</h3>
-            <div className="space-y-3">
-              {recentActivities.map((item) => (
-                <div key={item.text} className="flex items-start justify-between gap-3 border-b border-gray-100 pb-3 last:border-0 last:pb-0">
-                  <div className="flex items-start gap-2 min-w-0">
-                    <item.icon className="w-4 h-4 text-primary-500 mt-0.5" />
-                    <p className="text-sm text-gray-700 truncate">{item.text}</p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activities</h3>
+            <div className="space-y-4">
+              {activitiesLoading ? (
+                Array(3).fill(0).map((_, i) => (
+                  <div key={i} className="flex gap-3 animate-pulse">
+                    <div className="w-9 h-9 bg-gray-100 rounded-lg"></div>
+                    <div className="flex-1 space-y-2 py-1">
+                      <div className="h-2 bg-gray-100 rounded w-3/4"></div>
+                      <div className="h-2 bg-gray-50 rounded w-1/4"></div>
+                    </div>
                   </div>
-                  <span className="text-xs text-gray-400 whitespace-nowrap">{item.when}</span>
+                ))
+              ) : recentLogs.length > 0 ? (
+                recentLogs.map((log) => {
+                  const Icon = getActivityIcon(log.entityType);
+                  return (
+                    <div key={log.id} className="flex items-start justify-between gap-3 border-b border-gray-50 pb-3 last:border-0 last:pb-0">
+                      <div className="flex items-start gap-3 min-w-0">
+                        <div className="p-2 bg-blue-50 rounded-lg shrink-0">
+                          <Icon className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm text-gray-700 font-medium line-clamp-2 leading-snug">{log.description}</p>
+                          <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1.5 uppercase font-medium">
+                            <Clock className="w-3 h-3" />
+                            {getTimeAgo(log.timestamp)}
+                            <span className="h-1 w-1 rounded-full bg-gray-300"></span>
+                            {log.actor?.firstName} {log.actor?.lastName || log.actor?.username || ''}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <Activity className="w-8 h-8 text-gray-200 mb-2" />
+                  <p className="text-sm text-gray-400">No recent activities found.</p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </div>
       </div>
 
       <div className="rounded-xl border border-gray-100 bg-white p-4 mb-4">
-        <h3 className="text-xs font-semibold tracking-wide text-gray-500 uppercase mb-3">Administration & Reports</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+        <h3 className="text-xs font-semibold tracking-wide text-gray-500 uppercase mb-4 px-1">Administration & Reports</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-3">
           {adminItems.map((item) => (
             <Link
               key={item.name}
               to={item.link}
-              className="rounded-xl border border-gray-100 p-3 text-center hover:bg-gray-50 transition-colors"
+              className="rounded-xl border border-gray-100 p-3 text-center hover:bg-blue-50/50 hover:border-blue-100 transition-all group"
             >
-              <item.icon className="w-5 h-5 mx-auto mb-2 text-gray-500" />
-              <p className="text-xs font-medium text-gray-700">{item.name}</p>
+              <item.icon className="w-5 h-5 mx-auto mb-2 text-gray-400 group-hover:text-blue-600 transition-colors" />
+              <p className="text-[11px] font-medium text-gray-600 group-hover:text-gray-900">{item.name}</p>
             </Link>
           ))}
         </div>
@@ -322,6 +486,23 @@ const Dashboard = () => {
         <Filter className="w-4 h-4" />
         Amount format follows image style: <span className="font-semibold text-gray-900">{formatCurrencyCr(8898900000)}</span>
       </div> */}
+
+      <footer className="mt-8 pb-4 border-t border-gray-100 pt-6">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-xs sm:text-sm text-gray-500 font-medium">
+          <div className="flex items-center gap-2">
+            <span className="p-1.5 bg-blue-50/50 rounded-lg">
+              <Building2 className="w-4 h-4 text-blue-600" />
+            </span>
+            <span>© {new Date().getFullYear()} Urban Local Bodies - Governance Portal</span>
+          </div>
+          <div className="flex items-center gap-6">
+            <p className="hover:text-blue-600 cursor-help transition-colors">Privacy Policy</p>
+            <p className="hover:text-blue-600 cursor-help transition-colors">Support</p>
+            <div className="h-4 w-[1px] bg-gray-200 hidden sm:block"></div>
+            <p className="text-gray-400">Powered by <span className="text-blue-600/80 font-semibold tracking-wide">XPanda</span></p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };
