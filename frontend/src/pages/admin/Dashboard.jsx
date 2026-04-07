@@ -318,10 +318,10 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="card-flat flex items-center gap-2 text-sm text-gray-600">
+      {/* <div className="card-flat flex items-center gap-2 text-sm text-gray-600">
         <Filter className="w-4 h-4" />
         Amount format follows image style: <span className="font-semibold text-gray-900">{formatCurrencyCr(8898900000)}</span>
-      </div>
+      </div> */}
     </div>
   );
 };
