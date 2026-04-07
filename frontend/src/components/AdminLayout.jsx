@@ -1,14 +1,12 @@
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { User, LogOut, X, Home } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useState } from 'react';
 import Breadcrumbs from './Breadcrumbs';
-import HeaderNotificationBell from './HeaderNotificationBell';
-import GlobalHeaderSearch from './GlobalHeaderSearch';
+import StaffPortalHeaderRow from './StaffPortalHeaderRow';
 
 const AdminLayout = () => {
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
   const [showProfileModal, setShowProfileModal] = useState(false);
 
   const handleLogout = async () => {
@@ -24,51 +22,15 @@ const AdminLayout = () => {
         {/* Top bar - hidden when printing receipt */}
         <header className="no-print bg-white shadow-sm sticky top-0 z-10 w-full">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-wrap justify-between items-center gap-2 h-16 min-h-[4rem]">
-              <div className="flex items-center gap-3 min-w-0 shrink-0">
-                <img src="/ULB Logo.png" alt="ULB Logo" className="w-10 h-10 object-contain" />
-                <h1 className="layout-header-title">Urban Local Bodies</h1>
-              </div>
-              <GlobalHeaderSearch role={userData?.role || 'admin'} />
-              <div className="layout-header-actions">
-                <button
-                  onClick={() => navigate('/dashboard')}
-                  className="header-icon-btn p-2 text-gray-600 hover:text-primary-600 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center"
-                  title="Dashboard Home"
-                >
-                  <Home className="w-5 h-5 shrink-0" />
-                </button>
-                <HeaderNotificationBell />
-
-                <div className="hidden md:flex items-center space-x-3 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-200">
-                  <div className="h-8 w-8 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 text-sm font-bold">
-                    {userData?.firstName?.charAt(0) || 'A'}
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-semibold text-gray-900">
-                      {userData?.firstName} {userData?.lastName}
-                    </span>
-                    <span className="text-xs text-gray-500">ID: {userData?.id || 'N/A'}</span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setShowProfileModal(true)}
-                  className="header-icon-btn p-2 text-gray-600 hover:text-primary-600 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center"
-                  title="My Profile"
-                >
-                  <User className="w-5 h-5 shrink-0" />
-                </button>
-
-                <button
-                  onClick={handleLogout}
-                  className="header-icon-btn p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-full transition-colors flex items-center justify-center"
-                  title="Logout"
-                >
-                  <LogOut className="w-5 h-5 shrink-0" />
-                </button>
-              </div>
-            </div>
+            <StaffPortalHeaderRow
+              searchRole={userData?.role || 'admin'}
+              dashboardPath="/dashboard"
+              userInitial={userData?.firstName?.charAt(0) || 'A'}
+              userTitle={`${userData?.firstName || ''} ${userData?.lastName || ''}`.trim() || 'Admin'}
+              userSubtitle={`ID: ${userData?.id || 'N/A'}`}
+              onProfile={() => setShowProfileModal(true)}
+              onLogout={handleLogout}
+            />
           </div>
         </header>
 

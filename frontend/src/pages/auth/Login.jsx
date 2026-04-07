@@ -10,7 +10,11 @@ const backgroundImageUrl = '/background.png';
 const Login = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
-  const { login, user, isAuthenticated, loading: authLoading } = useAuth();
+  const [loginStep, setLoginStep] = useState('credentials');
+  const [pendingToken, setPendingToken] = useState('');
+  const [emailMasked, setEmailMasked] = useState('');
+  const [otpValue, setOtpValue] = useState('');
+  const { login, completeCitizenLogin, logout, user, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   // Redirect if already logged in OR after successful login
@@ -72,13 +76,21 @@ const Login = () => {
     try {
       const result = await login(formData.email, formData.password);
 
+      if (result.success && result.requiresOtp && result.pendingToken) {
+        toast.success(result.message || 'Check your email for a sign-in code.');
+        setPendingToken(result.pendingToken);
+        setEmailMasked(result.emailMasked || '');
+        setLoginStep('otp');
+        setOtpValue('');
+        setLoading(false);
+        return;
+      }
+
       if (result.success && result.user) {
         toast.success('Login successful!');
 
-        // Get exact role from API response - AuthContext already stored it
         const role = result.user.role;
 
-        // Redirect based on exact role from API
         if (role === 'admin' || role === 'assessor' || role === 'cashier') {
           navigate('/dashboard', { replace: true });
         } else if (role === 'collector') {
@@ -95,6 +107,34 @@ const Login = () => {
       toast.error('An error occurred during login');
       setLoading(false);
     }
+  };
+
+  const handleVerifyLoginOtp = async (e) => {
+    e.preventDefault();
+    if (!otpValue.trim() || otpValue.trim().length < 6) {
+      toast.error('Enter the 6-digit code from your email');
+      return;
+    }
+    setLoading(true);
+    try {
+      const result = await completeCitizenLogin(pendingToken, otpValue.trim());
+      if (result.success && result.user) {
+        const role = result.user.role;
+        if (role !== 'citizen') {
+          await logout();
+          toast.error('Access denied.');
+          setLoading(false);
+          return;
+        }
+        toast.success('Login successful!');
+        navigate('/citizen/dashboard', { replace: true });
+      } else {
+        toast.error(result.message || 'Invalid code');
+      }
+    } catch {
+      toast.error('Verification failed');
+    }
+    setLoading(false);
   };
 
   return (
@@ -123,47 +163,87 @@ const Login = () => {
             <p className="text-gray-600 font-medium">Citizen Service Portal</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label htmlFor="email" className="label">
-                Email Address
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                className="input"
-                placeholder="Enter your email"
-              />
-            </div>
+          {loginStep === 'otp' ? (
+            <form onSubmit={handleVerifyLoginOtp} className="space-y-6">
+              <p className="text-sm text-gray-600 text-center">
+                Sign-in code sent to{' '}
+                <span className="font-medium text-gray-800">{emailMasked || 'your email'}</span>
+              </p>
+              <div>
+                <label htmlFor="loginOtp" className="label">
+                  Sign-in code
+                </label>
+                <input
+                  type="text"
+                  id="loginOtp"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={8}
+                  value={otpValue}
+                  onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, ''))}
+                  required
+                  className="input text-center text-xl tracking-widest font-mono"
+                  placeholder="000000"
+                />
+              </div>
+              <button type="submit" disabled={loading} className="btn btn-primary w-full">
+                {loading ? 'Verifying...' : 'Verify & sign in'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginStep('credentials');
+                  setPendingToken('');
+                  setOtpValue('');
+                }}
+                className="w-full text-sm text-gray-500"
+              >
+                Back to password
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label htmlFor="email" className="label">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                  className="input"
+                  placeholder="Enter your email"
+                />
+              </div>
 
-            <div>
-              <label htmlFor="password" className="label">
-                Password
-              </label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                className="input"
-                placeholder="Enter your password"
-              />
-            </div>
+              <div>
+                <label htmlFor="password" className="label">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                  className="input"
+                  placeholder="Enter your password"
+                />
+              </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn btn-primary w-full"
-            >
-              {loading ? 'Logging in...' : 'Login'}
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn btn-primary w-full"
+              >
+                {loading ? 'Logging in...' : 'Login'}
+              </button>
+            </form>
+          )}
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">

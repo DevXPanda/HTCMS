@@ -92,7 +92,11 @@ export const authAPI = {
       : { phone: emailOrPhone, password, ...location };
     return api.post('/auth/login', loginData);
   },
+  verifyCitizenLogin: (pendingToken, otp) =>
+    api.post('/auth/verify-citizen-login', { pendingToken, otp }),
   register: (data) => api.post('/auth/register', data),
+  verifyRegistration: (email, otp) => api.post('/auth/verify-registration', { email, otp }),
+  resendRegistrationOtp: (email) => api.post('/auth/resend-registration-otp', { email }),
   logout: () => api.post('/auth/logout'),
   getMe: () => api.get('/auth/me'),
   changePassword: (currentPassword, newPassword) =>

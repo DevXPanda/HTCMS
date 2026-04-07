@@ -4,7 +4,7 @@ import { Bell, CheckCheck } from 'lucide-react';
 import { useNotifications } from '../contexts/NotificationContext';
 import { formatDistanceToNow } from 'date-fns';
 
-export default function HeaderNotificationBell() {
+export default function HeaderNotificationBell({ elevatedDropdown = false }) {
   const { notifications, unreadCount, markAsRead, markAllAsRead, fetchNotifications } = useNotifications();
   const [open, setOpen] = useState(false);
   const panelRef = useRef(null);
@@ -27,25 +27,37 @@ export default function HeaderNotificationBell() {
     }
   };
 
+  const badgeLabel =
+    unreadCount > 0
+      ? `${unreadCount > 99 ? '99+' : unreadCount} unread notifications`
+      : 'No unread notifications';
+
   return (
-    <div className="relative" ref={panelRef}>
+    <div className="relative overflow-visible" ref={panelRef}>
       <button
         type="button"
         onClick={() => { setOpen((o) => !o); if (!open) fetchNotifications(); }}
-        className="header-icon-btn p-2 text-gray-600 hover:text-primary-600 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center relative"
-        title="Notifications"
-        aria-label="Notifications"
+        className="header-icon-btn p-2 text-gray-600 hover:text-primary-600 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center relative overflow-visible"
+        title={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : 'Notifications'}
+        aria-label={`Notifications. ${badgeLabel}`}
       >
         <Bell className="w-5 h-5 shrink-0" />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500 text-white text-xs font-bold px-1">
+          <span
+            className="pointer-events-none absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white shadow-sm ring-2 ring-white"
+            aria-hidden
+          >
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-[320px] max-h-[400px] overflow-hidden bg-white rounded-lg shadow-lg border border-gray-200 z-50 flex flex-col">
+        <div
+          className={`absolute right-0 top-full mt-1 w-[min(100vw-1rem,320px)] max-h-[400px] overflow-hidden bg-white rounded-lg shadow-lg border border-gray-200 flex flex-col sm:w-[320px] ${
+            elevatedDropdown ? 'z-[90]' : 'z-50'
+          }`}
+        >
           <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
             <span className="text-sm font-semibold text-gray-900">Notifications</span>
             {unreadCount > 0 && (

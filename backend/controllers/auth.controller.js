@@ -1,8 +1,11 @@
 import jwt from 'jsonwebtoken';
-import { User, Property } from '../models/index.js';
+import { User, Property, ULB } from '../models/index.js';
 import { Op } from 'sequelize';
 import { auditLogger, createAuditLog } from '../utils/auditLogger.js';
 import { parseDeviceInfo } from '../utils/deviceParser.js';
+import { sendMail } from '../utils/mailer.js';
+import { buildCitizenOtpEmail } from '../utils/citizenOtpEmail.js';
+import { generateNumericOtp, hashOtp, compareOtp, maskEmail } from '../utils/otpUtils.js';
 
 /**
  * Generate JWT Token
@@ -31,39 +34,57 @@ const generateToken = (user) => {
   });
 };
 
+const REGISTRATION_OTP_MINUTES = Number(process.env.REGISTRATION_OTP_MINUTES) || 30;
+const LOGIN_OTP_MINUTES = Number(process.env.CITIZEN_LOGIN_OTP_MINUTES) || 15;
+
+const generateCitizenLoginPendingToken = (userId) =>
+  jwt.sign(
+    { userId, purpose: 'citizen_login_otp' },
+    process.env.JWT_SECRET,
+    { expiresIn: `${LOGIN_OTP_MINUTES}m` }
+  );
+
+async function getDefaultCitizenUlbId() {
+  const firstUlb = await ULB.findOne({ attributes: ['id'], where: { status: 'ACTIVE' } });
+  return firstUlb?.id || null;
+}
+
+async function sendRegistrationOtpToUser(user, otpPlain) {
+  const { subject, text, html } = buildCitizenOtpEmail({
+    otpCode: otpPlain,
+    title: 'Urban Local Bodies — verify your registration',
+    introText: 'Thank you for registering with Urban Local Bodies. Enter this code to complete your account setup.',
+    minutesValid: REGISTRATION_OTP_MINUTES
+  });
+  await sendMail({ to: user.email, subject, text, html });
+}
+
+async function sendLoginOtpToUser(user, otpPlain) {
+  const { subject, text, html } = buildCitizenOtpEmail({
+    otpCode: otpPlain,
+    title: 'Urban Local Bodies — sign-in verification code',
+    introText: 'You are signing in to the Urban Local Bodies citizen portal. Use this code to finish logging in.',
+    minutesValid: LOGIN_OTP_MINUTES
+  });
+  await sendMail({ to: user.email, subject, text, html });
+}
+
 /**
  * @route   POST /api/auth/register
- * @desc    Register a new user (Citizen)
+ * @desc    Register a new user — citizens must verify email OTP before login; admins get immediate access
  * @access  Public
  */
 export const register = async (req, res, next) => {
   try {
     const { username, email, password, firstName, lastName, phone, role } = req.body;
 
-    // Check if user already exists
-    const existingUser = await User.findOne({
-      where: {
-        [Op.or]: [{ email }, { username }]
-      }
-    });
-
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: 'User with this email or username already exists'
-      });
-    }
-
     // Validate and normalize role if provided - ONLY allow admin and citizen for self-registration
     let normalizedRole = role;
     if (role) {
       normalizedRole = role.toLowerCase().trim();
-      // Map 'tax_collector' to 'collector' for backward compatibility
       if (normalizedRole === 'tax_collector') {
         normalizedRole = 'collector';
       }
-      // IMPORTANT: Only allow admin and citizen roles for self-registration
-      // Staff roles (clerk, inspector, officer, collector) must be created by admin only
       const allowedSelfRegistrationRoles = ['admin', 'citizen'];
       if (!allowedSelfRegistrationRoles.includes(normalizedRole)) {
         return res.status(400).json({
@@ -73,21 +94,333 @@ export const register = async (req, res, next) => {
       }
     }
 
-    // Create new user - use role from req.body if provided, otherwise let model default handle it
+    const effectiveRole = normalizedRole || 'citizen';
+
+    // Admin: keep immediate registration + token (no email OTP)
+    if (effectiveRole === 'admin') {
+      const existingUser = await User.findOne({
+        where: { [Op.or]: [{ email }, { username }] }
+      });
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'User with this email or username already exists'
+        });
+      }
+
+      const user = await User.create({
+        username,
+        email,
+        password,
+        firstName,
+        lastName,
+        phone,
+        role: 'admin',
+        emailVerified: true,
+        isActive: true
+      });
+
+      const token = generateToken(user);
+      const sanitizedUser = {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        phone: user.phone,
+        role: user.role
+      };
+
+      return res.status(201).json({
+        success: true,
+        message: 'User registered successfully',
+        data: { user: sanitizedUser, token }
+      });
+    }
+
+    // Citizen: create inactive account, send OTP; no JWT until email verified (then user logs in on login page)
+    const existingUser = await User.findOne({
+      where: { [Op.or]: [{ email }, { username }] }
+    });
+
+    if (existingUser) {
+      const pendingSameEmail =
+        existingUser.email === email &&
+        existingUser.role === 'citizen' &&
+        !existingUser.emailVerified;
+
+      if (!pendingSameEmail) {
+        return res.status(400).json({
+          success: false,
+          message: 'User with this email or username already exists'
+        });
+      }
+
+      if (existingUser.username !== username) {
+        const usernameTaken = await User.findOne({
+          where: { username, id: { [Op.ne]: existingUser.id } }
+        });
+        if (usernameTaken) {
+          return res.status(400).json({
+            success: false,
+            message: 'Username is already taken'
+          });
+        }
+      }
+
+      const otpPlain = generateNumericOtp();
+      const registrationOtpHash = await hashOtp(otpPlain);
+      const registrationOtpExpiresAt = new Date(Date.now() + REGISTRATION_OTP_MINUTES * 60 * 1000);
+
+      existingUser.username = username;
+      existingUser.password = password;
+      existingUser.firstName = firstName;
+      existingUser.lastName = lastName;
+      existingUser.phone = phone || null;
+      existingUser.registrationOtpHash = registrationOtpHash;
+      existingUser.registrationOtpExpiresAt = registrationOtpExpiresAt;
+      existingUser.isActive = false;
+      existingUser.emailVerified = false;
+      await existingUser.save();
+
+      sendRegistrationOtpToUser(existingUser, otpPlain).catch((e) =>
+        console.error('Registration OTP email:', e)
+      );
+
+      return res.status(201).json({
+        success: true,
+        requiresVerification: true,
+        message: 'We sent a verification code to your email. Enter it to complete registration.',
+        email: existingUser.email,
+        emailMasked: maskEmail(existingUser.email)
+      });
+    }
+
+    const ulbId = await getDefaultCitizenUlbId();
+    if (!ulbId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Registration is temporarily unavailable. Please try again later or contact support.'
+      });
+    }
+
+    const otpPlain = generateNumericOtp();
+    const registrationOtpHash = await hashOtp(otpPlain);
+    const registrationOtpExpiresAt = new Date(Date.now() + REGISTRATION_OTP_MINUTES * 60 * 1000);
+
     const user = await User.create({
       username,
       email,
       password,
       firstName,
       lastName,
-      phone,
-      role: normalizedRole || undefined // Let model default handle if not provided
+      phone: phone || null,
+      role: 'citizen',
+      ulb_id: ulbId,
+      isActive: false,
+      emailVerified: false,
+      registrationOtpHash,
+      registrationOtpExpiresAt
     });
 
-    // Generate token with user data for filtering
-    const token = generateToken(user);
+    sendRegistrationOtpToUser(user, otpPlain).catch((e) => console.error('Registration OTP email:', e));
 
-    // Sanitized user object with role field
+    return res.status(201).json({
+      success: true,
+      requiresVerification: true,
+      message: 'We sent a verification code to your email. Enter it to complete registration.',
+      email: user.email,
+      emailMasked: maskEmail(user.email)
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   POST /api/auth/verify-registration
+ * @desc    Complete citizen registration with email OTP
+ * @access  Public
+ */
+export const verifyRegistration = async (req, res, next) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and verification code are required'
+      });
+    }
+
+    const user = await User.findOne({
+      where: { email, role: 'citizen' }
+    });
+
+    if (!user || user.emailVerified) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or already verified account'
+      });
+    }
+
+    if (!user.registrationOtpHash || !user.registrationOtpExpiresAt) {
+      return res.status(400).json({
+        success: false,
+        message: 'No verification code pending. Please register again or request a new code.'
+      });
+    }
+
+    if (new Date() > new Date(user.registrationOtpExpiresAt)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Verification code has expired. Please request a new one.'
+      });
+    }
+
+    const ok = await compareOtp(otp, user.registrationOtpHash);
+    if (!ok) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid verification code'
+      });
+    }
+
+    await user.update({
+      emailVerified: true,
+      isActive: true,
+      registrationOtpHash: null,
+      registrationOtpExpiresAt: null
+    });
+
+    res.json({
+      success: true,
+      message: 'Your account is verified. You can sign in on the citizen login page.'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   POST /api/auth/resend-registration-otp
+ * @desc    Resend registration OTP to citizen email
+ * @access  Public
+ */
+export const resendRegistrationOtp = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
+    }
+
+    const user = await User.findOne({ where: { email, role: 'citizen' } });
+    if (!user || user.emailVerified) {
+      return res.json({
+        success: true,
+        message: 'If an account is pending verification, a new code has been sent.'
+      });
+    }
+
+    const otpPlain = generateNumericOtp();
+    const registrationOtpHash = await hashOtp(otpPlain);
+    const registrationOtpExpiresAt = new Date(Date.now() + REGISTRATION_OTP_MINUTES * 60 * 1000);
+    await user.update({ registrationOtpHash, registrationOtpExpiresAt });
+
+    sendRegistrationOtpToUser(user, otpPlain).catch((e) => console.error('Resend registration OTP:', e));
+
+    res.json({
+      success: true,
+      message: 'A new verification code has been sent to your email.'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   POST /api/auth/verify-citizen-login
+ * @desc    Complete citizen login after email OTP
+ * @access  Public
+ */
+export const verifyCitizenLogin = async (req, res, next) => {
+  try {
+    const { pendingToken, otp } = req.body;
+    if (!pendingToken || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: 'Session token and verification code are required'
+      });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(pendingToken, process.env.JWT_SECRET);
+    } catch {
+      return res.status(401).json({
+        success: false,
+        message: 'Login session expired. Please sign in again.'
+      });
+    }
+
+    if (decoded.purpose !== 'citizen_login_otp' || !decoded.userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid login session'
+      });
+    }
+
+    const user = await User.findByPk(decoded.userId, {
+      attributes: [
+        'id',
+        'username',
+        'email',
+        'password',
+        'firstName',
+        'lastName',
+        'phone',
+        'role',
+        'isActive',
+        'lastLogin',
+        'ulb_id',
+        'ward_id',
+        'eo_id',
+        'emailVerified',
+        'loginOtpHash',
+        'loginOtpExpiresAt'
+      ]
+    });
+
+    if (!user || user.role !== 'citizen' || !user.isActive || !user.emailVerified) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid login session'
+      });
+    }
+
+    if (!user.loginOtpHash || !user.loginOtpExpiresAt || new Date() > new Date(user.loginOtpExpiresAt)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Verification code expired. Please sign in again.'
+      });
+    }
+
+    const ok = await compareOtp(otp, user.loginOtpHash);
+    if (!ok) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid verification code'
+      });
+    }
+
+    await user.update({
+      lastLogin: new Date(),
+      loginOtpHash: null,
+      loginOtpExpiresAt: null
+    });
+
+    const token = generateToken(user);
+    await auditLogger.logLogin(req, user);
+
     const sanitizedUser = {
       id: user.id,
       username: user.username,
@@ -98,13 +431,9 @@ export const register = async (req, res, next) => {
       role: user.role
     };
 
-    res.status(201).json({
-      success: true,
-      message: 'User registered successfully',
-      data: {
-        user: sanitizedUser,
-        token
-      }
+    res.json({
+      token,
+      user: sanitizedUser
     });
   } catch (error) {
     next(error);
@@ -139,10 +468,27 @@ export const login = async (req, res, next) => {
       ? { email: identifier }
       : { phone: identifier };
 
-    // Find user by email or phone - include all fields needed for JWT token
+    // Find user by email or phone - include all fields needed for JWT token + citizen OTP
     const user = await User.findOne({
       where: whereClause,
-      attributes: ['id', 'username', 'email', 'password', 'firstName', 'lastName', 'phone', 'role', 'isActive', 'lastLogin', 'ulb_id', 'ward_id', 'eo_id']
+      attributes: [
+        'id',
+        'username',
+        'email',
+        'password',
+        'firstName',
+        'lastName',
+        'phone',
+        'role',
+        'isActive',
+        'lastLogin',
+        'ulb_id',
+        'ward_id',
+        'eo_id',
+        'emailVerified',
+        'loginOtpHash',
+        'loginOtpExpiresAt'
+      ]
     });
 
     if (!user) {
@@ -152,8 +498,13 @@ export const login = async (req, res, next) => {
       });
     }
 
-    // Check if user is active
     if (!user.isActive) {
+      if (user.role === 'citizen' && !user.emailVerified) {
+        return res.status(403).json({
+          success: false,
+          message: 'Please verify your email with the code we sent when you registered before signing in.'
+        });
+      }
       return res.status(403).json({
         success: false,
         message: 'Account is deactivated. Please contact administrator.'
@@ -167,6 +518,25 @@ export const login = async (req, res, next) => {
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
+      });
+    }
+
+    // Citizens: email OTP on every successful password check (code sent to registered email)
+    if (user.role === 'citizen' && user.emailVerified) {
+      const otpPlain = generateNumericOtp();
+      const loginOtpHash = await hashOtp(otpPlain);
+      const loginOtpExpiresAt = new Date(Date.now() + LOGIN_OTP_MINUTES * 60 * 1000);
+      await user.update({ loginOtpHash, loginOtpExpiresAt });
+
+      sendLoginOtpToUser(user, otpPlain).catch((e) => console.error('Citizen login OTP email:', e));
+
+      const pendingToken = generateCitizenLoginPendingToken(user.id);
+      return res.json({
+        success: true,
+        requiresOtp: true,
+        pendingToken,
+        emailMasked: maskEmail(user.email),
+        message: `We sent a sign-in code to ${maskEmail(user.email)}.`
       });
     }
 

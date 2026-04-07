@@ -44,6 +44,15 @@ export default {
         'ds-body': ['0.875rem', { lineHeight: '1.25rem' }],
         'ds-caption': ['0.75rem', { lineHeight: '1rem' }],
       },
+      keyframes: {
+        headerSearchSlide: {
+          '0%': { opacity: '0', transform: 'translateY(-0.75rem)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+      },
+      animation: {
+        'header-search-slide': 'headerSearchSlide 0.2s ease-out forwards',
+      },
     },
   },
   plugins: [],

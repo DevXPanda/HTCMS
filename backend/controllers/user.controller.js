@@ -196,6 +196,7 @@ export const createUser = async (req, res, next) => {
       phone: phone || null,
       role: normalizedRole,
       isActive: isActive !== undefined ? !!isActive : true,
+      emailVerified: true,
       ulb_id: ulbId,
       createdBy: createdById
     });

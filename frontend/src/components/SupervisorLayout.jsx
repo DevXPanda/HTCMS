@@ -1,16 +1,13 @@
 import React, { useState } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
-import { User, LogOut, Home, X } from 'lucide-react';
+import { Outlet } from 'react-router-dom';
+import { X } from 'lucide-react';
 import { useStaffAuth } from '../contexts/StaffAuthContext';
 import Breadcrumbs from './Breadcrumbs';
-import HeaderNotificationBell from './HeaderNotificationBell';
-import GlobalHeaderSearch from './GlobalHeaderSearch';
+import StaffPortalHeaderRow from './StaffPortalHeaderRow';
 
 const SupervisorLayout = () => {
   const { user, logout } = useStaffAuth();
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const navigate = useNavigate();
-
   const handleLogout = async () => {
     await logout();
     window.location.href = '/';
@@ -24,51 +21,22 @@ const SupervisorLayout = () => {
         {/* Top bar - hidden when printing receipt */}
         <header className="no-print bg-white shadow-sm sticky top-0 z-10 w-full">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-wrap justify-between items-center gap-2 h-16 min-h-[4rem]">
-              <div className="flex items-center gap-3 min-w-0 shrink-0">
-                <img src="/ULB Logo.png" alt="ULB Logo" className="w-10 h-10 object-contain" />
-                <h1 className="layout-header-title">Urban Local Bodies</h1>
-              </div>
-              <GlobalHeaderSearch role="supervisor" />
-              <div className="layout-header-actions">
-                <button
-                  onClick={() => navigate('/supervisor/dashboard')}
-                  className="header-icon-btn p-2 text-gray-600 hover:text-primary-600 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center"
-                  title="Dashboard Home"
-                >
-                  <Home className="w-5 h-5 shrink-0" />
-                </button>
-                <HeaderNotificationBell />
-                <div className="hidden md:flex items-center space-x-3 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-200">
-                  <div className="h-8 w-8 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 text-sm font-bold">
-                    {userData?.full_name?.charAt(0) || userData?.firstName?.charAt(0) || 'S'}
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-semibold text-gray-900">{userData?.full_name || userData?.firstName || 'Supervisor'}</span>
-                    <span className="text-xs text-gray-500">ID: {userData?.employee_id || userData?.id || 'N/A'}</span>
-                    {(userData?.assigned_modules?.length > 0) && (
-                      <span className="text-[10px] text-gray-500 mt-0.5">
-                        {userData.assigned_modules.map(m => ({ toilet: 'Toilet', mrf: 'MRF', gaushala: 'Gau Shala' }[m] || m)).join(', ')}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowProfileModal(true)}
-                  className="header-icon-btn p-2 text-gray-600 hover:text-primary-600 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center"
-                  title="My Profile"
-                >
-                  <User className="w-5 h-5 shrink-0" />
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className="header-icon-btn p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-full transition-colors flex items-center justify-center"
-                  title="Logout"
-                >
-                  <LogOut className="w-5 h-5 shrink-0" />
-                </button>
-              </div>
-            </div>
+            <StaffPortalHeaderRow
+              searchRole="supervisor"
+              dashboardPath="/supervisor/dashboard"
+              userInitial={userData?.full_name?.charAt(0) || userData?.firstName?.charAt(0) || 'S'}
+              userTitle={userData?.full_name || userData?.firstName || 'Supervisor'}
+              userSubtitle={`ID: ${userData?.employee_id || userData?.id || 'N/A'}`}
+              userExtra={
+                userData?.assigned_modules?.length > 0 ? (
+                  <span className="text-[10px] text-gray-500 mt-0.5 block truncate">
+                    {userData.assigned_modules.map((m) => ({ toilet: 'Toilet', mrf: 'MRF', gaushala: 'Gau Shala' }[m] || m)).join(', ')}
+                  </span>
+                ) : null
+              }
+              onProfile={() => setShowProfileModal(true)}
+              onLogout={handleLogout}
+            />
           </div>
         </header>
         {/* Page content */}

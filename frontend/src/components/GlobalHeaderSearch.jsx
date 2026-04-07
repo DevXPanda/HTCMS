@@ -120,7 +120,14 @@ function renderItem(category, item) {
 
 const DISPLAY_ORDER = ['properties', 'demands', 'payments', 'assessments', 'citizens', 'workers', 'notices', 'staff'];
 
-export default function GlobalHeaderSearch({ role }) {
+export default function GlobalHeaderSearch({
+  role,
+  embeddedInMenu = false,
+  onAfterSelect,
+  variant = 'default'
+}) {
+  const isCentered = variant === 'centered';
+  const fullWidthResults = embeddedInMenu || isCentered;
   const [query, setQuery] = useState('');
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -177,6 +184,7 @@ export default function GlobalHeaderSearch({ role }) {
     setQuery('');
     setResults(null);
     navigate(path);
+    onAfterSelect?.();
   };
 
   useEffect(() => {
@@ -208,7 +216,11 @@ export default function GlobalHeaderSearch({ role }) {
     : 0;
 
   const renderResults = () => (
-    <div className="bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[480px] overflow-y-auto w-[min(92vw,420px)] sm:w-[340px] md:w-[420px]">
+    <div
+      className={`bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[480px] overflow-y-auto min-w-0 ${
+        fullWidthResults ? 'w-full' : 'w-[min(92vw,420px)] sm:w-[340px] md:w-[420px]'
+      }`}
+    >
       {totalResults === 0 && !loading && (
         <div className="px-4 py-6 text-center text-sm text-gray-500">
           No results found for &ldquo;{query}&rdquo;
@@ -247,21 +259,27 @@ export default function GlobalHeaderSearch({ role }) {
     </div>
   );
 
-  return (
-    <div ref={containerRef} className="relative">
-      <button
-        type="button"
-        onClick={() => {
-          setMobileOpen(true);
-          setTimeout(() => inputRef.current?.focus(), 10);
-        }}
-        className="sm:hidden header-icon-btn p-2 text-gray-600 hover:text-primary-600 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center"
-        title="Search"
-      >
-        <Search className="w-5 h-5 shrink-0" />
-      </button>
+  const searchInputRowClass = embeddedInMenu || isCentered
+    ? 'flex items-center bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus-within:border-primary-400 focus-within:ring-2 focus-within:ring-primary-200/60 transition-all w-full'
+    : 'hidden sm:flex items-center bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 focus-within:border-primary-400 focus-within:ring-1 focus-within:ring-primary-200 transition-all w-48 md:w-64 lg:w-72';
 
-      <div className="hidden sm:flex items-center bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 focus-within:border-primary-400 focus-within:ring-1 focus-within:ring-primary-200 transition-all w-48 md:w-64 lg:w-72">
+  return (
+    <div ref={containerRef} className={`relative ${embeddedInMenu || isCentered ? 'w-full' : ''}`}>
+      {!embeddedInMenu && !isCentered && (
+        <button
+          type="button"
+          onClick={() => {
+            setMobileOpen(true);
+            setTimeout(() => inputRef.current?.focus(), 10);
+          }}
+          className="sm:hidden header-icon-btn p-2 text-gray-600 hover:text-primary-600 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center"
+          title="Search"
+        >
+          <Search className="w-5 h-5 shrink-0" />
+        </button>
+      )}
+
+      <div className={searchInputRowClass}>
         <Search className="w-4 h-4 text-gray-400 shrink-0" />
         <input
           ref={inputRef}
@@ -281,12 +299,14 @@ export default function GlobalHeaderSearch({ role }) {
       </div>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1.5">
+        <div
+          className={`absolute top-full mt-1.5 z-[85] ${fullWidthResults ? 'left-0 right-0' : 'left-0'}`}
+        >
           {renderResults()}
         </div>
       )}
 
-      {mobileOpen && (
+      {!embeddedInMenu && !isCentered && mobileOpen && (
         <div className="sm:hidden fixed inset-0 z-[70] bg-black/40 p-3" onClick={() => setMobileOpen(false)}>
           <div className="bg-white rounded-lg shadow-2xl border border-gray-200 max-h-[85vh] overflow-hidden mt-12" onClick={(e) => e.stopPropagation()}>
             <div className="p-3 border-b border-gray-100">

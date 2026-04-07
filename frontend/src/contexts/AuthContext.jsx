@@ -73,32 +73,37 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authAPI.login(emailOrPhone, password);
 
-      // Backend returns: { token, user: sanitizedUser } or { success: true, data: { user, token } }
       const responseData = response.data;
+
+      if (responseData.requiresOtp && responseData.pendingToken) {
+        return {
+          success: true,
+          requiresOtp: true,
+          pendingToken: responseData.pendingToken,
+          emailMasked: responseData.emailMasked,
+          message: responseData.message
+        };
+      }
+
       const { user, token } = responseData.data || responseData;
 
       if (!user || !token) {
         throw new Error('Invalid response from server');
       }
 
-      // Ensure role is present in user object
       if (!user.role) {
         throw new Error('User role not found in response');
       }
 
-      // Clear any existing cached data first
       clearAllAuthData();
 
-      // Store fresh token and user data
       localStorage.setItem('token', token);
       localStorage.setItem('role', user.role);
       localStorage.setItem('user', JSON.stringify(user));
       setToken(token);
 
-      // Completely overwrite user state - don't merge with existing data
       setUser(user);
 
-      // Return user immediately for navigation
       return { success: true, user };
     } catch (error) {
       console.error('Login API error:', error);
@@ -109,11 +114,9 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (userData) => {
+  const completeCitizenLogin = async (pendingToken, otp) => {
     try {
-      const response = await authAPI.register(userData);
-
-      // Backend returns: { success: true, data: { user, token } }
+      const response = await authAPI.verifyCitizenLogin(pendingToken, otp);
       const responseData = response.data;
       const { user, token } = responseData.data || responseData;
 
@@ -121,15 +124,51 @@ export const AuthProvider = ({ children }) => {
         throw new Error('Invalid response from server');
       }
 
-      // Ensure role is present in user object
+      clearAllAuthData();
+
+      localStorage.setItem('token', token);
+      localStorage.setItem('role', user.role);
+      localStorage.setItem('user', JSON.stringify(user));
+      setToken(token);
+      setUser(user);
+
+      return { success: true, user };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.error || error.response?.data?.message || error.message || 'Verification failed'
+      };
+    }
+  };
+
+  const register = async (userData) => {
+    try {
+      const response = await authAPI.register(userData);
+
+      const responseData = response.data;
+
+      if (responseData.requiresVerification) {
+        return {
+          success: true,
+          requiresVerification: true,
+          email: responseData.email,
+          emailMasked: responseData.emailMasked,
+          message: responseData.message
+        };
+      }
+
+      const { user, token } = responseData.data || responseData;
+
+      if (!user || !token) {
+        throw new Error('Invalid response from server');
+      }
+
       if (!user.role) {
         throw new Error('User role not found in response');
       }
 
-      // Clear any existing cached data first
       clearAllAuthData();
 
-      // Store fresh token and user data
       localStorage.setItem('token', token);
       localStorage.setItem('role', user.role);
       localStorage.setItem('user', JSON.stringify(user));
@@ -141,6 +180,33 @@ export const AuthProvider = ({ children }) => {
       return {
         success: false,
         message: error.response?.data?.error || error.response?.data?.message || error.message || 'Registration failed'
+      };
+    }
+  };
+
+  const verifyCitizenRegistration = async (email, otp) => {
+    try {
+      const response = await authAPI.verifyRegistration(email, otp);
+      return {
+        success: true,
+        message: response.data?.message || 'Verified successfully'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.error || error.response?.data?.message || error.message || 'Verification failed'
+      };
+    }
+  };
+
+  const resendCitizenRegistrationOtp = async (email) => {
+    try {
+      await authAPI.resendRegistrationOtp(email);
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.error || error.response?.data?.message || error.message || 'Could not resend code'
       };
     }
   };
@@ -167,7 +233,10 @@ export const AuthProvider = ({ children }) => {
     token,
     loading,
     login,
+    completeCitizenLogin,
     register,
+    verifyCitizenRegistration,
+    resendCitizenRegistrationOtp,
     logout,
     updateUser,
     isAuthenticated: !!user,

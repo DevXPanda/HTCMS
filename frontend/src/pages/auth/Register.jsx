@@ -34,7 +34,10 @@ const Register = ({ isModal = false, onClose, onSwitch }) => {
     role: getDefaultRole()
   });
   const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
+  const [regStep, setRegStep] = useState('form');
+  const [verifyEmail, setVerifyEmail] = useState('');
+  const [otpValue, setOtpValue] = useState('');
+  const { register, verifyCitizenRegistration, resendCitizenRegistrationOtp } = useAuth();
   const navigate = useNavigate();
 
   // Update role when URL path or param changes
@@ -60,12 +63,18 @@ const Register = ({ isModal = false, onClose, onSwitch }) => {
     const { confirmPassword, ...userData } = formData;
     const result = await register(userData);
 
+    if (result.success && result.requiresVerification && formData.role === 'citizen') {
+      toast.success(result.message || 'Check your email for a verification code.');
+      setVerifyEmail(result.email || formData.email);
+      setRegStep('otp');
+      setLoading(false);
+      return;
+    }
+
     if (result.success && result.user) {
       toast.success('Registration successful!');
-      // Get exact role from API response
       const role = result.user.role;
 
-      // Redirect based on exact role from API
       if (role === 'admin') {
         navigate('/dashboard', { replace: true });
       } else if (role === 'citizen') {
@@ -75,6 +84,38 @@ const Register = ({ isModal = false, onClose, onSwitch }) => {
       toast.error(result.message || 'Registration failed');
     }
 
+    setLoading(false);
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    if (!otpValue.trim() || otpValue.trim().length < 6) {
+      toast.error('Enter the 6-digit code from your email');
+      return;
+    }
+    setLoading(true);
+    const result = await verifyCitizenRegistration(verifyEmail, otpValue.trim());
+    if (result.success) {
+      toast.success(result.message || 'Account verified. You can sign in now.');
+      if (isModal && onSwitch) {
+        onSwitch('citizen');
+      } else {
+        navigate('/citizen/login', { replace: true });
+      }
+    } else {
+      toast.error(result.message || 'Invalid code');
+    }
+    setLoading(false);
+  };
+
+  const handleResendOtp = async () => {
+    setLoading(true);
+    const result = await resendCitizenRegistrationOtp(verifyEmail);
+    if (result.success) {
+      toast.success('If your account is pending, a new code was sent.');
+    } else {
+      toast.error(result.message || 'Could not resend');
+    }
     setLoading(false);
   };
 
@@ -139,6 +180,51 @@ const Register = ({ isModal = false, onClose, onSwitch }) => {
             </p>
         </div> */}
 
+        {regStep === 'otp' && formData.role === 'citizen' ? (
+          <form onSubmit={handleVerifyOtp} className="space-y-4">
+            <p className="text-sm text-gray-600 text-center">
+              Enter the 6-digit code sent to <span className="font-medium text-gray-800">{verifyEmail}</span>
+            </p>
+            <div>
+              <label htmlFor="otp" className="label text-xs uppercase tracking-wide font-bold text-gray-500">
+                Verification code
+              </label>
+              <input
+                id="otp"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={8}
+                value={otpValue}
+                onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, ''))}
+                className="input mt-1 text-center text-xl tracking-widest font-mono"
+                placeholder="000000"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className={`btn btn-primary w-full py-4 text-base font-bold shadow-lg ${theme.button} text-white rounded-xl`}
+            >
+              {loading ? 'Verifying...' : 'Verify & complete registration'}
+            </button>
+            <button
+              type="button"
+              onClick={handleResendOtp}
+              disabled={loading}
+              className={`w-full text-sm ${theme.link} font-medium`}
+            >
+              Resend code
+            </button>
+            <button
+              type="button"
+              onClick={() => setRegStep('form')}
+              className="w-full text-sm text-gray-500"
+            >
+              Back to form
+            </button>
+          </form>
+        ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
             {/* <div>
@@ -282,6 +368,7 @@ const Register = ({ isModal = false, onClose, onSwitch }) => {
             </button>
           </div>
         </form>
+        )}
 
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">

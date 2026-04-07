@@ -7,7 +7,11 @@ import { User, Home } from 'lucide-react';
 const CitizenLogin = ({ isModal = false, onClose, onSwitch }) => {
   const [formData, setFormData] = useState({ emailOrPhone: '', password: '' });
   const [loading, setLoading] = useState(false);
-  const { login, user, isAuthenticated, loading: authLoading } = useAuth();
+  const [loginStep, setLoginStep] = useState('credentials');
+  const [pendingToken, setPendingToken] = useState('');
+  const [emailMasked, setEmailMasked] = useState('');
+  const [otpValue, setOtpValue] = useState('');
+  const { login, completeCitizenLogin, logout, user, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   // Redirect if already logged in with citizen role
@@ -63,28 +67,29 @@ const CitizenLogin = ({ isModal = false, onClose, onSwitch }) => {
     try {
       const result = await login(formData.emailOrPhone, formData.password);
 
+      if (result.success && result.requiresOtp && result.pendingToken) {
+        toast.success(result.message || 'Check your email for a sign-in code.');
+        setPendingToken(result.pendingToken);
+        setEmailMasked(result.emailMasked || '');
+        setLoginStep('otp');
+        setOtpValue('');
+        setLoading(false);
+        return;
+      }
+
       if (result.success && result.user) {
         const loggedInUser = result.user;
-        const role = loggedInUser.role; // Get exact role from backend response
+        const role = loggedInUser.role;
 
-        // Validate that user has citizen role - exact matching
         if (role !== 'citizen') {
           toast.error('Access denied. This login is only for citizens.');
-          // Clear auth data through AuthContext logout
-          await login('logout', 'dummy'); // This will trigger logout
+          await logout();
           setLoading(false);
           return;
         }
 
         toast.success('Login successful!');
-
-        // Redirect based on exact role
-        if (role === 'citizen') {
-          navigate('/citizen/dashboard', { replace: true });
-        } else {
-          toast.error('Invalid role for citizen portal');
-          setLoading(false);
-        }
+        navigate('/citizen/dashboard', { replace: true });
       } else {
         toast.error(result.message || 'Login failed');
         setLoading(false);
@@ -94,6 +99,39 @@ const CitizenLogin = ({ isModal = false, onClose, onSwitch }) => {
       toast.error('An error occurred during login');
       setLoading(false);
     }
+  };
+
+  const handleVerifyLoginOtp = async (e) => {
+    e.preventDefault();
+    if (!otpValue.trim() || otpValue.trim().length < 6) {
+      toast.error('Enter the 6-digit code from your email');
+      return;
+    }
+    setLoading(true);
+    try {
+      const result = await completeCitizenLogin(pendingToken, otpValue.trim());
+      if (result.success && result.user) {
+        if (result.user.role !== 'citizen') {
+          toast.error('Access denied.');
+          await logout();
+          setLoading(false);
+          return;
+        }
+        toast.success('Login successful!');
+        navigate('/citizen/dashboard', { replace: true });
+      } else {
+        toast.error(result.message || 'Invalid code');
+      }
+    } catch (err) {
+      toast.error('Verification failed');
+    }
+    setLoading(false);
+  };
+
+  const handleBackToCredentials = () => {
+    setLoginStep('credentials');
+    setPendingToken('');
+    setOtpValue('');
   };
 
   const content = (
@@ -119,47 +157,87 @@ const CitizenLogin = ({ isModal = false, onClose, onSwitch }) => {
           <p className="text-sm text-gray-500 mt-2">For Property Owners</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label htmlFor="emailOrPhone" className="label">
-              Email or Phone Number
-            </label>
-            <input
-              type="text"
-              id="emailOrPhone"
-              name="emailOrPhone"
-              value={formData.emailOrPhone}
-              onChange={handleChange}
-              required
-              className="input"
-              placeholder="Enter your email or phone number"
-            />
-          </div>
+        {loginStep === 'otp' ? (
+          <form onSubmit={handleVerifyLoginOtp} className="space-y-6">
+            <p className="text-sm text-gray-600 text-center">
+              Enter the sign-in code sent to{' '}
+              <span className="font-medium text-gray-800">{emailMasked || 'your registered email'}</span>
+            </p>
+            <div>
+              <label htmlFor="loginOtp" className="label">
+                Sign-in code
+              </label>
+              <input
+                type="text"
+                id="loginOtp"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={8}
+                value={otpValue}
+                onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, ''))}
+                required
+                className="input text-center text-xl tracking-widest font-mono"
+                placeholder="000000"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn btn-primary w-full bg-purple-600 hover:bg-purple-700"
+            >
+              {loading ? 'Verifying...' : 'Verify & sign in'}
+            </button>
+            <button
+              type="button"
+              onClick={handleBackToCredentials}
+              className="w-full text-sm text-gray-500"
+            >
+              Back to password
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label htmlFor="emailOrPhone" className="label">
+                Email or Phone Number
+              </label>
+              <input
+                type="text"
+                id="emailOrPhone"
+                name="emailOrPhone"
+                value={formData.emailOrPhone}
+                onChange={handleChange}
+                required
+                className="input"
+                placeholder="Enter your email or phone number"
+              />
+            </div>
 
-          <div>
-            <label htmlFor="password" className="label">
-              Password
-            </label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              className="input"
-              placeholder="Enter your password"
-            />
-          </div>
+            <div>
+              <label htmlFor="password" className="label">
+                Password
+              </label>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                className="input"
+                placeholder="Enter your password"
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn btn-primary w-full bg-purple-600 hover:bg-purple-700"
-          >
-            {loading ? 'Logging in...' : 'Login to Citizen Portal'}
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn btn-primary w-full bg-purple-600 hover:bg-purple-700"
+            >
+              {loading ? 'Logging in...' : 'Login to Citizen Portal'}
+            </button>
+          </form>
+        )}
 
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">

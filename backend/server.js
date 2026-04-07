@@ -10,6 +10,7 @@ import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { testConnection as testPgConnection, closePool } from "./db.js";
 import { ensureRoleEnums } from "./db/ensureRoleEnums.js";
+import { ensureUserOtpColumns } from "./db/ensureUserOtpColumns.js";
 import { attachNotificationSocket } from "./socket/notificationSocket.js";
 import { setNotificationIO } from "./services/notificationService.js";
 
@@ -301,8 +302,9 @@ const startServer = async () => {
   try {
     await sequelize.authenticate();
     console.log("Sequelize connected");
-    // Sync database in development to add missing columns
-    if (process.env.NODE_ENV === 'development') {
+    await ensureUserOtpColumns();
+    // Sync when not production (npm run dev often leaves NODE_ENV unset)
+    if (process.env.NODE_ENV !== "production") {
       await sequelize.sync({ alter: true });
       console.log("Database synchronized (alter: true)");
     }

@@ -46,6 +46,27 @@ export const User = sequelize.define('User', {
     type: DataTypes.BOOLEAN,
     defaultValue: true
   },
+  emailVerified: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: true
+  },
+  registrationOtpHash: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
+  registrationOtpExpiresAt: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  loginOtpHash: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
+  loginOtpExpiresAt: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
   lastLogin: {
     type: DataTypes.DATE,
     allowNull: true

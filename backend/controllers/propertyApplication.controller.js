@@ -78,6 +78,8 @@ export const createPropertyApplication = async (req, res, next) => {
                         lastName,
                         phone: ownerPhone,
                         role: 'citizen',
+                        emailVerified: true,
+                        isActive: true,
                         createdBy: user.role === 'admin' ? user.id : null // Only link if creator is also in Users table
                     });
                 }
