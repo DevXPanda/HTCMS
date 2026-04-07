@@ -390,7 +390,7 @@ export const verifyCitizenLogin = async (req, res, next) => {
       ]
     });
 
-    if (!user || user.role !== 'citizen' || !user.isActive || !user.emailVerified) {
+    if (!user || user.role !== 'citizen' || (!user.isActive && user.emailVerified)) {
       return res.status(401).json({
         success: false,
         message: 'Invalid login session'
@@ -414,6 +414,8 @@ export const verifyCitizenLogin = async (req, res, next) => {
 
     await user.update({
       lastLogin: new Date(),
+      emailVerified: true,
+      isActive: true,
       loginOtpHash: null,
       loginOtpExpiresAt: null
     });
@@ -499,16 +501,13 @@ export const login = async (req, res, next) => {
     }
 
     if (!user.isActive) {
-      if (user.role === 'citizen' && !user.emailVerified) {
+      // Allow unverified citizens to pass through to the password check and OTP flow
+      if (user.role !== 'citizen' || user.emailVerified) {
         return res.status(403).json({
           success: false,
-          message: 'Please verify your email with the code we sent when you registered before signing in.'
+          message: 'Account is deactivated. Please contact administrator.'
         });
       }
-      return res.status(403).json({
-        success: false,
-        message: 'Account is deactivated. Please contact administrator.'
-      });
     }
 
     // Verify password
@@ -522,7 +521,7 @@ export const login = async (req, res, next) => {
     }
 
     // Citizens: email OTP on every successful password check (code sent to registered email)
-    if (user.role === 'citizen' && user.emailVerified) {
+    if (user.role === 'citizen') {
       const otpPlain = generateNumericOtp();
       const loginOtpHash = await hashOtp(otpPlain);
       const loginOtpExpiresAt = new Date(Date.now() + LOGIN_OTP_MINUTES * 60 * 1000);
