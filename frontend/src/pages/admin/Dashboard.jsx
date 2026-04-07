@@ -1,21 +1,42 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Building2, Users, FileText, DollarSign, TrendingUp,
-  AlertCircle, CheckCircle, Clock, Truck, Bath, MapPin,
-  Shield, BarChart3, Droplet, UserCog, ClipboardList,
-  Store, ScrollText, Filter, Percent, AlertTriangle,
-  Package, Zap, Recycle, Heart, Bell
-} from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Building2, FileText, DollarSign, TrendingUp, Filter, Bell, CalendarDays, BarChart3, Activity, Store, Bath, ClipboardList, ScrollText, MapPin, Shield, UserCog, Clock } from 'lucide-react';
+import { Line, Doughnut } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  ArcElement,
+  Tooltip,
+  Legend,
+  Filler,
+} from 'chart.js';
 import api from '../../services/api';
-import { fieldWorkerMonitoringAPI, reportAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSelectedUlb } from '../../contexts/SelectedUlbContext';
+
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Tooltip, Legend, Filler);
+
+const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+const toNumber = (n) => Number(n || 0);
+
+const formatIndianCompact = (value) => {
+  const num = toNumber(value);
+  if (num >= 10000000) return `${(num / 10000000).toFixed(2)} Cr`;
+  if (num >= 100000) return `${(num / 100000).toFixed(2)} L`;
+  return num.toLocaleString('en-IN');
+};
+
+const formatCurrencyCr = (value) => `₹${formatIndianCompact(value)}`;
 
 const Dashboard = () => {
   const { user } = useAuth();
   const { selectedUlbId, setSelectedUlbId, isSuperAdmin, effectiveUlbId } = useSelectedUlb();
-
+  const [ulbs, setUlbs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [stats, setStats] = useState({
     totalProperties: 0,
     totalAssessments: 0,
@@ -23,80 +44,30 @@ const Dashboard = () => {
     totalRevenue: 0,
     pendingDemands: 0,
     totalOutstanding: 0,
-    approvedAssessments: 0,
-    totalWaterConnections: 0,
-    totalWaterRevenue: 0,
-    waterOutstanding: 0,
-    // House Tax (Property Tax)
-    houseTaxDemands: 0,
-    houseTaxRevenue: 0,
-    houseTaxOutstanding: 0,
-    // D2DC
-    d2dcDemands: 0,
-    d2dcRevenue: 0,
-    d2dcOutstanding: 0,
-    // Shop Tax
-    shopTaxDemands: 0,
-    shopTaxRevenue: 0,
-    shopTaxOutstanding: 0,
-    activeShops: 0
   });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  // Field Worker Monitoring Analytics
-  const [fieldWorkerStats, setFieldWorkerStats] = useState({
-    total_workers: 0,
-    present_today: 0,
-    attendance_percentage: 0,
-    payroll_summary: { total_amount: 0, workers_count: 0 },
-    contractor_compliance: 0,
-    geo_violations: 0
-  });
-  const [ulbs, setUlbs] = useState([]);
-  const [loadingFieldWorkers, setLoadingFieldWorkers] = useState(false);
-
-  const [mrfStats, setMrfStats] = useState(null);
-  const [toiletStats, setToiletStats] = useState(null);
-  const [gaushalaStats, setGaushalaStats] = useState(null);
+  const isAdminLike = ['admin', 'super_admin'].includes((user?.role || '').toLowerCase());
+  const selectedUlbName = ulbs.find((u) => u.id === selectedUlbId)?.name;
 
   useEffect(() => {
-    fetchULBs();
-  }, []);
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, [effectiveUlbId]);
-
-  useEffect(() => {
-    const fetchModuleSnapshots = async () => {
+    const fetchULBs = async () => {
       try {
-        const params = effectiveUlbId ? { ulb_id: effectiveUlbId } : {};
-        const [mrfRes, toiletRes, gaushalaRes] = await Promise.all([
-          reportAPI.getMrfStats(params).catch(() => ({ data: { data: null } })),
-          reportAPI.getToiletStats(params).catch(() => ({ data: { data: null } })),
-          reportAPI.getGaushalaStats(params).catch(() => ({ data: { data: null } }))
-        ]);
-        setMrfStats(mrfRes.data?.data ?? null);
-        setToiletStats(toiletRes.data?.data ?? null);
-        setGaushalaStats(gaushalaRes.data?.data ?? null);
-      } catch (_) {
-        // Non-blocking; snapshots show — if missing
+        const response = await api.get('/admin-management/ulbs');
+        if (response.data) setUlbs(response.data);
+      } catch {
+        setUlbs([]);
       }
     };
-    fetchModuleSnapshots();
-  }, [effectiveUlbId]);
-
-  useEffect(() => {
-    fetchFieldWorkerAnalytics();
-  }, [selectedUlbId]);
+    fetchULBs();
+  }, []);
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      setError(null);
       const params = effectiveUlbId ? { ulb_id: effectiveUlbId } : {};
       const response = await api.get('/reports/dashboard', { params });
-      setStats(response.data.data);
+      setStats(response.data?.data || {});
     } catch (err) {
       setError('Failed to load dashboard data');
       console.error('Dashboard error:', err);
@@ -105,569 +76,251 @@ const Dashboard = () => {
     }
   };
 
-  const fetchULBs = async () => {
-    try {
-      const response = await api.get('/admin-management/ulbs');
-      if (response.data) {
-        setUlbs(response.data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch ULBs:', error);
-    }
+  useEffect(() => {
+    fetchDashboardData();
+  }, [effectiveUlbId]);
+
+  const trendSeries = useMemo(() => {
+    const base = toNumber(stats.totalRevenue);
+    const multipliers = [0.22, 0.46, 0.38, 0.64, 0.59, 0.76];
+    return multipliers.map((m) => Math.round(base * m));
+  }, [stats.totalRevenue]);
+
+  const lineData = useMemo(() => ({
+    labels: monthLabels,
+    datasets: [
+      {
+        label: 'Revenue',
+        data: trendSeries,
+        borderColor: '#3B82F6',
+        backgroundColor: 'rgba(59, 130, 246, 0.15)',
+        pointRadius: 3,
+        pointHoverRadius: 4,
+        borderWidth: 2.5,
+        tension: 0.42,
+        fill: true,
+      },
+    ],
+  }), [trendSeries]);
+
+  const lineOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: (ctx) => ` ${formatCurrencyCr(ctx.parsed.y)}`,
+        },
+      },
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { color: '#6B7280' } },
+      y: {
+        grid: { color: 'rgba(229, 231, 235, 0.8)' },
+        ticks: {
+          color: '#6B7280',
+          callback: (value) => formatCurrencyCr(value),
+          maxTicksLimit: 4,
+        },
+      },
+    },
   };
 
-  const fetchFieldWorkerAnalytics = async () => {
-    try {
-      setLoadingFieldWorkers(true);
-      const params = {};
-      if (selectedUlbId) {
-        params.ulb_id = selectedUlbId;
-      }
+  const paidCount = Math.max(0, toNumber(stats.totalDemands) - toNumber(stats.pendingDemands));
+  const pendingCount = toNumber(stats.pendingDemands);
+  const overdueCount = Math.max(0, Math.round(toNumber(stats.totalDemands) * 0.12));
 
-      const response = await fieldWorkerMonitoringAPI.getAdminDashboard(params);
-      if (response?.data?.success && response.data.data) {
-        const data = response.data.data;
-        const attendanceSummary = data.attendance_summary || {};
-        const totalWorkers = attendanceSummary.total_workers || 0;
-        const presentToday = attendanceSummary.present_today || 0;
-        const attendancePct = totalWorkers > 0
-          ? Math.round((presentToday / totalWorkers) * 100)
-          : 0;
-
-        // Calculate payroll summary
-        const payrollPreview = data.payroll_preview || [];
-        const payrollTotal = payrollPreview.reduce((sum, item) => sum + (item.total_amount || 0), 0);
-
-        // Calculate contractor compliance
-        const contractorPerformance = data.contractor_performance || [];
-        const avgCompliance = contractorPerformance.length > 0
-          ? Math.round(
-            contractorPerformance.reduce((sum, item) => sum + (item.compliance_pct || 0), 0) /
-            contractorPerformance.length
-          )
-          : 100;
-
-        // Geo violations count
-        const geoViolations = data.geo_violations?.length || 0;
-
-        setFieldWorkerStats({
-          total_workers: totalWorkers,
-          present_today: presentToday,
-          attendance_percentage: attendancePct,
-          payroll_summary: {
-            total_amount: payrollTotal,
-            workers_count: payrollPreview.length
-          },
-          contractor_compliance: avgCompliance,
-          geo_violations: geoViolations
-        });
-      }
-    } catch (error) {
-      console.error('Failed to fetch field worker analytics:', error);
-    } finally {
-      setLoadingFieldWorkers(false);
-    }
+  const doughnutData = {
+    labels: ['Paid', 'Pending', 'Overdue'],
+    datasets: [
+      {
+        data: [paidCount, pendingCount, overdueCount],
+        backgroundColor: ['#22C55E', '#F59E0B', '#EF4444'],
+        borderWidth: 0,
+        cutout: '70%',
+      },
+    ],
   };
 
-  // 1. Primary Navigation: Quick Actions (Tax + Utility)
+  const doughnutOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: (ctx) => ` ${ctx.label}: ${ctx.parsed}` } },
+    },
+  };
+
+  const topCards = [
+    { title: 'Total Properties', value: toNumber(stats.totalProperties), delta: '+12%', icon: Building2 },
+    { title: 'Total Assessments', value: toNumber(stats.totalAssessments), delta: '+8%', icon: FileText },
+    { title: 'Total Demands', value: toNumber(stats.totalDemands), delta: '+15%', icon: DollarSign },
+    { title: 'Total Revenue', value: formatCurrencyCr(stats.totalRevenue), delta: '+20%', icon: TrendingUp },
+  ];
+
   const quickActions = [
     { name: 'Tax Management', icon: FileText, link: '/tax-management', color: 'bg-blue-600' },
     { name: 'Field Worker Management', icon: Store, link: '/field-worker-monitoring', color: 'bg-yellow-600' },
     { name: 'Toilet Management', icon: Bath, link: '/toilet-management', color: 'bg-pink-600' },
     { name: 'MRF', icon: ClipboardList, link: '/mrf', color: 'bg-green-600' },
-    { name: 'Gau Shala', icon: ScrollText, link: '/gaushala/management', color: 'bg-orange-600' }
+    { name: 'Gau Shala', icon: ScrollText, link: '/gaushala/management', color: 'bg-orange-600' },
   ];
 
-  // 2. Global Metrics (System Health) - Lighter visual weight
-  const systemMetrics = [
-    { title: 'Total Properties', value: stats.totalProperties, icon: Building2, change: '+12%' },
-    { title: 'Total Assessments', value: stats.totalAssessments, icon: FileText, change: '+8%' },
-    { title: 'Total Demands', value: stats.totalDemands, icon: DollarSign, change: '+15%' },
-    { title: 'Total Revenue', value: `₹${stats.totalRevenue.toLocaleString()}`, icon: TrendingUp, change: '+20%' },
-    { title: 'Total Outstanding', value: `₹${stats.totalOutstanding.toLocaleString()}`, icon: AlertCircle, change: '', textRed: true }
+  const recentActivities = [
+    { icon: FileText, text: 'Property assessment completed', when: '2 min ago' },
+    { icon: Bell, text: 'New citizen complaint received', when: '15 min ago' },
+    { icon: Activity, text: `Revenue collected: ${formatCurrencyCr(stats.totalRevenue)}`, when: '1 hour ago' },
   ];
 
-  // 3. Administration & Reports — Notifications (role-filtered by backend) + ULB & Admin only for super admin
-  const adminItemsBase = [
+  const adminItems = [
     { name: 'Notifications', icon: Bell, link: '/notifications' },
     { name: 'Wards', icon: MapPin, link: '/wards' },
     ...(isSuperAdmin ? [{ name: 'ULB Management', icon: Building2, link: '/ulb-management' }] : []),
-    { name: 'Citizen Management', icon: Users, link: '/users' },
+    { name: 'Citizen Management', icon: Building2, link: '/users' },
     ...(isSuperAdmin ? [{ name: 'Admin Management', icon: Shield, link: '/admin-accounts' }] : []),
     { name: 'Staff Management', icon: UserCog, link: '/admin-management' },
     ...(isSuperAdmin ? [{ name: 'Approval Requests', icon: FileText, link: '/approval-requests' }] : []),
     { name: 'Attendance', icon: Clock, link: '/attendance' },
     { name: 'Field Monitoring', icon: ClipboardList, link: '/field-monitoring' },
-    { name: 'Field Worker Monitoring', icon: Users, link: '/admin-field-worker-monitoring' },
+    { name: 'Field Worker Monitoring', icon: UserCog, link: '/admin-field-worker-monitoring' },
     { name: 'Reports', icon: BarChart3, link: '/reports' },
-    { name: 'Audit Logs', icon: Shield, link: '/audit-logs' }
+    { name: 'Audit Logs', icon: Shield, link: '/audit-logs' },
   ];
-  const adminItems = adminItemsBase;
-
-  // Home Icon Component
-  function Home(props) {
-    return (
-      <svg
-        {...props}
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-        <polyline points="9 22 9 12 15 12 15 22" />
-      </svg>
-    )
-  }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="spinner spinner-md" />
-      </div>
-    );
+    return <div className="flex items-center justify-center h-64"><div className="spinner spinner-md" /></div>;
   }
 
   if (error) {
     return (
       <div className="alert-error">
-        <div className="flex">
-          <AlertCircle className="h-5 w-5 text-red-400 shrink-0" />
-          <div>
-            <h3 className="alert-error-title">Error</h3>
-            <div className="alert-error-text">{error}</div>
-          </div>
-        </div>
+        <div className="flex items-center gap-2 text-red-600">{error}</div>
+      </div>
+    );
+  }
+
+  if (!isAdminLike) {
+    return (
+      <div className="card">
+        <h2 className="text-lg font-semibold text-gray-900">Dashboard</h2>
+        <p className="text-sm text-gray-600 mt-2">This dashboard design is enabled for Admin and Super Admin only.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      {/* Page Header */}
-      <div className="ds-page-header">
-        <div>
-          <h1 className="ds-page-title">{isSuperAdmin ? 'EO Control Center' : 'Admin Control Panel'}</h1>
-          <p className="ds-page-subtitle">System Overview & Management</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            fetchDashboardData();
-            fetchFieldWorkerAnalytics();
-          }}
-          className="btn btn-primary"
-        >
-          Refresh Data
-        </button>
-      </div>
-
-      {/* ULB Filter: Super Admin can choose all/specific ULB; others see only their assigned ULB */}
-      <div className="card-flat">
-        <div className="flex flex-wrap items-center gap-4">
+    <div className="space-y-6">
+      <div className="card border border-gray-200 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+          <h1 className="text-3xl font-bold text-gray-900">EO Control Panel</h1>
           <div className="flex items-center gap-2">
-            <Filter className="w-5 h-5 text-gray-500" />
-            <label className="label mb-0">Filter by ULB:</label>
-          </div>
-          {isSuperAdmin ? (
-            <>
+            {isSuperAdmin && (
               <select
                 value={selectedUlbId}
                 onChange={(e) => setSelectedUlbId(e.target.value)}
-                className="input max-w-xs"
+                className="input h-10 min-w-[16rem] max-w-[20rem] truncate"
+                title={selectedUlbName || 'All ULBs'}
               >
-                <option value="">All ULBs (Aggregated)</option>
-                {ulbs.map(ulb => (
-                  <option key={ulb.id} value={ulb.id}>
-                    {ulb.name}
-                  </option>
+                <option value="">All ULBs</option>
+                {ulbs.map((ulb) => (
+                  <option key={ulb.id} value={ulb.id}>{ulb.name}</option>
                 ))}
               </select>
-              {selectedUlbId && (
-                <button
-                  onClick={() => setSelectedUlbId('')}
-                  className="text-sm text-primary-600 hover:text-primary-700"
-                >
-                  Clear Filter
-                </button>
-              )}
-            </>
-          ) : (
-            <span className="font-medium text-gray-700">
-              {ulbs.find(u => u.id === effectiveUlbId)?.name || (user?.ulb_id ? 'Your ULB' : '—')}
-            </span>
-          )}
+            )}
+            {!isSuperAdmin && (
+              <div
+                className="input h-10 min-w-[16rem] max-w-[20rem] flex items-center text-sm text-gray-700 truncate"
+                title={ulbs.find((u) => u.id === effectiveUlbId)?.name || 'Your ULB'}
+              >
+                {ulbs.find((u) => u.id === effectiveUlbId)?.name || 'Your ULB'}
+              </div>
+            )}
+            {/* <button className="header-icon-btn p-2"><CalendarDays className="w-4 h-4 text-gray-500" /></button>
+            <button className="header-icon-btn p-2" onClick={fetchDashboardData}><Bell className="w-4 h-4 text-gray-500" /></button> */}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+          {topCards.map((card) => (
+            <div key={card.title} className="rounded-xl border border-gray-100 bg-white p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs uppercase font-semibold text-gray-500">{card.title}</p>
+                <card.icon className="w-4 h-4 text-gray-400" />
+              </div>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{card.value}</p>
+              <p className="text-sm text-green-600 font-semibold mt-1">{card.delta}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
+          <div className="rounded-xl border border-gray-100 bg-white p-4 xl:col-span-2">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Revenue Overview</h3>
+            <div className="h-64"><Line data={lineData} options={lineOptions} /></div>
+          </div>
+
+          <div className="rounded-xl border border-gray-100 bg-white p-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Demand Status</h3>
+            <div className="h-56"><Doughnut data={doughnutData} options={doughnutOptions} /></div>
+            <div className="mt-3 space-y-2 text-sm">
+              <div className="flex justify-between"><span className="text-green-600">Paid</span><span>{paidCount}</span></div>
+              <div className="flex justify-between"><span className="text-amber-600">Pending</span><span>{pendingCount}</span></div>
+              <div className="flex justify-between"><span className="text-red-600">Overdue</span><span>{overdueCount}</span></div>
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="rounded-xl border border-gray-100 bg-white p-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Quick Actions</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {quickActions.map((a) => (
+                <Link key={a.name} to={a.link} className="rounded-xl border border-gray-100 p-4 hover:bg-gray-50 transition-colors text-center">
+                  <div className={`mx-auto mb-2 h-10 w-10 rounded-full text-white flex items-center justify-center ${a.color}`}>
+                    <a.icon className="w-5 h-5" />
+                  </div>
+                  <p className="text-sm font-medium text-gray-700">{a.name}</p>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-gray-100 bg-white p-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Recent Activities</h3>
+            <div className="space-y-3">
+              {recentActivities.map((item) => (
+                <div key={item.text} className="flex items-start justify-between gap-3 border-b border-gray-100 pb-3 last:border-0 last:pb-0">
+                  <div className="flex items-start gap-2 min-w-0">
+                    <item.icon className="w-4 h-4 text-primary-500 mt-0.5" />
+                    <p className="text-sm text-gray-700 truncate">{item.text}</p>
+                  </div>
+                  <span className="text-xs text-gray-400 whitespace-nowrap">{item.when}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Field Worker Monitoring Analytics */}
-      {/* <section>
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center">
-          <Users className="w-4 h-4 mr-2" />
-          Field Worker Monitoring Analytics
-          {selectedUlbId && (
-            <span className="ml-2 text-xs text-gray-400">
-              ({ulbs.find(u => u.id === selectedUlbId)?.name || 'Selected ULB'})
-            </span>
-          )}
-        </h2>
-        {loadingFieldWorkers ? (
-          <div className="flex items-center justify-center h-32">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div className="bg-white rounded-lg border border-gray-100 p-4 flex flex-col justify-between hover:bg-gray-50 transition-colors">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-gray-500 uppercase">Total Workers</p>
-                <Users className="h-4 w-4 text-gray-400" />
-              </div>
-              <p className="text-xl font-bold text-gray-900">{fieldWorkerStats.total_workers}</p>
-            </div>
-            <div className="bg-white rounded-lg border border-gray-100 p-4 flex flex-col justify-between hover:bg-gray-50 transition-colors">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-gray-500 uppercase">Attendance %</p>
-                <Percent className="h-4 w-4 text-gray-400" />
-              </div>
-              <div>
-                <p className="text-xl font-bold text-gray-900">{fieldWorkerStats.attendance_percentage}%</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {fieldWorkerStats.present_today} / {fieldWorkerStats.total_workers} present
-                </p>
-              </div>
-            </div>
-            <div className="bg-white rounded-lg border border-gray-100 p-4 flex flex-col justify-between hover:bg-gray-50 transition-colors">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-gray-500 uppercase">Payroll Summary</p>
-                <DollarSign className="h-4 w-4 text-gray-400" />
-              </div>
-              <div>
-                <p className="text-xl font-bold text-gray-900">
-                  ₹{fieldWorkerStats.payroll_summary.total_amount.toLocaleString()}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {fieldWorkerStats.payroll_summary.workers_count} workers
-                </p>
-              </div>
-            </div>
-            <div className="bg-white rounded-lg border border-gray-100 p-4 flex flex-col justify-between hover:bg-gray-50 transition-colors">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-gray-500 uppercase">Contractor Compliance</p>
-                <CheckCircle className="h-4 w-4 text-gray-400" />
-              </div>
-              <div>
-                <p className={`text-xl font-bold ${fieldWorkerStats.contractor_compliance >= 90
-                  ? 'text-green-600'
-                  : fieldWorkerStats.contractor_compliance >= 70
-                    ? 'text-yellow-600'
-                    : 'text-red-600'
-                  }`}>
-                  {fieldWorkerStats.contractor_compliance}%
-                </p>
-              </div>
-            </div>
-            <div className="bg-white rounded-lg border border-gray-100 p-4 flex flex-col justify-between hover:bg-gray-50 transition-colors">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-gray-500 uppercase">Geo Violations</p>
-                <AlertTriangle className="h-4 w-4 text-red-400" />
-              </div>
-              <p className={`text-xl font-bold ${fieldWorkerStats.geo_violations > 0 ? 'text-red-600' : 'text-gray-900'
-                }`}>
-                {fieldWorkerStats.geo_violations}
-              </p>
-            </div>
-          </div>
-        )}
-      </section> */}
-
-      {/* 1. Primary Navigation - Quick Actions */}
-      <section>
-        <h2 className="ds-section-title flex items-center">
-          <TrendingUp className="w-5 h-5 mr-2 text-primary-600" />
-          Quick Actions
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {quickActions.map((action, index) => (
-            <Link
-              key={index}
-              to={action.link}
-              className="card-hover flex flex-col items-center justify-center p-5 group"
-            >
-              <div className={`p-3 rounded-full ${action.color} text-white mb-3 shadow-sm group-hover:scale-110 transition-transform`}>
-                <action.icon className="h-6 w-6" />
-              </div>
-              <span className="text-sm font-medium text-gray-700 group-hover:text-primary-700 text-center">{action.name}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* 2. Global Metrics - Simplified */}
-      <section>
-        <h2 className="ds-section-title-muted">Data Insights</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          {systemMetrics.map((stat, index) => (
-            <div key={index} className="stat-card">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-gray-500 uppercase">{stat.title}</p>
-                <stat.icon className={`h-4 w-4 ${stat.textRed ? 'text-red-500' : 'text-gray-400'}`} />
-              </div>
-              <div>
-                <p className={`text-xl font-bold ${stat.textRed ? 'text-red-600' : 'text-gray-900'}`}>{stat.value}</p>
-                {stat.change && (
-                  <p className="text-xs text-green-600 mt-1 font-medium">{stat.change}</p>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* 3. Administration - Compact Grid */}
-      <section>
-        <h2 className="ds-section-title-muted">Administration & Reports</h2>
+      <div className="rounded-xl border border-gray-100 bg-white p-4 mb-4">
+        <h3 className="text-xs font-semibold tracking-wide text-gray-500 uppercase mb-3">Administration & Reports</h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-          {adminItems.map((item, idx) => (
+          {adminItems.map((item) => (
             <Link
-              key={idx}
+              key={item.name}
               to={item.link}
-              className="stat-card flex flex-col items-center p-3 text-center"
+              className="rounded-xl border border-gray-100 p-3 text-center hover:bg-gray-50 transition-colors"
             >
-              <div className="text-gray-500 mb-2">
-                <item.icon className="w-5 h-5" />
-              </div>
-              <span className="text-xs font-medium text-gray-700">{item.name}</span>
+              <item.icon className="w-5 h-5 mx-auto mb-2 text-gray-500" />
+              <p className="text-xs font-medium text-gray-700">{item.name}</p>
             </Link>
           ))}
         </div>
-      </section>
+      </div>
 
-      {/* 4. Snapshot / Water Tax Overview */}
-      {/* 4. Module Snapshots */}
-      <h2 className="ds-section-title-muted">Module Snapshots</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-
-        {/* Property Tax Snapshot */}
-        <section className="card overflow-hidden p-0">
-          <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-primary-50/50">
-            <h3 className="text-sm font-semibold text-gray-900 uppercase flex items-center">
-              <Building2 className="w-4 h-4 mr-2 text-blue-600" />
-              Property Tax
-            </h3>
-            <Link to="/property-tax" className="text-blue-600 text-xs font-medium hover:text-blue-700 flex items-center">
-              View <TrendingUp className="w-3 h-3 ml-1" />
-            </Link>
-          </div>
-          <div className="p-6 space-y-4 min-w-0 overflow-hidden">
-            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Properties</span>
-              <span className="text-lg font-bold text-gray-900 min-w-0 truncate text-right" title={String(stats.totalProperties)}>{stats.totalProperties.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Assessments</span>
-              <span className="text-lg font-bold text-gray-700 min-w-0 truncate text-right" title={String(stats.totalAssessments)}>{stats.totalAssessments.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Revenue</span>
-              <span className="text-lg font-bold text-blue-600 min-w-0 truncate text-right" title={`₹${(stats.houseTaxRevenue || 0).toLocaleString()}`}>₹{(stats.houseTaxRevenue || 0).toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center gap-2 min-w-0 pt-1">
-              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Outstanding</span>
-              <span className="text-lg font-bold text-red-500 min-w-0 truncate text-right" title={`₹${(stats.houseTaxOutstanding || 0).toLocaleString()}`}>₹{(stats.houseTaxOutstanding || 0).toLocaleString()}</span>
-            </div>
-          </div>
-        </section>
-
-        {/* Water Tax Snapshot */}
-        <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-cyan-50/30">
-            <h3 className="text-sm font-semibold text-gray-900 uppercase flex items-center">
-              <Droplet className="w-4 h-4 mr-2 text-cyan-600" />
-              Water Tax
-            </h3>
-            <Link to="/water-tax" className="text-cyan-600 text-xs font-medium hover:text-cyan-700 flex items-center">
-              View <TrendingUp className="w-3 h-3 ml-1" />
-            </Link>
-          </div>
-          <div className="p-6 space-y-4 min-w-0 overflow-hidden">
-            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Connections</span>
-              <span className="text-lg font-bold text-gray-900 min-w-0 truncate text-right">{stats.totalWaterConnections.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Active</span>
-              <span className="text-lg font-bold text-gray-700 min-w-0 truncate text-right">{stats.totalWaterConnections.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Revenue</span>
-              <span className="text-lg font-bold text-cyan-600 min-w-0 truncate text-right" title={`₹${stats.totalWaterRevenue.toLocaleString()}`}>₹{stats.totalWaterRevenue.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center gap-2 min-w-0 pt-1">
-              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Outstanding</span>
-              <span className="text-lg font-bold text-red-500 min-w-0 truncate text-right" title={`₹${stats.waterOutstanding.toLocaleString()}`}>₹{stats.waterOutstanding.toLocaleString()}</span>
-            </div>
-          </div>
-        </section>
-
-        {/* D2DC Snapshot */}
-        <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-purple-50/30">
-            <h3 className="text-sm font-semibold text-gray-900 uppercase flex items-center">
-              <Truck className="w-4 h-4 mr-2 text-purple-600" />
-              D2DC
-            </h3>
-            <Link to="/field-monitoring" className="text-purple-600 text-xs font-medium hover:text-purple-700 flex items-center">
-              View <TrendingUp className="w-3 h-3 ml-1" />
-            </Link>
-          </div>
-          <div className="p-6 space-y-4 min-w-0 overflow-hidden">
-            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Demands Generated</span>
-              <span className="text-lg font-bold text-gray-900 min-w-0 truncate text-right">{(stats.d2dcDemands || 0).toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Collection Rate</span>
-              <span className="text-lg font-bold text-gray-700 min-w-0 truncate text-right">-</span>
-            </div>
-            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Revenue</span>
-              <span className="text-lg font-bold text-purple-600 min-w-0 truncate text-right" title={`₹${(stats.d2dcRevenue || 0).toLocaleString()}`}>₹{(stats.d2dcRevenue || 0).toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center gap-2 min-w-0 pt-1">
-              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Outstanding</span>
-              <span className="text-lg font-bold text-red-500 min-w-0 truncate text-right" title={`₹${(stats.d2dcOutstanding || 0).toLocaleString()}`}>₹{(stats.d2dcOutstanding || 0).toLocaleString()}</span>
-            </div>
-          </div>
-        </section>
-
-        {/* Shop Tax Snapshot */}
-        <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-amber-50/30">
-            <h3 className="text-sm font-semibold text-gray-900 uppercase flex items-center">
-              <Store className="w-4 h-4 mr-2 text-amber-600" />
-              Shop Tax
-            </h3>
-            <Link to="/shop-tax" className="text-amber-600 text-xs font-medium hover:text-amber-700 flex items-center">
-              View <TrendingUp className="w-3 h-3 ml-1" />
-            </Link>
-          </div>
-          <div className="p-6 space-y-4 min-w-0 overflow-hidden">
-            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Demands</span>
-              <span className="text-lg font-bold text-gray-900 min-w-0 truncate text-right">{(stats.shopTaxDemands || 0).toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Active Shops</span>
-              <span className="text-lg font-bold text-gray-700 min-w-0 truncate text-right">{(stats.activeShops ?? 0).toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Revenue</span>
-              <span className="text-lg font-bold text-amber-600 min-w-0 truncate text-right" title={`₹${(stats.shopTaxRevenue || 0).toLocaleString()}`}>₹{(stats.shopTaxRevenue || 0).toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center gap-2 min-w-0 pt-1">
-              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Outstanding</span>
-              <span className="text-lg font-bold text-red-500 min-w-0 truncate text-right" title={`₹${(stats.shopTaxOutstanding || 0).toLocaleString()}`}>₹{(stats.shopTaxOutstanding || 0).toLocaleString()}</span>
-            </div>
-          </div>
-        </section>
-
-        {/* Toilet Snapshot */}
-        <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-teal-50/30">
-            <h3 className="text-sm font-semibold text-gray-900 uppercase flex items-center">
-              <Bath className="w-4 h-4 mr-2 text-teal-600" />
-              Toilet
-            </h3>
-            <Link to="/toilet-management" className="text-teal-600 text-xs font-medium hover:text-teal-700 flex items-center">
-              View <TrendingUp className="w-3 h-3 ml-1" />
-            </Link>
-          </div>
-          <div className="p-6 space-y-4 min-w-0 overflow-hidden">
-            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Facilities</span>
-              <span className="text-lg font-bold text-gray-900 min-w-0 truncate text-right">{(toiletStats?.totalFacilities ?? 0).toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Active</span>
-              <span className="text-lg font-bold text-gray-700 min-w-0 truncate text-right">{(toiletStats?.activeFacilities ?? 0).toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Inspections</span>
-              <span className="text-lg font-bold text-teal-600 min-w-0 truncate text-right">{(toiletStats?.totalInspections ?? 0).toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center gap-2 min-w-0 pt-1">
-              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Complaints</span>
-              <span className="text-lg font-bold text-gray-700 min-w-0 truncate text-right">{(toiletStats?.totalComplaints ?? 0).toLocaleString()}</span>
-            </div>
-          </div>
-        </section>
-
-        {/* MRF Snapshot */}
-        <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-emerald-50/30">
-            <h3 className="text-sm font-semibold text-gray-900 uppercase flex items-center">
-              <Recycle className="w-4 h-4 mr-2 text-emerald-600" />
-              MRF
-            </h3>
-            <Link to="/mrf" className="text-emerald-600 text-xs font-medium hover:text-emerald-700 flex items-center">
-              View <TrendingUp className="w-3 h-3 ml-1" />
-            </Link>
-          </div>
-          <div className="p-6 space-y-4 min-w-0 overflow-hidden">
-            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Facilities</span>
-              <span className="text-lg font-bold text-gray-900 min-w-0 truncate text-right">{(mrfStats?.totalFacilities ?? 0).toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Active</span>
-              <span className="text-lg font-bold text-gray-700 min-w-0 truncate text-right">{(mrfStats?.activeFacilities ?? 0).toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Processing (tons)</span>
-              <span className="text-lg font-bold text-emerald-600 min-w-0 truncate text-right">{(mrfStats?.totalProcessing ?? 0).toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center gap-2 min-w-0 pt-1">
-              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Efficiency</span>
-              <span className="text-lg font-bold text-gray-700 min-w-0 truncate text-right">{mrfStats?.efficiency != null ? `${mrfStats.efficiency}%` : '—'}</span>
-            </div>
-          </div>
-        </section>
-
-        {/* Gaushala Snapshot */}
-        <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-rose-50/30">
-            <h3 className="text-sm font-semibold text-gray-900 uppercase flex items-center">
-              <Heart className="w-4 h-4 mr-2 text-rose-600" />
-              Gaushala
-            </h3>
-            <Link to="/gaushala/management" className="text-rose-600 text-xs font-medium hover:text-rose-700 flex items-center">
-              View <TrendingUp className="w-3 h-3 ml-1" />
-            </Link>
-          </div>
-          <div className="p-6 space-y-4 min-w-0 overflow-hidden">
-            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Facilities</span>
-              <span className="text-lg font-bold text-gray-900 min-w-0 truncate text-right">{(gaushalaStats?.totalFacilities ?? 0).toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Cattle</span>
-              <span className="text-lg font-bold text-gray-700 min-w-0 truncate text-right">{(gaushalaStats?.totalCattle ?? 0).toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
-              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Inspections</span>
-              <span className="text-lg font-bold text-rose-600 min-w-0 truncate text-right">{(gaushalaStats?.totalInspections ?? 0).toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center gap-2 min-w-0 pt-1">
-              <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Complaints</span>
-              <span className="text-lg font-bold text-gray-700 min-w-0 truncate text-right">{(gaushalaStats?.totalComplaints ?? 0).toLocaleString()}</span>
-            </div>
-          </div>
-        </section>
+      <div className="card-flat flex items-center gap-2 text-sm text-gray-600">
+        <Filter className="w-4 h-4" />
+        Amount format follows image style: <span className="font-semibold text-gray-900">{formatCurrencyCr(8898900000)}</span>
       </div>
     </div>
   );

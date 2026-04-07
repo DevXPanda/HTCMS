@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Bath, Recycle, Heart, Users, BarChart3, AlertCircle, AlertTriangle, RefreshCw, UserCheck, X, Clock, FileText, Shield } from 'lucide-react';
+import { Bath, Recycle, Heart, Users, BarChart3, AlertCircle, AlertTriangle, RefreshCw, UserCheck, X, Clock, Shield, TrendingUp, Bell } from 'lucide-react';
 import { useStaffAuth } from '../../contexts/StaffAuthContext';
 import api from '../../services/api';
 
@@ -141,6 +141,13 @@ const SFIDashboard = () => {
   const showToilet = !showOnlyAssigned || assignedModules.includes('toilet');
   const showMrf = !showOnlyAssigned || assignedModules.includes('mrf');
   const showGaushala = !showOnlyAssigned || assignedModules.includes('gaushala');
+  const quickActions = [
+    { name: 'Toilet Management', icon: Bath, link: '/sfi/toilet-management', color: 'bg-pink-600', visible: showToilet },
+    { name: 'MRF', icon: Recycle, link: '/sfi/mrf', color: 'bg-green-600', visible: showMrf },
+    { name: 'Gau Shala', icon: Heart, link: '/sfi/gaushala/management', color: 'bg-orange-600', visible: showGaushala },
+    { name: 'Staff Assignment', icon: Users, link: '/sfi/workers', color: 'bg-blue-600', visible: true },
+  ];
+  const adminReportsItems = [{ name: 'Notifications', icon: Bell, link: '/sfi/notifications' }];
   const facilityTotal = (showToilet ? (facilities.toilet ?? 0) : 0) + (showMrf ? (facilities.mrf ?? 0) : 0) + (showGaushala ? (facilities.gaushala ?? 0) : 0);
   const facilityParts = [];
   if (showToilet) facilityParts.push(`T: ${facilities.toilet ?? 0}`);
@@ -290,46 +297,47 @@ const SFIDashboard = () => {
             </div>
           </div>
 
-          {/* Quick actions */}
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-3">Quick actions</h2>
-            <div className="flex flex-wrap gap-3">
-              <Link
-                to="/sfi/workers"
-                className="inline-flex items-center gap-2 px-4 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
-              >
-                <Users className="w-5 h-5" />
-                Staff Assignment
-              </Link>
-              {assignedModules.includes('toilet') && (
+          <section>
+            <h2 className="form-section-title flex items-center mb-4">
+              <TrendingUp className="w-5 h-5 mr-2 text-primary-600" />
+              Quick Actions
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {quickActions.filter((a) => a.visible).map((action) => (
                 <Link
-                  to="/sfi/toilet-management/complaints"
-                  className="inline-flex items-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-primary-200 transition-colors font-medium"
+                  key={action.name}
+                  to={action.link}
+                  className="flex flex-col items-center justify-center p-5 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-primary-100 transition-all group"
                 >
-                  <Bath className="w-5 h-5 text-primary-600" />
-                  Toilet complaints
+                  <div className={`p-3 rounded-full ${action.color} text-white mb-3 shadow-sm group-hover:scale-110 transition-transform`}>
+                    <action.icon className="h-6 w-6" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700 group-hover:text-primary-700 text-center">{action.name}</span>
                 </Link>
-              )}
-              {assignedModules.includes('gaushala') && (
-                <Link
-                  to="/sfi/gaushala/complaints"
-                  className="inline-flex items-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-primary-200 transition-colors font-medium"
-                >
-                  <Heart className="w-5 h-5 text-primary-600" />
-                  Gaushala complaints
-                </Link>
-              )}
-              {reportLinks.length > 0 && (
-                <Link
-                  to={reportLinks[0].to}
-                  className="inline-flex items-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-primary-200 transition-colors font-medium"
-                >
-                  <FileText className="w-5 h-5 text-primary-600" />
-                  Reports
-                </Link>
-              )}
+              ))}
             </div>
-          </div>
+          </section>
+
+          <section>
+            <h2 className="form-section-title flex items-center mb-4">
+              <Shield className="w-5 h-5 mr-2 text-gray-500" />
+              Administration & Reports
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {adminReportsItems.map((item) => (
+                <Link
+                  key={item.name}
+                  to={item.link}
+                  className="flex flex-col items-center justify-center p-5 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-primary-100 transition-all group"
+                >
+                  <div className="p-3 rounded-full bg-indigo-600 text-white mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                    <item.icon className="h-6 w-6" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700 group-hover:text-primary-700 text-center">{item.name}</span>
+                </Link>
+              ))}
+            </div>
+          </section>
 
           {staffDetailsOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setStaffDetailsOpen(false)}>

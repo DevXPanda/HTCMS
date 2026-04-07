@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { citizenAPI } from '../../services/api';
 import Loading from '../../components/Loading';
-import { Home, FileText, DollarSign, CreditCard, Bell, Store, Droplet, PlusCircle, FileCheck, History, TrendingUp, Shield } from 'lucide-react';
+import { Home, FileText, CreditCard, Bell, Store, Droplet, PlusCircle, FileCheck, History, TrendingUp, Megaphone, Wallet } from 'lucide-react';
 
 const CitizenDashboard = () => {
   const [dashboard, setDashboard] = useState(null);
@@ -28,17 +28,23 @@ const CitizenDashboard = () => {
   const formatAmount = (num) =>
     `₹${Number(num || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  // Summary: 9 cards in 3x3 grid (same UI as Clerk/Officer dashboards)
+  const formatShortAmount = (num) => {
+    const n = Number(num || 0);
+    if (n >= 10000000) return `₹${(n / 10000000).toFixed(2)} Cr`;
+    if (n >= 100000) return `₹${(n / 100000).toFixed(2)} L`;
+    return formatAmount(n);
+  };
+
   const summaryCards = [
-    { title: 'My Properties', value: dashboard?.properties ?? 0, icon: Home, color: 'bg-blue-500', link: '/citizen/properties' },
-    { title: 'Pending House Tax', value: dashboard?.pendingHouseTaxDemands || 0, icon: FileText, color: 'bg-orange-500', link: '/citizen/demands?serviceType=HOUSE_TAX' },
-    { title: 'Pending Water Tax', value: dashboard?.pendingWaterTaxDemands || 0, icon: FileText, color: 'bg-cyan-500', link: '/citizen/demands?serviceType=WATER_TAX' },
-    { title: 'Pending D2DC', value: dashboard?.pendingD2dcDemands || 0, icon: FileText, color: 'bg-green-500', link: '/citizen/demands?serviceType=D2DC' },
-    { title: 'Pending Shop Tax', value: dashboard?.pendingShopTaxDemands || 0, icon: Store, color: 'bg-amber-500', link: '/citizen/demands?serviceType=SHOP_TAX' },
-    { title: 'Active Notices', value: dashboard?.activeNotices || 0, icon: Bell, color: 'bg-yellow-500', link: '/citizen/notices', badge: dashboard?.activeNotices > 0 },
-    { title: 'Total Outstanding', value: formatAmount(dashboard?.totalOutstanding), icon: DollarSign, color: 'bg-red-500', link: '/citizen/demands' },
-    { title: 'My Shops', value: dashboard?.shops || 0, icon: Store, color: 'bg-amber-500', link: '/citizen/shops' },
-    { title: 'Recent Payments', value: dashboard?.recentPayments?.length || 0, icon: CreditCard, color: 'bg-green-500', link: '/citizen/payments' }
+    { title: 'Total Outstanding', value: formatShortAmount(dashboard?.totalOutstanding), sub: 'Due amount', icon: Wallet, color: 'bg-rose-500', link: '/citizen/demands' },
+    { title: 'My Properties', value: dashboard?.properties ?? 0, sub: 'Total properties', icon: Home, color: 'bg-blue-500', link: '/citizen/properties' },
+    { title: 'Pending House Tax', value: dashboard?.pendingHouseTaxDemands || 0, sub: 'Demands', icon: FileText, color: 'bg-orange-500', link: '/citizen/demands?serviceType=HOUSE_TAX' },
+    { title: 'Pending Water Tax', value: dashboard?.pendingWaterTaxDemands || 0, sub: 'Demands', icon: Droplet, color: 'bg-cyan-500', link: '/citizen/demands?serviceType=WATER_TAX' },
+    { title: 'Pending D2DC', value: dashboard?.pendingD2dcDemands || 0, sub: 'Demands', icon: FileText, color: 'bg-green-500', link: '/citizen/demands?serviceType=D2DC' },
+    { title: 'Pending Shop Tax', value: dashboard?.pendingShopTaxDemands || 0, sub: 'Demands', icon: Store, color: 'bg-amber-500', link: '/citizen/demands?serviceType=SHOP_TAX' },
+    { title: 'Action Notices', value: dashboard?.activeNotices || 0, sub: 'Unread', icon: Bell, color: 'bg-purple-500', link: '/citizen/notices', badge: dashboard?.activeNotices > 0 },
+    { title: 'My Shops', value: dashboard?.shops || 0, sub: 'Registered', icon: Store, color: 'bg-indigo-500', link: '/citizen/shops' },
+    { title: 'Recent Payments', value: dashboard?.recentPayments?.length || 0, sub: 'This period', icon: CreditCard, color: 'bg-emerald-500', link: '/citizen/payments' }
   ];
 
   // Quick Actions - All sidebar navigation items
@@ -55,168 +61,169 @@ const CitizenDashboard = () => {
     { name: 'Activity History', icon: History, link: '/citizen/activity-history', color: 'bg-gray-600' },
   ];
 
-  const adminReportsItems = [{ name: 'Notifications', icon: Bell, link: '/citizen/notifications' }];
-
   return (
-    <div className="space-y-6">
-      {/* Page Header - match other dashboards */}
-      <div className="ds-page-header">
-        <div>
-          <h1 className="ds-page-title">Citizen Dashboard</h1>
-          <p className="ds-page-subtitle">My Services & Information</p>
+    <div className="space-y-5">
+      <section className="overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50 via-sky-50 to-cyan-50">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 p-6">
+          <div className="space-y-3 max-w-xl">
+            <span className="inline-flex items-center rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-blue-700 border border-blue-100">
+              Welcome back, citizen
+            </span>
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-800 leading-tight">
+              Manage Your Services, Build a Better City
+            </h1>
+            <p className="text-sm text-slate-600">
+              Access services, track dues, and stay updated with ULB notices from one place.
+            </p>
+            <div className="flex flex-wrap gap-3 pt-1">
+              <Link to="/citizen/demands" className="btn btn-primary">Pay Now</Link>
+              <Link to="/citizen/toilet/file-complaint" className="btn btn-secondary">Raise Complaint</Link>
+            </div>
+          </div>
+          <div className="hidden md:flex items-center justify-center w-full md:w-64 lg:w-80">
+            <img
+              src="/ULB Logo.png"
+              alt="Urban Local Bodies"
+              className="h-40 w-40 lg:h-48 lg:w-48 object-contain drop-shadow-sm opacity-90"
+            />
+          </div>
         </div>
-      </div>
+      </section>
 
-      {/* Summary Section - 3x3 grid, same UI as Clerk/Officer */}
       <section>
-        <h2 className="form-section-title flex items-center mb-4">
-          <TrendingUp className="w-5 h-5 mr-2 text-primary-600" />
-          Summary
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
           {summaryCards.map((stat, index) => {
             const Icon = stat.icon;
             return (
-              <Link key={index} to={stat.link} className="stat-card card-hover">
-                <div className="stat-card-title">
-                  <span>{stat.title}</span>
-                  <div className={`${stat.color} p-2 rounded-full relative`}>
-                    <Icon className="w-5 h-5 text-white" />
-                    {stat.badge && typeof stat.value === 'number' && stat.value > 0 && (
-                      <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-xs font-bold rounded-full min-w-[1.25rem] h-5 flex items-center justify-center px-1">
+              <Link key={index} to={stat.link} className="card-hover rounded-xl border border-gray-100 bg-white p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500">{stat.title}</p>
+                    <p className="mt-1 text-xl font-bold text-gray-900">{stat.value}</p>
+                    <p className="text-[11px] text-gray-400">{stat.sub}</p>
+                  </div>
+                  <div className={`${stat.color} p-2 rounded-full relative shrink-0`}>
+                    <Icon className="w-4 h-4 text-white" />
+                    {stat.badge && typeof stat.value === 'number' && stat.value > 0 ? (
+                      <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[1rem] h-4 flex items-center justify-center px-1">
                         {stat.value}
                       </span>
-                    )}
+                    ) : null}
                   </div>
                 </div>
-                <p className="stat-card-value">{stat.value}</p>
               </Link>
             );
           })}
         </div>
       </section>
 
-      {/* Quick Actions Section */}
-      <section>
-        <h2 className="form-section-title flex items-center mb-4">
-          <TrendingUp className="w-5 h-5 mr-2 text-primary-600" />
-          Quick Actions
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {quickActions.map((action, index) => (
-            <Link
-              key={index}
-              to={action.link}
-              className="flex flex-col items-center justify-center p-5 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-primary-100 transition-all group"
-            >
-              <div className={`p-3 rounded-full ${action.color} text-white mb-3 shadow-sm group-hover:scale-110 transition-transform`}>
-                <action.icon className="h-6 w-6" />
-              </div>
-              <span className="text-sm font-medium text-gray-700 group-hover:text-primary-700 text-center">{action.name}</span>
-            </Link>
-          ))}
+      <section className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <div className="xl:col-span-2 rounded-xl border border-gray-100 bg-white p-4">
+          <h2 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-blue-600" />
+            Quick Actions
+          </h2>
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+            {quickActions.map((action, index) => (
+              <Link
+                key={index}
+                to={action.link}
+                className="card-hover rounded-lg border border-gray-100 px-3 py-3 flex items-center gap-2"
+              >
+                <span className={`p-2 rounded-full ${action.color} text-white`}>
+                  <action.icon className="h-4 w-4" />
+                </span>
+                <span className="text-xs font-medium text-gray-700">{action.name}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-cyan-50 p-4 flex flex-col justify-between">
+          <div>
+            <p className="text-sm font-semibold text-slate-700">All your city services in one place</p>
+            <p className="text-xs text-slate-500 mt-1">Simple, fast and reliable access to ULB citizen services.</p>
+          </div>
+          <div className="mt-4 flex items-center justify-center">
+            <img src="/ULB Logo.png" alt="ULB" className="h-20 w-20 object-contain opacity-90" />
+          </div>
+          <Link to="/citizen/activity-history" className="mt-4 text-xs text-blue-700 font-semibold hover:underline">
+            View activity history
+          </Link>
         </div>
       </section>
 
-      {/* Administration & Reports - Notifications (role-filtered) */}
-      <section>
-        <h2 className="form-section-title flex items-center mb-4">
-          <Shield className="w-5 h-5 mr-2 text-gray-500" />
-          Administration & Reports
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {adminReportsItems.map((item, idx) => (
-            <Link
-              key={idx}
-              to={item.link}
-              className="flex flex-col items-center justify-center p-5 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-primary-100 transition-all group"
-            >
-              <div className="p-3 rounded-full bg-indigo-600 text-white mb-3 shadow-sm group-hover:scale-110 transition-transform">
-                <item.icon className="h-6 w-6" />
-              </div>
-              <span className="text-sm font-medium text-gray-700 group-hover:text-primary-700 text-center">{item.name}</span>
-            </Link>
-          ))}
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="rounded-xl border border-gray-100 bg-white p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+              <Megaphone className="w-4 h-4 text-blue-600" />
+              Notifications
+            </h3>
+            <Link to="/citizen/notices" className="text-xs text-blue-600 hover:underline">View all</Link>
+          </div>
+          <div className="rounded-lg border border-gray-100 p-3">
+            <p className="text-xs text-gray-500">Active notices</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{dashboard?.activeNotices || 0}</p>
+            <p className="text-xs text-gray-400 mt-1">Based on your current unresolved notices.</p>
+          </div>
         </div>
-      </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg border border-gray-100 p-6">
-          <h2 className="text-xl font-semibold mb-4">Pending Demands</h2>
+        <div className="rounded-xl border border-gray-100 bg-white p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-orange-500" />
+              Pending Demands
+            </h3>
+            <Link to="/citizen/demands" className="text-xs text-blue-600 hover:underline">View all</Link>
+          </div>
           {dashboard?.pendingDemandsList && dashboard.pendingDemandsList.length > 0 ? (
-            <div className="space-y-3">
-              {dashboard.pendingDemandsList.slice(0, 5).map((demand) => {
-                const isD2DC = demand.serviceType === 'D2DC';
-                const isWaterTax = demand.serviceType === 'WATER_TAX';
-                const isShopTax = demand.serviceType === 'SHOP_TAX';
-                return (
-                  <div key={demand.id} className="border-b pb-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="font-medium">{demand.demandNumber}</p>
-                      <span className={`px-2 py-1 text-xs font-semibold rounded ${isD2DC
-                        ? 'bg-green-100 text-green-800 border border-green-300'
-                        : isWaterTax
-                          ? 'bg-cyan-100 text-cyan-800 border border-cyan-300'
-                          : isShopTax
-                            ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                            : 'bg-blue-100 text-blue-800 border border-blue-300'
-                        }`}>
-                        {isD2DC ? 'D2DC' : isWaterTax ? 'Water Tax' : isShopTax ? 'Shop Tax' : 'House Tax'}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600">
-                      Balance: {formatAmount(demand.balanceAmount)}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Due: {new Date(demand.dueDate).toLocaleDateString()}
-                    </p>
+            <div className="space-y-2">
+              {dashboard.pendingDemandsList.slice(0, 4).map((demand) => (
+                <div key={demand.id} className="rounded-lg border border-gray-100 p-2.5">
+                  <div className="flex justify-between items-center gap-2">
+                    <p className="text-xs font-semibold text-gray-700 truncate">{demand.demandNumber}</p>
+                    <Link to="/citizen/demands" className="text-[10px] px-2 py-0.5 rounded bg-red-50 text-red-600 border border-red-100">Pay</Link>
                   </div>
-                );
-              })}
+                  <p className="text-[11px] text-gray-500 mt-0.5">
+                    {demand.serviceType?.replace('_', ' ')} · Due {new Date(demand.dueDate).toLocaleDateString()}
+                  </p>
+                  <p className="text-xs font-semibold text-red-600 mt-1">{formatAmount(demand.balanceAmount)}</p>
+                </div>
+              ))}
             </div>
           ) : (
-            <p className="text-gray-500">No pending demands</p>
+            <p className="text-sm text-gray-500">No pending demands</p>
           )}
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-100 p-6">
-          <h2 className="text-xl font-semibold mb-4">Recent Payments</h2>
+        <div className="rounded-xl border border-gray-100 bg-white p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-emerald-600" />
+              Recent Payments
+            </h3>
+            <Link to="/citizen/payments" className="text-xs text-blue-600 hover:underline">View all</Link>
+          </div>
           {dashboard?.recentPayments && dashboard.recentPayments.length > 0 ? (
-            <div className="space-y-3">
-              {dashboard.recentPayments.map((payment) => {
-                const isD2DC = payment.demand?.serviceType === 'D2DC';
-                const isWaterTax = payment.demand?.serviceType === 'WATER_TAX';
-                const isShopTax = payment.demand?.serviceType === 'SHOP_TAX';
-                return (
-                  <div key={payment.id} className="border-b pb-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="font-medium">{payment.receiptNumber}</p>
-                      <span className={`px-2 py-1 text-xs font-semibold rounded ${isD2DC
-                        ? 'bg-green-100 text-green-800 border border-green-300'
-                        : isWaterTax
-                          ? 'bg-cyan-100 text-cyan-800 border border-cyan-300'
-                          : isShopTax
-                            ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                            : 'bg-blue-100 text-blue-800 border border-blue-300'
-                        }`}>
-                        {isD2DC ? 'D2DC' : isWaterTax ? 'Water Tax' : isShopTax ? 'Shop Tax' : 'House Tax'}
-                      </span>
-                    </div>
-                    <p className="text-sm text-green-600">
-                      {formatAmount(payment.amount)}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(payment.paymentDate).toLocaleDateString()}
-                    </p>
+            <div className="space-y-2">
+              {dashboard.recentPayments.slice(0, 4).map((payment) => (
+                <div key={payment.id} className="rounded-lg border border-gray-100 p-2.5">
+                  <div className="flex justify-between items-center gap-2">
+                    <p className="text-xs font-semibold text-gray-700 truncate">{payment.receiptNumber}</p>
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 border border-emerald-100">Paid</span>
                   </div>
-                );
-              })}
+                  <p className="text-[11px] text-gray-500 mt-0.5">
+                    {payment?.demand?.serviceType?.replace('_', ' ') || 'Payment'} · {new Date(payment.paymentDate).toLocaleDateString()}
+                  </p>
+                  <p className="text-xs font-semibold text-emerald-600 mt-1">{formatAmount(payment.amount)}</p>
+                </div>
+              ))}
             </div>
           ) : (
-            <p className="text-gray-500">No recent payments</p>
+            <p className="text-sm text-gray-500">No recent payments</p>
           )}
         </div>
-      </div>
+      </section>
     </div>
   );
 };

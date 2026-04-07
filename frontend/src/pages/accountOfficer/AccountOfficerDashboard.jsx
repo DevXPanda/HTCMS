@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   FileCheck2, Receipt, Percent, ShieldAlert, DollarSign,
   TrendingUp, Clock, CheckCircle, XCircle, Loader2, AlertCircle,
-  ArrowUpRight, IndianRupee
+  IndianRupee, Bell, Shield
 } from 'lucide-react';
 import { paymentAPI, paymentApprovalRequestAPI, discountAPI, penaltyWaiverAPI } from '../../services/api';
 
@@ -63,6 +63,11 @@ const AccountOfficerDashboard = () => {
     if (st === 'REJECTED') return 'bg-red-100 text-red-700';
     return 'bg-yellow-100 text-yellow-700';
   };
+
+  const adminReportsItems = [
+    { name: 'Notifications', icon: Bell, link: '/account-officer/notifications' },
+    { name: 'Approval Requests', icon: Shield, link: '/account-officer/approval-requests' },
+  ];
 
   return (
     <div className="space-y-6">
@@ -146,23 +151,35 @@ const AccountOfficerDashboard = () => {
       {/* Quick Navigation Cards */}
       <div>
         <h2 className="text-base font-semibold text-gray-800 mb-3">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {cards.map((card) => (
-            <Link key={card.title} to={card.to} className="group card-hover p-5 rounded-xl border border-gray-100 bg-white flex items-start gap-4">
-              <div className={`inline-flex p-3 rounded-lg text-white ${card.color} shrink-0`}>
-                <card.icon className="w-5 h-5" />
+            <Link key={card.title} to={card.to} className="card-hover flex flex-col items-center justify-center p-5 group text-center">
+              <div className={`p-3 rounded-full ${card.color} text-white mb-3 shadow-sm group-hover:scale-110 transition-transform`}>
+                <card.icon className="h-6 w-6" />
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1">
-                  <h3 className="text-base font-semibold text-gray-900">{card.title}</h3>
-                  <ArrowUpRight className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-                <p className="text-sm text-gray-600 mt-0.5">{card.text}</p>
-              </div>
+              <span className="text-sm font-medium text-gray-700 group-hover:text-primary-700">{card.title}</span>
             </Link>
           ))}
         </div>
       </div>
+
+      <section>
+        <h2 className="text-base font-semibold text-gray-800 mb-3">Administration & Reports</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {adminReportsItems.map((item) => (
+            <Link
+              key={item.name}
+              to={item.link}
+              className="card-hover flex flex-col items-center justify-center p-5 group text-center"
+            >
+              <div className="p-3 rounded-full bg-indigo-600 text-white mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                <item.icon className="h-6 w-6" />
+              </div>
+              <span className="text-sm font-medium text-gray-700 group-hover:text-primary-700">{item.name}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       {/* Recent Approval Requests */}
       {recentRequests.length > 0 && (

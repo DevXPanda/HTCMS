@@ -54,6 +54,7 @@ const SBMDashboard = () => {
   const [mrfStats, setMrfStats] = useState(null);
   const [toiletStats, setToiletStats] = useState(null);
   const [gaushalaStats, setGaushalaStats] = useState(null);
+  const selectedUlbName = ulbs.find((u) => String(u.id) === String(selectedUlbId))?.name;
 
   useEffect(() => {
     api.get('/admin-management/ulbs').then((res) => {
@@ -159,7 +160,7 @@ const SBMDashboard = () => {
       </div>
 
       {/* ULB Filter - SBM can choose all or one ULB like super admin */}
-      {/* <div className="card-flat">
+      <div className="card-flat">
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
             <Filter className="w-5 h-5 text-gray-500" />
@@ -168,7 +169,8 @@ const SBMDashboard = () => {
           <select
             value={selectedUlbId}
             onChange={(e) => setSelectedUlbId(e.target.value)}
-            className="input max-w-xs"
+            className="input h-10 min-w-[16rem] max-w-[20rem] truncate"
+            title={selectedUlbName || 'All ULBs (Aggregated)'}
           >
             <option value="">All ULBs (Aggregated)</option>
             {ulbs.map((ulb) => (
@@ -181,7 +183,7 @@ const SBMDashboard = () => {
             </button>
           )}
         </div>
-      </div> */}
+      </div>
 
       {/* Quick Actions - same as admin, links to SBM routes */}
       <section>
@@ -211,11 +213,11 @@ const SBMDashboard = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {systemMetrics.map((stat, index) => (
             <div key={index} className="stat-card">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-gray-500 uppercase">{stat.title}</p>
+              <div className="stat-card-title">
+                <span>{stat.title}</span>
                 <stat.icon className={`h-4 w-4 ${stat.textRed ? 'text-red-500' : 'text-gray-400'}`} />
               </div>
-              <p className={`text-xl font-bold ${stat.textRed ? 'text-red-600' : 'text-gray-900'}`}>{stat.value}</p>
+              <p className={`stat-card-value ${stat.textRed ? 'text-red-600' : 'text-gray-900'}`}>{stat.value}</p>
             </div>
           ))}
         </div>
