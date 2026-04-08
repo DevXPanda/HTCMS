@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { citizenAPI } from '../../services/api';
 import Loading from '../../components/Loading';
-import { Home, FileText, CreditCard, Bell, Store, Droplet, PlusCircle, FileCheck, History, TrendingUp, Megaphone, Wallet, Building2 } from 'lucide-react';
+import { Home, FileText, CreditCard, Bell, Store, Droplet, PlusCircle, FileCheck, History, TrendingUp, Megaphone, Wallet, CalendarDays } from 'lucide-react';
+import { formatCurrencyCr } from '../../utils/numberFormatters';
 
 const CitizenDashboard = () => {
   const [dashboard, setDashboard] = useState(null);
@@ -33,6 +34,7 @@ const CitizenDashboard = () => {
 
   // Side Mini-Slider State
   const [currentSideSlide, setCurrentSideSlide] = useState(0);
+
   const sideSlides = [
     {
       title: "All city services in one place",
@@ -80,15 +82,10 @@ const CitizenDashboard = () => {
     }
   };
 
-  const formatAmount = (num) =>
-    `₹${Number(num || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const formatAmount = (num) => formatCurrencyCr(num);
+  const formatShortAmount = (num) => formatCurrencyCr(num);
 
-  const formatShortAmount = (num) => {
-    const n = Number(num || 0);
-    if (n >= 10000000) return `₹${(n / 10000000).toFixed(2)} Cr`;
-    if (n >= 100000) return `₹${(n / 100000).toFixed(2)} L`;
-    return formatAmount(n);
-  };
+  if (loading && !dashboard) return <Loading />;
 
   const summaryCards = [
     { title: 'Total Outstanding', value: formatShortAmount(dashboard?.totalOutstanding), sub: 'Due amount', icon: Wallet, color: 'bg-rose-500', link: '/citizen/demands' },
@@ -115,12 +112,23 @@ const CitizenDashboard = () => {
     { name: 'Activity History', icon: History, link: '/citizen/activity-history', color: 'bg-gray-600' },
   ];
 
-  if (loading) return <Loading />;
-
   return (
     <div className="space-y-6">
       {/* Premium Hero Slider Section */}
-      <div className="relative overflow-hidden rounded-2xl bg-slate-900 shadow-lg border border-slate-200/50 group select-none h-[280px] sm:h-[340px] md:h-[400px]">
+      <div className="relative overflow-hidden rounded-2xl shadow-lg border border-slate-200/50 group select-none h-[280px] sm:h-[340px] md:h-[400px]">
+        {/* Top-Right Info Bar (Date, FY Only) - Absolutely Locked to Hero Section */}
+        <div className="absolute top-6 right-6 sm:top-8 sm:right-8 z-30 flex items-center gap-4 px-4 py-2.5 bg-white/90 backdrop-blur-md rounded-xl border border-white/50 shadow-lg animate-fade-in w-fit pointer-events-auto">
+           <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold text-gray-700">
+             <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
+             <span>FY: 2024-25</span>
+           </div>
+           <div className="w-[1px] h-3 bg-gray-300"></div>
+           <div className="flex items-center gap-2 text-[10px] sm:text-xs font-bold text-gray-700">
+             <CalendarDays className="w-3.5 h-3.5 text-blue-600" />
+             <span>{new Date().toLocaleDateString()}</span>
+           </div>
+        </div>
+
         {/* Main Slide Image */}
         <div
           className="absolute inset-0 bg-cover bg-center transition-all duration-1000 ease-in-out transform"
@@ -133,7 +141,7 @@ const CitizenDashboard = () => {
           <div className="absolute inset-0 bg-gradient-to-r from-white/70 via-white/20 to-transparent"></div>
 
           <div className="p-6 sm:p-10 md:p-14 relative w-full lg:w-3/5 transition-all duration-700 h-full flex flex-col justify-center">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/80 border border-blue-100 text-blue-700 text-[10px] sm:text-[11px] uppercase tracking-wider mb-4 sm:mb-6 animate-fade-in shadow-sm w-fit">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/90 border border-blue-100 text-blue-700 text-[10px] sm:text-[11px] uppercase tracking-wider mb-4 sm:mb-6 animate-fade-in shadow-sm w-fit">
               <PlusCircle className="w-3 h-3" />
               {slides[currentSlide].tag}
             </div>
@@ -340,8 +348,8 @@ const CitizenDashboard = () => {
       <footer className="mt-8 pb-4 border-t border-gray-100 pt-6">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-xs sm:text-sm text-gray-500 font-medium">
           <div className="flex items-center gap-2">
-            <span className="p-1.5 bg-blue-50/50 rounded-lg">
-              <Building2 className="w-4 h-4 text-blue-600" />
+            <span className="p-1 bg-white rounded-lg shadow-sm border border-gray-100">
+              <img src="/ULB Logo.png" alt="ULB Logo" className="w-8 h-8 object-contain" />
             </span>
             <span>© {new Date().getFullYear()} Urban Local Bodies - Governance Portal</span>
           </div>

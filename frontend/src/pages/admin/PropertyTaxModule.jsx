@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Home, FileText, Receipt, Bell, CreditCard, PlusCircle, TrendingUp, AlertCircle, IndianRupee, CheckCircle, Zap } from 'lucide-react';
 import { useSelectedUlb } from '../../contexts/SelectedUlbContext';
 import api from '../../services/api';
+import { formatCurrencyCr } from '../../utils/numberFormatters';
 
 const PropertyTaxModule = () => {
     const { effectiveUlbId } = useSelectedUlb();
@@ -132,7 +133,7 @@ const PropertyTaxModule = () => {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-xs text-gray-500 uppercase font-medium">PT Revenue</p>
-                                <p className="text-xl font-bold text-green-600">{fmtCur(stats.houseTaxRevenue)}</p>
+                                <p className="text-xl font-bold text-green-600">{formatCurrencyCr(stats.houseTaxRevenue)}</p>
                             </div>
                             <TrendingUp className="w-5 h-5 text-emerald-500" />
                         </div>
@@ -142,7 +143,7 @@ const PropertyTaxModule = () => {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-xs text-gray-500 uppercase font-medium">Outstanding</p>
-                                <p className="text-xl font-bold text-red-600">{fmtCur(stats.houseTaxOutstanding)}</p>
+                                <p className="text-xl font-bold text-red-600">{formatCurrencyCr(stats.houseTaxOutstanding)}</p>
                             </div>
                             <AlertCircle className="w-5 h-5 text-red-500" />
                         </div>

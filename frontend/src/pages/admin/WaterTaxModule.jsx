@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Droplet, FileText, Receipt, ClipboardList, CreditCard, PlusCircle, TrendingUp, AlertCircle, Zap } from 'lucide-react';
 import { useSelectedUlb } from '../../contexts/SelectedUlbContext';
 import api from '../../services/api';
+import { formatCurrencyCr } from '../../utils/numberFormatters';
 
 const WaterTaxModule = () => {
     const { effectiveUlbId } = useSelectedUlb();
@@ -118,7 +119,7 @@ const WaterTaxModule = () => {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-xs text-gray-500 uppercase font-medium">Revenue</p>
-                                <p className="text-xl font-bold text-green-600">{fmtCur(stats.totalWaterRevenue)}</p>
+                                <p className="text-xl font-bold text-green-600">{formatCurrencyCr(stats.totalWaterRevenue)}</p>
                             </div>
                             <TrendingUp className="w-5 h-5 text-green-500" />
                         </div>
@@ -128,7 +129,7 @@ const WaterTaxModule = () => {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-xs text-gray-500 uppercase font-medium">Outstanding</p>
-                                <p className="text-xl font-bold text-red-600">{fmtCur(stats.waterOutstanding)}</p>
+                                <p className="text-xl font-bold text-red-600">{formatCurrencyCr(stats.waterOutstanding)}</p>
                             </div>
                             <AlertCircle className="w-5 h-5 text-red-500" />
                         </div>

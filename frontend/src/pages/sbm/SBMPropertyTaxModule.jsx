@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Home, FileText, Receipt, Bell, CreditCard, Zap, TrendingUp, AlertCircle } from 'lucide-react';
 import api from '../../services/api';
 import { useStaffAuth } from '../../contexts/StaffAuthContext';
+import { formatCurrencyCr } from '../../utils/numberFormatters';
 
 const SBMPropertyTaxModule = () => {
   const { user } = useStaffAuth();
@@ -43,7 +44,6 @@ const SBMPropertyTaxModule = () => {
   ];
 
   const fmt = (val) => parseFloat(val || 0).toLocaleString('en-IN', { minimumFractionDigits: 0 });
-  const fmtCur = (val) => '₹' + parseFloat(val || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
 
   return (
     <div className="space-y-6">
@@ -101,25 +101,25 @@ const SBMPropertyTaxModule = () => {
               </div>
               <p className="text-xs text-orange-600 mt-1">{fmt(stats.overdueDemands ?? 0)} overdue</p>
             </div>
-            <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
+            <div className="bg-white rounded-lg shadow p-4 border-l-4 border-emerald-500">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-gray-500 uppercase font-medium">Revenue</p>
-                  <p className="text-xl font-bold text-green-600">{fmtCur(stats.totalRevenue)}</p>
+                  <p className="text-xs text-gray-500 uppercase font-medium">PT Revenue</p>
+                  <p className="text-xl font-bold text-green-600">{formatCurrencyCr(stats.houseTaxRevenue)}</p>
                 </div>
-                <TrendingUp className="w-5 h-5 text-green-500" />
+                <TrendingUp className="w-5 h-5 text-emerald-500" />
               </div>
-              <p className="text-xs text-gray-500 mt-1">all tax modules</p>
+              <p className="text-xs text-gray-500 mt-1">collected</p>
             </div>
             <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-gray-500 uppercase font-medium">Outstanding</p>
-                  <p className="text-xl font-bold text-red-600">{fmtCur(stats.totalOutstanding)}</p>
+                  <p className="text-xl font-bold text-red-600">{formatCurrencyCr(stats.houseTaxOutstanding)}</p>
                 </div>
                 <AlertCircle className="w-5 h-5 text-red-500" />
               </div>
-              <p className="text-xs text-gray-500 mt-1">{fmt(stats.pendingDemands)} pending</p>
+              <p className="text-xs text-gray-500 mt-1">pending collection</p>
             </div>
           </>
         )}

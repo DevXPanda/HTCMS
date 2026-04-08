@@ -1,3 +1,5 @@
+import { formatCurrencyCr } from './numberFormatters';
+
 /**
  * Shared utility to format raw receipt data consistently across the frontend.
  * Ensures uniform naming conventions and applies 'N/A' fallbacks.
@@ -66,8 +68,8 @@ export const formatReceiptData = (rawData, type = 'PAYMENT') => {
       title: 'Amount Summary',
       content: [
         { label: 'Payment Mode', value: data.paymentMethod },
-        { label: 'Amount Paid', value: `Rs. ${data.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` },
-        { label: 'Final Amount', value: `Rs. ${data.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, isAmountHighlight: true }
+        { label: 'Amount Paid', value: formatCurrencyCr(data.amount) },
+        { label: 'Final Amount', value: formatCurrencyCr(data.amount), isAmountHighlight: true }
       ]
     },
     {

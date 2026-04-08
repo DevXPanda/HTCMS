@@ -223,9 +223,14 @@ const Home = () => {
       {/* Footer */}
       <footer className="bg-gray-950 text-gray-400 py-12 border-t border-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-3 text-white">
-            <img src="/ULB Logo.png" alt="ULB Logo" className="w-10 h-10 object-contain brightness-0 invert" />
-            <span className="text-lg font-bold tracking-tight">Urban Local Bodies</span>
+          <div className="flex items-center gap-3">
+            <span className="p-1.5 bg-white rounded-xl shadow-lg border border-white/10">
+              <img src="/ULB Logo.png" alt="ULB Logo" className="w-8 h-8 object-contain" />
+            </span>
+            <div className="flex flex-col">
+              <span className="text-white text-lg font-bold tracking-tight leading-none">Urban Local Bodies</span>
+              <span className="text-blue-400 text-[10px] font-bold uppercase tracking-[0.2em] mt-1">Governance Portal</span>
+            </div>
           </div>
           <p className="text-sm font-medium text-gray-500 text-center md:text-left">
             &copy; {new Date().getFullYear()} Urban Local Bodies. All rights reserved.

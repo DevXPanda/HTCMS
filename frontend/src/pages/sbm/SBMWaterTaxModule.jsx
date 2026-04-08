@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Droplet, Receipt, Bell, CreditCard, TrendingUp, AlertCircle, Zap } from 'lucide-react';
 import api from '../../services/api';
 import { useStaffAuth } from '../../contexts/StaffAuthContext';
+import { formatCurrencyCr } from '../../utils/numberFormatters';
 
 const SBMWaterTaxModule = () => {
   const { user } = useStaffAuth();
@@ -41,13 +42,10 @@ const SBMWaterTaxModule = () => {
   ];
 
   const fmt = (val) => parseFloat(val || 0).toLocaleString('en-IN', { minimumFractionDigits: 0 });
-  const fmtCur = (val) => '₹' + parseFloat(val || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
 
   const connections = stats?.totalWaterConnections ?? stats?.waterConnections ?? 0;
-  const revenue = stats?.totalWaterRevenue ?? stats?.waterRevenue ?? 0;
-  const outstanding = stats?.waterOutstanding ?? stats?.totalWaterOutstanding ?? 0;
-  const collectionRateDen = parseFloat(revenue || 0) + parseFloat(outstanding || 0);
-  const collectionRate = collectionRateDen > 0 ? ((parseFloat(revenue || 0) / collectionRateDen) * 100).toFixed(1) : '0.0';
+  const collectionRateDen = parseFloat(stats?.totalWaterRevenue || 0) + parseFloat(stats?.waterOutstanding || 0);
+  const collectionRate = collectionRateDen > 0 ? ((parseFloat(stats?.totalWaterRevenue || 0) / collectionRateDen) * 100).toFixed(1) : '0.0';
 
   return (
     <div className="space-y-6">
@@ -90,22 +88,22 @@ const SBMWaterTaxModule = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-gray-500 uppercase font-medium">Revenue</p>
-                  <p className="text-xl font-bold text-green-600">{fmtCur(revenue)}</p>
+                  <p className="text-xl font-bold text-green-600">{formatCurrencyCr(stats.totalWaterRevenue)}</p>
                 </div>
                 <TrendingUp className="w-5 h-5 text-green-500" />
               </div>
-              <p className="text-xs text-gray-500 mt-1">collected</p>
+              <p className="text-xs text-gray-500 mt-1">total collected</p>
             </div>
 
             <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-gray-500 uppercase font-medium">Outstanding</p>
-                  <p className="text-xl font-bold text-red-600">{fmtCur(outstanding)}</p>
+                  <p className="text-xl font-bold text-red-600">{formatCurrencyCr(stats.waterOutstanding)}</p>
                 </div>
                 <AlertCircle className="w-5 h-5 text-red-500" />
               </div>
-              <p className="text-xs text-gray-500 mt-1">pending</p>
+              <p className="text-xs text-gray-500 mt-1">unpaid bills</p>
             </div>
 
             <div className="bg-white rounded-lg shadow p-4 border-l-4 border-purple-500">

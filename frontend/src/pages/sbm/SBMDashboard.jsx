@@ -8,6 +8,7 @@ import {
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { reportAPI } from '../../services/api';
+import { formatCurrencyCr, formatIndianCompact } from '../../utils/numberFormatters';
 
 const SBM_ULB_STORAGE_KEY = 'htcms_sbm_selected_ulb_id';
 
@@ -102,11 +103,11 @@ const SBMDashboard = () => {
   ];
 
   const systemMetrics = [
-    { title: 'Total Properties', value: stats.totalProperties ?? 0, icon: Building2 },
-    { title: 'Total Assessments', value: stats.totalAssessments ?? 0, icon: FileText },
-    { title: 'Total Demands', value: stats.totalDemands ?? 0, icon: DollarSign },
-    { title: 'Total Revenue', value: `₹${(stats.totalRevenue ?? 0).toLocaleString()}`, icon: TrendingUp },
-    { title: 'Total Outstanding', value: `₹${(stats.totalOutstanding ?? 0).toLocaleString()}`, icon: AlertCircle, textRed: true }
+    { title: 'Total Properties', value: formatIndianCompact(stats.totalProperties ?? 0), icon: Building2 },
+    { title: 'Total Assessments', value: formatIndianCompact(stats.totalAssessments ?? 0), icon: FileText },
+    { title: 'Total Demands', value: formatIndianCompact(stats.totalDemands ?? 0), icon: DollarSign },
+    { title: 'Total Revenue', value: formatCurrencyCr(stats.totalRevenue ?? 0), icon: TrendingUp },
+    { title: 'Total Outstanding', value: formatCurrencyCr(stats.totalOutstanding ?? 0), icon: AlertCircle, textRed: true }
   ];
 
   const adminItems = [
@@ -254,19 +255,19 @@ const SBMDashboard = () => {
           <div className="p-6 space-y-4 min-w-0 overflow-hidden">
             <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
               <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Properties</span>
-              <span className="text-lg font-bold text-gray-900 min-w-0 truncate text-right">{(stats.totalProperties ?? 0).toLocaleString()}</span>
+              <span className="text-lg font-bold text-gray-900 min-w-0 truncate text-right">{formatIndianCompact(stats.totalProperties ?? 0)}</span>
             </div>
             <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
               <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Assessments</span>
-              <span className="text-lg font-bold text-gray-700 min-w-0 truncate text-right">{(stats.totalAssessments ?? 0).toLocaleString()}</span>
+              <span className="text-lg font-bold text-gray-700 min-w-0 truncate text-right">{formatIndianCompact(stats.totalAssessments ?? 0)}</span>
             </div>
             <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
               <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Revenue</span>
-              <span className="text-lg font-bold text-blue-600 min-w-0 truncate text-right">₹{(stats.houseTaxRevenue ?? 0).toLocaleString()}</span>
+              <span className="text-lg font-bold text-blue-600 min-w-0 truncate text-right">{formatCurrencyCr(stats.houseTaxRevenue ?? 0)}</span>
             </div>
             <div className="flex justify-between items-center gap-2 min-w-0 pt-1">
               <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Outstanding</span>
-              <span className="text-lg font-bold text-red-500 min-w-0 truncate text-right">₹{(stats.houseTaxOutstanding ?? 0).toLocaleString()}</span>
+              <span className="text-lg font-bold text-red-500 min-w-0 truncate text-right">{formatCurrencyCr(stats.houseTaxOutstanding ?? 0)}</span>
             </div>
           </div>
         </section>
@@ -284,15 +285,15 @@ const SBMDashboard = () => {
           <div className="p-6 space-y-4 min-w-0 overflow-hidden">
             <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
               <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Connections</span>
-              <span className="text-lg font-bold text-gray-900 min-w-0 truncate text-right">{(stats.totalWaterConnections ?? 0).toLocaleString()}</span>
+              <span className="text-lg font-bold text-gray-900 min-w-0 truncate text-right">{formatIndianCompact(stats.totalWaterConnections ?? 0)}</span>
             </div>
             <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
               <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Revenue</span>
-              <span className="text-lg font-bold text-cyan-600 min-w-0 truncate text-right">₹{(stats.totalWaterRevenue ?? 0).toLocaleString()}</span>
+              <span className="text-lg font-bold text-cyan-600 min-w-0 truncate text-right">{formatCurrencyCr(stats.totalWaterRevenue ?? 0)}</span>
             </div>
             <div className="flex justify-between items-center gap-2 min-w-0 pt-1">
               <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Outstanding</span>
-              <span className="text-lg font-bold text-red-500 min-w-0 truncate text-right">₹{(stats.waterOutstanding ?? 0).toLocaleString()}</span>
+              <span className="text-lg font-bold text-red-500 min-w-0 truncate text-right">{formatCurrencyCr(stats.waterOutstanding ?? 0)}</span>
             </div>
           </div>
         </section>
@@ -310,11 +311,11 @@ const SBMDashboard = () => {
           <div className="p-6 space-y-4 min-w-0 overflow-hidden">
             <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
               <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Demands</span>
-              <span className="text-lg font-bold text-gray-900 min-w-0 truncate text-right">{(stats.d2dcDemands ?? 0).toLocaleString()}</span>
+              <span className="text-lg font-bold text-gray-900 min-w-0 truncate text-right">{formatIndianCompact(stats.d2dcDemands ?? 0)}</span>
             </div>
             <div className="flex justify-between items-center gap-2 min-w-0 pt-1">
               <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Revenue</span>
-              <span className="text-lg font-bold text-purple-600 min-w-0 truncate text-right">₹{(stats.d2dcRevenue ?? 0).toLocaleString()}</span>
+              <span className="text-lg font-bold text-purple-600 min-w-0 truncate text-right">{formatCurrencyCr(stats.d2dcRevenue ?? 0)}</span>
             </div>
           </div>
         </section>
@@ -332,11 +333,11 @@ const SBMDashboard = () => {
           <div className="p-6 space-y-4 min-w-0 overflow-hidden">
             <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
               <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Demands</span>
-              <span className="text-lg font-bold text-gray-900 min-w-0 truncate text-right">{(stats.shopTaxDemands ?? 0).toLocaleString()}</span>
+              <span className="text-lg font-bold text-gray-900 min-w-0 truncate text-right">{formatIndianCompact(stats.shopTaxDemands ?? 0)}</span>
             </div>
             <div className="flex justify-between items-center gap-2 min-w-0 pt-1">
               <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Active Shops</span>
-              <span className="text-lg font-bold text-gray-700 min-w-0 truncate text-right">{(stats.activeShops ?? 0).toLocaleString()}</span>
+              <span className="text-lg font-bold text-gray-700 min-w-0 truncate text-right">{formatIndianCompact(stats.activeShops ?? 0)}</span>
             </div>
           </div>
         </section>
@@ -354,11 +355,11 @@ const SBMDashboard = () => {
           <div className="p-6 space-y-4 min-w-0 overflow-hidden">
             <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
               <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Facilities</span>
-              <span className="text-lg font-bold text-gray-900 min-w-0 truncate text-right">{(toiletStats?.totalFacilities ?? 0).toLocaleString()}</span>
+              <span className="text-lg font-bold text-gray-900 min-w-0 truncate text-right">{formatIndianCompact(toiletStats?.totalFacilities ?? 0)}</span>
             </div>
             <div className="flex justify-between items-center gap-2 min-w-0 pt-1">
               <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Complaints</span>
-              <span className="text-lg font-bold text-gray-700 min-w-0 truncate text-right">{(toiletStats?.totalComplaints ?? 0).toLocaleString()}</span>
+              <span className="text-lg font-bold text-gray-700 min-w-0 truncate text-right">{formatIndianCompact(toiletStats?.totalComplaints ?? 0)}</span>
             </div>
           </div>
         </section>
@@ -376,7 +377,7 @@ const SBMDashboard = () => {
           <div className="p-6 space-y-4 min-w-0 overflow-hidden">
             <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
               <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Facilities</span>
-              <span className="text-lg font-bold text-gray-900 min-w-0 truncate text-right">{(mrfStats?.totalFacilities ?? 0).toLocaleString()}</span>
+              <span className="text-lg font-bold text-gray-900 min-w-0 truncate text-right">{formatIndianCompact(mrfStats?.totalFacilities ?? 0)}</span>
             </div>
             <div className="flex justify-between items-center gap-2 min-w-0 pt-1">
               <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Efficiency</span>
@@ -398,11 +399,11 @@ const SBMDashboard = () => {
           <div className="p-6 space-y-4 min-w-0 overflow-hidden">
             <div className="flex justify-between items-center gap-2 min-w-0 pb-3 border-b border-dashed border-gray-100">
               <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Facilities</span>
-              <span className="text-lg font-bold text-gray-900 min-w-0 truncate text-right">{(gaushalaStats?.totalFacilities ?? 0).toLocaleString()}</span>
+              <span className="text-lg font-bold text-gray-900 min-w-0 truncate text-right">{formatIndianCompact(gaushalaStats?.totalFacilities ?? 0)}</span>
             </div>
             <div className="flex justify-between items-center gap-2 min-w-0 pt-1">
               <span className="text-xs text-gray-500 uppercase font-medium shrink-0">Complaints</span>
-              <span className="text-lg font-bold text-gray-700 min-w-0 truncate text-right">{(gaushalaStats?.totalComplaints ?? 0).toLocaleString()}</span>
+              <span className="text-lg font-bold text-gray-700 min-w-0 truncate text-right">{formatIndianCompact(gaushalaStats?.totalComplaints ?? 0)}</span>
             </div>
           </div>
         </section>

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Store, Receipt, Bell, CreditCard, DollarSign, AlertCircle, Zap } from 'lucide-react';
 import api from '../../services/api';
 import { useStaffAuth } from '../../contexts/StaffAuthContext';
+import { formatCurrencyCr } from '../../utils/numberFormatters';
 
 const SBMShopTaxModule = () => {
   const { user } = useStaffAuth();
@@ -41,12 +42,9 @@ const SBMShopTaxModule = () => {
   ];
 
   const fmt = (val) => parseFloat(val || 0).toLocaleString('en-IN', { minimumFractionDigits: 0 });
-  const fmtCur = (val) => '₹' + parseFloat(val || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
 
   const shops = stats?.activeShops ?? 0;
   const demands = stats?.shopTaxDemands ?? 0;
-  const revenue = stats?.shopTaxRevenue ?? 0;
-  const outstanding = stats?.shopTaxOutstanding ?? 0;
 
   return (
     <div className="space-y-6">
@@ -99,8 +97,8 @@ const SBMShopTaxModule = () => {
             <div className="bg-white rounded-lg shadow p-4 border-l-4 border-emerald-500">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-gray-500 uppercase font-medium">Revenue</p>
-                  <p className="text-xl font-bold text-green-600">{fmtCur(revenue)}</p>
+                  <p className="text-xs text-gray-500 uppercase font-medium">ST Revenue</p>
+                  <p className="text-xl font-bold text-green-600">{formatCurrencyCr(stats.shopTaxRevenue)}</p>
                 </div>
                 <DollarSign className="w-5 h-5 text-emerald-500" />
               </div>
@@ -111,11 +109,11 @@ const SBMShopTaxModule = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-gray-500 uppercase font-medium">Outstanding</p>
-                  <p className="text-xl font-bold text-red-600">{fmtCur(outstanding)}</p>
+                  <p className="text-xl font-bold text-red-600">{formatCurrencyCr(stats.shopTaxOutstanding)}</p>
                 </div>
                 <AlertCircle className="w-5 h-5 text-red-500" />
               </div>
-              <p className="text-xs text-gray-500 mt-1">pending</p>
+              <p className="text-xs text-gray-500 mt-1">pending collection</p>
             </div>
           </>
         )}

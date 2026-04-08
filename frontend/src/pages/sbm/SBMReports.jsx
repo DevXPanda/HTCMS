@@ -20,6 +20,7 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
+import { formatCurrencyCr, formatIndianCompact } from '../../utils/numberFormatters';
 
 const SBM_ULB_STORAGE_KEY = 'htcms_sbm_selected_ulb_id';
 
@@ -165,14 +166,8 @@ const SBMReports = () => {
     }));
   };
 
-  const formatCurrency = (val) => `₹${parseFloat(val || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const formatAxis = (val) => {
-    const n = Number(val);
-    if (n >= 1e7) return `${(n / 1e7).toFixed(1)}Cr`;
-    if (n >= 1e5) return `${(n / 1e5).toFixed(1)}L`;
-    if (n >= 1e3) return `${(n / 1e3).toFixed(0)}K`;
-    return n;
-  };
+  const formatCurrency = (val) => formatCurrencyCr(val);
+  const formatAxis = (val) => formatIndianCompact(val);
 
   return (
     <div>

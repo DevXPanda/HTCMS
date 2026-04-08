@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Building2, Droplet, Store, Truck, Zap, FileText, TrendingUp, AlertCircle } from 'lucide-react';
 import api from '../../services/api';
+import { formatCurrencyCr } from '../../utils/numberFormatters';
 
 const SBM_ULB_STORAGE_KEY = 'htcms_sbm_selected_ulb_id';
 
@@ -147,7 +148,7 @@ const SBMTaxManagement = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-gray-500 uppercase font-medium">Total Revenue</p>
-                  <p className="text-xl font-bold text-green-600">{fmtCur(stats.totalRevenue)}</p>
+                  <p className="text-xl font-bold text-green-600">{formatCurrencyCr(stats.totalRevenue)}</p>
                 </div>
                 <TrendingUp className="w-5 h-5 text-green-500" />
               </div>
@@ -157,7 +158,7 @@ const SBMTaxManagement = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-gray-500 uppercase font-medium">Outstanding</p>
-                  <p className="text-xl font-bold text-red-600">{fmtCur(stats.totalOutstanding)}</p>
+                  <p className="text-xl font-bold text-red-600">{formatCurrencyCr(stats.totalOutstanding)}</p>
                 </div>
                 <AlertCircle className="w-5 h-5 text-red-500" />
               </div>

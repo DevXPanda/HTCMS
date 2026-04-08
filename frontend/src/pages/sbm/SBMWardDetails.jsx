@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { wardAPI } from '../../services/api';
 import DetailPageLayout, { DetailRow } from '../../components/DetailPageLayout';
-import { MapPin, Users, BarChart3 } from 'lucide-react';
+import { MapPin, Users, BarChart3, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { formatCurrencyCr } from '../../utils/numberFormatters';
 
 const formatWardNumber = (val) => {
   if (val == null || val === '') return '';
@@ -71,23 +72,23 @@ const SBMWardDetails = () => {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-gray-600">Total Collection</p>
-            <p className="text-2xl font-bold text-green-600">
-              ₹{parseFloat(statistics.totalCollection || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-            </p>
+            <div className="text-2xl font-bold text-green-600 mt-1">
+              {formatCurrencyCr(statistics.totalCollection)}
+            </div>
+            <p className="text-xs text-green-500 mt-1">Collected</p>
           </div>
           <BarChart3 className="w-8 h-8 text-green-400" />
         </div>
       </div>
       <div className="card bg-red-50">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-600">Outstanding</p>
-            <p className="text-2xl font-bold text-red-600">
-              ₹{parseFloat(statistics.totalOutstanding || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-            </p>
-          </div>
-          <BarChart3 className="w-8 h-8 text-red-400" />
+        <div className="flex items-center justify-between text-gray-500 mb-1">
+          <span className="text-xs font-semibold uppercase tracking-wider">Total Outstanding</span>
+          <AlertCircle className="w-4 h-4" />
         </div>
+        <div className="text-2xl font-bold text-red-600 mt-1">
+          {formatCurrencyCr(statistics.totalOutstanding)}
+        </div>
+        <p className="text-xs text-red-400 mt-1">Pending</p>
       </div>
       <div className="card bg-orange-50">
         <div className="flex items-center justify-between">

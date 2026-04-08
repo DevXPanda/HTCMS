@@ -22,6 +22,7 @@ import {
 import { useStaffAuth } from '../../contexts/StaffAuthContext';
 import { inspectorAPI } from '../../services/api';
 import api from '../../services/api';
+import { formatIndianCompact } from '../../utils/numberFormatters';
 
 const InspectorDashboard = () => {
   const { user } = useStaffAuth();
@@ -311,7 +312,7 @@ const InspectorDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                <p className="text-2xl font-bold text-gray-900 mt-2">{(stat.value || 0).toLocaleString()}</p>
+                <p className="text-2xl font-bold text-gray-900 mt-2">{formatIndianCompact(stat.value)}</p>
                 <p className={`text-sm mt-2 ${
                   stat.change === 'Action Required' ? 'text-orange-600' : 
                   stat.change === 'All Clear' ? 'text-green-600' : 

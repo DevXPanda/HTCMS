@@ -4,6 +4,7 @@ import { Store, FileText, Receipt, FileCheck, TrendingUp, DollarSign, AlertCircl
 import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
 import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 import api from '../../../services/api';
+import { formatCurrencyCr } from '../../../utils/numberFormatters';
 
 const ShopTaxModule = () => {
   const basePath = useShopTaxBasePath();
@@ -133,7 +134,7 @@ const ShopTaxModule = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-gray-500 uppercase font-medium">ST Revenue</p>
-                  <p className="text-xl font-bold text-green-600">{fmtCur(stats.shopTaxRevenue)}</p>
+                  <p className="text-xl font-bold text-green-600">{formatCurrencyCr(stats.shopTaxRevenue)}</p>
                 </div>
                 <DollarSign className="w-5 h-5 text-emerald-500" />
               </div>
@@ -143,7 +144,7 @@ const ShopTaxModule = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-gray-500 uppercase font-medium">Outstanding</p>
-                  <p className="text-xl font-bold text-red-600">{fmtCur(stats.shopTaxOutstanding)}</p>
+                  <p className="text-xl font-bold text-red-600">{formatCurrencyCr(stats.shopTaxOutstanding)}</p>
                 </div>
                 <AlertCircle className="w-5 h-5 text-red-500" />
               </div>

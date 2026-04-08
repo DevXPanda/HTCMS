@@ -19,20 +19,20 @@ const ReceiptModal = ({ isOpen, onClose, data, type = 'PAYMENT' }) => {
             className="modal-panel max-w-[850px] w-full max-h-[95vh] flex flex-col overflow-hidden shadow-2xl rounded-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Extremely compact header with only Close button */}
-            <div className="flex justify-end p-2 bg-gray-50 border-b no-print">
+            {/* Minimal header with only Close button, no background/border gap */}
+            <div className="flex justify-end p-2 bg-white no-print">
               <button
                 onClick={onClose}
-                className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors text-gray-500"
+                className="p-1 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-600"
                 aria-label="Close"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Content area with 0 padding at top to fix the gap issue */}
-            <div className="modal-body overflow-y-auto p-0 bg-gray-100/30 flex-1">
-              <div className="receipt-container mx-auto py-4 px-2 sm:px-6">
+            {/* Content area with 0 top padding to ensure receipt starts immediately */}
+            <div className="modal-body overflow-y-auto p-0 bg-gray-50/50 flex-1">
+              <div className="receipt-container mx-auto pt-0 pb-6 px-2 sm:px-8">
                 <CommonReceipt data={data} type={type} />
               </div>
             </div>

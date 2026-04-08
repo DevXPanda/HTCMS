@@ -16,20 +16,11 @@ import {
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSelectedUlb } from '../../contexts/SelectedUlbContext';
+import { toNumber, formatCurrencyCr } from '../../utils/numberFormatters';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Tooltip, Legend, Filler);
 
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-const toNumber = (n) => Number(n || 0);
-
-const formatIndianCompact = (value) => {
-  const num = toNumber(value);
-  if (num >= 10000000) return `${(num / 10000000).toFixed(2)} Cr`;
-  if (num >= 100000) return `${(num / 100000).toFixed(2)} L`;
-  return num.toLocaleString('en-IN');
-};
-
-const formatCurrencyCr = (value) => `₹${formatIndianCompact(value)}`;
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -252,6 +243,7 @@ const Dashboard = () => {
   ], [user]);
 
   useEffect(() => {
+    if (slides.length <= 1) return;
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
     }, 6000);
@@ -281,53 +273,67 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      <div
-        className={`relative overflow-hidden rounded-3xl border border-blue-100 shadow-sm h-[260px] sm:h-[400px] md:h-[450px] flex items-center bg-cover transition-all duration-1000 ease-in-out ${currentSlide === 1 ? 'bg-[percentage:85%_center] sm:bg-center' : 'bg-center'
-          }`}
-        style={{ backgroundImage: `url("${slides[currentSlide].image}")` }}
-      >
-        {/* Subtle overlay to maintain image visibility while ensuring legibility */}
-        <div className="absolute inset-0 bg-gradient-to-r from-white/60 via-white/10 to-transparent"></div>
+      <div className="relative overflow-hidden rounded-3xl border border-blue-100 shadow-sm h-[280px] sm:h-[400px] md:h-[450px] group select-none">
+         {/* Top-Right Info Bar (Date, FY Only) - Absolutely Locked to Hero Section */}
+         <div className="absolute top-6 right-6 sm:top-8 sm:right-8 z-30 flex items-center gap-4 px-4 py-2.5 bg-white/90 backdrop-blur-md rounded-xl border border-white/50 shadow-lg animate-fade-in w-fit pointer-events-auto">
+           <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold text-gray-700">
+             <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
+             <span>FY: 2024-25</span>
+           </div>
+           <div className="w-[1px] h-3 bg-gray-300"></div>
+           <div className="flex items-center gap-2 text-[10px] sm:text-xs font-bold text-gray-700">
+             <CalendarDays className="w-3.5 h-3.5 text-blue-600" />
+             <span>{new Date().toLocaleDateString()}</span>
+           </div>
+        </div>
 
-        <div className="p-5 sm:p-10 md:p-14 relative w-full lg:w-3/5 transition-all duration-700">
-          <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-white/80 border border-blue-100 text-blue-600 text-[10px] sm:text-[11px] uppercase tracking-wider mb-2 sm:mb-6 animate-fade-in">
-            <span className="flex h-1.5 w-1.5 rounded-full bg-blue-600 animate-pulse"></span>
-            {slides[currentSlide].badge}
-          </div>
-          <h1 className="text-xl sm:text-4xl md:text-5xl font-bold text-gray-900 leading-tight mb-3 sm:mb-6 tracking-tight animate-slide-up">
-            {slides[currentSlide].title}<br />
-            <span className="text-blue-600">
-              {slides[currentSlide].titleAccent}
-            </span>
-          </h1>
-          <p className="text-xs sm:text-lg text-gray-600 font-medium mb-5 sm:mb-10 max-w-md flex items-center gap-2 sm:gap-3 animate-slide-up">
-            <span className="h-[1px] w-4 sm:w-10 bg-blue-200"></span>
-            {slides[currentSlide].description}
-          </p>
-          <div className="flex flex-row flex-wrap gap-2 sm:gap-4 mt-1">
-            {isSuperAdmin ? (
-              <>
-                <Link to="/ulb-management" className="flex items-center justify-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg font-semibold text-xs sm:text-base hover:bg-blue-700 transition-all shadow-md active:scale-95 group">
-                  <Building2 className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-110" />
-                  Manage ULBs
-                </Link>
-                <Link to="/audit-logs" className="flex items-center justify-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-white border border-gray-200 text-gray-700 rounded-lg font-semibold text-xs sm:text-base hover:bg-gray-50 transition-all active:scale-95 group shadow-sm">
-                  <Shield className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:rotate-12" />
-                  Audit Logs
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link to="/tax-management" className="flex items-center justify-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg font-semibold text-xs sm:text-base hover:bg-blue-700 transition-all shadow-md active:scale-95 group">
-                  <FileText className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:translate-x-1" />
-                  Tax Management
-                </Link>
-                <Link to="/attendance" className="flex items-center justify-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-white border border-gray-200 text-gray-700 rounded-lg font-semibold text-xs sm:text-base hover:bg-gray-50 transition-all active:scale-95 group shadow-sm">
-                  <Clock className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:rotate-12" />
-                  Staff Attendance
-                </Link>
-              </>
-            )}
+        <div
+          className="absolute inset-0 bg-cover bg-center transition-all duration-1000 ease-in-out transform scale-100 group-hover:scale-105"
+          style={{ backgroundImage: `url("${slides[currentSlide].image}")` }}
+        >
+          {/* Subtle overlay to maintain image visibility while ensuring legibility */}
+          <div className="absolute inset-0 bg-gradient-to-r from-white/60 via-white/10 to-transparent"></div>
+
+          <div className="p-5 sm:p-10 md:p-14 relative w-full lg:w-3/5 h-full flex flex-col justify-center transition-all duration-700">
+            <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-white/80 border border-blue-100 text-blue-600 text-[10px] sm:text-[11px] uppercase tracking-wider mb-2 sm:mb-6 animate-fade-in w-fit">
+              <span className="flex h-1.5 w-1.5 rounded-full bg-blue-600 animate-pulse"></span>
+              {slides[currentSlide].badge}
+            </div>
+            <h1 className="text-xl sm:text-4xl md:text-5xl font-bold text-gray-900 leading-tight mb-3 sm:mb-6 tracking-tight animate-slide-up">
+              {slides[currentSlide].title}<br />
+              <span className="text-blue-600">
+                {slides[currentSlide].titleAccent}
+              </span>
+            </h1>
+            <p className="text-xs sm:text-lg text-gray-600 font-medium mb-5 sm:mb-10 max-w-md flex items-center gap-2 sm:gap-3 animate-slide-up">
+              <span className="h-[1px] w-4 sm:w-10 bg-blue-200"></span>
+              {slides[currentSlide].description}
+            </p>
+            <div className="flex flex-row flex-wrap gap-2 sm:gap-4 mt-1">
+              {isSuperAdmin ? (
+                <>
+                  <Link to="/ulb-management" className="flex items-center justify-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg font-semibold text-xs sm:text-base hover:bg-blue-700 transition-all shadow-md active:scale-95 group">
+                    <Building2 className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-110" />
+                    Manage ULBs
+                  </Link>
+                  <Link to="/audit-logs" className="flex items-center justify-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-white border border-gray-200 text-gray-700 rounded-lg font-semibold text-xs sm:text-base hover:bg-gray-50 transition-all active:scale-95 group shadow-sm">
+                    <Shield className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:rotate-12" />
+                    Audit Logs
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link to="/tax-management" className="flex items-center justify-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg font-semibold text-xs sm:text-base hover:bg-blue-700 transition-all shadow-md active:scale-95 group">
+                    <FileText className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:translate-x-1" />
+                    Tax Management
+                  </Link>
+                  <Link to="/attendance" className="flex items-center justify-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-white border border-gray-200 text-gray-700 rounded-lg font-semibold text-xs sm:text-base hover:bg-gray-50 transition-all active:scale-95 group shadow-sm">
+                    <Clock className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:rotate-12" />
+                    Staff Attendance
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
@@ -490,8 +496,8 @@ const Dashboard = () => {
       <footer className="mt-8 pb-4 border-t border-gray-100 pt-6">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-xs sm:text-sm text-gray-500 font-medium">
           <div className="flex items-center gap-2">
-            <span className="p-1.5 bg-blue-50/50 rounded-lg">
-              <Building2 className="w-4 h-4 text-blue-600" />
+            <span className="p-1 bg-white rounded-lg shadow-sm border border-gray-100">
+              <img src="/ULB Logo.png" alt="ULB Logo" className="w-8 h-8 object-contain" />
             </span>
             <span>© {new Date().getFullYear()} Urban Local Bodies - Governance Portal</span>
           </div>

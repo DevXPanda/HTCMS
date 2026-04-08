@@ -75,29 +75,24 @@ const PrintReceiptLayout = ({
 
       <div className="receipt-print-top relative z-10">
         {/* Header Enhancement - Logo Left, Text Centered */}
-        <div className="header border-b pb-4 mb-4 flex items-center relative min-h-[80px]">
+        <div className="header border-b pb-2 mb-2 flex items-center relative min-h-[70px]">
           <img
             src="/ULB Logo.png"
             alt="ULB Logo"
-            className="receipt-print-logo w-16 h-16 object-contain absolute left-0 top-0"
+            className="receipt-print-logo w-14 h-14 object-contain absolute left-0 top-0"
           />
-          <div className="text-center flex-1 px-20">
-            <h1 className="text-xl font-bold uppercase tracking-tight text-gray-900 leading-none mb-1">
+          <div className="text-center flex-1 px-16">
+            <h1 className="text-lg font-bold uppercase tracking-tight text-gray-900 leading-none mb-1">
               URBAN LOCAL BODIES
             </h1>
-            <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">
+            <p className="text-[10px] font-semibold text-gray-600 uppercase tracking-wide mb-1">
               Tax Collection & Management System
             </p>
             <div className="ulb-details space-y-0.5">
               <h2 className="text-sm font-bold text-gray-800 uppercase leading-tight">{normalizedUlbDetails.name}</h2>
               {(normalizedUlbDetails.addressLine1 || normalizedUlbDetails.cityStatePincode) && (
-                <p className="text-[10px] text-gray-500 leading-tight">
+                <p className="text-[9px] text-gray-500 leading-tight">
                   {[normalizedUlbDetails.addressLine1, normalizedUlbDetails.cityStatePincode].filter(Boolean).join(', ')}
-                </p>
-              )}
-              {normalizedUlbDetails.contactLine && (
-                <p className="text-[9px] text-gray-400 uppercase font-medium">
-                  {normalizedUlbDetails.contactLine}
                 </p>
               )}
             </div>
@@ -105,15 +100,15 @@ const PrintReceiptLayout = ({
         </div>
 
         {/* Main Title & Status Badge - Compact */}
-        <div className="receipt-print-title-row flex flex-col items-center mb-4 relative">
-          <h3 className="receipt-title text-lg font-extrabold border-y-2 border-black py-1 px-10 uppercase tracking-widest bg-gray-50">
+        <div className="receipt-print-title-row flex flex-col items-center mb-2 relative">
+          <h3 className="receipt-title text-base font-extrabold border-y-2 border-black py-0.5 px-8 uppercase tracking-widest bg-gray-50">
             {receiptTitle}
           </h3>
-          <p className="text-[8px] text-gray-400 mt-1 uppercase tracking-[0.2em] font-bold">
+          <p className="text-[7px] text-gray-400 mt-0.5 uppercase tracking-[0.2em] font-bold">
             Original Copy / Digital Office Record
           </p>
           {status && (
-            <div className={`mt-2 px-3 py-0.5 rounded-full text-[10px] font-bold uppercase border-2 ${['paid', 'approved', 'active', 'completed'].includes(String(status).toLowerCase())
+            <div className={`mt-1.5 px-3 py-0.5 rounded-full text-[9px] font-bold uppercase border-2 ${['paid', 'approved', 'active', 'completed'].includes(String(status).toLowerCase())
                 ? 'bg-green-50 text-green-700 border-green-600'
                 : 'bg-red-50 text-red-700 border-red-600'
               }`}>

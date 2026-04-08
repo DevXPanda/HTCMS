@@ -4,6 +4,7 @@ import { Building2, Droplet, Store, Truck, Zap, Percent, ShieldAlert, TrendingUp
 import { useAuth } from '../../contexts/AuthContext';
 import { useSelectedUlb } from '../../contexts/SelectedUlbContext';
 import api from '../../services/api';
+import { formatCurrencyCr, toNumber } from '../../utils/numberFormatters';
 
 const TaxManagement = () => {
     const { user } = useAuth();
@@ -37,7 +38,9 @@ const TaxManagement = () => {
             color: 'bg-blue-600',
             bgColor: 'bg-blue-50',
             borderColor: 'border-blue-100',
-            textColor: 'text-blue-700'
+            textColor: 'text-blue-700',
+            statsKey: 'houseTaxRevenue',
+            outstandingKey: 'houseTaxOutstanding'
         },
         {
             name: 'Water Tax',
@@ -47,7 +50,9 @@ const TaxManagement = () => {
             color: 'bg-cyan-600',
             bgColor: 'bg-cyan-50',
             borderColor: 'border-cyan-100',
-            textColor: 'text-cyan-700'
+            textColor: 'text-cyan-700',
+            statsKey: 'totalWaterRevenue',
+            outstandingKey: 'waterOutstanding'
         },
         {
             name: 'Shop Tax',
@@ -57,7 +62,9 @@ const TaxManagement = () => {
             color: 'bg-yellow-600',
             bgColor: 'bg-yellow-50',
             borderColor: 'border-yellow-100',
-            textColor: 'text-yellow-700'
+            textColor: 'text-yellow-700',
+            statsKey: 'shopTaxRevenue',
+            outstandingKey: 'shopTaxOutstanding'
         },
         {
             name: 'D2DC',
@@ -67,7 +74,9 @@ const TaxManagement = () => {
             color: 'bg-purple-600',
             bgColor: 'bg-purple-50',
             borderColor: 'border-purple-100',
-            textColor: 'text-purple-700'
+            textColor: 'text-purple-700',
+            statsKey: 'd2dcRevenue',
+            outstandingKey: 'd2dcOutstanding'
         },
         ...(isAdmin ? [{
             name: 'Discount Management',
@@ -101,7 +110,6 @@ const TaxManagement = () => {
     ];
 
     const fmt = (val) => parseFloat(val || 0).toLocaleString('en-IN', { minimumFractionDigits: 0 });
-    const fmtCur = (val) => '₹' + parseFloat(val || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
 
     return (
         <div className="space-y-8">
@@ -163,7 +171,7 @@ const TaxManagement = () => {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-xs text-gray-500 uppercase font-medium">Total Revenue</p>
-                                <p className="text-xl font-bold text-green-600">{fmtCur(stats.totalRevenue)}</p>
+                                <p className="text-xl font-bold text-green-600">{formatCurrencyCr(stats.totalRevenue)}</p>
                             </div>
                             <TrendingUp className="w-5 h-5 text-green-500" />
                         </div>
@@ -173,7 +181,7 @@ const TaxManagement = () => {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-xs text-gray-500 uppercase font-medium">Outstanding</p>
-                                <p className="text-xl font-bold text-red-600">{fmtCur(stats.totalOutstanding)}</p>
+                                <p className="text-xl font-bold text-red-600">{formatCurrencyCr(stats.totalOutstanding)}</p>
                             </div>
                             <AlertCircle className="w-5 h-5 text-red-500" />
                         </div>
@@ -193,7 +201,7 @@ const TaxManagement = () => {
             </div>
 
             {/* Modules Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 pb-8">
                 {taxModules.map((module, index) => (
                     <Link
                         key={index}
@@ -208,13 +216,28 @@ const TaxManagement = () => {
                         </div>
 
                         <div className="flex-1 relative z-10">
-                            <h3 className="text-lg font-bold text-gray-900 group-hover:text-primary-600 transition-colors mb-2">
-                                {module.name}
-                            </h3>
-                            <p className="text-gray-500 text-sm leading-relaxed">
+                            <div className="flex justify-between items-start mb-1">
+                                <h3 className="text-lg font-bold text-gray-900 group-hover:text-primary-600 transition-colors">
+                                    {module.name}
+                                </h3>
+                                {stats && module.statsKey && (
+                                    <span className="text-sm font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded border border-green-100">
+                                        {formatCurrencyCr(stats[module.statsKey])}
+                                    </span>
+                                )}
+                            </div>
+                            <p className="text-gray-500 text-xs leading-relaxed mb-4">
                                 {module.description}
                             </p>
-                            <div className={`mt-4 inline-flex items-center text-sm font-medium ${module.textColor}`}>
+                            
+                            {stats && module.outstandingKey && stats[module.outstandingKey] > 0 && (
+                                <div className="mb-4 flex items-center gap-2">
+                                    <span className="text-[10px] font-bold text-red-500 uppercase tracking-wider">Outstanding:</span>
+                                    <span className="text-xs font-bold text-gray-700">{formatCurrencyCr(stats[module.outstandingKey])}</span>
+                                </div>
+                            )}
+
+                            <div className={`mt-auto inline-flex items-center text-sm font-medium ${module.textColor}`}>
                                 Access Module &rarr;
                             </div>
                         </div>
