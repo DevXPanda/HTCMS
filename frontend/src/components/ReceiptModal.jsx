@@ -11,53 +11,38 @@ const ReceiptModal = ({ isOpen, onClose, data, type = 'PAYMENT' }) => {
     window.print();
   };
 
-  const receiptNumber = data.receiptNumber || data.paymentNumber || data.demandNumber || 'N/A';
-
   return (
     <>
       {isOpen && (
         <div className="modal-overlay" onClick={onClose} style={{ zIndex: 9999 }}>
           <div
-            className="modal-panel max-w-[800px] w-full max-h-[90vh] flex flex-col overflow-hidden"
+            className="modal-panel max-w-[850px] w-full max-h-[95vh] flex flex-col overflow-hidden shadow-2xl rounded-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="modal-header flex justify-between items-center border-b p-3 bg-gray-50">
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold text-gray-800">Receipt Preview</h2>
-                <span className="text-xs text-gray-500 font-mono">
-                  {receiptNumber}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handlePrint}
-                  className="btn btn-secondary flex items-center py-1.5 px-3 text-sm"
-                  title="Print Receipt"
-                >
-                  <Printer className="w-4 h-4 mr-2" />
-                  Print
-                </button>
-                <button
-                  onClick={onClose}
-                  className="p-2 hover:bg-gray-200 rounded-full transition-colors"
-                  aria-label="Close"
-                >
-                  <X className="w-5 h-5 text-gray-600" />
-                </button>
-              </div>
+            {/* Extremely compact header with only Close button */}
+            <div className="flex justify-end p-2 bg-gray-50 border-b no-print">
+              <button
+                onClick={onClose}
+                className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors text-gray-500"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
-            <div className="modal-body overflow-y-auto p-4 bg-white flex-1">
-              <div className="receipt-container mx-auto">
+            {/* Content area with 0 padding at top to fix the gap issue */}
+            <div className="modal-body overflow-y-auto p-0 bg-gray-100/30 flex-1">
+              <div className="receipt-container mx-auto py-4 px-2 sm:px-6">
                 <CommonReceipt data={data} type={type} />
               </div>
             </div>
 
-            <div className="modal-footer border-t p-3 bg-gray-50 flex justify-end gap-3 no-print">
-              <button onClick={onClose} className="btn btn-secondary">
+            {/* Bottom action bar - keep only one print button and close */}
+            <div className="modal-footer border-t p-4 bg-white flex justify-end gap-3 no-print">
+              <button onClick={onClose} className="btn btn-secondary border-none hover:bg-gray-100">
                 Close
               </button>
-              <button onClick={handlePrint} className="btn btn-primary flex items-center">
+              <button onClick={handlePrint} className="btn btn-primary px-6 flex items-center shadow-md">
                 <Printer className="w-4 h-4 mr-2" />
                 Print Receipt
               </button>
@@ -73,8 +58,6 @@ const ReceiptModal = ({ isOpen, onClose, data, type = 'PAYMENT' }) => {
 
       <style>{`
         @media print {
-          /* If modal is NOT open, we rely on the .print-only div.
-             If modal IS open, we hide body and show the modal overlay. */
           ${isOpen ? `
             body > *:not(.modal-overlay) {
               display: none !important;
@@ -84,20 +67,29 @@ const ReceiptModal = ({ isOpen, onClose, data, type = 'PAYMENT' }) => {
               display: block !important;
               background: none !important;
               padding: 0 !important;
+              visibility: visible !important;
             }
             .modal-panel {
               box-shadow: none !important;
+              border: none !important;
               max-width: none !important;
               max-height: none !important;
               width: 100% !important;
+              overflow: visible !important;
+              display: block !important;
             }
-            .modal-header, .modal-footer, .no-print {
+            .modal-header, .no-print, .modal-footer {
               display: none !important;
             }
+            .modal-body {
+              padding: 0 !important;
+              overflow: visible !important;
+              display: block !important;
+            }
           ` : `
-            /* When printing from main page button (modal closed) */
             .print-only {
               display: block !important;
+              width: 100% !important;
             }
           `}
         }
