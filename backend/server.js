@@ -29,6 +29,7 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
   "https://ulbsystemm.vercel.app",
+  "https://ulb.nktech.biz",
 ];
 
 if (process.env.CORS_ORIGINS) {
@@ -276,12 +277,12 @@ const io = new SocketIOServer(server, {
     process.env.NODE_ENV === "production"
       ? { origin: allowedOrigins, credentials: true }
       : {
-          origin: (origin, cb) => {
-            if (isCorsOriginAllowed(origin)) cb(null, true);
-            else cb(new Error("Not allowed by CORS"));
-          },
-          credentials: true,
+        origin: (origin, cb) => {
+          if (isCorsOriginAllowed(origin)) cb(null, true);
+          else cb(new Error("Not allowed by CORS"));
         },
+        credentials: true,
+      },
   transports: ["websocket", "polling"],
   path: "/socket.io",
 });
