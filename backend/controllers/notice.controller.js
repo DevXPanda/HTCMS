@@ -311,7 +311,12 @@ export const getAllNotices = async (req, res, next) => {
         model: Property,
         as: 'property',
         include: [
-          { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] }
+          { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] },
+          { 
+            model: Ward, 
+            as: 'ward', 
+            include: [{ model: ULB, as: 'ulb', attributes: ['name'] }] 
+          }
         ],
         ...(wardId ? { where: { wardId } } : {})
       }
@@ -332,10 +337,19 @@ export const getAllNotices = async (req, res, next) => {
       order: [['createdAt', 'DESC']]
     });
 
+    const formattedNotices = rows.map(notice => {
+      const n = notice.toJSON();
+      n.ulbName = notice.property?.ward?.ulb?.name || 'Urban Local Body';
+      const ward = notice.property?.ward;
+      n.wardName = ward ? `${ward.wardNumber} - ${ward.wardName}` : 'N/A';
+      n.ward = n.wardName; // for compatibility
+      return n;
+    });
+
     res.json({
       success: true,
       data: {
-        notices: rows,
+        notices: formattedNotices,
         pagination: {
           total: count,
           page: parseInt(page),
@@ -364,7 +378,12 @@ export const getNoticeById = async (req, res, next) => {
           model: Property,
           as: 'property',
           include: [
-            { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email', 'phone'] }
+            { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email', 'phone'] },
+            { 
+              model: Ward, 
+              as: 'ward', 
+              include: [{ model: ULB, as: 'ulb', attributes: ['name'] }] 
+            }
           ]
         },
         {
@@ -402,9 +421,17 @@ export const getNoticeById = async (req, res, next) => {
       });
     }
 
+    const formattedNotice = notice.toJSON();
+    // Standardized fields for receipts/notices
+    formattedNotice.ulbName = notice.property?.ward?.ulb?.name || 'Urban Local Body';
+    
+    const ward = notice.property?.ward;
+    formattedNotice.wardName = ward ? `${ward.wardNumber} - ${ward.wardName}` : 'N/A';
+    formattedNotice.ward = formattedNotice.wardName; // for compatibility
+
     res.json({
       success: true,
-      data: { notice }
+      data: { notice: formattedNotice }
     });
   } catch (error) {
     next(error);

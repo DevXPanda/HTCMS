@@ -1,4 +1,4 @@
-import { Payment, Demand, Property, User, Ward, Assessment, FollowUp, D2DCRecord } from '../models/index.js';
+import { Payment, Demand, Property, User, Ward, Assessment, FollowUp, D2DCRecord, ULB } from '../models/index.js';
 import { Op } from 'sequelize';
 import { sequelize } from '../config/database.js';
 import { razorpay } from '../config/razorpay.js';
@@ -164,21 +164,36 @@ export const getAllPayments = async (req, res, next) => {
           model: Property,
           as: 'property',
           include: [
-            { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] }
+            { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] },
+            { 
+              model: Ward, 
+              as: 'ward', 
+              include: [{ model: ULB, as: 'ulb', attributes: ['name'] }] 
+            }
           ]
         },
         { model: Demand, as: 'demand' },
-        { model: User, as: 'cashier', attributes: ['id', 'firstName', 'lastName'] }
+        { model: User, as: 'cashier', attributes: ['id', 'firstName', 'lastName'] },
+        { model: User, as: 'collector', attributes: ['id', 'firstName', 'lastName'] }
       ],
       limit: parseInt(limit),
       offset,
       order: [['createdAt', 'DESC']]
     });
 
+    const formattedPayments = rows.map(payment => {
+      const p = payment.toJSON();
+      p.ulbName = payment.property?.ward?.ulb?.name || 'Urban Local Body';
+      p.ward = payment.property?.ward ? `${payment.property.ward.wardNumber} - ${payment.property.ward.wardName}` : 'N/A';
+      p.paymentMethod = payment.paymentMode ? payment.paymentMode.toUpperCase() : 'N/A';
+      p.collectedBy = payment.collector ? `${payment.collector.firstName} ${payment.collector.lastName}` : (payment.cashier ? `${payment.cashier.firstName} ${payment.cashier.lastName}` : 'N/A');
+      return p;
+    });
+
     res.json({
       success: true,
       data: {
-        payments: rows,
+        payments: formattedPayments,
         pagination: {
           total: count,
           page: parseInt(page),
@@ -208,7 +223,12 @@ export const getPaymentById = async (req, res, next) => {
           as: 'property',
           include: [
             { model: User, as: 'owner', attributes: { exclude: ['password'] } },
-            { model: Ward, as: 'ward', attributes: ['id', 'ulb_id'] }
+            {
+              model: Ward,
+              as: 'ward',
+              attributes: ['id', 'ulb_id', 'wardName', 'wardNumber'],
+              include: [{ model: ULB, as: 'ulb', attributes: ['name'] }]
+            }
           ]
         },
         {
@@ -218,7 +238,8 @@ export const getPaymentById = async (req, res, next) => {
             { model: Assessment, as: 'assessment' }
           ]
         },
-        { model: User, as: 'cashier', attributes: ['id', 'firstName', 'lastName'] }
+        { model: User, as: 'cashier', attributes: ['id', 'firstName', 'lastName'] },
+        { model: User, as: 'collector', attributes: ['id', 'firstName', 'lastName'] }
       ]
     });
 
@@ -228,6 +249,12 @@ export const getPaymentById = async (req, res, next) => {
         message: 'Payment not found'
       });
     }
+
+    const formattedPayment = payment.toJSON();
+    formattedPayment.ulbName = payment.property?.ward?.ulb?.name || 'Urban Local Body';
+    formattedPayment.ward = payment.property?.ward ? `${payment.property.ward.wardNumber} - ${payment.property.ward.wardName}` : 'N/A';
+    formattedPayment.paymentMethod = payment.paymentMode ? payment.paymentMode.toUpperCase() : 'N/A';
+    formattedPayment.collectedBy = payment.collector ? `${payment.collector.firstName} ${payment.collector.lastName}` : (payment.cashier ? `${payment.cashier.firstName} ${payment.cashier.lastName}` : 'N/A');
 
     // Check access for citizens
     if (req.user.role === 'citizen') {
@@ -254,7 +281,7 @@ export const getPaymentById = async (req, res, next) => {
 
     res.json({
       success: true,
-      data: { payment }
+      data: { payment: formattedPayment }
     });
   } catch (error) {
     next(error);
@@ -612,7 +639,12 @@ export const getPaymentReceipt = async (req, res, next) => {
           as: 'property',
           include: [
             { model: User, as: 'owner', attributes: { exclude: ['password'] } },
-            { model: Ward, as: 'ward' }
+            {
+              model: Ward,
+              as: 'ward',
+              attributes: ['id', 'ulb_id', 'wardName', 'wardNumber'],
+              include: [{ model: ULB, as: 'ulb', attributes: ['name'] }]
+            }
           ]
         },
         {
@@ -622,7 +654,8 @@ export const getPaymentReceipt = async (req, res, next) => {
             { model: Assessment, as: 'assessment' }
           ]
         },
-        { model: User, as: 'cashier', attributes: ['id', 'firstName', 'lastName'] }
+        { model: User, as: 'cashier', attributes: ['id', 'firstName', 'lastName'] },
+        { model: User, as: 'collector', attributes: ['id', 'firstName', 'lastName'] }
       ]
     });
 
@@ -632,6 +665,12 @@ export const getPaymentReceipt = async (req, res, next) => {
         message: 'Receipt not found'
       });
     }
+
+    const formattedPayment = payment.toJSON();
+    formattedPayment.ulbName = payment.property?.ward?.ulb?.name || 'Urban Local Body';
+    formattedPayment.ward = payment.property?.ward ? `${payment.property.ward.wardNumber} - ${payment.property.ward.wardName}` : 'N/A';
+    formattedPayment.paymentMethod = payment.paymentMode ? payment.paymentMode.toUpperCase() : 'N/A';
+    formattedPayment.collectedBy = payment.collector ? `${payment.collector.firstName} ${payment.collector.lastName}` : (payment.cashier ? `${payment.cashier.firstName} ${payment.cashier.lastName}` : 'N/A');
 
     // Check access for citizens
     if (req.user.role === 'citizen') {
@@ -646,7 +685,7 @@ export const getPaymentReceipt = async (req, res, next) => {
 
     res.json({
       success: true,
-      data: { payment }
+      data: { payment: formattedPayment }
     });
   } catch (error) {
     next(error);

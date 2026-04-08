@@ -3,8 +3,9 @@ import { Link, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import { paymentAPI } from '../../services/api';
 import { exportToCSV } from '../../utils/exportCSV';
-import { Banknote, Download, RefreshCw, Search, FileDown } from 'lucide-react';
+import { Banknote, Download, RefreshCw, Search, FileDown, Receipt, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ReceiptModal from '../../components/ReceiptModal';
 
 const SBMPayments = () => {
   const location = useLocation();
@@ -15,6 +16,14 @@ const SBMPayments = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [ulbId, setUlbId] = useState('');
+
+  const [selectedPayment, setSelectedPayment] = useState(null);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+
+  const handleViewReceipt = (payment) => {
+    setSelectedPayment(payment);
+    setIsReceiptModalOpen(true);
+  };
 
   useEffect(() => {
     api.get('/admin-management/ulbs').then((res) => {
@@ -137,12 +146,22 @@ const SBMPayments = () => {
                     <td className="px-4 py-3 text-sm text-gray-600">{p.status || '—'}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{p.demand_id ?? p.demandId ?? '—'}</td>
                     <td className="print-hide-col px-4 py-3">
-                      <Link
-                        to={`/sbm/payments/${p.id}${moduleFromUrl ? `?module=${encodeURIComponent(moduleFromUrl)}` : ''}`}
-                        className="text-violet-600 hover:text-violet-800 text-sm"
-                      >
-                        View
-                      </Link>
+                      <div className="flex items-center space-x-3 text-sm">
+                        <Link
+                          to={`/sbm/payments/${p.id}${moduleFromUrl ? `?module=${encodeURIComponent(moduleFromUrl)}` : ''}`}
+                          className="text-gray-600 hover:text-violet-600 transition-colors"
+                          title="View Details"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Link>
+                        <button
+                          onClick={() => handleViewReceipt(p)}
+                          className="text-violet-600 hover:text-violet-800 transition-colors"
+                          title="View Receipt"
+                        >
+                          <Receipt className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -154,6 +173,13 @@ const SBMPayments = () => {
           <div className="p-8 text-center text-gray-500">No payments found.</div>
         )}
       </div>
+
+      <ReceiptModal
+        isOpen={isReceiptModalOpen}
+        onClose={() => setIsReceiptModalOpen(false)}
+        data={selectedPayment}
+        type="PAYMENT"
+      />
     </div>
   );
 };

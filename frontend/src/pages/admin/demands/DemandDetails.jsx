@@ -3,10 +3,12 @@ import { useParams, Link, useLocation } from 'react-router-dom';
 import { demandAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { CreditCard, Calculator, Droplet, FileText, Download, Loader2, Home } from 'lucide-react';
+import { CreditCard, Calculator, Droplet, FileText, Download, Loader2, Home, Receipt } from 'lucide-react';
 import { calculateFinalAmount } from '../../../utils/financialCalculations';
 import { useShopTaxBasePath } from '../../../contexts/ShopTaxBasePathContext';
 import DemandDetailsView from '../../../components/DemandDetailsView';
+import ReceiptModal from '../../../components/ReceiptModal';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const formatAmt = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -22,6 +24,9 @@ const DemandDetails = () => {
   const [pdfLoadingNotice, setPdfLoadingNotice] = useState(false);
   const [pdfLoadingReceipt, setPdfLoadingReceipt] = useState(false);
   const [showDiscountDetails, setShowDiscountDetails] = useState(false);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const { isAdmin, user } = useAuth();
+  const canPreview = isAdmin || user?.role === 'superadmin';
 
   useEffect(() => {
     fetchDemand();
@@ -114,6 +119,16 @@ const DemandDetails = () => {
             {pdfLoadingReceipt ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
             Download Summary Receipt
           </button>
+          {canPreview && (
+            <button
+              type="button"
+              onClick={() => setIsPreviewModalOpen(true)}
+              className="btn btn-secondary flex items-center"
+            >
+              <Receipt className="w-4 h-4 mr-2" />
+              Preview
+            </button>
+          )}
           {parseFloat(demand.balanceAmount || 0) > 0 && (
             <Link to={basePath ? `${basePath}/payments/online/${id}` : `/payments/online/${id}`} className="btn btn-primary flex items-center">
               <CreditCard className="w-4 h-4 mr-2" />
@@ -257,6 +272,12 @@ const DemandDetails = () => {
           </div>
         </div>
       )} */}
+      <ReceiptModal
+        isOpen={isPreviewModalOpen}
+        onClose={() => setIsPreviewModalOpen(false)}
+        data={demand}
+        type="DEMAND"
+      />
     </DemandDetailsView>
   );
 };

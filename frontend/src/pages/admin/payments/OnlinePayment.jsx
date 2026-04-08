@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
 import { paymentAPI, demandAPI, uploadAPI } from '../../../services/api';
+import { useConfirm } from '../../../components/ConfirmModal';
+import ReceiptModal from '../../../components/ReceiptModal';
+
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { CreditCard, CheckCircle, Landmark, Smartphone, Wallet, FileText, Calendar, Home, TrendingUp } from 'lucide-react';
@@ -17,6 +20,8 @@ const PAYMENT_METHODS = [
 const OnlinePayment = () => {
     const { demandId } = useParams();
     const navigate = useNavigate();
+    const { confirm } = useConfirm();
+
     const location = useLocation();
     const isCitizenRoute = location.pathname.startsWith('/citizen');
     const basePath = isCitizenRoute ? '/citizen' : '';
@@ -28,6 +33,8 @@ const OnlinePayment = () => {
     const [processing, setProcessing] = useState(false);
     const [selectedMethod, setSelectedMethod] = useState(null);
     const [proofFile, setProofFile] = useState(null);
+    const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+    const [recordedPayment, setRecordedPayment] = useState(null);
 
     useEffect(() => {
         if (demandId) {
@@ -102,8 +109,20 @@ const OnlinePayment = () => {
 
                 if (response.data.success) {
                     toast.success('Cash payment recorded successfully!');
-                    navigate(`${basePath}/payments/${response.data.data.payment.id}`);
+                    const wantsReceipt = await confirm({
+                        title: 'Payment Completed',
+                        message: 'Payment recorded successfully! Do you want to view/print the receipt?',
+                        confirmLabel: 'Yes',
+                        cancelLabel: 'No'
+                    });
+                    if (wantsReceipt) {
+                        setRecordedPayment(response.data.data.payment);
+                        setIsReceiptModalOpen(true);
+                    } else {
+                        navigate(`${basePath}/dashboard`);
+                    }
                 }
+
             } catch (error) {
                 toast.error(error.response?.data?.message || error.response?.data?.error || 'Failed to record cash payment');
                 setProcessing(false);
@@ -186,15 +205,39 @@ const OnlinePayment = () => {
 
             if (response.data.success) {
                 toast.success('Payment completed successfully!');
-                navigate(`${basePath}/payments/${response.data.data.payment.id}`);
+                const wantsReceipt = await confirm({
+                    title: 'Payment Successful',
+                    message: 'Your payment has been completed successfully! Would you like to view, download or print the receipt?',
+                    confirmLabel: 'Yes',
+                    cancelLabel: 'No'
+                });
+                if (wantsReceipt) {
+                    setRecordedPayment(response.data.data.payment);
+                    setIsReceiptModalOpen(true);
+                } else {
+                    navigate(`${basePath}/dashboard`);
+                }
             }
+
         } catch (error) {
             const msg = error.response?.data?.message || error.response?.data?.error || '';
             const alreadyDone = typeof msg === 'string' && msg.toLowerCase().includes('already');
             if (alreadyDone) {
                 toast.success('Payment already recorded.');
-                navigate(`${basePath}/payments/${paymentId}`);
+                const wantsReceipt = await confirm({
+                    title: 'Payment Already Recorded',
+                    message: 'This payment has already been recorded. Would you like to view the receipt?',
+                    confirmLabel: 'Yes',
+                    cancelLabel: 'No'
+                });
+                if (wantsReceipt) {
+                    setRecordedPayment({ id: paymentId }); // If we only have ID, we might need to fetch more, but usually API returns enough
+                    setIsReceiptModalOpen(true);
+                } else {
+                    navigate(`${basePath}/dashboard`);
+                }
             } else {
+
                 toast.error(msg || 'Payment verification failed');
             }
             setProcessing(false);
@@ -387,6 +430,15 @@ const OnlinePayment = () => {
                         </p> */}
                 </div>
             </div>
+            <ReceiptModal
+                isOpen={isReceiptModalOpen}
+                onClose={() => {
+                    setIsReceiptModalOpen(false);
+                    navigate(`${basePath}/dashboard`);
+                }}
+                data={recordedPayment}
+                type="PAYMENT"
+            />
         </DetailPageLayout>
     );
 };

@@ -3,10 +3,11 @@ import { Link } from 'react-router-dom';
 import { waterPaymentAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { Plus, Eye, Search, Filter, X } from 'lucide-react';
+import { Plus, Eye, Search, Filter, X, Receipt } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSelectedUlb } from '../../../contexts/SelectedUlbContext';
 import { isRecentWithinMinutes, sortByCreatedDesc } from '../../../utils/dateUtils';
+import ReceiptModal from '../../../components/ReceiptModal';
 
 const WaterPayments = () => {
   const { effectiveUlbId } = useSelectedUlb();
@@ -21,6 +22,14 @@ const WaterPayments = () => {
     startDate: '',
     endDate: ''
   });
+
+  const [selectedPayment, setSelectedPayment] = useState(null);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+
+  const handleViewReceipt = (payment) => {
+    setSelectedPayment(payment);
+    setIsReceiptModalOpen(true);
+  };
 
   useEffect(() => {
     fetchPayments();
@@ -190,12 +199,16 @@ const WaterPayments = () => {
               payments.map((payment) => (
                 <tr key={payment.id}>
                   <td className="font-medium">
-                    <span className="inline-flex items-center gap-1.5">
+                    <button
+                      onClick={() => handleViewReceipt(payment)}
+                      className="inline-flex items-center gap-1.5 text-primary-600 hover:text-primary-700 hover:underline"
+                      title="Quick View Receipt"
+                    >
                       {payment.receiptNumber || payment.paymentNumber || '—'}
                       {isRecentWithinMinutes(payment.createdAt, 10) && (
                         <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Recent</span>
                       )}
-                    </span>
+                    </button>
                   </td>
                   <td>
                     {payment.waterConnection?.property ? (
@@ -241,14 +254,22 @@ const WaterPayments = () => {
                     </span>
                   </td>
                   <td>
-                    <Link
-                      to={`/water/payments/${payment.id}`}
-                      className="text-primary-600 hover:text-primary-700 inline-flex items-center"
-                      title="View details"
-                    >
-                      <Eye className="w-4 h-4 mr-1" />
-                      View
-                    </Link>
+                    <div className="flex items-center space-x-3">
+                      <Link
+                        to={`/water/payments/${payment.id}`}
+                        className="text-gray-600 hover:text-primary-600 transition-colors"
+                        title="View Details"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Link>
+                      <button
+                        onClick={() => handleViewReceipt(payment)}
+                        className="text-primary-600 hover:text-primary-700 transition-colors"
+                        title="View Receipt"
+                      >
+                        <Receipt className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -256,6 +277,13 @@ const WaterPayments = () => {
           </tbody>
         </table>
       </div>
+
+      <ReceiptModal
+        isOpen={isReceiptModalOpen}
+        onClose={() => setIsReceiptModalOpen(false)}
+        data={selectedPayment}
+        type="PAYMENT"
+      />
     </div>
   );
 };

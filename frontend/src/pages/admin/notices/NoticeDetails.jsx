@@ -3,18 +3,21 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { noticeAPI } from '../../../services/api';
 import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
-import { Send, ArrowUp, FileText, User, Home, Receipt, TrendingUp } from 'lucide-react';
+import { Send, ArrowUp, FileText, User, Home, Receipt, TrendingUp, Eye } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useConfirm } from '../../../components/ConfirmModal';
 import DetailPageLayout, { DetailRow } from '../../../components/DetailPageLayout';
+import ReceiptModal from '../../../components/ReceiptModal';
 
 const NoticeDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isAdmin, isAssessor } = useAuth();
+  const { isAdmin, isAssessor, user } = useAuth();
   const { confirm } = useConfirm();
   const [notice, setNotice] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const canPreview = isAdmin || user?.role === 'superadmin' || isAssessor;
 
   useEffect(() => {
     fetchNotice();
@@ -107,6 +110,16 @@ const NoticeDetails = () => {
       subtitle={notice.noticeNumber}
       actionButtons={
         <>
+          {canPreview && (
+            <button
+              onClick={() => setIsPreviewModalOpen(true)}
+              className="btn btn-secondary flex items-center"
+              title="Preview Notice"
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              Preview
+            </button>
+          )}
           {notice.status === 'generated' && (isAdmin || isAssessor) && (
             <button onClick={() => handleSendNotice('print')} className="btn btn-primary flex items-center">
               <Send className="w-4 h-4 mr-2" />
@@ -254,6 +267,12 @@ const NoticeDetails = () => {
           )}
         </div>
       </div>
+      <ReceiptModal
+        isOpen={isPreviewModalOpen}
+        onClose={() => setIsPreviewModalOpen(false)}
+        data={notice}
+        type="NOTICE"
+      />
     </DetailPageLayout>
   );
 };

@@ -5,7 +5,8 @@ import Loading from '../../../components/Loading';
 import toast from 'react-hot-toast';
 import { Receipt, CreditCard, Droplets, Printer } from 'lucide-react';
 import DetailPageLayout, { DetailRow } from '../../../components/DetailPageLayout';
-import { WaterPaymentReceiptView } from '../../../components/ReceiptView';
+import ReceiptModal from '../../../components/ReceiptModal';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const formatAmt = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -13,6 +14,9 @@ const WaterPaymentDetails = () => {
   const { id } = useParams();
   const [payment, setPayment] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const { user, isAdmin, isCollector, isCitizen } = useAuth();
+  const canPreview = isAdmin || user?.role === 'superadmin' || isCollector || isCitizen;
 
   useEffect(() => {
     fetchPayment();
@@ -50,10 +54,22 @@ const WaterPaymentDetails = () => {
       title="Water Payment Receipt"
       subtitle={payment.receiptNumber || payment.paymentNumber}
       actionButtons={
-        <button type="button" onClick={() => window.print()} className="btn btn-secondary flex items-center">
-          <Printer className="w-4 h-4 mr-2" />
-          Print
-        </button>
+        <>
+          <button type="button" onClick={() => window.print()} className="btn btn-secondary flex items-center">
+            <Printer className="w-4 h-4 mr-2" />
+            Print
+          </button>
+          {canPreview && (
+            <button
+              type="button"
+              onClick={() => setIsPreviewModalOpen(true)}
+              className="btn btn-secondary flex items-center"
+            >
+              <Receipt className="w-4 h-4 mr-2" />
+              Preview
+            </button>
+          )}
+        </>
       }
       summarySection={
         <>
@@ -161,23 +177,13 @@ const WaterPaymentDetails = () => {
           </dl>
         </div>
 
-        <div className="receipt-print-area lg:col-span-2">
-          <h2 className="form-section-title no-print">Receipt Preview</h2>
-          <WaterPaymentReceiptView
-            payment={payment}
-            waterBill={waterBill}
-            waterConnection={payment.waterConnection}
-            property={property}
-            formatAmt={formatAmt}
-          />
-          {payment.remarks && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <p className="text-sm text-gray-600 mb-1">Remarks</p>
-              <p className="text-sm">{payment.remarks}</p>
-            </div>
-          )}
-        </div>
       </div>
+      <ReceiptModal
+        isOpen={isPreviewModalOpen}
+        onClose={() => setIsPreviewModalOpen(false)}
+        data={payment}
+        type="PAYMENT"
+      />
     </DetailPageLayout>
   );
 };

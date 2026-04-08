@@ -248,9 +248,15 @@ export const getAllDemands = async (req, res, next) => {
           model: Property,
           as: 'property',
           include: [
-            { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] }
+            { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] },
+            { 
+              model: Ward, 
+              as: 'ward', 
+              include: [{ model: ULB, as: 'ulb', attributes: ['name'] }] 
+            }
           ]
         },
+        { model: User, as: 'creator', attributes: ['id', 'firstName', 'lastName'] },
         { model: Assessment, as: 'assessment', required: false }, // Optional for D2DC and WATER_TAX
         {
           model: WaterTaxAssessment,
@@ -301,7 +307,12 @@ const demandByIdIncludes = [
     required: false,
     include: [
       { model: User, as: 'owner', attributes: { exclude: ['password'] }, required: false },
-      { model: Ward, as: 'ward', required: false },
+      { 
+        model: Ward, 
+        as: 'ward', 
+        required: false,
+        include: [{ model: ULB, as: 'ulb', attributes: ['name'], required: false }]
+      },
       {
         model: WaterConnection,
         as: 'waterConnections',
@@ -474,9 +485,23 @@ export const getDemandById = async (req, res, next) => {
       }
     }
 
+    const formattedDemand = demand.toJSON();
+    // Standardized fields for receipts/notices
+    formattedDemand.ulbName = demand.property?.ward?.ulb?.name || 
+                              demand.waterTaxAssessment?.property?.ward?.ulb?.name || 
+                              demand.shopTaxAssessment?.shop?.ward?.ulb?.name || 
+                              'Urban Local Body';
+    
+    const ward = demand.property?.ward || 
+                 demand.waterTaxAssessment?.property?.ward || 
+                 demand.shopTaxAssessment?.shop?.ward;
+                 
+    formattedDemand.wardName = ward ? `${ward.wardNumber} - ${ward.wardName}` : 'N/A';
+    formattedDemand.ward = formattedDemand.wardName; // for compatibility
+
     res.json({
       success: true,
-      data: { demand }
+      data: { demand: formattedDemand }
     });
   } catch (error) {
     console.error(`[getDemandById] Error fetching demand ${id}:`, error.message);

@@ -1,4 +1,4 @@
-import { WaterPayment, WaterBill, WaterConnection, Property, User } from '../models/index.js';
+import { WaterPayment, WaterBill, WaterConnection, Property, User, Ward, ULB } from '../models/index.js';
 import { Op } from 'sequelize';
 import { sequelize } from '../config/database.js';
 import { WATER_BILL_STATUS, WATER_PAYMENT_STATUS, getUnpaidBillStatuses, isSuccessfulPaymentStatus } from '../constants/waterTaxStatuses.js';
@@ -316,7 +316,18 @@ export const getAllWaterPayments = async (req, res, next) => {
           as: 'waterConnection',
           attributes: ['id', 'connectionNumber', 'meterNumber'],
           include: [
-            { model: Property, as: 'property', attributes: ['id', 'propertyNumber', 'address', 'city'] }
+            { 
+              model: Property, 
+              as: 'property', 
+              attributes: ['id', 'propertyNumber', 'address', 'city'],
+              include: [
+                { 
+                  model: Ward, 
+                  as: 'ward', 
+                  include: [{ model: ULB, as: 'ulb', attributes: ['name'] }] 
+                }
+              ]
+            }
           ]
         },
         {
@@ -330,10 +341,21 @@ export const getAllWaterPayments = async (req, res, next) => {
       order: [['paymentDate', 'DESC'], ['createdAt', 'DESC']]
     });
 
+    const formattedPayments = rows.map(payment => {
+      const p = payment.toJSON();
+      p.ulbName = payment.waterConnection?.property?.ward?.ulb?.name || 'Urban Local Body';
+      const ward = payment.waterConnection?.property?.ward;
+      p.wardName = ward ? `${ward.wardNumber} - ${ward.wardName}` : 'N/A';
+      p.ward = p.wardName; // for compatibility
+      p.paymentMethod = payment.paymentMode ? payment.paymentMode.toUpperCase() : 'N/A';
+      p.collectedBy = payment.cashier ? `${payment.cashier.firstName} ${payment.cashier.lastName}` : 'N/A';
+      return p;
+    });
+
     res.json({
       success: true,
       data: {
-        waterPayments: rows,
+        waterPayments: formattedPayments,
         pagination: {
           total: count,
           page: parseInt(page),
@@ -369,7 +391,19 @@ export const getWaterPaymentById = async (req, res, next) => {
               as: 'waterConnection',
               attributes: ['id', 'connectionNumber', 'meterNumber'],
               include: [
-                { model: Property, as: 'property', attributes: ['id', 'propertyNumber', 'address'] }
+                {
+                  model: Property,
+                  as: 'property',
+                  attributes: ['id', 'propertyNumber', 'address'],
+                  include: [
+                    {
+                      model: Ward,
+                      as: 'ward',
+                      attributes: ['id', 'ulb_id', 'wardName', 'wardNumber'],
+                      include: [{ model: ULB, as: 'ulb', attributes: ['name'] }]
+                    }
+                  ]
+                }
               ]
             }
           ]
@@ -384,7 +418,13 @@ export const getWaterPaymentById = async (req, res, next) => {
               as: 'property',
               attributes: ['id', 'propertyNumber', 'address', 'city', 'wardId'],
               include: [
-                { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] }
+                { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] },
+                {
+                  model: Ward,
+                  as: 'ward',
+                  attributes: ['id', 'ulb_id', 'wardName', 'wardNumber'],
+                  include: [{ model: ULB, as: 'ulb', attributes: ['name'] }]
+                }
               ]
             }
           ]
@@ -404,9 +444,22 @@ export const getWaterPaymentById = async (req, res, next) => {
       });
     }
 
+    const formattedPayment = waterPayment.toJSON();
+    // Get ULB Name from nested associations
+    formattedPayment.ulbName = waterPayment.waterConnection?.property?.ward?.ulb?.name ||
+                               waterPayment.waterBill?.waterConnection?.property?.ward?.ulb?.name ||
+                               'Urban Local Body';
+
+    // Get Ward from nested associations
+    const wardObj = waterPayment.waterConnection?.property?.ward || waterPayment.waterBill?.waterConnection?.property?.ward;
+    formattedPayment.ward = wardObj ? `${wardObj.wardNumber} - ${wardObj.wardName}` : 'N/A';
+
+    formattedPayment.paymentMethod = waterPayment.paymentMode ? waterPayment.paymentMode.toUpperCase() : 'N/A';
+    formattedPayment.collectedBy = waterPayment.cashier ? `${waterPayment.cashier.firstName} ${waterPayment.cashier.lastName}` : 'N/A';
+
     res.json({
       success: true,
-      data: { waterPayment }
+      data: { waterPayment: formattedPayment }
     });
   } catch (error) {
     next(error);

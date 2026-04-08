@@ -423,6 +423,12 @@
     text-decoration: none !important;
     color: black !important;
   }
+
+  /* Show print-only content */
+  .print-only {
+    display: block !important;
+    width: 100% !important;
+  }
 }
 
 /* ========== Custom Animations ========== */

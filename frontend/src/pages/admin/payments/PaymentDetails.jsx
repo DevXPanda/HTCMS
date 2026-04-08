@@ -6,7 +6,8 @@ import toast from 'react-hot-toast';
 import { Download, Printer, Loader2, Receipt, CreditCard, TrendingUp, Wallet } from 'lucide-react';
 import DetailPageLayout, { DetailRow } from '../../../components/DetailPageLayout';
 import { formatDateIST } from '../../../utils/dateUtils';
-import { PaymentReceiptView } from '../../../components/ReceiptView';
+import ReceiptModal from '../../../components/ReceiptModal';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const formatAmt = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -19,6 +20,10 @@ const PaymentDetails = () => {
   const [payment, setPayment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const { user, isAdmin, isCollector, isCitizen } = useAuth();
+
+  const canPreview = isAdmin || user?.role === 'superadmin' || isCollector || isCitizen;
 
   useEffect(() => {
     fetchPayment();
@@ -85,6 +90,16 @@ const PaymentDetails = () => {
             <Printer className="w-4 h-4 mr-2" />
             Print
           </button>
+          {canPreview && (
+            <button
+              type="button"
+              onClick={() => setIsPreviewModalOpen(true)}
+              className="btn btn-secondary flex items-center"
+            >
+              <Receipt className="w-4 h-4 mr-2" />
+              Preview
+            </button>
+          )}
         </>
       }
       summarySection={
@@ -177,16 +192,6 @@ const PaymentDetails = () => {
           </dl>
         </div>
 
-        <div className="receipt-print-area lg:col-span-2">
-          <h2 className="form-section-title no-print">Receipt Preview</h2>
-          <PaymentReceiptView payment={payment} formatAmt={formatAmt} />
-          {/* {payment.remarks && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <p className="text-sm text-gray-600 mb-1">Remarks</p>
-              <p className="text-sm">{payment.remarks}</p>
-            </div>
-          )} */}
-        </div>
 
         {/* {payment.remarks && (
           <div className="no-print card lg:col-span-2">
@@ -195,6 +200,12 @@ const PaymentDetails = () => {
           </div>
         )} */}
       </div>
+      <ReceiptModal
+        isOpen={isPreviewModalOpen}
+        onClose={() => setIsPreviewModalOpen(false)}
+        data={payment}
+        type="PAYMENT"
+      />
     </DetailPageLayout>
   );
 };

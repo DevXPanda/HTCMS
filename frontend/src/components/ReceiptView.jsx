@@ -42,10 +42,11 @@ export function PaymentReceiptView({ payment }) {
     {
       title: 'Receipt Details',
       content: [
-        { label: 'Receipt Number', value: payment?.receiptNumber || payment?.paymentNumber },
-        { label: 'Payment Date', value: payment?.paymentDate ? new Date(payment.paymentDate).toLocaleString('en-IN') : null },
-        { label: 'Payment ID', value: payment?.paymentNumber },
-        { label: 'Location', value: ward ? `${ward.wardNumber} - ${ward.wardName}` : null }
+        { label: 'ULB Name', value: payment?.ulbName || ulbDetails?.name || 'Urban Local Body' },
+        { label: 'Ward / Area', value: payment?.ward || (ward ? `${ward.wardNumber} - ${ward.wardName}` : 'N/A') },
+        { label: 'Receipt Number', value: payment?.receiptNumber || payment?.paymentNumber || 'N/A' },
+        { label: 'Payment Date', value: payment?.paymentDate ? new Date(payment.paymentDate).toLocaleString('en-IN') : 'N/A' },
+        { label: 'Payment ID', value: payment?.paymentNumber || 'N/A' }
       ]
     },
     {
@@ -61,9 +62,9 @@ export function PaymentReceiptView({ payment }) {
     {
       title: 'Amount Summary',
       content: [
-        { label: 'Financial Year', value: demand?.financialYear },
-        { label: 'Demand Number', value: demand?.demandNumber },
-        { label: 'Payment Mode', value: payment?.paymentMode ? String(payment.paymentMode).toUpperCase() : null },
+        { label: 'Financial Year', value: demand?.financialYear || 'N/A' },
+        { label: 'Demand Number', value: demand?.demandNumber || 'N/A' },
+        { label: 'Payment Mode', value: payment?.paymentMethod || (payment?.paymentMode ? String(payment.paymentMode).toUpperCase() : 'N/A') },
         { label: 'Amount Paid', value: formatReceiptAmount(payment?.amount) },
         { label: 'Final Amount', value: <span className="font-bold text-lg">{formatReceiptAmount(payment?.amount)}</span>, isAmountHighlight: true }
       ]
@@ -77,14 +78,13 @@ export function PaymentReceiptView({ payment }) {
     });
   }
 
-  if (payment?.cashier) {
-    sections.push({
-      title: 'Authority',
-      content: [
-        { label: 'Received By', value: `${payment.cashier.firstName} ${payment.cashier.lastName}` }
-      ]
-    });
-  }
+  // Use payment.collectedBy from backend if available
+  sections.push({
+    title: 'Additional Details',
+    content: [
+      { label: 'Collected By', value: payment?.collectedBy || (payment?.cashier ? `${payment.cashier.firstName} ${payment.cashier.lastName}` : 'N/A') }
+    ]
+  });
 
   return (
     <PrintReceiptLayout
@@ -109,9 +109,11 @@ export function WaterPaymentReceiptView({ payment, waterBill, waterConnection, p
     {
       title: 'Receipt Details',
       content: [
-        { label: 'Receipt Number', value: payment?.receiptNumber || payment?.paymentNumber },
-        { label: 'Payment Date', value: payment?.paymentDate ? new Date(payment.paymentDate).toLocaleString('en-IN') : null },
-        { label: 'Payment ID', value: payment?.paymentNumber }
+        { label: 'ULB Name', value: payment?.ulbName || ulbDetails?.name || 'Urban Local Body' },
+        { label: 'Ward / Area', value: payment?.ward || (property?.ward ? `${property.ward.wardNumber} - ${property.ward.wardName}` : 'N/A') },
+        { label: 'Receipt Number', value: payment?.receiptNumber || payment?.paymentNumber || 'N/A' },
+        { label: 'Payment Date', value: payment?.paymentDate ? new Date(payment.paymentDate).toLocaleString('en-IN') : 'N/A' },
+        { label: 'Payment ID', value: payment?.paymentNumber || 'N/A' }
       ]
     },
     {
@@ -129,7 +131,7 @@ export function WaterPaymentReceiptView({ payment, waterBill, waterConnection, p
     {
       title: 'Amount Summary',
       content: [
-        { label: 'Payment Mode', value: payment?.paymentMode ? String(payment.paymentMode).toUpperCase() : null },
+        { label: 'Payment Mode', value: payment?.paymentMethod || (payment?.paymentMode ? String(payment.paymentMode).toUpperCase() : 'N/A') },
         { label: 'Amount Paid', value: formatReceiptAmount(payment?.amount) },
         { label: 'Final Amount', value: <span className="font-bold text-lg">{formatReceiptAmount(payment?.amount)}</span>, isAmountHighlight: true }
       ]
@@ -143,14 +145,13 @@ export function WaterPaymentReceiptView({ payment, waterBill, waterConnection, p
     });
   }
 
-  if (payment?.cashier) {
-    sections.push({
-      title: 'Authority',
-      content: [
-        { label: 'Received By', value: `${payment.cashier.firstName} ${payment.cashier.lastName}` }
-      ]
-    });
-  }
+  // Use payment.collectedBy from backend if available
+  sections.push({
+    title: 'Additional Details',
+    content: [
+      { label: 'Collected By', value: payment?.collectedBy || (payment?.cashier ? `${payment.cashier.firstName} ${payment.cashier.lastName}` : 'N/A') }
+    ]
+  });
 
   return (
     <PrintReceiptLayout

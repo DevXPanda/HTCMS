@@ -5,11 +5,19 @@ import { paymentAPI, demandAPI, waterBillAPI, waterPaymentAPI } from '../../../s
 import toast from 'react-hot-toast';
 import { Save, Calculator } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useConfirm } from '../../../components/ConfirmModal';
+import ReceiptModal from '../../../components/ReceiptModal';
+
 
 const AddPayment = () => {
   const navigate = useNavigate();
   const { isAdmin, isCashier } = useAuth();
+  const { confirm } = useConfirm();
   const [loading, setLoading] = useState(false);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [recordedPayment, setRecordedPayment] = useState(null);
+  const [receiptType, setReceiptType] = useState('property');
+
   const [demand, setDemand] = useState(null);
   const [waterBill, setWaterBill] = useState(null);
   const [loadingDemand, setLoadingDemand] = useState(false);
@@ -203,8 +211,22 @@ const AddPayment = () => {
 
         if (response.data.success) {
           toast.success('Payment recorded successfully!');
-          navigate(`/payments/${response.data.data.payment.id}`);
+          const p = response.data.data.payment;
+          const wantsReceipt = await confirm({
+            title: 'Payment Recorded',
+            message: 'Payment has been recorded successfully! Would you like to view, download or print the receipt?',
+            confirmLabel: 'Yes',
+            cancelLabel: 'No'
+          });
+          if (wantsReceipt) {
+            setReceiptType('property');
+            setRecordedPayment(p);
+            setIsReceiptModalOpen(true);
+          } else {
+            navigate('/payments');
+          }
         }
+
       } else if (data.paymentType === 'WATER_TAX') {
         // Water Tax Payment
         const paymentData = {
@@ -223,18 +245,23 @@ const AddPayment = () => {
 
         if (response.data.success) {
           toast.success('Water payment recorded successfully!');
-          // Show receipt confirmation
-          const receiptNumber = response.data.data.waterPayment.receiptNumber;
-          const paymentId = response.data.data.waterPayment.id;
+          const p = response.data.data.waterPayment;
+          const wantsReceipt = await confirm({
+            title: 'Water Payment Recorded',
+            message: `Water payment recorded successfully (Receipt: ${p.receiptNumber})! Would you like to view, download or print the receipt?`,
+            confirmLabel: 'Yes',
+            cancelLabel: 'No'
+          });
 
-          // Navigate to water payment details (we'll need to create this page or use a generic receipt view)
-          // For now, show success message with receipt number
-          toast.success(`Receipt Number: ${receiptNumber}`, { duration: 5000 });
-
-          // Navigate to water payments page or show receipt
-          // Since we don't have a water payment details page yet, navigate to water payments list
-          navigate('/water/payments');
+          if (wantsReceipt) {
+            setReceiptType('water');
+            setRecordedPayment(p);
+            setIsReceiptModalOpen(true);
+          } else {
+            navigate('/water/payments');
+          }
         }
+
       }
     } catch (error) {
       toast.error(error.response?.data?.error || error.response?.data?.message || 'Failed to record payment');
@@ -650,6 +677,17 @@ const AddPayment = () => {
           </button>
         </div>
       </form>
+
+      <ReceiptModal
+        isOpen={isReceiptModalOpen}
+        onClose={() => {
+          setIsReceiptModalOpen(false);
+          const redirectPath = receiptType === 'water' ? '/water/payments' : '/payments';
+          navigate(redirectPath);
+        }}
+        data={recordedPayment}
+        type="PAYMENT"
+      />
     </div>
   );
 };
