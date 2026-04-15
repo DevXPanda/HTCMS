@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import {
   Building2, Receipt, Shield, Bell, LineChart,
   Users, CheckCircle2, ArrowRight, FileText,
@@ -12,8 +12,19 @@ import Register from './auth/Register';
 import { StaffAuthProvider } from '../contexts/StaffAuthContext';
 
 const Home = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [showLogin, setShowLogin] = React.useState(false);
   const [loginType, setLoginType] = React.useState('citizen'); // 'citizen', 'admin', 'staff', 'register'
+
+  React.useEffect(() => {
+    const authType = searchParams.get('auth');
+    if (authType) {
+      setLoginType(authType);
+      setShowLogin(true);
+      // Clean up the URL after opening
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const renderLoginModal = () => {
     if (!showLogin) return null;
@@ -28,11 +39,8 @@ const Home = () => {
       case 'admin':
         return <AdminLogin {...props} />;
       case 'staff':
-        return (
-          <StaffAuthProvider>
-            <StaffLogin {...props} />
-          </StaffAuthProvider>
-        );
+        return <StaffLogin {...props} />;
+
       case 'register':
         return <Register {...props} />;
       default:

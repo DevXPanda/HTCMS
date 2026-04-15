@@ -23,6 +23,7 @@ import Home from './pages/Home';
 import D2DCModule from './pages/admin/d2dc/D2DCModule';
 import DiscountManagement from './pages/admin/discount/DiscountManagement';
 import PenaltyWaiverManagement from './pages/admin/penaltyWaiver/PenaltyWaiverManagement';
+import AIAssistant from './components/AIAssistant/AIAssistant';
 
 // Auth Pages
 import AdminLogin from './pages/auth/AdminLogin';
@@ -266,8 +267,10 @@ function App() {
   return (
     <NavigationProvider>
       <AuthProvider>
-        <ConfirmProvider>
-        <NotificationProvider>
+        <StaffAuthProvider>
+          <ConfirmProvider>
+            <NotificationProvider>
+
         <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Toaster
             position="top-right"
@@ -275,47 +278,62 @@ function App() {
             toastOptions={{
               duration: 4000,
               style: {
-                background: '#1f2937',
-                color: '#f9fafb',
-                borderRadius: '0.5rem',
-                padding: '0.75rem 1rem',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                background: 'rgba(255, 255, 255, 0.9)',
+                backdropFilter: 'blur(10px)',
+                WebkitBackdropFilter: 'blur(10px)',
+                color: '#1f2937',
+                borderRadius: '12px',
+                padding: '12px 20px',
+                border: '1px solid rgba(229, 231, 235, 0.5)',
+                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                fontSize: '14px',
+                fontWeight: '600',
               },
               success: {
                 iconTheme: { primary: '#10b981', secondary: '#fff' },
-                style: { background: '#065f46', color: '#ecfdf5' }
+                style: {
+                  background: 'rgba(236, 253, 245, 0.95)',
+                  color: '#065f46',
+                  border: '1px solid rgba(16, 185, 129, 0.2)',
+                }
               },
               error: {
                 iconTheme: { primary: '#ef4444', secondary: '#fff' },
-                style: { background: '#7f1d1d', color: '#fef2f2' }
+                style: {
+                  background: 'rgba(254, 242, 242, 0.95)',
+                  color: '#991b1b',
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                }
               },
-              loading: { style: { background: '#374151', color: '#f9fafb' } }
+              loading: {
+                style: {
+                  background: 'rgba(255, 255, 255, 0.8)',
+                  color: '#4b5563'
+                }
+              }
             }}
           />
           <Routes>
-            {/* Public Routes - Separate Login Pages */}
-            <Route path="/admin/login" element={<AdminLogin />} />
-            <Route path="/admin/register" element={<Register />} />
-            <Route
-              path="/staff/login"
-              element={
-                <StaffAuthProvider>
-                  <StaffLogin />
-                </StaffAuthProvider>
-              }
-            />
-            < Route path="/citizen/login" element={< CitizenLogin />} />
-            < Route path="/employee/login" element={< EmployeeLogin />} />
-            < Route path="/employee/change-password" element={< EmployeeChangePassword />} />
-            < Route path="/register" element={< Register />} />
-            {/* Redirect old login pages to new unified staff login */}
-            <Route path="/collector/login" element={<Navigate to="/staff/login" replace />} />
-            <Route path="/collector/register" element={<Navigate to="/register" replace />} />
-            <Route path="/clerk/login" element={<Navigate to="/staff/login" replace />} />
-            <Route path="/inspector/login" element={<Navigate to="/staff/login" replace />} />
-            <Route path="/officer/login" element={<Navigate to="/staff/login" replace />} />
-            {/* Redirect old /login to citizen login for backward compatibility */}
-            <Route path="/login" element={<Navigate to="/citizen/login" replace />} />
+            {/* Unified Auth: Redirect separate login/register pages to Landing Page with Query Params */}
+            <Route path="/admin/login" element={<Navigate to="/?auth=admin" replace />} />
+            <Route path="/admin/register" element={<Navigate to="/?auth=register" replace />} />
+            <Route path="/staff/login" element={<Navigate to="/?auth=staff" replace />} />
+            <Route path="/citizen/login" element={<Navigate to="/?auth=citizen" replace />} />
+            <Route path="/employee/login" element={<Navigate to="/?auth=staff" replace />} />
+            <Route path="/register" element={<Navigate to="/?auth=register" replace />} />
+            <Route path="/login" element={<Navigate to="/?auth=citizen" replace />} />
+            
+            {/* These might still need separate pages if not handled by modals yet, but following user request to remove them */}
+            <Route path="/employee/change-password" element={<EmployeeChangePassword />} />
+            <Route path="/unauthorized" element={<Unauthorized />} />
+
+            {/* Old collector/clerk/etc redirects */}
+            <Route path="/collector/login" element={<Navigate to="/?auth=staff" replace />} />
+            <Route path="/collector/register" element={<Navigate to="/?auth=register" replace />} />
+            <Route path="/clerk/login" element={<Navigate to="/?auth=staff" replace />} />
+            <Route path="/inspector/login" element={<Navigate to="/?auth=staff" replace />} />
+            <Route path="/officer/login" element={<Navigate to="/?auth=staff" replace />} />
+
 
             {/* Unauthorized Page */}
             <Route path="/unauthorized" element={<Unauthorized />} />
@@ -698,11 +716,10 @@ function App() {
               path="/tax-management/d2dc"
               element={
                 <SelectedUlbProvider>
-                  <StaffAuthProvider>
-                    <PrivateRoute allowedRoles={['admin', 'collector', 'tax_collector', 'inspector', 'officer']}>
-                      <D2DCModule />
-                    </PrivateRoute>
-                  </StaffAuthProvider>
+                  <PrivateRoute allowedRoles={['admin', 'collector', 'tax_collector', 'inspector', 'officer']}>
+                    <D2DCModule />
+                  </PrivateRoute>
+
                 </SelectedUlbProvider>
               }
             />
@@ -879,9 +896,11 @@ function App() {
             {/* 404 - Redirect based on role */}
             <Route path="*" element={<RoleBasedRedirect />} />
           </Routes>
+          <AIAssistant />
         </Router>
         </NotificationProvider>
         </ConfirmProvider>
+        </StaffAuthProvider>
       </AuthProvider>
     </NavigationProvider>
   );

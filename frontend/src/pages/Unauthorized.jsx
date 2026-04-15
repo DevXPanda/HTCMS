@@ -18,7 +18,7 @@ const Unauthorized = () => {
       } else if (role === 'citizen') {
         navigate('/citizen/dashboard', { replace: true });
       } else {
-        navigate('/citizen/login', { replace: true });
+        navigate('/', { replace: true });
       }
     }, 3000);
 
@@ -48,7 +48,7 @@ const Unauthorized = () => {
             } else if (role === 'citizen') {
               navigate('/citizen/dashboard', { replace: true });
             } else {
-              navigate('/citizen/login', { replace: true });
+              navigate('/', { replace: true });
             }
           }}
           className="btn btn-primary"

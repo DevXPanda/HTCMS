@@ -256,7 +256,7 @@ export const getAllDemands = async (req, res, next) => {
             }
           ]
         },
-        { model: User, as: 'creator', attributes: ['id', 'firstName', 'lastName'] },
+        { model: User, as: 'generator', attributes: ['id', 'firstName', 'lastName'] },
         { model: Assessment, as: 'assessment', required: false }, // Optional for D2DC and WATER_TAX
         {
           model: WaterTaxAssessment,

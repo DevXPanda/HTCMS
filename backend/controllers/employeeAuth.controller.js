@@ -66,7 +66,7 @@ export const employeeLogin = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({
-        message: 'Validation failed',
+        message: 'Invalid information provided. Please check your login details.',
         errors: errors.array()
       });
     }
@@ -88,7 +88,7 @@ export const employeeLogin = async (req, res) => {
 
     if (!employee) {
       return res.status(401).json({
-        message: 'Invalid credentials'
+        message: 'Incorrect ID, email or phone number'
       });
     }
 
@@ -104,7 +104,7 @@ export const employeeLogin = async (req, res) => {
 
     if (!isPasswordValid) {
       return res.status(401).json({
-        message: 'Invalid credentials'
+        message: 'Incorrect password'
       });
     }
 
@@ -244,7 +244,7 @@ export const changeEmployeePassword = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({
-        message: 'Validation failed',
+        message: 'Invalid password format. Please check your entries.',
         errors: errors.array()
       });
     }

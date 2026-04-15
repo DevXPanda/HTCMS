@@ -19,7 +19,7 @@ export const getAllUsers = async (req, res, next) => {
     if (!isSuperAdmin && !isSbmMonitor && (effectiveUlbId == null || effectiveUlbId === '')) {
       return res.status(403).json({
         success: false,
-        message: 'Access denied. You must be assigned to an ULB to view users.'
+        message: 'Permission Restricted. You must be assigned to an ULB to view users.'
       });
     }
     if (effectiveUlbId) {
@@ -104,7 +104,7 @@ export const getUserById = async (req, res, next) => {
     if (!isAdmin && !isSbm && req.user.id !== parseInt(id, 10)) {
       return res.status(403).json({
         success: false,
-        message: 'Access denied'
+        message: 'Permission Restricted: You can only view your own profile.'
       });
     }
 
@@ -316,7 +316,7 @@ export const updateUser = async (req, res, next) => {
     if (!isAdmin && req.user.id !== parseInt(id)) {
       return res.status(403).json({
         success: false,
-        message: 'Access denied'
+        message: 'Permission Restricted: You do not have access to edit this profile.'
       });
     }
 

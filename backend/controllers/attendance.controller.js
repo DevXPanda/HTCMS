@@ -43,7 +43,7 @@ export const getAttendanceRecords = async (req, res, next) => {
       const { effectiveUlbId, isSuperAdmin } = getEffectiveUlbForRequest(req);
       if (normalizedRole === 'sfi' && !effectiveUlbId) {
         return res.status(403).json({
-          message: 'Access denied. SFI must be assigned to an ULB to view attendance records.'
+          message: 'Permission Restricted. SFI must be assigned to an ULB to view attendance records.'
         });
       }
       if (normalizedRole === 'sbm' && !effectiveUlbId) {
@@ -117,7 +117,7 @@ export const getAttendanceRecords = async (req, res, next) => {
     } else {
       // Citizens have no access
       return res.status(403).json({
-        message: 'Access denied. Insufficient permissions to view attendance records.'
+        message: 'Permission Restricted. Insufficient permissions to view attendance records.'
       });
     }
 
@@ -279,7 +279,7 @@ export const getAttendanceById = async (req, res, next) => {
     if (isStaff && attendance.collectorId !== user.id) {
       return res.status(403).json({
         success: false,
-        message: 'Access denied. You can only view your own attendance records.'
+        message: 'Permission Restricted. You can only view your own attendance records.'
       });
     }
 
@@ -311,7 +311,7 @@ export const getAttendanceStats = async (req, res, next) => {
     if (user.role !== 'admin' && user.role !== 'assessor') {
       return res.status(403).json({
         success: false,
-        message: 'Access denied. Only admin and assessor can view statistics.'
+        message: 'Permission Restricted. Only admin and assessor can view statistics.'
       });
     }
 

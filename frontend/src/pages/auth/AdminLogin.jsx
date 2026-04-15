@@ -7,7 +7,7 @@ import { Shield, Building2, CreditCard } from 'lucide-react';
 const AdminLogin = ({ isModal = false, onClose, onSwitch }) => {
   const [formData, setFormData] = useState({ login_identifier: '', password: '' });
   const [loading, setLoading] = useState(false);
-  const { login, user, isAuthenticated, loading: authLoading } = useAuth();
+  const { login, logout, user, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   // Redirect if already logged in with admin role
@@ -63,31 +63,25 @@ const AdminLogin = ({ isModal = false, onClose, onSwitch }) => {
     setLoading(true);
 
     try {
-      const result = await login(formData.login_identifier, formData.password);
+      const result = await login(formData.login_identifier, formData.password, ['admin', 'assessor', 'cashier']);
 
       if (result.success && result.user) {
-        const loggedInUser = result.user;
-        const role = loggedInUser.role; // Get exact role from backend response
-
-        // Validate that user has admin role - exact matching
-        const isAdminRole = role === 'admin' || role === 'assessor' || role === 'cashier';
-
-        if (!isAdminRole) {
-          toast.error('Access denied. This login is only for admin, assessor, or cashier.');
-          // Clear auth data through AuthContext by using a dummy login call
-          // This will trigger the error handling and clear data
-          setLoading(false);
-          return;
-        }
-
         toast.success('Login successful!');
 
         // Redirect based on exact role
-        if (role === 'admin' || role === 'assessor' || role === 'cashier') {
+        const { role } = result.user;
+        const normalizedRole = role ? role.toUpperCase().replace(/-/g, '_') : role;
+        
+        if (normalizedRole === 'ASSESSOR' || role === 'assessor') {
+          navigate('/dashboard', { replace: true });
+        } else if (normalizedRole === 'CASHIER' || role === 'cashier') {
           navigate('/dashboard', { replace: true });
         } else {
-          toast.error('Invalid role for admin portal');
-          setLoading(false);
+          navigate('/dashboard', { replace: true });
+        }
+        
+        if (isModal && onClose) {
+          onClose();
         }
       } else {
         toast.error(result.message || 'Login failed');
@@ -227,11 +221,12 @@ const AdminLogin = ({ isModal = false, onClose, onSwitch }) => {
   }
 
   return (
-    <div className="auth-page-bg min-h-screen flex items-center justify-center px-4 relative">
-      <div className="absolute inset-0 bg-black opacity-45 z-0" />
+    <div className="min-h-screen flex items-center justify-center px-4 relative bg-slate-50 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:20px_20px]">
+      <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px] z-0" />
       {content}
     </div>
   );
+
 };
 
 export default AdminLogin;

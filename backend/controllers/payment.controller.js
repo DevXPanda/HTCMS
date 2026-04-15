@@ -132,7 +132,7 @@ export const getAllPayments = async (req, res, next) => {
       if (!isSuperAdmin && !isSbmMonitor && !isAccountOfficer && (effectiveUlbId == null || effectiveUlbId === '')) {
         return res.status(403).json({
           success: false,
-          message: 'Access denied. You must be assigned to an ULB to view payments.'
+          message: 'Permission Restricted. You must be assigned to an ULB to view payments.'
         });
       }
       if (effectiveUlbId && !isAccountOfficer) {
@@ -273,7 +273,7 @@ export const getPaymentById = async (req, res, next) => {
         if (!ward || ward.ulb_id !== effectiveUlbId) {
           return res.status(403).json({
             success: false,
-            message: 'Access denied. Payment does not belong to your assigned ULB.'
+            message: 'Permission Restricted. Payment does not belong to your assigned ULB.'
           });
         }
       }
@@ -352,7 +352,7 @@ export const createPayment = async (req, res, next) => {
         await transaction.rollback();
         return res.status(403).json({
           success: false,
-          message: 'Access denied: No wards assigned to collector.'
+          message: 'Permission Restricted: No wards assigned to collector.'
         });
       }
       const wardIdsArray = Array.isArray(collectorWardIds) ? collectorWardIds : [collectorWardIds];
@@ -360,7 +360,7 @@ export const createPayment = async (req, res, next) => {
         await transaction.rollback();
         return res.status(403).json({
           success: false,
-          message: 'Access denied: You are not assigned to this ward'
+          message: 'Permission Restricted: You are not assigned to this ward'
         });
       }
     }

@@ -109,19 +109,6 @@ const CollectorDashboard = () => {
     <div className="space-y-6">
       {/* Premium Collector Hero Section - Simplified Stats */}
       <div className="relative overflow-hidden rounded-2xl shadow-xl border border-slate-200/50 group select-none h-[280px] sm:h-[340px] md:h-[400px]">
-        {/* Top-Right Info Bar (Date, FY Only) - Locked to Hero Section */}
-        <div className="absolute top-6 right-6 sm:top-8 sm:right-8 z-30 flex items-center gap-4 px-4 py-2.5 bg-white/90 backdrop-blur-md rounded-xl border border-white/50 shadow-sm animate-fade-in w-fit">
-           <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold text-gray-700">
-             <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
-             <span>FY: 2024-25</span>
-           </div>
-           <div className="w-[1px] h-3 bg-gray-300"></div>
-           <div className="flex items-center gap-2 text-[10px] sm:text-xs font-bold text-gray-700">
-             <CalendarDays className="w-3.5 h-3.5 text-blue-600" />
-             <span>{new Date().toLocaleDateString()}</span>
-           </div>
-        </div>
-
         {/* Main Slide Image */}
         <div
           className="absolute inset-0 bg-cover bg-center transition-all duration-1000 ease-in-out transform scale-100 group-hover:scale-105"
@@ -160,6 +147,19 @@ const CollectorDashboard = () => {
               </Link>
             </div>
           </div>
+        </div>
+
+        {/* Top-Right Info Bar (Date, FY Only) - Locked to Hero Section */}
+        <div className="absolute top-6 right-6 sm:top-8 sm:right-8 z-[5] flex items-center gap-4 px-4 py-2.5 bg-white/90 backdrop-blur-md rounded-xl border border-white/50 shadow-sm animate-fade-in w-fit">
+           <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold text-gray-700">
+             <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
+             <span>FY: 2024-25</span>
+           </div>
+           <div className="w-[1px] h-3 bg-gray-300"></div>
+           <div className="flex items-center gap-2 text-[10px] sm:text-xs font-bold text-gray-700">
+             <CalendarDays className="w-3.5 h-3.5 text-blue-600" />
+             <span>{new Date().toLocaleDateString()}</span>
+           </div>
         </div>
 
         {/* Slide Indicators */}

@@ -70,13 +70,27 @@ export const StaffAuthProvider = ({ children }) => {
     checkAuth();
   }, [token]);
 
-  const login = async (identifier, password) => {
+  const login = async (identifier, password, allowedRoles = null) => {
     try {
       const response = await staffAuthAPI.login(identifier, password);
       const { token: newToken, employee } = response.data || {};
 
       if (!newToken || !employee?.role) {
         throw new Error('Invalid staff login response');
+      }
+
+      // Role validation - check before setting state to prevent flashes/redirects
+      if (allowedRoles && allowedRoles.length > 0) {
+        const normalizedRole = employee.role.toUpperCase().replace(/-/g, '_');
+        const normalizedAllowedRoles = allowedRoles.map(r => r.toUpperCase().replace(/-/g, '_'));
+        
+        if (!normalizedAllowedRoles.includes(normalizedRole)) {
+          if (normalizedRole === 'CITIZEN') {
+            throw new Error("Login Error: This account belongs to the Citizen portal. Please login there.");
+          } else {
+            throw new Error("Login Error: Incorrect portal for your account type.");
+          }
+        }
       }
 
       clearAllAuthData();
@@ -93,10 +107,11 @@ export const StaffAuthProvider = ({ children }) => {
       console.error('Staff login error:', error);
       return {
         success: false,
-        message: error.response?.data?.message || error.message || 'Login failed'
+        message: error.response?.data?.error || error.response?.data?.message || error.message || 'Login failed'
       };
     }
   };
+
 
   const logout = async () => {
     try {

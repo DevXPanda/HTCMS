@@ -8,7 +8,9 @@ const StaffLogin = ({ isModal = false, onClose, onSwitch }) => {
   const [formData, setFormData] = useState({ login_identifier: '', password: '' });
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { login } = useStaffAuth();
+  const { login, logout } = useStaffAuth();
+
+
 
   // Check if already logged in (check for valid token)
   useEffect(() => {
@@ -57,49 +59,52 @@ const StaffLogin = ({ isModal = false, onClose, onSwitch }) => {
     e.preventDefault();
     setLoading(true);
 
+    const staffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'TAX_COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI', 'SBM', 'ACCOUNT_OFFICER'];
+
     try {
-      const result = await login(formData.login_identifier, formData.password);
+      const result = await login(formData.login_identifier, formData.password, staffRoles);
 
-      if (!result.success || !result.user) {
-        toast.error(result.message || 'Login failed');
-        setLoading(false);
-        return;
-      }
+      if (result.success && result.user) {
+        const { role } = result.user;
+        const normalizedRole = role ? role.toUpperCase().replace(/-/g, '_') : role;
 
-      const { role } = result.user;
+        toast.success('Login successful!');
 
-      // Normalize role to uppercase for comparison
-      const normalizedRole = role ? role.toUpperCase().replace(/-/g, '_') : role;
+        if (normalizedRole === 'CLERK') {
+          navigate('/clerk/dashboard', { replace: true });
+        } else if (normalizedRole === 'INSPECTOR') {
+          navigate('/inspector/dashboard', { replace: true });
+        } else if (normalizedRole === 'OFFICER') {
+          navigate('/officer/dashboard', { replace: true });
+        } else if (normalizedRole === 'COLLECTOR') {
+          navigate('/collector/dashboard', { replace: true });
+        } else if (normalizedRole === 'EO') {
+          navigate('/eo/dashboard', { replace: true });
+        } else if (normalizedRole === 'SUPERVISOR') {
+          navigate('/supervisor/dashboard', { replace: true });
+        } else if (normalizedRole === 'SFI') {
+          navigate('/sfi/dashboard', { replace: true });
+        } else if (normalizedRole === 'SBM') {
+          navigate('/sbm/dashboard', { replace: true });
+        } else if (normalizedRole === 'ACCOUNT_OFFICER') {
+          navigate('/account-officer/dashboard', { replace: true });
+        } else if (normalizedRole === 'FIELD_WORKER') {
+          navigate('/field-worker/dashboard', { replace: true });
+        } else if (normalizedRole === 'CONTRACTOR') {
+          navigate('/contractor/dashboard', { replace: true });
+        } else if (normalizedRole === 'TAX_COLLECTOR') {
+          navigate('/collector/dashboard', { replace: true });
+        }
 
-      toast.success('Login successful!');
-
-      if (normalizedRole === 'CLERK') {
-        navigate('/clerk/dashboard', { replace: true });
-      } else if (normalizedRole === 'INSPECTOR') {
-        navigate('/inspector/dashboard', { replace: true });
-      } else if (normalizedRole === 'OFFICER') {
-        navigate('/officer/dashboard', { replace: true });
-      } else if (normalizedRole === 'COLLECTOR') {
-        navigate('/collector/dashboard', { replace: true });
-      } else if (normalizedRole === 'EO') {
-        navigate('/eo/dashboard', { replace: true });
-      } else if (normalizedRole === 'SUPERVISOR') {
-        navigate('/supervisor/dashboard', { replace: true });
-      } else if (normalizedRole === 'SFI') {
-        navigate('/sfi/dashboard', { replace: true });
-      } else if (normalizedRole === 'SBM') {
-        navigate('/sbm/dashboard', { replace: true });
-      } else if (normalizedRole === 'ACCOUNT_OFFICER') {
-        navigate('/account-officer/dashboard', { replace: true });
-      } else if (normalizedRole === 'FIELD_WORKER') {
-        navigate('/field-worker/dashboard', { replace: true });
-      } else if (normalizedRole === 'CONTRACTOR') {
-        navigate('/contractor/dashboard', { replace: true });
+        if (isModal && onClose) {
+          onClose();
+        }
       } else {
-        toast.error('Invalid role for staff portal');
+        toast.error(result.message || 'Login failed');
         setLoading(false);
       }
     } catch (error) {
+
       console.error('Login error:', error);
       toast.error(error.response?.data?.message || 'An error occurred during login');
       setLoading(false);
@@ -231,11 +236,12 @@ const StaffLogin = ({ isModal = false, onClose, onSwitch }) => {
   }
 
   return (
-    <div className="auth-page-bg min-h-screen flex items-center justify-center px-4 relative">
-      <div className="absolute inset-0 bg-black opacity-45 z-0" />
+    <div className="min-h-screen flex items-center justify-center px-4 relative bg-slate-50 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:20px_20px]">
+      <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px] z-0" />
       {content}
     </div>
   );
+
 };
 
 export default StaffLogin;

@@ -163,7 +163,7 @@ export const register = async (req, res, next) => {
         if (usernameTaken) {
           return res.status(400).json({
             success: false,
-            message: 'Username is already taken'
+            message: 'Registration Error: This username is not available. Please try another.'
           });
         }
       }
@@ -494,7 +494,7 @@ export const login = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: 'Login Error: The email or phone number provided is incorrect.'
       });
     }
 
@@ -514,7 +514,7 @@ export const login = async (req, res, next) => {
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: 'Login Error: The password you entered is incorrect.'
       });
     }
 

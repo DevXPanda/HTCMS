@@ -69,10 +69,9 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
-  const login = async (emailOrPhone, password) => {
+  const login = async (emailOrPhone, password, allowedRoles = null) => {
     try {
       const response = await authAPI.login(emailOrPhone, password);
-
       const responseData = response.data;
 
       if (responseData.requiresOtp && responseData.pendingToken) {
@@ -95,13 +94,23 @@ export const AuthProvider = ({ children }) => {
         throw new Error('User role not found in response');
       }
 
+      // Role validation - check before setting state to prevent flashes of dashboard
+      if (allowedRoles && allowedRoles.length > 0) {
+        const normalizedRole = user.role.toUpperCase().replace(/-/g, '_');
+        const normalizedAllowedRoles = allowedRoles.map(r => r.toUpperCase().replace(/-/g, '_'));
+        
+        if (!normalizedAllowedRoles.includes(normalizedRole)) {
+          throw new Error("Login Error: Incorrect portal for your account type.");
+        }
+      }
+
+
       clearAllAuthData();
 
       localStorage.setItem('token', token);
       localStorage.setItem('role', user.role);
       localStorage.setItem('user', JSON.stringify(user));
       setToken(token);
-
       setUser(user);
 
       return { success: true, user };
@@ -114,7 +123,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const completeCitizenLogin = async (pendingToken, otp) => {
+  const completeCitizenLogin = async (pendingToken, otp, allowedRoles = ['citizen']) => {
     try {
       const response = await authAPI.verifyCitizenLogin(pendingToken, otp);
       const responseData = response.data;
@@ -123,6 +132,17 @@ export const AuthProvider = ({ children }) => {
       if (!user || !token) {
         throw new Error('Invalid response from server');
       }
+
+      // Role validation
+      if (allowedRoles && allowedRoles.length > 0) {
+        const normalizedRole = user.role.toUpperCase().replace(/-/g, '_');
+        const normalizedAllowedRoles = allowedRoles.map(r => r.toUpperCase().replace(/-/g, '_'));
+        
+        if (!normalizedAllowedRoles.includes(normalizedRole)) {
+          throw new Error("Login Error: This account belongs to the Management portal. Please login there.");
+        }
+      }
+
 
       clearAllAuthData();
 
@@ -140,6 +160,7 @@ export const AuthProvider = ({ children }) => {
       };
     }
   };
+
 
   const register = async (userData) => {
     try {

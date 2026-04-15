@@ -274,19 +274,6 @@ const Dashboard = () => {
   return (
     <div className="space-y-6">
       <div className="relative overflow-hidden rounded-3xl border border-blue-100 shadow-sm h-[280px] sm:h-[400px] md:h-[450px] group select-none">
-         {/* Top-Right Info Bar (Date, FY Only) - Absolutely Locked to Hero Section */}
-         <div className="absolute top-6 right-6 sm:top-8 sm:right-8 z-30 flex items-center gap-4 px-4 py-2.5 bg-white/90 backdrop-blur-md rounded-xl border border-white/50 shadow-lg animate-fade-in w-fit pointer-events-auto">
-           <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold text-gray-700">
-             <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
-             <span>FY: 2024-25</span>
-           </div>
-           <div className="w-[1px] h-3 bg-gray-300"></div>
-           <div className="flex items-center gap-2 text-[10px] sm:text-xs font-bold text-gray-700">
-             <CalendarDays className="w-3.5 h-3.5 text-blue-600" />
-             <span>{new Date().toLocaleDateString()}</span>
-           </div>
-        </div>
-
         <div
           className="absolute inset-0 bg-cover bg-center transition-all duration-1000 ease-in-out transform scale-100 group-hover:scale-105"
           style={{ backgroundImage: `url("${slides[currentSlide].image}")` }}
@@ -334,6 +321,19 @@ const Dashboard = () => {
                 </>
               )}
             </div>
+          </div>
+        </div>
+
+        {/* Top-Right Info Bar (Date, FY Only) - Absolutely Locked to Hero Section */}
+        <div className="absolute top-6 right-6 sm:top-8 sm:right-8 z-[5] flex items-center gap-4 px-4 py-2.5 bg-white/90 backdrop-blur-md rounded-xl border border-white/50 shadow-lg animate-fade-in w-fit pointer-events-auto">
+          <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold text-gray-700">
+            <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
+            <span>FY: 2024-25</span>
+          </div>
+          <div className="w-[1px] h-3 bg-gray-300"></div>
+          <div className="flex items-center gap-2 text-[10px] sm:text-xs font-bold text-gray-700">
+            <CalendarDays className="w-3.5 h-3.5 text-blue-600" />
+            <span>{new Date().toLocaleDateString()}</span>
           </div>
         </div>
 
@@ -450,12 +450,19 @@ const Dashboard = () => {
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm text-gray-700 font-medium line-clamp-2 leading-snug">{log.description}</p>
-                          <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1.5 uppercase font-medium">
-                            <Clock className="w-3 h-3" />
-                            {getTimeAgo(log.timestamp)}
+                          <p className="text-[10px] text-gray-500 mt-1 flex flex-wrap items-center gap-1.5 font-bold">
+                            <Clock className="w-3 h-3 text-blue-500" />
+                            <span className="text-blue-600">{getTimeAgo(log.timestamp)}</span>
                             <span className="h-1 w-1 rounded-full bg-gray-300"></span>
-                            {log.actor?.firstName} {log.actor?.lastName || log.actor?.username || ''}
+                            <span className="text-gray-400">
+                              {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            <span className="h-1 w-1 rounded-full bg-gray-300"></span>
+                            <span className="bg-gray-100 px-1.5 py-0.5 rounded text-[9px] text-gray-600 uppercase">
+                              {log.actor?.firstName ? `${log.actor.firstName} ${log.actor.lastName || ''}` : log.actor?.username || 'System'}
+                            </span>
                           </p>
+
                         </div>
                       </div>
                     </div>

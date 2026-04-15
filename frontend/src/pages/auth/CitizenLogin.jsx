@@ -65,7 +65,7 @@ const CitizenLogin = ({ isModal = false, onClose, onSwitch }) => {
     setLoading(true);
 
     try {
-      const result = await login(formData.emailOrPhone, formData.password);
+      const result = await login(formData.emailOrPhone, formData.password, ['citizen']);
 
       if (result.success && result.requiresOtp && result.pendingToken) {
         toast.success(result.message || 'Check your email for a sign-in code.');
@@ -78,17 +78,10 @@ const CitizenLogin = ({ isModal = false, onClose, onSwitch }) => {
       }
 
       if (result.success && result.user) {
-        const loggedInUser = result.user;
-        const role = loggedInUser.role;
-
-        if (role !== 'citizen') {
-          toast.error('Access denied. This login is only for citizens.');
-          await logout();
-          setLoading(false);
-          return;
-        }
-
         toast.success('Login successful!');
+        if (isModal && onClose) {
+          onClose();
+        }
         navigate('/citizen/dashboard', { replace: true });
       } else {
         toast.error(result.message || 'Login failed');
@@ -109,15 +102,12 @@ const CitizenLogin = ({ isModal = false, onClose, onSwitch }) => {
     }
     setLoading(true);
     try {
-      const result = await completeCitizenLogin(pendingToken, otpValue.trim());
+      const result = await completeCitizenLogin(pendingToken, otpValue.trim(), ['citizen']);
       if (result.success && result.user) {
-        if (result.user.role !== 'citizen') {
-          toast.error('Access denied.');
-          await logout();
-          setLoading(false);
-          return;
-        }
         toast.success('Login successful!');
+        if (isModal && onClose) {
+          onClose();
+        }
         navigate('/citizen/dashboard', { replace: true });
       } else {
         toast.error(result.message || 'Invalid code');
@@ -300,11 +290,12 @@ const CitizenLogin = ({ isModal = false, onClose, onSwitch }) => {
   }
 
   return (
-    <div className="auth-page-bg min-h-screen flex items-center justify-center px-4 relative">
-      <div className="absolute inset-0 bg-black opacity-45 z-0" />
+    <div className="min-h-screen flex items-center justify-center px-4 relative bg-slate-50 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:20px_20px]">
+      <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px] z-0" />
       {content}
     </div>
   );
+
 };
 
 export default CitizenLogin;

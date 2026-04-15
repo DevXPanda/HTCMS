@@ -236,7 +236,7 @@ export const createEmployee = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({
-        message: 'Validation failed',
+        message: 'Invalid information provided. Please check your input fields.',
         errors: errors.array()
       });
     }
@@ -528,7 +528,7 @@ export const updateEmployee = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({
-        message: 'Validation failed',
+        message: 'Invalid information provided. Please check your input fields.',
         errors: errors.array()
       });
     }

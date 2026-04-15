@@ -157,6 +157,7 @@ import d2dcRoutes from "./routes/d2dc.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
 import paymentApprovalRequestRoutes from "./routes/paymentApprovalRequest.routes.js";
 import globalSearchRoutes from "./routes/globalSearch.routes.js";
+import aiRoutes from "./routes/ai.routes.js";
 
 // API Routes prefix
 app.use("/api/auth", authRoutes);
@@ -214,6 +215,7 @@ app.use("/api/feedback", feedbackRoutes);
 app.use("/api/sfi", sfiRoutes);
 app.use("/api/sbm", sbmRoutes);
 app.use("/api/global-search", globalSearchRoutes);
+app.use("/api/ai", aiRoutes);
 
 // Serve uploaded files statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -234,7 +236,7 @@ app.use((err, req, res, next) => {
   if (err.name === 'SequelizeValidationError') {
     return res.status(400).json({
       success: false,
-      message: 'Validation error',
+      message: 'One or more fields are invalid. Please check your data.',
       errors: err.errors.map(e => e.message)
     });
   }
@@ -259,8 +261,8 @@ app.use((err, req, res, next) => {
   const status = err.status || 500;
   const isServerError = status >= 500;
   const message = isServerError
-    ? 'Something went wrong. Please try again later.'
-    : (err.message || 'Request failed');
+    ? 'An unexpected system error occurred. Please try again later.'
+    : (err.message || 'The request could not be processed');
   res.status(status).json({
     success: false,
     message,

@@ -64,8 +64,9 @@ const RoleBasedRedirect = () => {
     return <Navigate to="/dashboard" replace />;
   }
 
-  // Default fallback - redirect to citizen login
-  return <Navigate to="/citizen/login" replace />;
+  // Default fallback - redirect to citizen login modal on landing page
+  return <Navigate to="/?auth=citizen" replace />;
+
 };
 
 export default RoleBasedRedirect;

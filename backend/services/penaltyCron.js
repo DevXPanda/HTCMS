@@ -198,14 +198,8 @@ const runPenaltyCronJob = async () => {
           [Op.gt]: 0
         }
       },
-      include: [
-        {
-          model: PenaltyRule,
-          as: 'penaltyRule',
-          required: false
-        }
-      ],
       order: [['dueDate', 'ASC']]
+
     });
 
 

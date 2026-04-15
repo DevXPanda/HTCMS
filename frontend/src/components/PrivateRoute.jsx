@@ -44,15 +44,15 @@ const PrivateRoute = ({ children, allowedRoles }) => {
         pathname.startsWith('/demands') || pathname.startsWith('/payments') ||
         pathname.startsWith('/wards') || pathname.startsWith('/users') ||
         pathname.startsWith('/reports')) {
-      return <Navigate to="/admin/login" replace />;
+      return <Navigate to="/?auth=admin" replace />;
     } else if (pathname.startsWith('/collector')) {
-      return <Navigate to="/staff/login" replace />;
+      return <Navigate to="/?auth=staff" replace />;
     } else if (pathname.startsWith('/inspector')) {
-      return <Navigate to="/inspector/login" replace />;
+      return <Navigate to="/?auth=staff" replace />;
     } else if (pathname.startsWith('/clerk') || pathname.startsWith('/officer') || pathname.startsWith('/eo') || pathname.startsWith('/supervisor') || pathname.startsWith('/sfi') || pathname.startsWith('/sbm') || pathname.startsWith('/account-officer')) {
-      return <Navigate to="/staff/login" replace />;
+      return <Navigate to="/?auth=staff" replace />;
     } else {
-      return <Navigate to="/citizen/login" replace />;
+      return <Navigate to="/?auth=citizen" replace />;
     }
   }
 
@@ -63,17 +63,18 @@ const PrivateRoute = ({ children, allowedRoles }) => {
   if (!role) {
     const pathname = location.pathname;
     if (pathname.startsWith('/admin') || pathname.startsWith('/dashboard')) {
-      return <Navigate to="/admin/login" replace />;
+      return <Navigate to="/?auth=admin" replace />;
     } else if (pathname.startsWith('/collector')) {
-      return <Navigate to="/staff/login" replace />;
+      return <Navigate to="/?auth=staff" replace />;
     } else if (pathname.startsWith('/inspector')) {
-      return <Navigate to="/inspector/login" replace />;
+      return <Navigate to="/?auth=staff" replace />;
     } else if (pathname.startsWith('/clerk') || pathname.startsWith('/officer') || pathname.startsWith('/eo') || pathname.startsWith('/supervisor') || pathname.startsWith('/sfi') || pathname.startsWith('/sbm') || pathname.startsWith('/account-officer')) {
-      return <Navigate to="/staff/login" replace />;
+      return <Navigate to="/?auth=staff" replace />;
     } else {
-      return <Navigate to="/citizen/login" replace />;
+      return <Navigate to="/?auth=citizen" replace />;
     }
   }
+
 
   // Check if role is in allowedRoles array
   if (allowedRoles && Array.isArray(allowedRoles)) {
