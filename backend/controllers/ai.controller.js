@@ -1,5 +1,6 @@
 import { aiEngine } from '../services/aiEngine.service.js';
 import { queryExecutor } from '../services/queryExecutor.service.js';
+import { aiAction } from '../services/aiAction.service.js';
 
 /**
  * Controller for HTCMS Production AI Engine
@@ -23,7 +24,24 @@ export const askAI = async (req, res) => {
       ulbName: req.user.ulbName || 'HTCMS ULB'
     });
 
-    console.log("AI GENERATED RESPONSE FOR COMPREHENSIVE DATA:", JSON.stringify(aiResponse, null, 2));
+    // console.log("AI GENERATED RESPONSE:", JSON.stringify(aiResponse, null, 2));
+
+    // 3. Handle Actions if requested by AI
+    if (aiResponse.type === 'ACTION' && aiResponse.action) {
+      const actionResult = await aiAction.execute({
+        action: aiResponse.action,
+        params: aiResponse.params
+      }, req.user);
+
+      // Return action result combined with AI message
+      return res.json({
+        success: true,
+        type: 'RESULT', // UI usually expects RESULT
+        message: aiResponse.message + "\n\n" + actionResult.message,
+        data: actionResult.data || [],
+        actionSuccess: actionResult.success
+      });
+    }
 
     // Ensure valid JSON strictness for frontend
     if (!aiResponse || !aiResponse.type) {
@@ -40,7 +58,12 @@ export const askAI = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('AI Engine Controller Error:', error);
+    const env = process.env.NODE_ENV || 'development';
+    if (env !== 'production') {
+      console.error('AI Controller Error:', error.message);
+    } else {
+      console.error(`[AI API Error]: ${error.response?.status || 500} - ${error.message}`);
+    }
     res.status(500).json({
       success: false,
       message: 'Internal AI Engine Error'

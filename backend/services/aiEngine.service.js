@@ -9,6 +9,32 @@ class AIEngineService {
     this.model = 'llama-3.3-70b-versatile';
   }
 
+  /**
+   * Internal helper to handle API calls with exponential backoff on 429 errors.
+   */
+  async callWithRetry(config, maxRetries = 3) {
+    let delay = 1000;
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            return await axios.post(this.apiUrl, config.data, { headers: config.headers });
+        } catch (error) {
+            const isRateLimit = error.response?.status === 429;
+            const isLastRetry = i === maxRetries - 1;
+
+            if (isRateLimit && !isLastRetry) {
+                const env = process.env.NODE_ENV || 'development';
+                if (env !== 'production') {
+                    console.warn(`[AI Engine] Rate limited (429). Retrying in ${delay}ms... (Attempt ${i + 1}/${maxRetries})`);
+                }
+                await new Promise(res => setTimeout(res, delay));
+                delay *= 2; 
+                continue;
+            }
+            throw error;
+        }
+    }
+  }
+
   async processAI(userInput, role, context = {}) {
     try {
       if (!this.apiKey) {
@@ -29,115 +55,94 @@ Your role:
 DATA HANDLING (Global ULB Super-Context):
 
 You will receive a deep JSON object containing:
-1. 'properties': Physical property registry with owner details and pending tax.
-2. 'payments': Recent revenue transactions (collected payments).
-3. 'assessments': Record of property tax evaluations and their statuses.
-4. 'wards': Geographic breakdown of the ULB boundaries.
-5. 'system_summary': High-level statistics:
-   - total_citizens: Number of registered residents.
-   - total_staff: Total employees/ULB staff.
-   - water_connections: Active water utility count.
-   - shops_count: Registered commercial establishments.
-   - tasks_pending: Efficiency metrics for the field staff.
+1. 'properties', 'payments', 'assessments', 'wards', 'staff', 'utility', 'system_summary'.
 
 You must:
-- Connect these dots: (e.g., "We have 500 citizens but only 300 properties registered").
-- Proactively use the 'system_summary' to answer general "How many..." questions instantly.
-- Cross-reference payments with properties to identify top taxpayers or defaulters.
-- Use 'demand_no' (available in properties, payments, and assessments) to give precise ID details when asked.
+- Connect dots between modules.
+- ALWAYS use 'system_summary.total_collection' and 'system_summary.total_outstanding' for general financial questions.
+- FOR WARD SPECIFIC QUESTIONS: You MUST use 'system_summary.ward_breakdown'. It contains accurate totals matching the dashboard.
+- If the ward is missing from breakdown, use the GET_WARD_SUMMARY action.
 
 -------------------------------------
 
-COMMAND OVERRIDE:
-
-If the user asks for "EVERYTHING" or "FULL STATUS":
-→ Use the 'system_summary' and a summary of 'properties' and 'payments' to give a "Executive Health Report" of the ULB.
+ACTION EXECUTION:
+Available Actions:
+0. 'GET_WARD_SUMMARY': { ward_no }
+1. 'ADD_PROPERTY': { owner_name, property_number, ward_id }
+2. 'ADD_CITIZEN': { name, mobile }
+3. 'ASSIGN_TASK': { collector_id, property_id }
+4. 'COLLECT_PAYMENT': { demand_no, amount }
 
 -------------------------------------
 
 LOGIC RULES:
-
-1. Accuracy is non-negotiable. Use provided numbers or say "Data not available."
-2. Match names case-insensitively.
-3. CURRENCY FORMATTING:
-   - ALWAYS format all currency values in Indian Rupee format with commas (e.g., ₹23,50,005.52).
-   - Use the Indian numbering system: 1,00,000 (Lakh) and 1,00,00,000 (Crore).
-   - ALWAYS show exactly 2 decimal places. NEVER display long floating decimal numbers.
-   - ALWAYS prefix with the ₹ symbol.
-4. LANGUAGE SYNC (CRITICAL):
-   - You MUST mirror the user's language style exactly.
-   - If user asks in HINGLISH: "Ram singh ki property kahan hai", Respond in HINGLISH: "Ram singh ki property Ward Name mein hai."
-   - If user asks in HINDI: "राम सिंह की संपत्ति कहाँ है", Respond in HINDI.
-   - If user asks in ENGLISH: "Where is Ram singh's property", Respond in ENGLISH.
-   - Never mix languages unless the user does.
-
--------------------------------------
-
-PROHIBITED FORMATTING (CRITICAL):
-
-- NEVER use stars (*) or double stars (**) for highlighting or bolding.
-- NEVER use markdown headers (#) inside the message.
-- Return RAW, CLEAN text only.
-- Example: "Pankaj Yadav has property PR0230442" (Correct)
-- Example: "Pankaj Yadav has property **PR0230442**" (WRONG - NEVER DO THIS)
-
--------------------------------------
+1. Accuracy: Use provided numbers ONLY or say "Data not available."
+2. Currency: Format in Indian style (₹1,00,000.00).
+3. Formatting: Return RAW CLEAN TEXT ONLY. NEVER use double stars (**), headers (#), or asterisks.
 
 JSON RESPONSE FORMAT:
 {
-  "type": "RESULT",
-  "message": "Your expert analysis or response here in CLEAN TEXT (No stars).",
-  "data": [ 
-     // LIST ONLY if the user specifically asked for a list or search results.
-  ]
+  "type": "RESULT | ACTION",
+  "message": "User-facing message here in clean text",
+  "action": "ACTION_NAME (if type ACTION)",
+  "params": { ... (if type ACTION) },
+  "data": []
 }
 `;
 
       const history = context.history || [];
-      const historyMessages = history.map(h => ({
+      const historyMessages = history.slice(-5).map(h => ({
         role: h.role === 'user' ? 'user' : 'assistant',
         content: h.content
       }));
 
       const ulbData = context.ulbData || {};
+      const userRole = role || 'user';
+
+      // Advanced Payload Management
+      const contextStr = JSON.stringify(ulbData);
+      const safeContext = contextStr.length > 25000 ? contextStr.substring(0, 25000) + "... [Truncated for stability]" : contextStr;
 
       const messages = [
         { role: 'system', content: SYSTEM_PROMPT },
         ...historyMessages,
         { 
           role: 'user', 
-          content: `
-User Query:
-${userInput}
-
-Global ULB Context:
-${JSON.stringify(ulbData)}
-` 
+          content: `ROLE: ${userRole} | ULB: ${context.ulbName || 'HTCMS'}\nQUERY: ${userInput}\nCONTEXT: ${safeContext}`
         }
       ];
 
-
-      const response = await axios.post(
-        this.apiUrl,
-        {
+      const response = await this.callWithRetry({
+        data: {
           model: this.model,
           messages,
           temperature: 0,
           response_format: { type: 'json_object' }
         },
-        {
-          headers: {
-            'Authorization': `Bearer ${this.apiKey}`,
-            'Content-Type': 'application/json'
-          }
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json'
         }
-      );
+      });
 
       const content = response.data.choices[0].message.content;
-      console.log('[AI Engine Output]:', content);
+      
+      const env = process.env.NODE_ENV || 'development';
+      if (env !== 'production') {
+          console.log('[AI Engine]: Response successfully parsed.');
+      }
+
       return JSON.parse(content);
     } catch (error) {
-      console.error('AI Engine Error:', error);
+      const isProd = process.env.NODE_ENV === 'production';
+      if (isProd) {
+          console.error(`[AI Engine Error]: ${error.response?.status || 500} - ${error.message}`);
+      } else {
+          console.error(`[AI Engine Dev Error]: ${error.response?.status || 'N/A'} - ${error.message}`);
+          if (error.response?.data?.error?.message) {
+              console.error('Reason:', error.response.data.error.message);
+          }
+      }
       throw error;
     }
   }

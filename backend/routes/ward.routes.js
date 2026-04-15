@@ -10,13 +10,17 @@ import {
     deleteWard,
     getWardStatistics,
     getWardsByCollector,
-    getCollectorDashboard
+    getCollectorDashboard,
+    getWardSummaryByNumber
 } from '../controllers/ward.controller.js';
 
 const router = express.Router();
 
 // All routes require authentication
 router.use(authenticate);
+
+// Get ward summary by ward number (for AI)
+router.get('/summary/:wardNumber', getWardSummaryByNumber);
 
 // Get collector dashboard (authenticated collector only)
 router.get('/collector/dashboard', getCollectorDashboard);

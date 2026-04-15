@@ -583,8 +583,7 @@ export const getWardStatistics = async (req, res, next) => {
         propertyId: { [Op.in]: propertyIds },
         status: 'completed'
       },
-      order: [['paymentDate', 'DESC']],
-      limit: 10
+      order: [['paymentDate', 'DESC']]
     });
 
     const statistics = {
@@ -1021,6 +1020,65 @@ export const getCollectorDashboard = async (req, res, next) => {
     res.json({
       success: true,
       data: { dashboard }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+/**
+ * @route   GET /api/wards/summary/:wardNumber
+ * @desc    Get ward summary by ward number (for AI assistant)
+ * @access  Private
+ */
+export const getWardSummaryByNumber = async (req, res, next) => {
+  try {
+    const { wardNumber: rawNumber } = req.params;
+    const normalizedNumber = normalizeWardNumber(rawNumber);
+    const { effectiveUlbId } = getEffectiveUlbForRequest(req);
+
+    const ward = await Ward.findOne({
+      where: { 
+        wardNumber: normalizedNumber,
+        ...(effectiveUlbId && { ulb_id: effectiveUlbId })
+      }
+    });
+
+    if (!ward) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ward not found'
+      });
+    }
+
+    // Reuse statistics logic
+    const properties = await Property.findAll({
+      where: { wardId: ward.id },
+      attributes: ['id']
+    });
+    const propertyIds = properties.map(p => p.id);
+
+    const demands = await Demand.findAll({
+      where: { propertyId: { [Op.in]: propertyIds } }
+    });
+
+    const totalPaid = await Payment.sum('amount', {
+      where: {
+        propertyId: { [Op.in]: propertyIds },
+        status: 'completed'
+      }
+    }) || 0;
+
+    const summary = {
+      ward: normalizedNumber,
+      total_properties: properties.length,
+      total_collection: parseFloat(totalPaid),
+      outstanding_amount: demands.reduce((sum, d) => sum + parseFloat(d.balanceAmount || 0), 0),
+      pending_demands: demands.filter(d => d.status === 'pending').length
+    };
+
+    res.json({
+      success: true,
+      data: summary
     });
   } catch (error) {
     next(error);
