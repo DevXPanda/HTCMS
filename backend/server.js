@@ -13,7 +13,7 @@ import { ensureRoleEnums } from "./db/ensureRoleEnums.js";
 import { ensureUserOtpColumns } from "./db/ensureUserOtpColumns.js";
 import { attachNotificationSocket } from "./socket/notificationSocket.js";
 import { setNotificationIO } from "./services/notificationService.js";
-import { verifyTransporter, smtpDiagnostics } from "./utils/mailer.js";
+import { verifyEmailService, emailDiagnostics } from "./utils/mailer.js";
 
 // Load env
 dotenv.config();
@@ -99,9 +99,9 @@ app.get("/api/db-test", async (req, res) => {
   res.json(result);
 });
 
-// SMTP diagnostic — check if email will work (visit /api/smtp-check in browser)
-app.get("/api/smtp-check", async (req, res) => {
-  const result = await smtpDiagnostics();
+// Email diagnostic — check if Resend is working (visit /api/email-check in browser)
+app.get("/api/email-check", async (req, res) => {
+  const result = await emailDiagnostics();
   res.json(result);
 });
 
@@ -323,8 +323,8 @@ const startServer = async () => {
     console.error("Sequelize error:", err.message);
   }
 
-  // Verify SMTP transporter (non-blocking — server starts even if SMTP fails)
-  verifyTransporter().catch(() => {});
+  // Verify email service (non-blocking — server starts even if email fails)
+  verifyEmailService().catch(() => {});
 
   server.listen(PORT, "0.0.0.0", () => {
     console.log(`Backend running on port ${PORT} (HTTP + WebSocket)`);
