@@ -13,6 +13,7 @@ import { ensureRoleEnums } from "./db/ensureRoleEnums.js";
 import { ensureUserOtpColumns } from "./db/ensureUserOtpColumns.js";
 import { attachNotificationSocket } from "./socket/notificationSocket.js";
 import { setNotificationIO } from "./services/notificationService.js";
+import { verifyTransporter } from "./utils/mailer.js";
 
 // Load env
 dotenv.config();
@@ -315,6 +316,9 @@ const startServer = async () => {
   } catch (err) {
     console.error("Sequelize error:", err.message);
   }
+
+  // Verify SMTP transporter (non-blocking — server starts even if SMTP fails)
+  verifyTransporter().catch(() => {});
 
   server.listen(PORT, "0.0.0.0", () => {
     console.log(`Backend running on port ${PORT} (HTTP + WebSocket)`);

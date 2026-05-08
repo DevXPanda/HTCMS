@@ -183,7 +183,15 @@ export const register = async (req, res, next) => {
       existingUser.emailVerified = false;
       await existingUser.save();
 
-      await sendRegistrationOtpToUser(existingUser, otpPlain);
+      try {
+        await sendRegistrationOtpToUser(existingUser, otpPlain);
+      } catch (emailErr) {
+        console.error('[AUTH] Failed to send registration OTP email:', emailErr.message, `(code=${emailErr.code || 'N/A'})`);
+        return res.status(503).json({
+          success: false,
+          message: 'Unable to send verification email right now. Please try again in a moment.'
+        });
+      }
 
       return res.status(201).json({
         success: true,
@@ -221,7 +229,15 @@ export const register = async (req, res, next) => {
       registrationOtpExpiresAt
     });
 
-    await sendRegistrationOtpToUser(user, otpPlain);
+    try {
+      await sendRegistrationOtpToUser(user, otpPlain);
+    } catch (emailErr) {
+      console.error('[AUTH] Failed to send registration OTP email:', emailErr.message, `(code=${emailErr.code || 'N/A'})`);
+      return res.status(503).json({
+        success: false,
+        message: 'Unable to send verification email right now. Please try again in a moment.'
+      });
+    }
 
     return res.status(201).json({
       success: true,
@@ -324,7 +340,15 @@ export const resendRegistrationOtp = async (req, res, next) => {
     const registrationOtpExpiresAt = new Date(Date.now() + REGISTRATION_OTP_MINUTES * 60 * 1000);
     await user.update({ registrationOtpHash, registrationOtpExpiresAt });
 
-    await sendRegistrationOtpToUser(user, otpPlain);
+    try {
+      await sendRegistrationOtpToUser(user, otpPlain);
+    } catch (emailErr) {
+      console.error('[AUTH] Failed to resend registration OTP email:', emailErr.message, `(code=${emailErr.code || 'N/A'})`);
+      return res.status(503).json({
+        success: false,
+        message: 'Unable to send verification email right now. Please try again in a moment.'
+      });
+    }
 
     res.json({
       success: true,
@@ -525,7 +549,15 @@ export const login = async (req, res, next) => {
       const loginOtpExpiresAt = new Date(Date.now() + LOGIN_OTP_MINUTES * 60 * 1000);
       await user.update({ loginOtpHash, loginOtpExpiresAt });
 
-      await sendLoginOtpToUser(user, otpPlain);
+      try {
+        await sendLoginOtpToUser(user, otpPlain);
+      } catch (emailErr) {
+        console.error('[AUTH] Failed to send login OTP email:', emailErr.message, `(code=${emailErr.code || 'N/A'})`);
+        return res.status(503).json({
+          success: false,
+          message: 'Unable to send verification email right now. Please try again in a moment.'
+        });
+      }
 
       const pendingToken = generateCitizenLoginPendingToken(user.id);
       return res.json({
