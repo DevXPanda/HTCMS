@@ -21,8 +21,7 @@ api.interceptors.request.use(
     if (config.data && typeof FormData !== 'undefined' && config.data instanceof FormData) {
       delete config.headers['Content-Type'];
     }
-    // Try staff token first (for staff routes)
-    let token = localStorage.getItem('staffToken') || localStorage.getItem('token');
+    let token = localStorage.getItem('token');
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -51,21 +50,13 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       const url = error.config?.url || '';
-
-      // Only clear token for authentication endpoint failures
-      // This means token itself is invalid/expired
+      
+      // We don't clear tokens here anymore because HTCMS has a dual-auth system (User vs Staff).
+      // Clearing tokens on a single 401 for /auth/me would prevent the subsequent /employee-auth/profile check.
+      // AuthContext handles token invalidation if BOTH checks fail.
       if (url.includes('/auth/me') || url.includes('/employee-auth/profile')) {
-        console.warn('Token invalid, clearing authentication');
-        localStorage.removeItem('token');
-        localStorage.removeItem('staffToken');
-        localStorage.removeItem('role');
-        localStorage.removeItem('user');
-        localStorage.removeItem('userType');
-        // Don't redirect here - let AuthContext handle it through PrivateRoute
+        console.warn('Authentication check failed for:', url);
       }
-      // For other 401 errors (like permission denied on data endpoints),
-      // don't clear token - it's still valid, just insufficient permissions
-      // The component should handle these errors gracefully
     }
     // Replace technical/dev error messages with user-friendly text for all consumers
     const data = error.response?.data;
@@ -100,7 +91,10 @@ export const authAPI = {
   logout: () => api.post('/auth/logout'),
   getMe: () => api.get('/auth/me'),
   changePassword: (currentPassword, newPassword) =>
-    api.post('/auth/change-password', { currentPassword, newPassword })
+    api.post('/auth/change-password', { currentPassword, newPassword }),
+  forgotPassword: (identifier) => api.post('/auth/forgot-password', { identifier }),
+  verifyResetOtp: (identifier, otp) => api.post('/auth/verify-reset-otp', { identifier, otp }),
+  resetPassword: (identifier, otp, newPassword) => api.post('/auth/reset-password', { identifier, otp, newPassword })
 };
 
 // Staff Authentication API (for clerk, inspector, officer, collector)
@@ -112,7 +106,8 @@ export const staffAuthAPI = {
   getProfile: () => api.get('/employee-auth/profile'),
   changePassword: (currentPassword, newPassword) =>
     api.post('/employee-auth/change-password', { currentPassword, newPassword }),
-  updateProfile: (data) => api.put('/employee-auth/profile', data)
+  updateProfile: (data) => api.put('/employee-auth/profile', data),
+  forgotPassword: (identifier) => api.post('/employee-auth/forgot-password', { identifier })
 };
 
 // Notifications API (role-wise; used by NotificationContext)

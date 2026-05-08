@@ -1,12 +1,12 @@
 import { Outlet } from 'react-router-dom';
-import { useStaffAuth } from '../contexts/StaffAuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import { X } from 'lucide-react';
 import { useState } from 'react';
 import Breadcrumbs from './Breadcrumbs';
 import StaffPortalHeaderRow from './StaffPortalHeaderRow';
 
 const ClerkLayout = () => {
-    const { user, logout } = useStaffAuth();
+    const { user, logout } = useAuth();
     const [showProfileModal, setShowProfileModal] = useState(false);
     const handleLogout = async () => {
         await logout();

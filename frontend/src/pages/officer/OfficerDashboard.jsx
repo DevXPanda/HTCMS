@@ -16,11 +16,11 @@ import {
   Shield
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useStaffAuth } from '../../contexts/StaffAuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
 
 const OfficerDashboard = () => {
-  const { user } = useStaffAuth();
+  const { user } = useAuth();
   const [stats, setStats] = useState({
     totalPending: 0,
     escalatedPropertyApps: 0,

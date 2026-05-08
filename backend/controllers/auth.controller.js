@@ -36,6 +36,7 @@ const generateToken = (user) => {
 
 const REGISTRATION_OTP_MINUTES = Number(process.env.REGISTRATION_OTP_MINUTES) || 30;
 const LOGIN_OTP_MINUTES = Number(process.env.CITIZEN_LOGIN_OTP_MINUTES) || 15;
+const RESET_PASSWORD_OTP_MINUTES = Number(process.env.RESET_PASSWORD_OTP_MINUTES) || 15;
 
 const generateCitizenLoginPendingToken = (userId) =>
   jwt.sign(
@@ -65,6 +66,16 @@ async function sendLoginOtpToUser(user, otpPlain) {
     title: 'Urban Local Bodies — sign-in verification code',
     introText: 'You are signing in to the Urban Local Bodies citizen portal. Use this code to finish logging in.',
     minutesValid: LOGIN_OTP_MINUTES
+  });
+  await sendMail({ to: user.email, subject, text, html });
+}
+
+async function sendResetPasswordOtpToUser(user, otpPlain) {
+  const { subject, text, html } = buildCitizenOtpEmail({
+    otpCode: otpPlain,
+    title: 'Urban Local Bodies — reset your password',
+    introText: 'We received a request to reset your password. Use this code to continue. If you did not make this request, please ignore this email.',
+    minutesValid: RESET_PASSWORD_OTP_MINUTES
   });
   await sendMail({ to: user.email, subject, text, html });
 }
@@ -917,6 +928,150 @@ export const changePassword = async (req, res, next) => {
     res.json({
       success: true,
       message: 'Password changed successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   POST /api/auth/forgot-password
+ * @desc    Initiate password reset for citizen
+ * @access  Public
+ */
+export const forgotPassword = async (req, res, next) => {
+  try {
+    const { identifier } = req.body;
+
+    if (!identifier) {
+      return res.status(400).json({ success: false, message: 'Please provide email or username' });
+    }
+
+    const user = await User.findOne({
+      where: {
+        [Op.or]: [{ email: identifier }, { username: identifier }]
+      }
+    });
+
+    if (!user) {
+      // For security, don't reveal if user exists
+      return res.json({ success: true, message: 'If an account exists, a reset code has been sent.' });
+    }
+
+    // Only allow citizen and admin for this flow
+    if (user.role !== 'citizen' && user.role !== 'admin') {
+      return res.status(400).json({ 
+        success: false, 
+        isStaff: true,
+        message: 'Please contact your ULB admin to reset your password.' 
+      });
+    }
+
+    const otpPlain = generateNumericOtp();
+    const otpHash = await hashOtp(otpPlain);
+    const expiresAt = new Date(Date.now() + RESET_PASSWORD_OTP_MINUTES * 60000);
+
+    await user.update({
+      resetPasswordOtpHash: otpHash,
+      resetPasswordOtpExpiresAt: expiresAt
+    });
+
+    await sendResetPasswordOtpToUser(user, otpPlain);
+
+    res.json({
+      success: true,
+      message: 'Verification code sent to your email.',
+      email: maskEmail(user.email)
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   POST /api/auth/verify-reset-otp
+ * @desc    Verify password reset OTP
+ * @access  Public
+ */
+export const verifyResetOtp = async (req, res, next) => {
+  try {
+    const { identifier, otp } = req.body;
+
+    if (!identifier || !otp) {
+      return res.status(400).json({ success: false, message: 'Missing identifier or OTP' });
+    }
+
+    const user = await User.findOne({
+      where: {
+        [Op.or]: [{ email: identifier }, { username: identifier }]
+      }
+    });
+
+    if (!user || !user.resetPasswordOtpHash || !user.resetPasswordOtpExpiresAt) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired code' });
+    }
+
+    if (new Date() > user.resetPasswordOtpExpiresAt) {
+      return res.status(400).json({ success: false, message: 'Code has expired' });
+    }
+
+    const isValid = await compareOtp(otp, user.resetPasswordOtpHash);
+    if (!isValid) {
+      return res.status(400).json({ success: false, message: 'Incorrect verification code' });
+    }
+
+    // Generate a temporary token for the reset phase or just return success
+    // For simplicity, we'll just return success and expect the identifier + otp again in reset-password
+    res.json({
+      success: true,
+      message: 'OTP verified successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   POST /api/auth/reset-password
+ * @desc    Reset password using OTP
+ * @access  Public
+ */
+export const resetPassword = async (req, res, next) => {
+  try {
+    const { identifier, otp, newPassword } = req.body;
+
+    if (!identifier || !otp || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Missing required fields' });
+    }
+
+    const user = await User.findOne({
+      where: {
+        [Op.or]: [{ email: identifier }, { username: identifier }]
+      }
+    });
+
+    if (!user || !user.resetPasswordOtpHash || !user.resetPasswordOtpExpiresAt) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired code' });
+    }
+
+    if (new Date() > user.resetPasswordOtpExpiresAt) {
+      return res.status(400).json({ success: false, message: 'Code has expired' });
+    }
+
+    const isValid = await compareOtp(otp, user.resetPasswordOtpHash);
+    if (!isValid) {
+      return res.status(400).json({ success: false, message: 'Incorrect verification code' });
+    }
+
+    // Update password and clear OTP
+    user.password = newPassword;
+    user.resetPasswordOtpHash = null;
+    user.resetPasswordOtpExpiresAt = null;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Password reset successfully. You can now login with your new password.'
     });
   } catch (error) {
     next(error);

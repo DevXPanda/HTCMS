@@ -2,13 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, Send, X, Sparkles, Loader2, Maximize2, Minimize2, Search, TrendingUp, HelpCircle } from 'lucide-react';
 import aiService from '../../services/aiService';
 import { useAuth } from '../../contexts/AuthContext';
-import { useStaffAuth } from '../../contexts/StaffAuthContext';
 import './AIAssistant.css';
 
 const AIAssistant = () => {
-  const auth = useAuth();
-  const staffAuth = useStaffAuth();
-  const isAuthenticated = auth?.isAuthenticated || staffAuth?.isAuthenticated;
+  const { isAuthenticated } = useAuth();
   
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([

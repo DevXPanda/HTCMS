@@ -1,4 +1,4 @@
-import { AdminManagement, User, Ward, ULB } from '../models/index.js';
+import { AdminManagement, User, Ward, ULB, Notification } from '../models/index.js';
 import { validationResult } from 'express-validator';
 import { getEffectiveUlbForRequest } from '../utils/ulbAccessHelper.js';
 
@@ -15,7 +15,7 @@ const ALL_STAFF_ROLES = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SU
  */
 export const getAllEmployees = async (req, res) => {
   try {
-    const { role, status, search, page = 1, limit = 10 } = req.query;
+    const { role, status, search, pendingReset, page = 1, limit = 10 } = req.query;
     const offset = (page - 1) * limit;
 
     const { isSuperAdmin, effectiveUlbId, isSbmMonitor } = getEffectiveUlbForRequest(req);
@@ -38,6 +38,31 @@ export const getAllEmployees = async (req, res) => {
     const whereClause = {
       role: { [AdminManagement.sequelize.Sequelize.Op.in]: rolesToQuery }
     };
+
+    // Filter by pending password reset requests
+    if (pendingReset === 'true') {
+      const pendingNotifications = await Notification.findAll({
+        where: {
+          link: { [AdminManagement.sequelize.Sequelize.Op.like]: '%reset_id=%' },
+          read: false
+        },
+        attributes: ['link']
+      });
+      
+      const employeeIds = pendingNotifications.map(n => {
+        try {
+          const url = new URL(n.link, 'http://localhost');
+          return url.searchParams.get('reset_id');
+        } catch (e) {
+          // If not a valid URL, try regex
+          const match = n.link.match(/reset_id=([^&]+)/);
+          return match ? match[1] : null;
+        }
+      }).filter(Boolean);
+      
+      whereClause.id = { [AdminManagement.sequelize.Sequelize.Op.in]: employeeIds };
+    }
+
     // SBM has no ULB (global); when filtering by ULB, SBM won't match so they only appear for "All ULBs" (super admin)
     if (effectiveUlbId) {
       whereClause.ulb_id = effectiveUlbId;
@@ -80,6 +105,15 @@ export const getAllEmployees = async (req, res) => {
 
     const formattedEmployees = await Promise.all(employees.rows.map(async (employee) => {
       const empData = employee.get({ plain: true });
+      
+      // Check for pending password reset requests in notifications
+      const pendingRequest = await Notification.findOne({
+        where: {
+          link: { [AdminManagement.sequelize.Sequelize.Op.like]: `%reset_id=${empData.id}%` },
+          read: false
+        }
+      });
+
       let ward_names = empData.ward_ids ? empData.ward_ids.map(wardId => wardMap[wardId] || `Ward ${wardId}`) : [];
       if (ward_names.length === 0 && empData.ward_id && wardMap[empData.ward_id]) {
         ward_names = [wardMap[empData.ward_id]];
@@ -99,6 +133,7 @@ export const getAllEmployees = async (req, res) => {
         ...empData,
         creator,
         ward_names,
+        has_pending_reset: !!pendingRequest,
         password: undefined
       };
     }));
@@ -985,6 +1020,17 @@ export const resetEmployeePassword = async (req, res) => {
       password_changed: false
     });
 
+    // Mark corresponding password reset notifications as read
+    await Notification.update(
+      { read: true },
+      { 
+        where: { 
+          link: { [AdminManagement.sequelize.Sequelize.Op.like]: `%reset_id=${id}%` },
+          read: false
+        } 
+      }
+    );
+
     res.json({
       message: 'Password reset successfully',
       employee_id: employee.employee_id,
@@ -994,6 +1040,56 @@ export const resetEmployeePassword = async (req, res) => {
   } catch (error) {
     console.error('Error resetting password:', error);
     res.status(500).json({ message: 'Error resetting password', error: error.message });
+  }
+};
+
+/**
+ * Bulk reset employee passwords
+ */
+export const bulkResetEmployeePasswords = async (req, res) => {
+  try {
+    const { employeeIds } = req.body;
+    if (!Array.isArray(employeeIds) || employeeIds.length === 0) {
+      return res.status(400).json({ message: 'At least one employee ID is required' });
+    }
+
+    const results = [];
+    for (const id of employeeIds) {
+      const employee = await AdminManagement.findByPk(id);
+      if (employee) {
+        const newPassword = AdminManagement.generatePassword();
+        await employee.update({
+          password: newPassword,
+          password_changed: false
+        });
+
+        // Mark corresponding password reset notifications as read
+        await Notification.update(
+          { read: true },
+          { 
+            where: { 
+              link: { [AdminManagement.sequelize.Sequelize.Op.like]: `%reset_id=${id}%` },
+              read: false
+            } 
+          }
+        );
+
+        results.push({
+          id: employee.id,
+          employee_id: employee.employee_id,
+          full_name: employee.full_name,
+          new_password: newPassword
+        });
+      }
+    }
+
+    res.json({
+      message: `Passwords reset successfully for ${results.length} employees`,
+      results
+    });
+  } catch (error) {
+    console.error('Error in bulk password reset:', error);
+    res.status(500).json({ message: 'Error in bulk password reset', error: error.message });
   }
 };
 
@@ -1182,5 +1278,58 @@ export const bulkUpdateEmployeeStatus = async (req, res) => {
   } catch (error) {
     console.error('Error bulk updating employee status:', error);
     res.status(500).json({ message: 'Error updating employee status', error: error.message });
+  }
+};
+
+/**
+ * Get all pending password reset requests
+ */
+export const getPasswordResetRequests = async (req, res) => {
+  try {
+    const { isSuperAdmin, effectiveUlbId } = getEffectiveUlbForRequest(req);
+    
+    // Find notifications that are password reset requests and unread
+    const notifications = await Notification.findAll({
+      where: {
+        title: 'Password Reset Request',
+        read: false,
+        link: { [AdminManagement.sequelize.Sequelize.Op.like]: '%reset_id=%' }
+      },
+      order: [['created_at', 'DESC']]
+    });
+
+    // Extract employee IDs from links and fetch employee details
+    const resetRequests = await Promise.all(notifications.map(async (notif) => {
+      const match = notif.link.match(/reset_id=(\d+)/);
+      if (!match) return null;
+      
+      const employeeId = match[1];
+      const employee = await AdminManagement.findByPk(employeeId, {
+        attributes: ['id', 'full_name', 'employee_id', 'role', 'phone_number', 'email', 'ulb_id'],
+        include: [{ model: ULB, as: 'ulb', attributes: ['name'] }]
+      });
+
+      if (!employee) return null;
+
+      // Filter by ULB if not super admin
+      if (!isSuperAdmin && employee.ulb_id !== effectiveUlbId) return null;
+
+      return {
+        notification_id: notif.id,
+        employee: {
+          ...employee.get({ plain: true }),
+          ulb_name: employee.ulb?.name
+        },
+        requested_at: notif.createdAt
+      };
+    }));
+
+    res.json({
+      success: true,
+      requests: resetRequests.filter(r => r !== null)
+    });
+  } catch (error) {
+    console.error('Error fetching password reset requests:', error);
+    res.status(500).json({ message: 'Error fetching reset requests', error: error.message });
   }
 };

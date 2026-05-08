@@ -1,18 +1,9 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { useStaffAuth } from '../contexts/StaffAuthContext';
+import { getRoleDashboardPath } from '../utils/roleUtils';
 
 const RoleBasedRedirect = () => {
-  const { user: adminUser, loading: adminLoading } = useAuth();
-  let staffAuth;
-  
-  try {
-    staffAuth = useStaffAuth();
-  } catch (error) {
-    staffAuth = null;
-  }
-
-  const loading = adminLoading || (staffAuth?.loading ?? false);
+  const { user, loading, isAuthenticated } = useAuth();
 
   if (loading) {
     return (
@@ -25,48 +16,12 @@ const RoleBasedRedirect = () => {
     );
   }
 
-  // Get role from localStorage or user object - prioritize staff auth for staff roles
-  const role = staffAuth?.user?.role || localStorage.getItem('role') || adminUser?.role;
-
-  // Helper functions to check role groups. Deprecated roles (kept for future use): Clerk, Inspector, Officer, Contractor - redirects kept for existing users.
-  const isAdminRole = (role) => role === 'admin' || role === 'assessor' || role === 'cashier';
-  const isCollectorRole = (role) => role === 'collector' || role === 'tax_collector';
-  const isCitizenRole = (role) => role === 'citizen';
-  const isClerkRole = (role) => role === 'clerk';
-  const isInspectorRole = (role) => role === 'inspector';
-  const isOfficerRole = (role) => role === 'officer';
-
-  // Normalize role to uppercase for comparison
-  const normalizedRole = role ? role.toUpperCase().replace(/-/g, '_') : role;
-
-  // Redirect based on role - exact role matching
-  if (normalizedRole === 'CITIZEN') {
-    return <Navigate to="/citizen/dashboard" replace />;
-  } else if (normalizedRole === 'CLERK') {
-    return <Navigate to="/clerk/dashboard" replace />;
-  } else if (normalizedRole === 'COLLECTOR' || normalizedRole === 'TAX_COLLECTOR') {
-    return <Navigate to="/collector/dashboard" replace />;
-  } else if (normalizedRole === 'INSPECTOR') {
-    return <Navigate to="/inspector/dashboard" replace />;
-  } else if (normalizedRole === 'OFFICER') {
-    return <Navigate to="/officer/dashboard" replace />;
-  } else if (normalizedRole === 'EO') {
-    return <Navigate to="/eo/dashboard" replace />;
-  } else if (normalizedRole === 'SUPERVISOR') {
-    return <Navigate to="/supervisor/dashboard" replace />;
-  } else if (normalizedRole === 'SFI') {
-    return <Navigate to="/sfi/dashboard" replace />;
-  } else if (normalizedRole === 'SBM') {
-    return <Navigate to="/sbm/dashboard" replace />;
-  } else if (normalizedRole === 'ACCOUNT_OFFICER') {
-    return <Navigate to="/account-officer/dashboard" replace />;
-  } else if (normalizedRole === 'ADMIN' || normalizedRole === 'ASSESSOR' || normalizedRole === 'CASHIER') {
-    return <Navigate to="/dashboard" replace />;
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/?auth=login" replace />;
   }
 
-  // Default fallback - redirect to citizen login modal on landing page
-  return <Navigate to="/?auth=citizen" replace />;
-
+  const dashboardPath = getRoleDashboardPath(user.role);
+  return <Navigate to={dashboardPath} replace />;
 };
 
 export default RoleBasedRedirect;

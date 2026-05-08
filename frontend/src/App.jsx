@@ -2,7 +2,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-
 import { Toaster } from 'react-hot-toast';
 import { ConfirmProvider } from './components/ConfirmModal';
 import { AuthProvider } from './contexts/AuthContext';
-import { StaffAuthProvider } from './contexts/StaffAuthContext';
 import { NavigationProvider } from './contexts/NavigationContext';
 import { SelectedUlbProvider } from './contexts/SelectedUlbContext';
 import PrivateRoute from './components/PrivateRoute';
@@ -26,10 +25,6 @@ import PenaltyWaiverManagement from './pages/admin/penaltyWaiver/PenaltyWaiverMa
 import AIAssistant from './components/AIAssistant/AIAssistant';
 
 // Auth Pages
-import AdminLogin from './pages/auth/AdminLogin';
-import StaffLogin from './pages/auth/StaffLogin';
-import CitizenLogin from './pages/auth/CitizenLogin';
-import EmployeeLogin from './pages/auth/EmployeeLogin';
 import EmployeeChangePassword from './pages/auth/EmployeeChangePassword';
 import Register from './pages/auth/Register';
 import FileToiletComplaint from './pages/citizen/FileToiletComplaint';
@@ -267,8 +262,7 @@ function App() {
   return (
     <NavigationProvider>
       <AuthProvider>
-        <StaffAuthProvider>
-          <ConfirmProvider>
+        <ConfirmProvider>
             <NotificationProvider>
 
         <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
@@ -378,11 +372,9 @@ function App() {
             <Route
               path="/collector"
               element={
-                <StaffAuthProvider>
-                  <PrivateRoute allowedRoles={['collector', 'tax_collector']}>
-                    <CollectorLayout />
-                  </PrivateRoute>
-                </StaffAuthProvider>
+                <PrivateRoute allowedRoles={['collector', 'tax_collector']}>
+                  <CollectorLayout />
+                </PrivateRoute>
               }
             >
               <Route index element={<Navigate to="/collector/dashboard" replace />} />
@@ -405,11 +397,9 @@ function App() {
             <Route
               path="/clerk"
               element={
-                <StaffAuthProvider>
-                  <PrivateRoute allowedRoles={['clerk']}>
-                    <ClerkLayout />
-                  </PrivateRoute>
-                </StaffAuthProvider>
+                <PrivateRoute allowedRoles={['clerk']}>
+                  <ClerkLayout />
+                </PrivateRoute>
               }
             >
               <Route index element={<Navigate to="/clerk/dashboard" replace />} />
@@ -459,11 +449,9 @@ function App() {
             <Route
               path="/inspector"
               element={
-                <StaffAuthProvider>
-                  <PrivateRoute allowedRoles={['inspector']}>
-                    <InspectorLayout />
-                  </PrivateRoute>
-                </StaffAuthProvider>
+                <PrivateRoute allowedRoles={['inspector']}>
+                  <InspectorLayout />
+                </PrivateRoute>
               }
             >
               <Route index element={<Navigate to="/inspector/dashboard" replace />} />
@@ -483,11 +471,9 @@ function App() {
             <Route
               path="/eo"
               element={
-                <StaffAuthProvider>
-                  <PrivateRoute allowedRoles={['eo', 'EO']}>
-                    <EoLayout />
-                  </PrivateRoute>
-                </StaffAuthProvider>
+                <PrivateRoute allowedRoles={['eo', 'EO']}>
+                  <EoLayout />
+                </PrivateRoute>
               }
             >
               <Route index element={<Navigate to="/eo/dashboard" replace />} />
@@ -500,11 +486,9 @@ function App() {
             <Route
               path="/supervisor"
               element={
-                <StaffAuthProvider>
-                  <PrivateRoute allowedRoles={['supervisor', 'SUPERVISOR']}>
-                    <SupervisorLayout />
-                  </PrivateRoute>
-                </StaffAuthProvider>
+                <PrivateRoute allowedRoles={['supervisor', 'SUPERVISOR']}>
+                  <SupervisorLayout />
+                </PrivateRoute>
               }
             >
               <Route index element={<Navigate to="/supervisor/dashboard" replace />} />
@@ -520,11 +504,9 @@ function App() {
             <Route
               path="/sfi"
               element={
-                <StaffAuthProvider>
-                  <PrivateRoute allowedRoles={['sfi', 'SFI']}>
-                    <SFILayout />
-                  </PrivateRoute>
-                </StaffAuthProvider>
+                <PrivateRoute allowedRoles={['sfi', 'SFI']}>
+                  <SFILayout />
+                </PrivateRoute>
               }
             >
               <Route index element={<Navigate to="/sfi/dashboard" replace />} />
@@ -578,11 +560,9 @@ function App() {
             <Route
               path="/sbm"
               element={
-                <StaffAuthProvider>
-                  <PrivateRoute allowedRoles={['sbm', 'SBM']}>
-                    <SBMLayout />
-                  </PrivateRoute>
-                </StaffAuthProvider>
+                <PrivateRoute allowedRoles={['sbm', 'SBM']}>
+                  <SBMLayout />
+                </PrivateRoute>
               }
             >
               <Route index element={<Navigate to="/sbm/dashboard" replace />} />
@@ -671,13 +651,11 @@ function App() {
             <Route
               path="/account-officer"
               element={
-                <StaffAuthProvider>
-                  <PrivateRoute allowedRoles={['account_officer', 'ACCOUNT_OFFICER']}>
-                    <SelectedUlbProvider>
-                      <SBMLayout />
-                    </SelectedUlbProvider>
-                  </PrivateRoute>
-                </StaffAuthProvider>
+                <PrivateRoute allowedRoles={['account_officer', 'ACCOUNT_OFFICER']}>
+                  <SelectedUlbProvider>
+                    <SBMLayout />
+                  </SelectedUlbProvider>
+                </PrivateRoute>
               }
             >
               <Route index element={<Navigate to="/account-officer/dashboard" replace />} />
@@ -694,11 +672,9 @@ function App() {
             <Route
               path="/officer"
               element={
-                <StaffAuthProvider>
-                  <PrivateRoute allowedRoles={['officer']}>
-                    <OfficerLayout />
-                  </PrivateRoute>
-                </StaffAuthProvider>
+                <PrivateRoute allowedRoles={['officer']}>
+                  <OfficerLayout />
+                </PrivateRoute>
               }
             >
               <Route index element={<Navigate to="/officer/dashboard" replace />} />
@@ -899,10 +875,9 @@ function App() {
           <AIAssistant />
         </Router>
         </NotificationProvider>
-        </ConfirmProvider>
-        </StaffAuthProvider>
-      </AuthProvider>
-    </NavigationProvider>
+      </ConfirmProvider>
+    </AuthProvider>
+  </NavigationProvider>
   );
 }
 

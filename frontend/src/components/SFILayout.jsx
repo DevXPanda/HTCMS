@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { Outlet } from 'react-router-dom';
 import { X } from 'lucide-react';
-import { useStaffAuth } from '../contexts/StaffAuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import { SelectedUlbContext } from '../contexts/SelectedUlbContext';
 import Breadcrumbs from './Breadcrumbs';
 import StaffPortalHeaderRow from './StaffPortalHeaderRow';
 
 const SFILayout = () => {
-  const { user, logout } = useStaffAuth();
+  const { user, logout } = useAuth();
   const [showProfileModal, setShowProfileModal] = useState(false);
   const selectedUlbValue = useMemo(() => ({
     effectiveUlbId: user?.ulb_id || null,

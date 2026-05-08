@@ -5,7 +5,8 @@ import {
   getEmployeeProfile,
   updateEmployeeProfile,
   refreshEmployeeToken,
-  employeeLogout
+  employeeLogout,
+  employeeForgotPassword
 } from '../controllers/employeeAuth.controller.js';
 import { authenticateEmployee } from '../middleware/enhancedAuth.js';
 import { body } from 'express-validator';
@@ -65,6 +66,7 @@ const updateProfileValidation = [
 
 // Employee authentication routes
 router.post('/login', loginValidation, employeeLogin);
+router.post('/forgot-password', employeeForgotPassword);
 router.post('/refresh-token', authenticateEmployee, refreshEmployeeToken);
 
 // Protected employee routes

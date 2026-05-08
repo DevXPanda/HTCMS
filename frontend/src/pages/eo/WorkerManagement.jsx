@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Users, Plus, X, AlertTriangle, CheckCircle, RefreshCw, Eye, Image as ImageIcon, FileText, Calendar, MapPin, ArrowLeft } from 'lucide-react';
-import { useStaffAuth } from '../../contexts/StaffAuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { workerAPI, wardAPI } from '../../services/api';
 import { formatDateIST } from '../../utils/dateUtils';
 import api from '../../services/api';
@@ -29,7 +29,7 @@ const MODULE_TO_WORKER_TYPE = {
 };
 
 const WorkerManagement = () => {
-  const { user } = useStaffAuth();
+  const { user } = useAuth();
   const location = useLocation();
   const isSfiPortal = location.pathname.startsWith('/sfi');
   const isSupervisor = (user?.role || '').toUpperCase().replace(/-/g, '_') === 'SUPERVISOR';

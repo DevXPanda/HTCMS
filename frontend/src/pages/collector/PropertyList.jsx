@@ -4,7 +4,7 @@ import { propertyAPI, wardAPI } from '../../services/api';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
 import { Eye, Search, Filter, X, MapPin } from 'lucide-react';
-import { useStaffAuth } from '../../contexts/StaffAuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 const formatWardNumber = (val) => {
   if (val == null || val === '') return '';
@@ -14,7 +14,7 @@ const formatWardNumber = (val) => {
 };
 
 const PropertyList = () => {
-  const { user } = useStaffAuth();
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const wardIdParam = searchParams.get('wardId');
   

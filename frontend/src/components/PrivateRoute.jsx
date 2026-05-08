@@ -1,29 +1,10 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { useStaffAuth } from '../contexts/StaffAuthContext';
+import { normalizeRole } from '../utils/roleUtils';
 
 const PrivateRoute = ({ children, allowedRoles }) => {
   const location = useLocation();
-  const { isAuthenticated: isUserAuthenticated, loading: userLoading } = useAuth();
-  let staffAuth;
-
-  try {
-    staffAuth = useStaffAuth();
-  } catch (error) {
-    staffAuth = null;
-  }
-
-  const isStaffRoute = location.pathname.startsWith('/collector') ||
-    location.pathname.startsWith('/clerk') ||
-    location.pathname.startsWith('/inspector') ||
-    location.pathname.startsWith('/officer') ||
-    location.pathname.startsWith('/eo') ||
-    location.pathname.startsWith('/supervisor') ||
-    location.pathname.startsWith('/sfi') ||
-    location.pathname.startsWith('/sbm') ||
-    location.pathname.startsWith('/account-officer');
-  const isAuthenticated = isStaffRoute && staffAuth ? staffAuth.isAuthenticated : isUserAuthenticated;
-  const loading = isStaffRoute && staffAuth ? staffAuth.loading : userLoading;
+  const { isAuthenticated, loading, user } = useAuth();
 
   if (loading) {
     return (
@@ -37,61 +18,46 @@ const PrivateRoute = ({ children, allowedRoles }) => {
   }
 
   if (!isAuthenticated) {
-    // Redirect to appropriate login page based on route
+    // Determine which auth type to suggest in the landing page URL
     const pathname = location.pathname;
-    if (pathname.startsWith('/admin') || pathname.startsWith('/dashboard') || 
-        pathname.startsWith('/properties') || pathname.startsWith('/assessments') ||
-        pathname.startsWith('/demands') || pathname.startsWith('/payments') ||
-        pathname.startsWith('/wards') || pathname.startsWith('/users') ||
-        pathname.startsWith('/reports')) {
-      return <Navigate to="/?auth=admin" replace />;
-    } else if (pathname.startsWith('/collector')) {
-      return <Navigate to="/?auth=staff" replace />;
-    } else if (pathname.startsWith('/inspector')) {
-      return <Navigate to="/?auth=staff" replace />;
-    } else if (pathname.startsWith('/clerk') || pathname.startsWith('/officer') || pathname.startsWith('/eo') || pathname.startsWith('/supervisor') || pathname.startsWith('/sfi') || pathname.startsWith('/sbm') || pathname.startsWith('/account-officer')) {
-      return <Navigate to="/?auth=staff" replace />;
-    } else {
-      return <Navigate to="/?auth=citizen" replace />;
-    }
-  }
-
-  // Get role from localStorage only - exact value from API
-  const role = staffAuth?.user?.role || localStorage.getItem('role');
-  
-  // If no role found, redirect to login
-  if (!role) {
-    const pathname = location.pathname;
+    let authType = 'login';
+    
     if (pathname.startsWith('/admin') || pathname.startsWith('/dashboard')) {
-      return <Navigate to="/?auth=admin" replace />;
-    } else if (pathname.startsWith('/collector')) {
-      return <Navigate to="/?auth=staff" replace />;
-    } else if (pathname.startsWith('/inspector')) {
-      return <Navigate to="/?auth=staff" replace />;
-    } else if (pathname.startsWith('/clerk') || pathname.startsWith('/officer') || pathname.startsWith('/eo') || pathname.startsWith('/supervisor') || pathname.startsWith('/sfi') || pathname.startsWith('/sbm') || pathname.startsWith('/account-officer')) {
-      return <Navigate to="/?auth=staff" replace />;
-    } else {
-      return <Navigate to="/?auth=citizen" replace />;
+      authType = 'admin';
+    } else if (pathname.startsWith('/citizen')) {
+      authType = 'citizen';
+    } else if (
+      pathname.startsWith('/collector') || 
+      pathname.startsWith('/inspector') || 
+      pathname.startsWith('/clerk') ||
+      pathname.startsWith('/officer') ||
+      pathname.startsWith('/eo') ||
+      pathname.startsWith('/supervisor') ||
+      pathname.startsWith('/sfi') ||
+      pathname.startsWith('/sbm') ||
+      pathname.startsWith('/account-officer')
+    ) {
+      authType = 'staff';
     }
+
+    return <Navigate to={`/?auth=${authType}`} state={{ from: location }} replace />;
   }
 
+  // Get role from user object
+  const role = user?.role;
+  
+  // If no role found, something is wrong with the session
+  if (!role) {
+    return <Navigate to="/?auth=login" replace />;
+  }
 
   // Check if role is in allowedRoles array
   if (allowedRoles && Array.isArray(allowedRoles)) {
-    // Normalize role to uppercase for comparison
-    const normalizedRole = role ? role.toUpperCase().replace(/-/g, '_') : role;
-    // Normalize allowed roles to uppercase and handle special cases
-    const normalizedAllowedRoles = allowedRoles.map(r => {
-      const normalized = r.toUpperCase().replace(/-/g, '_');
-      // Handle tax_collector -> COLLECTOR mapping
-      return normalized === 'TAX_COLLECTOR' ? 'COLLECTOR' : normalized;
-    });
+    const normalizedUserRole = normalizeRole(role);
+    const normalizedAllowedRoles = allowedRoles.map(r => normalizeRole(r));
     
-    // Handle special case: tax_collector -> COLLECTOR
-    const finalRole = normalizedRole === 'TAX_COLLECTOR' ? 'COLLECTOR' : normalizedRole;
-    
-    if (!normalizedAllowedRoles.includes(finalRole)) {
-      // User doesn't have required role - redirect to unauthorized or their dashboard
+    // Special handling for legacy role mappings if needed (none identified yet that roleUtils doesn't handle)
+    if (!normalizedAllowedRoles.includes(normalizedUserRole)) {
       return <Navigate to="/unauthorized" replace />;
     }
   }

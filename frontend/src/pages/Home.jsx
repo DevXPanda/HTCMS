@@ -5,21 +5,22 @@ import {
   Users, CheckCircle2, ArrowRight, FileText,
   UserCheck, Briefcase, User, X
 } from 'lucide-react';
-import CitizenLogin from './auth/CitizenLogin';
-import AdminLogin from './auth/AdminLogin';
-import StaffLogin from './auth/StaffLogin';
-import Register from './auth/Register';
-import { StaffAuthProvider } from '../contexts/StaffAuthContext';
+import UnifiedLogin from './auth/UnifiedLogin';
+import UnifiedRegister from './auth/UnifiedRegister';
 
 const Home = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showLogin, setShowLogin] = React.useState(false);
-  const [loginType, setLoginType] = React.useState('citizen'); // 'citizen', 'admin', 'staff', 'register'
+  const [loginType, setLoginType] = React.useState('login'); // 'login', 'register'
 
   React.useEffect(() => {
     const authType = searchParams.get('auth');
     if (authType) {
-      setLoginType(authType);
+      if (authType === 'register') {
+        setLoginType('register');
+      } else {
+        setLoginType('login');
+      }
       setShowLogin(true);
       // Clean up the URL after opening
       setSearchParams({}, { replace: true });
@@ -29,23 +30,30 @@ const Home = () => {
   const renderLoginModal = () => {
     if (!showLogin) return null;
 
-    const props = {
-      isModal: true,
-      onClose: () => setShowLogin(false),
-      onSwitch: (type) => setLoginType(type)
-    };
-
-    switch (loginType) {
-      case 'admin':
-        return <AdminLogin {...props} />;
-      case 'staff':
-        return <StaffLogin {...props} />;
-
-      case 'register':
-        return <Register {...props} />;
-      default:
-        return <CitizenLogin {...props} />;
-    }
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div 
+          className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" 
+          onClick={() => setShowLogin(false)}
+        />
+        <div className="relative w-full max-w-md transform transition-all">
+          
+          {loginType === 'register' ? (
+            <UnifiedRegister 
+              onToggleLogin={() => setLoginType('login')} 
+              onSuccess={() => setShowLogin(false)} 
+              onClose={() => setShowLogin(false)}
+            />
+          ) : (
+            <UnifiedLogin 
+              onToggleRegister={() => setLoginType('register')} 
+              onSuccess={() => setShowLogin(false)} 
+              onClose={() => setShowLogin(false)}
+            />
+          )}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -60,7 +68,7 @@ const Home = () => {
           </div>
           <div className="flex items-center gap-4">
             <button
-              onClick={() => { setLoginType('citizen'); setShowLogin(true); }}
+              onClick={() => { setLoginType('login'); setShowLogin(true); }}
               className="text-sm font-semibold text-gray-600 hover:text-blue-600 transition-colors"
             >
               Login
@@ -100,7 +108,7 @@ const Home = () => {
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <button
-              onClick={() => { setLoginType('citizen'); setShowLogin(true); }}
+              onClick={() => { setLoginType('login'); setShowLogin(true); }}
               className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all shadow-lg hover:shadow-blue-500/30 flex items-center justify-center gap-2 border border-blue-500"
             >
               Go to Login <ArrowRight className="w-5 h-5" />
@@ -220,7 +228,7 @@ const Home = () => {
             Join the digital transformation of civic governance today. Login to your dashboard to get started.
           </p>
           <button
-            onClick={() => { setLoginType('citizen'); setShowLogin(true); }}
+            onClick={() => { setLoginType('login'); setShowLogin(true); }}
             className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-10 py-4 rounded-xl font-bold text-lg transition-all shadow-lg shadow-blue-600/20 hover:shadow-blue-600/40 hover:-translate-y-0.5"
           >
             Go to Login <ArrowRight className="w-5 h-5" />
@@ -244,7 +252,7 @@ const Home = () => {
             &copy; {new Date().getFullYear()} Urban Local Bodies. All rights reserved.
           </p>
           <div className="flex gap-6 text-sm font-medium">
-            <button onClick={() => { setLoginType('citizen'); setShowLogin(true); }} className="hover:text-white transition-colors">Login</button>
+            <button onClick={() => { setLoginType('login'); setShowLogin(true); }} className="hover:text-white transition-colors">Login</button>
             <button onClick={() => { setLoginType('register'); setShowLogin(true); }} className="hover:text-white transition-colors">Register</button>
           </div>
         </div>

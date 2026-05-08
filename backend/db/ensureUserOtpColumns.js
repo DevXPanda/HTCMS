@@ -15,7 +15,9 @@ export async function ensureUserOtpColumns() {
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS "registrationOtpHash" VARCHAR(255)`,
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS "registrationOtpExpiresAt" TIMESTAMP WITH TIME ZONE`,
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS "loginOtpHash" VARCHAR(255)`,
-    `ALTER TABLE users ADD COLUMN IF NOT EXISTS "loginOtpExpiresAt" TIMESTAMP WITH TIME ZONE`
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS "loginOtpExpiresAt" TIMESTAMP WITH TIME ZONE`,
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS "resetPasswordOtpHash" VARCHAR(255)`,
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS "resetPasswordOtpExpiresAt" TIMESTAMP WITH TIME ZONE`
   ];
 
   for (const sql of statements) {

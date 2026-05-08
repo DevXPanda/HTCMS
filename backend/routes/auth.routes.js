@@ -8,7 +8,10 @@ import {
     changePassword,
     verifyRegistration,
     resendRegistrationOtp,
-    verifyCitizenLogin
+    verifyCitizenLogin,
+    forgotPassword,
+    verifyResetOtp,
+    resetPassword
 } from '../controllers/auth.controller.js';
 
 const router = express.Router();
@@ -19,6 +22,9 @@ router.post('/verify-registration', verifyRegistration);
 router.post('/resend-registration-otp', resendRegistrationOtp);
 router.post('/login', login);
 router.post('/verify-citizen-login', verifyCitizenLogin);
+router.post('/forgot-password', forgotPassword);
+router.post('/verify-reset-otp', verifyResetOtp);
+router.post('/reset-password', resetPassword);
 
 // Protected routes
 router.post('/logout', authenticate, logout);

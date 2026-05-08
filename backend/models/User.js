@@ -67,6 +67,14 @@ export const User = sequelize.define('User', {
     type: DataTypes.DATE,
     allowNull: true
   },
+  resetPasswordOtpHash: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
+  resetPasswordOtpExpiresAt: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
   lastLogin: {
     type: DataTypes.DATE,
     allowNull: true

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Bath, Recycle, Heart, Users, BarChart3, AlertCircle, AlertTriangle, RefreshCw, UserCheck, X, Clock, Shield, TrendingUp, Bell } from 'lucide-react';
-import { useStaffAuth } from '../../contexts/StaffAuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
 
 const MODULE_CONFIG = [
@@ -19,7 +19,7 @@ const REPORT_LINKS = [
 ];
 
 const SFIDashboard = () => {
-  const { user } = useStaffAuth();
+  const { user } = useAuth();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

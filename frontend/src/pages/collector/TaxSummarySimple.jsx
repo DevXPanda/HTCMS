@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useStaffAuth } from '../../contexts/StaffAuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 import { demandAPI, paymentAPI, uploadAPI } from '../../services/api';
 import { CreditCard, X, Upload, Check } from 'lucide-react';
 
 const TaxSummarySimple = () => {
-  const { user } = useStaffAuth();
+  const { user } = useAuth();
   const [demands, setDemands] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);

@@ -2,11 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Home, FileText, Receipt, Bell, CreditCard, Zap, TrendingUp, AlertCircle } from 'lucide-react';
 import api from '../../services/api';
-import { useStaffAuth } from '../../contexts/StaffAuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { formatCurrencyCr } from '../../utils/numberFormatters';
 
 const SBMPropertyTaxModule = () => {
-  const { user } = useStaffAuth();
+  const { user } = useAuth();
   const canCrud = Boolean(user?.full_crud_enabled);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);

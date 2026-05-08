@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { authAPI } from '../services/api';
+import { authAPI, staffAuthAPI } from '../services/api';
+import { normalizeRole } from '../utils/roleUtils';
 
 const AuthContext = createContext(null);
 
@@ -15,107 +16,132 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(localStorage.getItem('token'));
-
-  // Check if user is authenticated on mount
-  useEffect(() => {
-    const checkAuth = async () => {
-      if (token) {
-        try {
-          const storedRole = localStorage.getItem('role');
-          // Normalize role to uppercase for comparison
-          const normalizedRole = storedRole ? storedRole.toUpperCase().replace(/-/g, '_') : storedRole;
-          // Deprecated roles (kept for future use): Clerk, Inspector, Officer, Contractor. Included so existing users still use StaffAuth.
-          const staffRoles = ['CLERK', 'INSPECTOR', 'OFFICER', 'COLLECTOR', 'EO', 'SUPERVISOR', 'FIELD_WORKER', 'CONTRACTOR', 'SFI', 'SBM', 'ACCOUNT_OFFICER'];
-          if (normalizedRole && staffRoles.includes(normalizedRole)) {
-            // Staff users use StaffAuthContext, skip AuthContext check
-            setLoading(false);
-            return;
-          }
-
-          const response = await authAPI.getMe();
-          // Backend returns: { success: true, data: { user } }
-          const responseData = response.data;
-          const userData = responseData.data?.user || responseData.user || responseData.data;
-
-          if (userData && userData.id) {
-            // Completely overwrite user state - don't merge with cached data
-            setUser(userData);
-          } else {
-            throw new Error('Invalid user data received');
-          }
-        } catch (error) {
-          console.error('Auth check failed:', error);
-          // Clear all cached data on any auth error
-          clearAllAuthData();
-        }
-      } else {
-        // No token, ensure all auth data is cleared
-        clearAllAuthData();
-      }
-      // Always set loading to false after check completes
-      setLoading(false);
-    };
-
-    checkAuth();
-  }, [token]);
+  const [userType, setUserType] = useState(localStorage.getItem('userType')); // 'user' or 'admin_management'
 
   // Helper function to clear all auth data
   const clearAllAuthData = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('staffToken'); // Clean up legacy key
     localStorage.removeItem('role');
     localStorage.removeItem('user');
     localStorage.removeItem('userType');
     setToken(null);
     setUser(null);
+    setUserType(null);
   };
 
-  const login = async (emailOrPhone, password, allowedRoles = null) => {
-    try {
-      const response = await authAPI.login(emailOrPhone, password);
-      const responseData = response.data;
-
-      if (responseData.requiresOtp && responseData.pendingToken) {
-        return {
-          success: true,
-          requiresOtp: true,
-          pendingToken: responseData.pendingToken,
-          emailMasked: responseData.emailMasked,
-          message: responseData.message
-        };
+  // Check if user is authenticated on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      const storedToken = localStorage.getItem('token');
+      const storedUserType = localStorage.getItem('userType');
+      
+      if (!storedToken) {
+        clearAllAuthData();
+        setLoading(false);
+        return;
       }
 
-      const { user, token } = responseData.data || responseData;
+      setToken(storedToken);
+      setUserType(storedUserType);
 
-      if (!user || !token) {
-        throw new Error('Invalid response from server');
-      }
-
-      if (!user.role) {
-        throw new Error('User role not found in response');
-      }
-
-      // Role validation - check before setting state to prevent flashes of dashboard
-      if (allowedRoles && allowedRoles.length > 0) {
-        const normalizedRole = user.role.toUpperCase().replace(/-/g, '_');
-        const normalizedAllowedRoles = allowedRoles.map(r => r.toUpperCase().replace(/-/g, '_'));
+      try {
+        // Try getting profile. We use storedUserType to prioritize the correct API.
+        // But we fall back to the other one if the first one fails, in case of role switches or data migrations.
         
-        if (!normalizedAllowedRoles.includes(normalizedRole)) {
-          throw new Error("Login Error: Incorrect portal for your account type.");
+        const tryUserAuth = async () => {
+          const response = await authAPI.getMe();
+          const responseData = response.data;
+          const userData = responseData.data?.user || responseData.user || responseData.data;
+          if (userData && userData.id) return userData;
+          throw new Error('Invalid user data');
+        };
+
+        const tryStaffAuth = async () => {
+          const response = await staffAuthAPI.getProfile();
+          const employee = response.data?.employee || response.data?.data?.employee;
+          if (employee && employee.id) return employee;
+          throw new Error('Invalid staff data');
+        };
+
+        let userData = null;
+        let finalType = storedUserType || 'user';
+
+        if (storedUserType === 'admin_management') {
+          try {
+            userData = await tryStaffAuth();
+            finalType = 'admin_management';
+          } catch (e) {
+            userData = await tryUserAuth();
+            finalType = 'user';
+          }
+        } else {
+          try {
+            userData = await tryUserAuth();
+            finalType = 'user';
+          } catch (e) {
+            userData = await tryStaffAuth();
+            finalType = 'admin_management';
+          }
+        }
+
+        if (userData) {
+          setUser(userData);
+          setUserType(finalType);
+          localStorage.setItem('userType', finalType);
+          localStorage.setItem('role', userData.role);
+          localStorage.setItem('user', JSON.stringify(userData));
+        } else {
+          throw new Error('No valid user found');
+        }
+      } catch (error) {
+        console.error('Check auth error:', error);
+        clearAllAuthData();
+      } finally {
+        setLoading(false);
+      }
+    };
+    checkAuth();
+  }, [token]);
+
+  const login = async (identifier, password) => {
+    try {
+      // 1. Try primary login (Citizens/Admins)
+      try {
+        const response = await authAPI.login(identifier, password);
+        const responseData = response.data;
+
+        // Handle OTP flow for citizens
+        if (responseData.requiresOtp && responseData.pendingToken) {
+          return {
+            success: true,
+            requiresOtp: true,
+            pendingToken: responseData.pendingToken,
+            emailMasked: responseData.emailMasked,
+            message: responseData.message
+          };
+        }
+
+        const { user: userData, token: newToken } = responseData.data || responseData;
+
+        if (userData && newToken) {
+          saveAuthData(userData, newToken, 'user');
+          return { success: true, user: userData };
+        }
+      } catch (authError) {
+        // Fallback to staff auth
+        const staffResponse = await staffAuthAPI.login(identifier, password);
+        const { token: staffToken, employee } = staffResponse.data || {};
+
+        if (employee && staffToken) {
+          saveAuthData(employee, staffToken, 'admin_management');
+          return { success: true, user: employee };
         }
       }
-
-
-      clearAllAuthData();
-
-      localStorage.setItem('token', token);
-      localStorage.setItem('role', user.role);
-      localStorage.setItem('user', JSON.stringify(user));
-      setToken(token);
-      setUser(user);
-
-      return { success: true, user };
+      
+      throw new Error('Invalid credentials');
     } catch (error) {
-      console.error('Login API error:', error);
+      console.error('Unified Login error:', error);
       return {
         success: false,
         message: error.response?.data?.error || error.response?.data?.message || error.message || 'Login failed'
@@ -123,36 +149,27 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const completeCitizenLogin = async (pendingToken, otp, allowedRoles = ['citizen']) => {
+  const saveAuthData = (userData, newToken, type) => {
+    localStorage.setItem('token', newToken);
+    localStorage.setItem('role', userData.role);
+    localStorage.setItem('user', JSON.stringify(userData));
+    localStorage.setItem('userType', type);
+    setToken(newToken);
+    setUser(userData);
+    setUserType(type);
+  };
+
+  const completeCitizenLogin = async (pendingToken, otp) => {
     try {
       const response = await authAPI.verifyCitizenLogin(pendingToken, otp);
       const responseData = response.data;
-      const { user, token } = responseData.data || responseData;
+      const { user: userData, token: newToken } = responseData.data || responseData;
 
-      if (!user || !token) {
-        throw new Error('Invalid response from server');
+      if (userData && newToken) {
+        saveAuthData(userData, newToken, 'user');
+        return { success: true, user: userData };
       }
-
-      // Role validation
-      if (allowedRoles && allowedRoles.length > 0) {
-        const normalizedRole = user.role.toUpperCase().replace(/-/g, '_');
-        const normalizedAllowedRoles = allowedRoles.map(r => r.toUpperCase().replace(/-/g, '_'));
-        
-        if (!normalizedAllowedRoles.includes(normalizedRole)) {
-          throw new Error("Login Error: This account belongs to the Management portal. Please login there.");
-        }
-      }
-
-
-      clearAllAuthData();
-
-      localStorage.setItem('token', token);
-      localStorage.setItem('role', user.role);
-      localStorage.setItem('user', JSON.stringify(user));
-      setToken(token);
-      setUser(user);
-
-      return { success: true, user };
+      throw new Error('Verification failed');
     } catch (error) {
       return {
         success: false,
@@ -161,11 +178,9 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-
   const register = async (userData) => {
     try {
       const response = await authAPI.register(userData);
-
       const responseData = response.data;
 
       if (responseData.requiresVerification) {
@@ -178,25 +193,13 @@ export const AuthProvider = ({ children }) => {
         };
       }
 
-      const { user, token } = responseData.data || responseData;
+      const { user: newUser, token: newToken } = responseData.data || responseData;
 
-      if (!user || !token) {
-        throw new Error('Invalid response from server');
+      if (newUser && newToken) {
+        saveAuthData(newUser, newToken, 'user');
+        return { success: true, user: newUser };
       }
-
-      if (!user.role) {
-        throw new Error('User role not found in response');
-      }
-
-      clearAllAuthData();
-
-      localStorage.setItem('token', token);
-      localStorage.setItem('role', user.role);
-      localStorage.setItem('user', JSON.stringify(user));
-      setToken(token);
-      setUser(user);
-
-      return { success: true, user };
+      throw new Error('Registration failed');
     } catch (error) {
       return {
         success: false,
@@ -232,41 +235,113 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const forgotPassword = async (identifier) => {
+    try {
+      // 1. Try citizen/admin forgot password first
+      try {
+        const response = await authAPI.forgotPassword(identifier);
+        const data = response.data;
+        
+        // If success but no email, it means user not found in User table.
+        // Try Staff table (AdminManagement).
+        if (data.success && !data.email) {
+          try {
+            const staffResponse = await staffAuthAPI.forgotPassword(identifier);
+            return { ...staffResponse.data, isStaff: true };
+          } catch (staffError) {
+            // If staff check fails too, return the original generic success message
+            // or the specific staff error if it's a real error (not 404).
+            return data;
+          }
+        }
+        
+        return data;
+      } catch (authError) {
+        // Handle explicit 400/isStaff error from backend if applicable
+        if (authError.response?.data?.isStaff) {
+          try {
+            const response = await staffAuthAPI.forgotPassword(identifier);
+            return { ...response.data, isStaff: true };
+          } catch (e) {
+            throw authError;
+          }
+        }
+        throw authError;
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.error || error.response?.data?.message || error.message || 'Request failed'
+      };
+    }
+  };
+
+  const verifyResetOtp = async (identifier, otp) => {
+    try {
+      const response = await authAPI.verifyResetOtp(identifier, otp);
+      return response.data;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.error || error.response?.data?.message || error.message || 'Verification failed'
+      };
+    }
+  };
+
+  const resetPassword = async (identifier, otp, newPassword) => {
+    try {
+      const response = await authAPI.resetPassword(identifier, otp, newPassword);
+      return response.data;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.error || error.response?.data?.message || error.message || 'Reset failed'
+      };
+    }
+  };
+
   const logout = async () => {
     try {
-      // Call logout API to capture attendance (punch out for collectors)
-      await authAPI.logout();
+      if (userType === 'admin_management') {
+        await staffAuthAPI.logout();
+      } else {
+        await authAPI.logout();
+      }
     } catch (error) {
-      // Log error but continue with logout even if API call fails
       console.error('Logout API error:', error);
     } finally {
-      // Always clear all auth data completely
       clearAllAuthData();
     }
   };
 
   const updateUser = (userData) => {
-    setUser({ ...user, ...userData });
+    const newUser = { ...user, ...userData };
+    setUser(newUser);
+    localStorage.setItem('user', JSON.stringify(newUser));
   };
 
   const value = {
     user,
     token,
     loading,
+    userType,
     login,
     completeCitizenLogin,
     register,
     verifyCitizenRegistration,
     resendCitizenRegistrationOtp,
+    forgotPassword,
+    verifyResetOtp,
+    resetPassword,
     logout,
     updateUser,
     isAuthenticated: !!user,
-    isAdmin: user?.role === 'admin',
-    isAssessor: user?.role === 'assessor',
-    isCashier: user?.role === 'cashier',
-    isCollector: user?.role === 'collector' || user?.role === 'tax_collector',
-    isTaxCollector: user?.role === 'tax_collector' || user?.role === 'collector', // Backward compatibility
-    isCitizen: user?.role === 'citizen'
+    // Role helpers using normalized roles
+    isAdmin: normalizeRole(user?.role) === 'ADMIN',
+    isAssessor: normalizeRole(user?.role) === 'ASSESSOR',
+    isCashier: normalizeRole(user?.role) === 'CASHIER',
+    isCollector: ['COLLECTOR', 'TAX_COLLECTOR'].includes(normalizeRole(user?.role)),
+    isCitizen: normalizeRole(user?.role) === 'CITIZEN'
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

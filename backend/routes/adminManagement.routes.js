@@ -13,7 +13,9 @@ import {
   getEmployeeStatistics,
   bulkDeleteEmployees,
   bulkUpdateEmployeeStatus,
-  getEmployeesByUlb
+  bulkResetEmployeePasswords,
+  getEmployeesByUlb,
+  getPasswordResetRequests
 } from '../controllers/adminManagement.controller.js';
 import { requireAdmin, authenticate } from '../middleware/enhancedAuth.js';
 import { body, validationResult } from 'express-validator';
@@ -368,6 +370,7 @@ router.use((req, res, next) => {
 
 // Employee management routes
 router.get('/employees', getAllEmployees);
+router.get('/employees/password-requests', getPasswordResetRequests);
 router.get('/employees/by-ulb', requireEoOrAdmin, getEmployeesByUlb); // EO can access this
 router.get('/employees/statistics', requireEoOrAdmin, getEmployeeStatistics);
 router.get('/employees/wards', getAvailableWards);
@@ -384,5 +387,6 @@ router.post('/employees/:id/reset-password', resetEmployeePassword);
 // Bulk operations routes
 router.post('/employees/bulk-delete', bulkDeleteValidation, bulkDeleteEmployees);
 router.post('/employees/bulk-status-update', bulkStatusUpdateValidation, bulkUpdateEmployeeStatus);
+router.post('/employees/bulk-reset-password', bulkResetEmployeePasswords);
 
 export default router;

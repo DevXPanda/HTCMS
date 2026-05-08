@@ -14,7 +14,7 @@ const formatWardNumber = (val) => {
 };
 
 const AssignedWards = () => {
-  const { user } = useStaffAuth();
+  const { user } = useAuth();
   const [wards, setWards] = useState([]);
   const [loading, setLoading] = useState(true);
 

@@ -21,11 +21,11 @@ import {
   DollarSign
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useStaffAuth } from '../../contexts/StaffAuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { fieldWorkerMonitoringAPI, workerTaskAPI, attendanceAPI, toiletComplaintAPI } from '../../services/api';
 
 const SupervisorDashboard = () => {
-  const { user } = useStaffAuth();
+  const { user } = useAuth();
   const [data, setData] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [toiletComplaints, setToiletComplaints] = useState([]);

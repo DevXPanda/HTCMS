@@ -1,5 +1,6 @@
 import { AdminManagement } from '../models/AdminManagement.js';
-import { CollectorAttendance, Ward } from '../models/index.js';
+import { CollectorAttendance, Ward, Notification, User } from '../models/index.js';
+import { Op } from 'sequelize';
 import jwt from 'jsonwebtoken';
 import { validationResult } from 'express-validator';
 import { parseDeviceInfo } from '../utils/deviceParser.js';
@@ -456,6 +457,101 @@ export const refreshEmployeeToken = async (req, res) => {
     console.error('Token refresh error:', error);
     res.status(500).json({
       message: 'Server error refreshing token',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * @route   POST /api/employee-auth/forgot-password
+ * @desc    Initiate password reset for employee (notifies ULB admins)
+ * @access  Public
+ */
+export const employeeForgotPassword = async (req, res) => {
+  try {
+    const { identifier } = req.body;
+
+    if (!identifier) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide Employee ID, Email or Phone'
+      });
+    }
+
+    // Find employee
+    const employee = await AdminManagement.findByIdentifier(identifier);
+
+    if (!employee) {
+      // For security, generic response
+      return res.json({
+        success: true,
+        message: 'If an account exists, a request has been sent to your ULB admin.'
+      });
+    }
+
+    // Find Admins and Super Admins
+    // 1. Staff Admins/EOs in the same ULB
+    const staffAdmins = await AdminManagement.findAll({
+      where: {
+        ulb_id: employee.ulb_id,
+        role: ['ADMIN', 'EO'],
+        status: 'active'
+      },
+      attributes: ['id', 'role']
+    });
+ 
+    // 2. Global Super Admins from User table
+    const superAdmins = await User.findAll({
+      where: {
+        role: 'admin',
+        isActive: true
+      },
+      attributes: ['id', 'role']
+    });
+ 
+    const notifications = [];
+ 
+    // Add notifications for staff admins
+    staffAdmins.forEach(admin => {
+      notifications.push({
+        userId: admin.id,
+        userType: 'admin_management',
+        role: admin.role,
+        title: 'Password Reset Request',
+        message: `Staff member ${employee.full_name} (${employee.employee_id}) has requested a password reset.`,
+        link: `/admin/staff-management?reset_id=${employee.id}`,
+        read: false
+      });
+    });
+ 
+    // Add notifications for super admins
+    superAdmins.forEach(admin => {
+      notifications.push({
+        userId: admin.id,
+        userType: 'user',
+        role: admin.role,
+        title: 'Staff Password Reset Request',
+        message: `Staff member ${employee.full_name} (${employee.employee_id}) from ULB ${employee.assigned_ulb || 'Unknown'} has requested a password reset.`,
+        link: `/admin/staff-management?reset_id=${employee.id}`,
+        read: false
+      });
+    });
+ 
+    if (notifications.length > 0) {
+      await Notification.bulkCreate(notifications);
+    }
+
+    res.json({
+      success: true,
+      isStaff: true,
+      message: 'Password reset request sent to your ULB admin. Please contact them for your new password.'
+    });
+
+  } catch (error) {
+    console.error('Employee forgot password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process request',
       error: error.message
     });
   }

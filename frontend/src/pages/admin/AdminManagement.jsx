@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Plus, Users, Search, Filter, Edit, Trash2, Eye, RefreshCw, Shield, CheckSquare, Square } from 'lucide-react';
+import { Plus, Users, Search, Filter, Edit, Trash2, Eye, RefreshCw, Shield, CheckSquare, Square, AlertCircle, Bell, X } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../components/ConfirmModal';
@@ -79,6 +79,8 @@ const AdminManagement = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [selectedEmployees, setSelectedEmployees] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
+  const [passwordResetRequests, setPasswordResetRequests] = useState([]);
+  const [filterPendingReset, setFilterPendingReset] = useState(false);
 
   // Form state for add/edit
   const [formData, setFormData] = useState({
@@ -114,7 +116,8 @@ const AdminManagement = () => {
     fetchWards();
     fetchULBs();
     fetchStatistics();
-  }, [currentPage, filterRole, filterStatus, searchTerm, effectiveUlbId]);
+    fetchPasswordResetRequests();
+  }, [currentPage, filterRole, filterStatus, searchTerm, effectiveUlbId, filterPendingReset]);
 
   useEffect(() => {
     if (showAddModal || showEditModal) {
@@ -155,6 +158,7 @@ const AdminManagement = () => {
       if (filterStatus) params.append('status', filterStatus);
       if (searchTerm) params.append('search', searchTerm);
       if (effectiveUlbId) params.append('ulb_id', effectiveUlbId);
+      if (filterPendingReset) params.append('pendingReset', 'true');
       // SFI staff-management page: show only supervisors, not all staff (including SFI)
       if (isSfiStaffView) params.set('role', 'SUPERVISOR');
 
@@ -279,6 +283,17 @@ const AdminManagement = () => {
     } catch (error) {
       console.error('Error fetching statistics:', error);
       setStatistics(null);
+    }
+  };
+
+  const fetchPasswordResetRequests = async () => {
+    try {
+      const response = await api.get('/admin-management/employees/password-requests');
+      if (response.data.success) {
+        setPasswordResetRequests(response.data.requests);
+      }
+    } catch (error) {
+      console.error('Error fetching reset requests:', error);
     }
   };
 
@@ -510,6 +525,45 @@ const AdminManagement = () => {
     }
   };
 
+  const handleBulkResetPassword = async () => {
+    if (selectedEmployees.length === 0) return;
+    
+    const ok = await confirm({ 
+      title: 'Bulk Reset Passwords', 
+      message: `Are you sure you want to reset passwords for ${selectedEmployees.length} selected employees?`, 
+      confirmLabel: 'Reset All',
+      variant: 'warning'
+    });
+    
+    if (!ok) return;
+
+    try {
+      const response = await api.post('/admin-management/employees/bulk-reset-password', {
+        employeeIds: selectedEmployees
+      });
+
+      if (response.data.results) {
+        // Prepare a summary of new passwords
+        const summary = response.data.results.map(r => `${r.full_name} (${r.employee_id}): ${r.new_password}`).join('\n');
+        
+        // Use a more persistent way to show these or just toast
+        console.log('New Passwords:', summary);
+        toast.success(`Successfully reset ${response.data.results.length} passwords. Check console for details.`, { duration: 6000 });
+        
+        // Optionally show a modal with the results
+        setGeneratedCredentials(response.data.results);
+      }
+
+      fetchEmployees();
+      fetchPasswordResetRequests();
+      setSelectedEmployees([]);
+      setSelectAll(false);
+    } catch (error) {
+      console.error('Error in bulk password reset:', error);
+      toast.error(error.response?.data?.message || 'Error in bulk password reset');
+    }
+  };
+
   const handleResetPassword = async (employeeId) => {
     const ok = await confirm({ title: 'Reset password', message: 'Are you sure you want to reset this employee\'s password?', confirmLabel: 'Reset' });
     if (!ok) return;
@@ -519,6 +573,7 @@ const AdminManagement = () => {
 
       toast.success(`Password reset successful. New password: ${response.data.new_password}. Save it securely.`);
       fetchEmployees();
+      fetchPasswordResetRequests();
     } catch (error) {
       console.error('Error resetting password:', error);
       toast.error(error.response?.data?.message || 'Error resetting password');
@@ -706,6 +761,37 @@ const AdminManagement = () => {
         </button>
       </div>
 
+      {/* Password Reset Requests Notification Bar */}
+      {passwordResetRequests.length > 0 && (
+        <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-center justify-between animate-pulse-subtle">
+          <div className="flex items-center gap-3">
+            <div className="bg-amber-100 p-2 rounded-full">
+              <Bell className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <p className="font-bold text-amber-900">
+                {passwordResetRequests.length} Pending Password Reset Request{passwordResetRequests.length > 1 ? 's' : ''}
+              </p>
+              <p className="text-sm text-amber-800">
+                Staff members are waiting for password resets. Find them in the list below highlighted with an alert icon.
+              </p>
+            </div>
+          </div>
+          <button 
+            onClick={() => {
+              setFilterPendingReset(true);
+              setSearchTerm('');
+              setFilterRole('');
+              setFilterStatus('');
+              toast.success('Showing only staff with pending reset requests');
+            }}
+            className="text-sm font-bold text-amber-700 hover:text-amber-900 underline"
+          >
+            View All Requests
+          </button>
+        </div>
+      )}
+
       {/* ULB filter for super admin: filter staff by selected ULB */}
       {isSuperAdmin && (
         <div className="card-flat mb-6">
@@ -818,13 +904,25 @@ const AdminManagement = () => {
           </select>
           <button
             type="button"
-            onClick={() => { setSearchTerm(''); setFilterRole(''); setFilterStatus(''); }}
+            onClick={() => { setSearchTerm(''); setFilterRole(''); setFilterStatus(''); setFilterPendingReset(false); }}
             className="btn btn-secondary flex items-center"
           >
             <RefreshCw className="w-4 h-4" />
             Reset
           </button>
         </form>
+        {filterPendingReset && (
+          <div className="mt-3 flex items-center gap-2 px-3 py-1 bg-amber-100 text-amber-800 rounded-lg text-xs font-bold animate-pulse-subtle w-fit">
+            <Bell className="w-3 h-3" />
+            Filtering by Pending Resets
+            <button 
+              onClick={() => setFilterPendingReset(false)}
+              className="ml-2 hover:text-amber-900"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Bulk Actions Bar */}
@@ -845,6 +943,10 @@ const AdminManagement = () => {
             <button type="button" onClick={handleBulkDelete} className="btn btn-danger btn-sm flex items-center">
               <Trash2 className="w-4 h-4" />
               Delete
+            </button>
+            <button type="button" onClick={handleBulkResetPassword} className="btn btn-sm flex items-center px-3 py-2 bg-purple-600 text-white hover:bg-purple-700 rounded text-sm">
+              <RefreshCw className="w-4 h-4" />
+              Reset Passwords
             </button>
             <button type="button" onClick={() => { setSelectedEmployees([]); setSelectAll(false); }} className="btn btn-secondary btn-sm flex items-center">
               Clear Selection
@@ -905,7 +1007,15 @@ const AdminManagement = () => {
                       />
                     </td>
                     <td>
-                      <div className="font-medium text-gray-900">{employee.full_name}</div>
+                      <div className="flex items-center gap-2">
+                        <div className="font-medium text-gray-900">{employee.full_name}</div>
+                        {employee.has_pending_reset && (
+                          <div className="flex items-center gap-1 bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider" title="Password Reset Requested">
+                            <AlertCircle className="w-3 h-3" />
+                            Request
+                          </div>
+                        )}
+                      </div>
                       <div className="text-xs text-gray-500">{employee.employee_id}</div>
                     </td>
                     <td>

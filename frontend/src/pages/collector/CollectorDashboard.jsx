@@ -18,11 +18,11 @@ import {
   Shield,
   CalendarDays
 } from 'lucide-react';
-import { useStaffAuth } from '../../contexts/StaffAuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { formatCurrencyCr } from '../../utils/numberFormatters';
 
 const CollectorDashboard = () => {
-  const { user } = useStaffAuth();
+  const { user } = useAuth();
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
 

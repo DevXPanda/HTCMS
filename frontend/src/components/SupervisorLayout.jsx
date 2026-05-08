@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { X } from 'lucide-react';
-import { useStaffAuth } from '../contexts/StaffAuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import Breadcrumbs from './Breadcrumbs';
 import StaffPortalHeaderRow from './StaffPortalHeaderRow';
 
 const SupervisorLayout = () => {
-  const { user, logout } = useStaffAuth();
+  const { user, logout } = useAuth();
   const [showProfileModal, setShowProfileModal] = useState(false);
   const handleLogout = async () => {
     await logout();

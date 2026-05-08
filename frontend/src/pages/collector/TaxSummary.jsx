@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useStaffAuth } from '../../contexts/StaffAuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { demandAPI, wardAPI, paymentAPI, uploadAPI } from '../../services/api';
 import { toast } from 'react-hot-toast';
 import { 
@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 const TaxSummary = () => {
-  const { user } = useStaffAuth();
+  const { user } = useAuth();
   const [demands, setDemands] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({
