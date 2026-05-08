@@ -13,7 +13,7 @@ import { ensureRoleEnums } from "./db/ensureRoleEnums.js";
 import { ensureUserOtpColumns } from "./db/ensureUserOtpColumns.js";
 import { attachNotificationSocket } from "./socket/notificationSocket.js";
 import { setNotificationIO } from "./services/notificationService.js";
-import { verifyTransporter } from "./utils/mailer.js";
+import { verifyTransporter, smtpDiagnostics } from "./utils/mailer.js";
 
 // Load env
 dotenv.config();
@@ -96,6 +96,12 @@ app.get("/health", (req, res) => {
 // Test DB
 app.get("/api/db-test", async (req, res) => {
   const result = await testPgConnection();
+  res.json(result);
+});
+
+// SMTP diagnostic — check if email will work (visit /api/smtp-check in browser)
+app.get("/api/smtp-check", async (req, res) => {
+  const result = await smtpDiagnostics();
   res.json(result);
 });
 
